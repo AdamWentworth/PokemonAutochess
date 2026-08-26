@@ -363,9 +363,14 @@ ordinary surface. A convex turn instead splits the low junction into three
 quarter carriers owned by the two side tiles and the diagonal tile. Each part
 therefore inherits its donor's exact UV fields and projected-shadow policy;
 one shadowless neighbor can no longer turn the whole junction into a pale
-wedge. Its raised carrier follows the rounded crown footprint itself rather
-than using a circular disk, so it closes the independently tessellated cap
-without protruding beyond the wall. When an edited cap meets a generated copy
+wedge. Each low carrier covers the complete decoded turn with an opaque lawn
+selector so the source leaf mask cannot reopen a clear-color notch. Its raised
+carrier follows the rounded crown footprint itself rather than using a
+circular disk, so it closes the independently tessellated cap without
+protruding beyond the wall. The carrier uses the same five-centimetre lattice
+as the terrain top, while collapsed, zero-area, or reversed-winding cap
+triangles are retired or repaired after contour deformation. When an edited
+cap meets a generated copy
 of an irregular source cap, a one-centimetre source-material ribbon sits
 between the source `0.00 cm` and generated `+0.02 cm` planes. This seals their
 non-coincident triangulations without stretching either tile's atlas field.

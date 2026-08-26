@@ -344,8 +344,15 @@ corner. Inside turns retain a compact 20 cm matching-lawn disk beneath the
 ordinary surface. Outside turns split the low junction into three donor-owned
 quarter carriers, preserving the two side tiles' and diagonal tile's own UV
 and projected-shadow fields instead of spreading one neighbor's lighting over
-the whole corner. The raised safety carrier uses the actual rounded crown
-footprint rather than a second disk, so it cannot float past the wall. A narrow
+the whole corner. Those carriers reach two centimetres beyond the decoded
+32 cm turn and use an opaque lawn selector, so the source ledge mask cannot
+cut the safety geometry back into a clear-color triangle. The raised safety
+carrier uses the actual rounded crown footprint rather than a second disk, so
+it cannot float past the wall. It is clipped from a five-centimetre lattice
+instead of a metre-wide triangle fan; local material interpolation cannot form
+a diagonal line across the cap. Radially collapsed main-cap cells are retired,
+zero-area triangles are omitted, and any post-deformation winding reversal is
+corrected before submission. A narrow
 source-material handoff ribbon also bridges the `0.00 cm` imported plane and
 the `+0.02 cm` rebuilt plane where an edited cap meets an irregular generated
 source cap. At an inside corner, ordinary strips stop before the junction and

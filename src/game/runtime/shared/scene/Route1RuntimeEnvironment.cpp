@@ -8118,6 +8118,15 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     }
 
     const std::uint32_t rowWidth = kGridResolution + 1u;
+    // Radially projecting every square-grid vertex beyond a convex crown
+    // onto the same short arc preserves the silhouette, but it also turns
+    // grid cells wholly outside that arc into overlapping sliver triangles.
+    // Remember which corner clipped each source vertex so those redundant
+    // cells can be retired during index emission. Boundary cells with at
+    // least one interior vertex remain and form the actual contour.
+    std::vector<std::uint32_t> convexCornerClippedVertexMasks(
+        rowWidth * rowWidth,
+        0u);
     prototype.vertices.reserve(rowWidth * rowWidth * 2u);
     prototype.sourceVertices.reserve(rowWidth * rowWidth * 2u);
     prototype.indices.reserve(
@@ -8511,6 +8520,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     distance <= 0.0001f) {
                     continue;
                 }
+                convexCornerClippedVertexMasks[
+                    zIndex * rowWidth + xIndex] |= 1u << corner;
                 delta *= crownCornerRadius / distance;
                 vertex.x = center.x + delta.x;
                 vertex.z = center.y + delta.y;
@@ -9152,6 +9163,38 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
         }
         return nearestDistance;
     };
+    const auto appendTopTriangle = [&](
+            std::uint32_t emittedFirst,
+            std::uint32_t emittedSecond,
+            std::uint32_t emittedThird,
+            std::uint32_t sourceFirst,
+            std::uint32_t sourceSecond,
+            std::uint32_t sourceThird) {
+        const std::uint32_t commonClippedCorner =
+            convexCornerClippedVertexMasks[sourceFirst] &
+            convexCornerClippedVertexMasks[sourceSecond] &
+            convexCornerClippedVertexMasks[sourceThird];
+        if (commonClippedCorner != 0u) {
+            return;
+        }
+        const auto& first = prototype.vertices[emittedFirst];
+        const auto& second = prototype.vertices[emittedSecond];
+        const auto& third = prototype.vertices[emittedThird];
+        const float signedAreaTwice =
+            (second.x - first.x) * (third.z - first.z) -
+            (second.z - first.z) * (third.x - first.x);
+        constexpr float kMinimumTriangleAreaTwiceCm2 = 0.0001f;
+        if (std::abs(signedAreaTwice) <=
+            kMinimumTriangleAreaTwiceCm2) {
+            return;
+        }
+        if (signedAreaTwice < 0.0f) {
+            std::swap(emittedSecond, emittedThird);
+        }
+        prototype.indices.insert(
+            prototype.indices.end(),
+            {emittedFirst, emittedSecond, emittedThird});
+    };
     for (std::uint32_t zIndex = 0u;
          zIndex < kGridResolution;
          ++zIndex) {
@@ -9194,16 +9237,36 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     cleanDirtVertex(upperLeft);
                 const std::uint32_t cleanUpperRight =
                     cleanDirtVertex(upperRight);
-                prototype.indices.insert(
-                    prototype.indices.end(),
-                    {cleanLowerLeft, cleanLowerRight, cleanUpperRight,
-                     cleanLowerLeft, cleanUpperRight, cleanUpperLeft});
+                appendTopTriangle(
+                    cleanLowerLeft,
+                    cleanLowerRight,
+                    cleanUpperRight,
+                    lowerLeft,
+                    lowerRight,
+                    upperRight);
+                appendTopTriangle(
+                    cleanLowerLeft,
+                    cleanUpperRight,
+                    cleanUpperLeft,
+                    lowerLeft,
+                    upperRight,
+                    upperLeft);
                 continue;
             }
-            prototype.indices.insert(
-                prototype.indices.end(),
-                {lowerLeft, lowerRight, upperRight,
-                 lowerLeft, upperRight, upperLeft});
+            appendTopTriangle(
+                lowerLeft,
+                lowerRight,
+                upperRight,
+                lowerLeft,
+                lowerRight,
+                upperRight);
+            appendTopTriangle(
+                lowerLeft,
+                upperRight,
+                upperLeft,
+                lowerLeft,
+                upperRight,
+                upperLeft);
         }
     }
 
@@ -12120,9 +12183,14 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
     if (boundary.size() < 3u) {
         return {};
     }
-    prototype.vertices.reserve(boundary.size() + 1u);
-    prototype.sourceVertices.reserve(boundary.size() + 1u);
-    prototype.indices.reserve(boundary.size() * 3u);
+    const bool tessellateContourCap = key.starts_with(
+        "route1:terrain-convex-lawn-cap-underlay:");
+    prototype.vertices.reserve(
+        tessellateContourCap ? 600u : boundary.size() + 1u);
+    prototype.sourceVertices.reserve(
+        tessellateContourCap ? 600u : boundary.size() + 1u);
+    prototype.indices.reserve(
+        tessellateContourCap ? 2400u : boundary.size() * 3u);
 
     const auto appendVertex = [&](float localX, float localZ) {
         auto vertex = terrainTilePrototypes.groundVertexTemplate;
@@ -12178,7 +12246,7 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
         SourceTerrainSurfaceSample sampledSource;
         bool sourceSampled = false;
         bool sourceTopologyMatches = false;
-        if (materialTile) {
+        if (materialTile && !tessellateContourCap) {
             sourceSampled = sampleSourceTerrainSurface(
                 *materialTile,
                 std::clamp(
@@ -12220,12 +12288,22 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
             vertex.r, vertex.g, vertex.b, vertex.a};
         constexpr std::array<float, 3> kCarrierRaisedLawnTint{
             0.180392161f, 0.482352942f, 0.431372553f};
+        constexpr glm::vec2 kCarrierOpaqueLightLawnUv2{
+            -0.101646f, -1.071291f};
         const bool preserveSourceSurface =
             sourceSampled && materialTile && sourceTopologyMatches &&
             materialTile->surface == materialTile->sourceSurface &&
             !materialTile->cleanSuppressedEncounterGrassTint &&
             !materialTile->rebuildContinuousMaterialFields;
-        if (forceRaisedCrownField ||
+        if (tessellateContourCap && materialTile &&
+            materialTile->surface == "light_lawn") {
+            // The contour carrier deliberately uses this neutral opaque
+            // safety field. Resolve it before the source-wide donor search;
+            // calculating target Color0/UV2 and overwriting both immediately
+            // made every edited corner needlessly expensive to assemble.
+            uv2 = kCarrierOpaqueLightLawnUv2;
+            color = glm::vec4{1.0f};
+        } else if (forceRaisedCrownField ||
             (materialTile && materialTile->surface == "dark_lawn")) {
             uv2 = {-0.049999952f, 0.949999988f};
             color = glm::vec4{
@@ -12268,6 +12346,16 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
                     nullptr);
             }
         }
+        if (!forceRaisedCrownField && !tessellateContourCap &&
+            materialTile &&
+            materialTile->surface == "light_lawn") {
+            // These meshes exist only to fill geometric coverage holes.
+            // Source UV2 near a ledge deliberately enters the alpha-cut leaf
+            // ribbon, which makes a valid carrier cut itself back into the
+            // same black hole. Keep the donor's UV0/UV1 and Color0, but use
+            // the decoded opaque lawn selector for the hidden fill.
+            uv2 = kCarrierOpaqueLightLawnUv2;
+        }
         vertex.sourceUv2U = uv2.x;
         vertex.sourceUv2V = uv2.y;
         vertex.r = color.r;
@@ -12283,24 +12371,215 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
         prototype.sourceVertices.push_back(sourceVertex);
     };
 
-    glm::vec2 center{0.0f};
-    for (const auto& point : boundary) {
-        center += point;
-    }
-    center /= static_cast<float>(boundary.size());
-    appendVertex(center.x, center.y);
-    for (const auto& point : boundary) {
-        appendVertex(point.x, point.y);
-    }
-    for (std::uint32_t sample = 0u;
-         sample < boundary.size();
-         ++sample) {
-        const std::uint32_t next =
-            (sample + 1u) %
-            static_cast<std::uint32_t>(boundary.size());
-        prototype.indices.insert(
-            prototype.indices.end(),
-            {0u, sample + 1u, next + 1u});
+    if (tessellateContourCap) {
+        // A single fan across this metre-wide cap interpolates the source
+        // Color0/UV fields from one distant centroid. Where the main cap
+        // undulates above its safety carrier, those long fan diagonals become
+        // visible as dark lines. Clip a five-centimetre triangle lattice to
+        // the same convex contour instead, matching the density and local
+        // interpolation of the authored terrain top.
+        float signedBoundaryArea = 0.0f;
+        glm::vec2 minimum = boundary.front();
+        glm::vec2 maximum = boundary.front();
+        for (std::size_t index = 0u; index < boundary.size(); ++index) {
+            const glm::vec2& point = boundary[index];
+            const glm::vec2& next =
+                boundary[(index + 1u) % boundary.size()];
+            signedBoundaryArea +=
+                point.x * next.y - next.x * point.y;
+            minimum = glm::min(minimum, point);
+            maximum = glm::max(maximum, point);
+        }
+        const float orientation =
+            signedBoundaryArea >= 0.0f ? 1.0f : -1.0f;
+        constexpr float kLatticeStepCm =
+            kTerrainTileSizeCm /
+            static_cast<float>(kTerrainLedgeContourSegments);
+        const float latticeMinimumX =
+            std::floor(minimum.x / kLatticeStepCm) *
+            kLatticeStepCm;
+        const float latticeMinimumZ =
+            std::floor(minimum.y / kLatticeStepCm) *
+            kLatticeStepCm;
+        const float latticeMaximumX =
+            std::ceil(maximum.x / kLatticeStepCm) *
+            kLatticeStepCm;
+        const float latticeMaximumZ =
+            std::ceil(maximum.y / kLatticeStepCm) *
+            kLatticeStepCm;
+        std::map<
+            std::pair<std::int64_t, std::int64_t>,
+            std::uint32_t> sharedLatticeVertices;
+        const auto sharedLatticeVertex =
+            [&](const glm::vec2& point) {
+                constexpr double kVertexQuantization = 10000.0;
+                const auto key = std::pair{
+                    static_cast<std::int64_t>(std::llround(
+                        static_cast<double>(point.x) *
+                        kVertexQuantization)),
+                    static_cast<std::int64_t>(std::llround(
+                        static_cast<double>(point.y) *
+                        kVertexQuantization))};
+                if (const auto found =
+                        sharedLatticeVertices.find(key);
+                    found != sharedLatticeVertices.end()) {
+                    return found->second;
+                }
+                const auto vertexIndex =
+                    static_cast<std::uint32_t>(
+                        prototype.vertices.size());
+                appendVertex(point.x, point.y);
+                sharedLatticeVertices.emplace(key, vertexIndex);
+                return vertexIndex;
+            };
+        const auto clippedToBoundary =
+            [&](std::vector<glm::vec2> polygon) {
+                constexpr float kInsideToleranceCm = 0.0001f;
+                for (std::size_t edgeIndex = 0u;
+                     edgeIndex < boundary.size() &&
+                     !polygon.empty();
+                     ++edgeIndex) {
+                    const glm::vec2 clipStart =
+                        boundary[edgeIndex];
+                    const glm::vec2 clipEnd =
+                        boundary[(edgeIndex + 1u) %
+                                 boundary.size()];
+                    const glm::vec2 clipEdge =
+                        clipEnd - clipStart;
+                    const auto signedDistance =
+                        [&](const glm::vec2& point) {
+                            const glm::vec2 relative =
+                                point - clipStart;
+                            return orientation *
+                                (clipEdge.x * relative.y -
+                                 clipEdge.y * relative.x);
+                        };
+                    std::vector<glm::vec2> clipped;
+                    clipped.reserve(polygon.size() + 1u);
+                    glm::vec2 previous = polygon.back();
+                    float previousDistance =
+                        signedDistance(previous);
+                    bool previousInside =
+                        previousDistance >=
+                        -kInsideToleranceCm;
+                    for (const glm::vec2& current : polygon) {
+                        const float currentDistance =
+                            signedDistance(current);
+                        const bool currentInside =
+                            currentDistance >=
+                            -kInsideToleranceCm;
+                        if (currentInside != previousInside) {
+                            const float denominator =
+                                previousDistance -
+                                currentDistance;
+                            const float phase =
+                                std::abs(denominator) > 1.0e-8f
+                                ? previousDistance / denominator
+                                : 0.0f;
+                            clipped.push_back(glm::mix(
+                                previous,
+                                current,
+                                std::clamp(phase, 0.0f, 1.0f)));
+                        }
+                        if (currentInside) {
+                            clipped.push_back(current);
+                        }
+                        previous = current;
+                        previousDistance = currentDistance;
+                        previousInside = currentInside;
+                    }
+                    polygon = std::move(clipped);
+                }
+                return polygon;
+            };
+        const auto appendClippedTriangle =
+            [&](glm::vec2 first,
+                glm::vec2 second,
+                glm::vec2 third) {
+                auto polygon = clippedToBoundary(
+                    {first, second, third});
+                if (polygon.size() < 3u) {
+                    return;
+                }
+                for (std::uint32_t index = 1u;
+                     index + 1u < polygon.size();
+                     ++index) {
+                    const glm::vec2& polygonFirst = polygon[0u];
+                    const glm::vec2& polygonSecond = polygon[index];
+                    const glm::vec2& polygonThird =
+                        polygon[index + 1u];
+                    const float signedAreaTwice =
+                        (polygonSecond.x - polygonFirst.x) *
+                            (polygonThird.y - polygonFirst.y) -
+                        (polygonSecond.y - polygonFirst.y) *
+                            (polygonThird.x - polygonFirst.x);
+                    constexpr float kMinimumAreaTwiceCm2 =
+                        0.0001f;
+                    if (std::abs(signedAreaTwice) <=
+                        kMinimumAreaTwiceCm2) {
+                        continue;
+                    }
+                    const std::uint32_t firstVertex =
+                        sharedLatticeVertex(polygonFirst);
+                    const std::uint32_t secondVertex =
+                        sharedLatticeVertex(polygonSecond);
+                    const std::uint32_t thirdVertex =
+                        sharedLatticeVertex(polygonThird);
+                    if (signedAreaTwice > 0.0f) {
+                        prototype.indices.insert(
+                            prototype.indices.end(),
+                            {firstVertex,
+                             secondVertex,
+                             thirdVertex});
+                    } else {
+                        prototype.indices.insert(
+                            prototype.indices.end(),
+                            {firstVertex,
+                             thirdVertex,
+                             secondVertex});
+                    }
+                }
+            };
+        for (float z = latticeMinimumZ;
+             z < latticeMaximumZ - 0.001f;
+             z += kLatticeStepCm) {
+            for (float x = latticeMinimumX;
+                 x < latticeMaximumX - 0.001f;
+                 x += kLatticeStepCm) {
+                const glm::vec2 lowerLeft{x, z};
+                const glm::vec2 lowerRight{
+                    x + kLatticeStepCm, z};
+                const glm::vec2 upperLeft{
+                    x, z + kLatticeStepCm};
+                const glm::vec2 upperRight{
+                    x + kLatticeStepCm,
+                    z + kLatticeStepCm};
+                appendClippedTriangle(
+                    lowerLeft, lowerRight, upperRight);
+                appendClippedTriangle(
+                    lowerLeft, upperRight, upperLeft);
+            }
+        }
+    } else {
+        glm::vec2 center{0.0f};
+        for (const auto& point : boundary) {
+            center += point;
+        }
+        center /= static_cast<float>(boundary.size());
+        appendVertex(center.x, center.y);
+        for (const auto& point : boundary) {
+            appendVertex(point.x, point.y);
+        }
+        for (std::uint32_t sample = 0u;
+             sample < boundary.size();
+             ++sample) {
+            const std::uint32_t next =
+                (sample + 1u) %
+                static_cast<std::uint32_t>(boundary.size());
+            prototype.indices.insert(
+                prototype.indices.end(),
+                {0u, sample + 1u, next + 1u});
+        }
     }
 
     const auto geometry = shared_world_scene::ensureRigidGeometry(
@@ -12384,12 +12663,14 @@ RuntimeEnvironment::Impl::ensureTerrainConvexLawnCornerUnderlayObject(
             std::lround(sourceCornerX))) + ":z-" +
         std::to_string(static_cast<std::int32_t>(
             std::lround(sourceCornerZ))) + ":level-" +
-        std::to_string(donorTile.elevationLevel) +
+        std::to_string(donorTile.elevationLevel) + ":surface-" +
+        donorTile.surface +
         (donorTile.receivesProjectedShadow
             ? ":shadow"
             : ":shadowless");
     constexpr std::uint32_t kSegments = 8u;
-    constexpr float kRadiusCm = 20.0f;
+    constexpr float kRadiusCm =
+        route1_terrain_ledges::kConvexCornerRadiusCm + 2.0f;
     constexpr float kQuarterTurn =
         1.57079632679489661923f;
     const float centerAngle = std::atan2(
@@ -12433,7 +12714,8 @@ RuntimeEnvironment::Impl::ensureTerrainConvexLawnCapUnderlayObject(
         std::to_string(tile.gridX) + "-" +
         std::to_string(tile.gridZ) + ":corner-" +
         std::to_string(corner) + ":level-" +
-        std::to_string(tile.elevationLevel) +
+        std::to_string(tile.elevationLevel) + ":surface-" +
+        tile.surface +
         (tile.receivesProjectedShadow ? ":shadow" : ":shadowless");
     constexpr std::array<glm::vec2, 4> kCornerSigns{
         glm::vec2{1.0f, 1.0f},
@@ -12449,7 +12731,12 @@ RuntimeEnvironment::Impl::ensureTerrainConvexLawnCapUnderlayObject(
         route1_terrain_ledges::kConvexCornerRadiusCm +
         kTerrainLedgeBaseInsetCm +
         kTerrainLedgeCrownSafetyOverlapCm;
-    constexpr float kInteriorExtentCm = 55.0f;
+    // The deformed corner occupies the first half metre of the owner tile.
+    // Carry its safety patch one complete lattice cell past that region, then
+    // hand back to the ordinary watertight grid. Extending this through the
+    // full metre resamples four times as much source material for no visible
+    // coverage benefit.
+    constexpr float kInteriorExtentCm = 60.0f;
     const glm::vec2 outwardSign = kCornerSigns[corner];
     const glm::vec2 inwardSign = -outwardSign;
     const glm::vec2 logicalCornerLocal =
@@ -12512,7 +12799,8 @@ RuntimeEnvironment::Impl::ensureTerrainSourceHandoffUnderlayObject(
         std::to_string(sourceNeighbor.gridX) + "-" +
         std::to_string(sourceNeighbor.gridZ) + ":edge-" +
         std::to_string(edge) + ":level-" +
-        std::to_string(tile.elevationLevel) +
+        std::to_string(tile.elevationLevel) + ":surface-" +
+        sourceNeighbor.surface +
         (sourceNeighbor.receivesProjectedShadow
             ? ":shadow"
             : ":shadowless");

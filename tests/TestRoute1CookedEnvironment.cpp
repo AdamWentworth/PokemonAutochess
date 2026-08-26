@@ -864,16 +864,51 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 ? batch.sharedIndexCount
                 : batch.indices.size();
             bool underlayIsBelowLawn = true;
+            float maximumRadiusCm = 0.0f;
+            bool usesOpaqueCarrierField = true;
+            const bool lightLawnCarrier =
+                batch.geometryCacheKey.find(
+                    ":surface-light_lawn:") != std::string::npos;
+            const bool darkLawnCarrier =
+                batch.geometryCacheKey.find(
+                    ":surface-dark_lawn:") != std::string::npos;
             for (std::size_t vertexIndex = 0u;
                  vertexIndex < vertexCount;
                  ++vertexIndex) {
                 underlayIsBelowLawn = underlayIsBelowLawn &&
                     vertices[vertexIndex].y < 0.0f;
+                maximumRadiusCm = std::max(
+                    maximumRadiusCm,
+                    std::hypot(
+                        vertices[vertexIndex].x,
+                        vertices[vertexIndex].z));
+                if (lightLawnCarrier) {
+                    usesOpaqueCarrierField =
+                        usesOpaqueCarrierField &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2U +
+                                0.101646f) <= 0.001f &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2V +
+                                1.071291f) <= 0.001f;
+                } else if (darkLawnCarrier) {
+                    usesOpaqueCarrierField =
+                        usesOpaqueCarrierField &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2U +
+                                0.049999952f) <= 0.001f &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2V -
+                                0.949999988f) <= 0.001f;
+                }
             }
             if (vertexCount != 11u || indexCount != 30u ||
-                !underlayIsBelowLawn) {
+                !underlayIsBelowLawn ||
+                maximumRadiusCm < 33.9f ||
+                maximumRadiusCm > 34.1f ||
+                !usesOpaqueCarrierField) {
                 outFail =
-                    "A rebuilt Route 1 convex ledge corner did not split its low seam carrier into a donor-owned quarter patch: " +
+                    "A rebuilt Route 1 convex ledge corner did not split its low seam carrier into a donor-owned opaque quarter patch: " +
                     batch.geometryCacheKey;
                 return false;
             }
@@ -891,18 +926,83 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             const std::size_t indexCount = batch.sharedIndices
                 ? batch.sharedIndexCount
                 : batch.indices.size();
-            bool underlayIsBelowLawn = true;
+            bool usesOpaqueCarrierField = true;
+            const bool lightLawnCarrier =
+                batch.geometryCacheKey.find(
+                    ":surface-light_lawn:") != std::string::npos;
+            float maximumAbsoluteHeightCm = 0.0f;
             for (std::size_t vertexIndex = 0u;
                  vertexIndex < vertexCount;
                  ++vertexIndex) {
-                underlayIsBelowLawn = underlayIsBelowLawn &&
-                    vertices[vertexIndex].y < 0.0f;
+                maximumAbsoluteHeightCm = std::max(
+                    maximumAbsoluteHeightCm,
+                    std::abs(vertices[vertexIndex].y));
+                if (lightLawnCarrier) {
+                    usesOpaqueCarrierField =
+                        usesOpaqueCarrierField &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2U +
+                                0.101646f) <= 0.001f &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2V +
+                                1.071291f) <= 0.001f;
+                }
             }
-            if (vertexCount != 13u || indexCount != 36u ||
-                !underlayIsBelowLawn) {
+            float maximumTriangleEdgeCm = 0.0f;
+            bool hasInvalidTriangle = indexCount % 3u != 0u;
+            for (std::size_t index = 0u;
+                 index + 2u < indexCount;
+                 index += 3u) {
+                const auto& first =
+                    vertices[batch.sharedIndices
+                        ? batch.sharedIndices[index]
+                        : batch.indices[index]];
+                const auto& second =
+                    vertices[batch.sharedIndices
+                        ? batch.sharedIndices[index + 1u]
+                        : batch.indices[index + 1u]];
+                const auto& third =
+                    vertices[batch.sharedIndices
+                        ? batch.sharedIndices[index + 2u]
+                        : batch.indices[index + 2u]];
+                const float signedAreaTwice =
+                    (second.x - first.x) *
+                        (third.z - first.z) -
+                    (second.z - first.z) *
+                        (third.x - first.x);
+                hasInvalidTriangle =
+                    hasInvalidTriangle ||
+                    signedAreaTwice <= 0.0001f;
+                const auto edgeLength =
+                    [](const auto& left, const auto& right) {
+                        return std::hypot(
+                            left.x - right.x,
+                            left.z - right.z);
+                    };
+                maximumTriangleEdgeCm = std::max({
+                    maximumTriangleEdgeCm,
+                    edgeLength(first, second),
+                    edgeLength(second, third),
+                    edgeLength(third, first)});
+            }
+            if (vertexCount < 50u || indexCount < 250u ||
+                maximumAbsoluteHeightCm > 10.0f ||
+                maximumTriangleEdgeCm > 7.2f ||
+                hasInvalidTriangle ||
+                !usesOpaqueCarrierField) {
                 outFail =
-                    "A rebuilt Route 1 convex ledge cap did not submit its contour-clipped hidden carrier: " +
-                    batch.geometryCacheKey;
+                    "A rebuilt Route 1 convex ledge cap did not submit its locally tessellated contour carrier: " +
+                    batch.geometryCacheKey +
+                    " (vertices=" + std::to_string(vertexCount) +
+                    ", indices=" + std::to_string(indexCount) +
+                    ", max-height-cm=" +
+                    std::to_string(maximumAbsoluteHeightCm) +
+                    ", max-edge-cm=" +
+                    std::to_string(maximumTriangleEdgeCm) +
+                    ", invalid-triangle=" +
+                    std::to_string(hasInvalidTriangle) +
+                    ", opaque-field=" +
+                    std::to_string(usesOpaqueCarrierField) + ")";
                 return false;
             }
             foundConvexLawnCapUnderlay = true;
@@ -920,6 +1020,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 ? batch.sharedIndexCount
                 : batch.indices.size();
             bool carrierBridgesSourceAndRebuiltPlanes = true;
+            bool usesOpaqueCarrierField = true;
+            const bool lightLawnCarrier =
+                batch.geometryCacheKey.find(
+                    ":surface-light_lawn:") != std::string::npos;
+            const bool darkLawnCarrier =
+                batch.geometryCacheKey.find(
+                    ":surface-dark_lawn:") != std::string::npos;
             for (std::size_t vertexIndex = 0u;
                  vertexIndex < vertexCount;
                  ++vertexIndex) {
@@ -927,9 +1034,29 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     carrierBridgesSourceAndRebuiltPlanes &&
                     std::abs(vertices[vertexIndex].y - 0.01f) <=
                         0.001f;
+                if (lightLawnCarrier) {
+                    usesOpaqueCarrierField =
+                        usesOpaqueCarrierField &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2U +
+                                0.101646f) <= 0.001f &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2V +
+                                1.071291f) <= 0.001f;
+                } else if (darkLawnCarrier) {
+                    usesOpaqueCarrierField =
+                        usesOpaqueCarrierField &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2U +
+                                0.049999952f) <= 0.001f &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2V -
+                                0.949999988f) <= 0.001f;
+                }
             }
             if (vertexCount != 43u || indexCount != 126u ||
-                !carrierBridgesSourceAndRebuiltPlanes) {
+                !carrierBridgesSourceAndRebuiltPlanes ||
+                !usesOpaqueCarrierField) {
                 outFail =
                     "A rebuilt Route 1 generated/source lawn handoff did not submit its source-owned hidden seam strip: " +
                     batch.geometryCacheKey;
@@ -2096,8 +2223,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         "route1:terrain-fringe:cell-26--4:edge-2:");
     const bool foundEastHighCapUnderlay = submitted(
         "route1:terrain-convex-lawn-cap-underlay:cell-25--4:corner-2:level-1:");
-    const bool foundEastSourceHandoff = submitted(
-        "route1:terrain-source-handoff-underlay:cell-25--4:neighbor-26--4:edge-1:level-1:");
+    const bool foundEastLowSourceHandoff = submitted(
+        "route1:terrain-source-handoff-underlay:cell-24--4:neighbor-24--5:edge-2:level-0:");
     struct RaisedCapBoundarySample {
         std::array<double, 3> point{};
         std::array<float, 15> attributes{};
@@ -2185,7 +2312,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundEastCornerCliffContinuation ||
         !foundEastCornerFringeContinuation ||
         !foundEastHighCapUnderlay ||
-        !foundEastSourceHandoff ||
+        !foundEastLowSourceHandoff ||
         foundEastStraightCliffContinuation ||
         foundEastStraightFringeContinuation ||
         !foundWestSourceSideContactSurface ||
@@ -2209,8 +2336,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundEastCornerFringeContinuation) +
             ", east-high-cap-underlay=" +
             std::to_string(foundEastHighCapUnderlay) +
-            ", east-source-handoff=" +
-            std::to_string(foundEastSourceHandoff) +
+            ", east-low-source-handoff=" +
+            std::to_string(foundEastLowSourceHandoff) +
             ", east-straight-cliff=" +
             std::to_string(foundEastStraightCliffContinuation) +
             ", east-straight-fringe=" +
