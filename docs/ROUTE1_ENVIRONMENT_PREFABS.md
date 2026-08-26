@@ -342,13 +342,15 @@ complementary narrow underlaps around the rounded foot, meeting on the diagonal
 and stopping 1.50 cm outside the wall rather than reaching the logical tile
 corner. Inside turns retain a compact 20 cm matching-lawn disk beneath the
 ordinary surface. Outside turns split the low junction into three donor-owned
-quarter carriers, preserving the two side tiles' and diagonal tile's own UV
+quarter repairs, preserving the two side tiles' and diagonal tile's own UV
 and projected-shadow fields instead of spreading one neighbor's lighting over
-the whole corner. Those carriers reach two centimetres beyond the decoded
-32 cm turn and use an opaque lawn selector, so the source ledge mask cannot
-cut the safety geometry back into a clear-color triangle. The raised safety
-carrier uses the actual rounded crown footprint rather than a second disk, so
-it cannot float past the wall. It is clipped from a five-centimetre lattice
+the whole corner. Those repairs reach two centimetres beyond the decoded
+32 cm turn, use an opaque lawn selector, and sit at `+0.03 cm`, one hundredth
+above the rebuilt top. They therefore replace retained atlas-void ground
+pixels instead of sitting invisibly beneath them. The raised safety carrier
+uses the actual rounded crown footprint rather than a second disk, so it cannot
+float past the wall. It retains the crown's source UV0/UV1 field and explicitly
+uses its raised-lawn UV2/Color0 controls instead of a light fallback. It is clipped from a five-centimetre lattice
 instead of a metre-wide triangle fan; local material interpolation cannot form
 a diagonal line across the cap. Radially collapsed main-cap cells are retired,
 zero-area triangles are omitted, and any post-deformation winding reversal is

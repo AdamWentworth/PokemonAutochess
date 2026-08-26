@@ -1244,6 +1244,13 @@ constexpr float kTerrainTileTopDepthBiasCm = 0.02f;
 // plane and the 0.02 cm generated plane. They therefore appear only where a
 // rounded ledge junction would otherwise expose the backdrop.
 constexpr float kTerrainLawnUnderlayDepthCm = -0.02f;
+// A convex low-side contact can retain a material-19 triangle whose geometry
+// is present but whose decoded field resolves to the atlas void. A carrier
+// underneath that triangle cannot repair the resulting black wedge. Put the
+// donor-owned repair one hundredth of a centimetre above the rebuilt top so
+// it becomes authoritative only inside the rounded contact.
+constexpr float kTerrainLawnCornerRepairDepthCm =
+    kTerrainTileTopDepthBiasCm + 0.01f;
 // Every generated carrier that meets an edited ledge samples the same five-
 // centimetre contour lattice. A coarser cliff/fringe lattice can agree at a
 // tile's endpoints yet diverge from the 20-segment upper/lower lawn between
@@ -12246,7 +12253,7 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
         SourceTerrainSurfaceSample sampledSource;
         bool sourceSampled = false;
         bool sourceTopologyMatches = false;
-        if (materialTile && !tessellateContourCap) {
+        if (materialTile) {
             sourceSampled = sampleSourceTerrainSurface(
                 *materialTile,
                 std::clamp(
@@ -12295,15 +12302,7 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
             materialTile->surface == materialTile->sourceSurface &&
             !materialTile->cleanSuppressedEncounterGrassTint &&
             !materialTile->rebuildContinuousMaterialFields;
-        if (tessellateContourCap && materialTile &&
-            materialTile->surface == "light_lawn") {
-            // The contour carrier deliberately uses this neutral opaque
-            // safety field. Resolve it before the source-wide donor search;
-            // calculating target Color0/UV2 and overwriting both immediately
-            // made every edited corner needlessly expensive to assemble.
-            uv2 = kCarrierOpaqueLightLawnUv2;
-            color = glm::vec4{1.0f};
-        } else if (forceRaisedCrownField ||
+        if (forceRaisedCrownField ||
             (materialTile && materialTile->surface == "dark_lawn")) {
             uv2 = {-0.049999952f, 0.949999988f};
             color = glm::vec4{
@@ -12699,7 +12698,7 @@ RuntimeEnvironment::Impl::ensureTerrainConvexLawnCornerUnderlayObject(
         &donorTile,
         boundary,
         false,
-        kTerrainLawnUnderlayDepthCm);
+        kTerrainLawnCornerRepairDepthCm);
 }
 
 IRenderBackend::WorldSceneRenderObjectHandle
@@ -12780,7 +12779,7 @@ RuntimeEnvironment::Impl::ensureTerrainConvexLawnCapUnderlayObject(
         tile.receivesProjectedShadow,
         &tile,
         boundary,
-        tile.surface == "dark_lawn",
+        true,
         kTerrainLawnUnderlayDepthCm);
 }
 

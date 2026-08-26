@@ -360,17 +360,20 @@ samples use the same five-centimetre contour lattice as the cliff and fringe.
 Convex endpoints reserve the same 32 cm turn as their corner arcs. Concave
 turns retain a compact 20 cm matching-lawn carrier strictly beneath the
 ordinary surface. A convex turn instead splits the low junction into three
-quarter carriers owned by the two side tiles and the diagonal tile. Each part
+quarter repairs owned by the two side tiles and the diagonal tile. Each part
 therefore inherits its donor's exact UV fields and projected-shadow policy;
 one shadowless neighbor can no longer turn the whole junction into a pale
-wedge. Each low carrier covers the complete decoded turn with an opaque lawn
-selector so the source leaf mask cannot reopen a clear-color notch. Its raised
-carrier follows the rounded crown footprint itself rather than using a
-circular disk, so it closes the independently tessellated cap without
-protruding beyond the wall. The carrier uses the same five-centimetre lattice
-as the terrain top, while collapsed, zero-area, or reversed-winding cap
-triangles are retired or repaired after contour deformation. When an edited
-cap meets a generated copy
+wedge. Each low repair covers the complete decoded turn with an opaque lawn
+selector and sits at `+0.03 cm`, one hundredth above the rebuilt top. It is
+therefore authoritative over a retained material-19 atlas-void triangle rather
+than remaining hidden beneath the same black pixels it is meant to replace.
+The raised carrier follows the rounded crown footprint itself rather than using
+a circular disk, so it closes the independently tessellated cap without
+protruding beyond the wall. It samples the crown's source UV0/UV1 field and
+uses the raised-lawn UV2/Color0 controls; a light fallback can no longer appear
+as a diagonal stripe. The carrier uses the same five-centimetre lattice as the
+terrain top, while collapsed, zero-area, or reversed-winding cap triangles are
+retired or repaired after contour deformation. When an edited cap meets a generated copy
 of an irregular source cap, a one-centimetre source-material ribbon sits
 between the source `0.00 cm` and generated `+0.02 cm` planes. This seals their
 non-coincident triangulations without stretching either tile's atlas field.
