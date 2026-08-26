@@ -3262,6 +3262,15 @@ struct RuntimeEnvironment::Impl {
         float quadrantSignZ);
 
     IRenderBackend::WorldSceneRenderObjectHandle
+    ensureTerrainConvexLawnCornerPocketRepairObject(
+        const TerrainTileState& donorTile,
+        float sourceCornerX,
+        float sourceCornerZ,
+        float quadrantSignX,
+        float quadrantSignZ,
+        std::size_t half);
+
+    IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainConvexLawnCapUnderlayObject(
         const TerrainTileState& tile,
         std::size_t corner);
@@ -12192,12 +12201,15 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
     }
     const bool tessellateContourCap = key.starts_with(
         "route1:terrain-convex-lawn-cap-underlay:");
+    const bool tessellatePatch = tessellateContourCap || key.starts_with(
+        "route1:terrain-convex-lawn-corner-underlay:") || key.starts_with(
+        "route1:terrain-convex-lawn-corner-pocket-repair:");
     prototype.vertices.reserve(
-        tessellateContourCap ? 600u : boundary.size() + 1u);
+        tessellatePatch ? 600u : boundary.size() + 1u);
     prototype.sourceVertices.reserve(
-        tessellateContourCap ? 600u : boundary.size() + 1u);
+        tessellatePatch ? 600u : boundary.size() + 1u);
     prototype.indices.reserve(
-        tessellateContourCap ? 2400u : boundary.size() * 3u);
+        tessellatePatch ? 2400u : boundary.size() * 3u);
 
     const auto appendVertex = [&](float localX, float localZ) {
         auto vertex = terrainTilePrototypes.groundVertexTemplate;
@@ -12370,13 +12382,14 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
         prototype.sourceVertices.push_back(sourceVertex);
     };
 
-    if (tessellateContourCap) {
-        // A single fan across this metre-wide cap interpolates the source
-        // Color0/UV fields from one distant centroid. Where the main cap
-        // undulates above its safety carrier, those long fan diagonals become
-        // visible as dark lines. Clip a five-centimetre triangle lattice to
-        // the same convex contour instead, matching the density and local
-        // interpolation of the authored terrain top.
+    if (tessellatePatch) {
+        // A single fan interpolates the source Color0/UV fields from one
+        // distant centroid. Where a carrier becomes visible through a retired
+        // source triangle, those long fan diagonals become tonal seams even
+        // when coverage is watertight. Clip the same five-centimetre triangle
+        // lattice used by the authored terrain top to every convex-corner
+        // carrier, matching its local material interpolation as well as its
+        // geometry density.
         float signedBoundaryArea = 0.0f;
         glm::vec2 minimum = boundary.front();
         glm::vec2 maximum = boundary.front();
@@ -12668,8 +12681,14 @@ RuntimeEnvironment::Impl::ensureTerrainConvexLawnCornerUnderlayObject(
             ? ":shadow"
             : ":shadowless");
     constexpr std::uint32_t kSegments = 8u;
+    // Rebuilding either ledge side retires source ground triangles that cross
+    // the shared grid vertex. Those source triangles reach well beyond the
+    // 32 cm wall turn itself, so a wall-radius disk can still leave the outer
+    // half of a retired triangle showing the clear color. Cover one complete
+    // half-tile footprint (plus the two-centimetre raster underlap) while each
+    // quadrant continues to sample only its own donor tile.
     constexpr float kRadiusCm =
-        route1_terrain_ledges::kConvexCornerRadiusCm + 2.0f;
+        kTerrainTileSizeCm * 0.5f + 2.0f;
     constexpr float kQuarterTurn =
         1.57079632679489661923f;
     const float centerAngle = std::atan2(
@@ -12685,6 +12704,66 @@ RuntimeEnvironment::Impl::ensureTerrainConvexLawnCornerUnderlayObject(
             static_cast<float>(sample) /
                 static_cast<float>(kSegments) *
             kQuarterTurn;
+        boundary.emplace_back(
+            std::cos(angle) * kRadiusCm,
+            std::sin(angle) * kRadiusCm);
+    }
+    return ensureTerrainLawnPatchObject(
+        key,
+        sourceCornerX,
+        sourceCornerZ,
+        donorTile.elevationLevel,
+        donorTile.receivesProjectedShadow,
+        &donorTile,
+        boundary,
+        false,
+        kTerrainLawnCornerRepairDepthCm);
+}
+
+IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureTerrainConvexLawnCornerPocketRepairObject(
+    const TerrainTileState& donorTile,
+    float sourceCornerX,
+    float sourceCornerZ,
+    float quadrantSignX,
+    float quadrantSignZ,
+    std::size_t half) {
+    if (half >= 2u) {
+        return {};
+    }
+    const std::string key =
+        "route1:terrain-convex-lawn-corner-pocket-repair:cell-" +
+        std::to_string(donorTile.gridX) + "-" +
+        std::to_string(donorTile.gridZ) + ":x-" +
+        std::to_string(static_cast<std::int32_t>(
+            std::lround(sourceCornerX))) + ":z-" +
+        std::to_string(static_cast<std::int32_t>(
+            std::lround(sourceCornerZ))) + ":half-" +
+        std::to_string(half) + ":level-" +
+        std::to_string(donorTile.elevationLevel) + ":surface-" +
+        donorTile.surface +
+        (donorTile.receivesProjectedShadow
+            ? ":shadow"
+            : ":shadowless");
+    constexpr std::uint32_t kSegments = 4u;
+    constexpr float kRadiusCm =
+        route1_terrain_ledges::kConvexCornerRadiusCm + 2.0f;
+    constexpr float kHalfSector =
+        0.78539816339744830962f;
+    const float centerAngle = std::atan2(
+        quadrantSignZ, quadrantSignX);
+    const float startAngle = centerAngle - kHalfSector +
+        static_cast<float>(half) * kHalfSector;
+    std::vector<glm::vec2> boundary;
+    boundary.reserve(kSegments + 2u);
+    boundary.emplace_back(0.0f, 0.0f);
+    for (std::uint32_t sample = 0u;
+         sample <= kSegments;
+         ++sample) {
+        const float angle = startAngle +
+            static_cast<float>(sample) /
+                static_cast<float>(kSegments) *
+            kHalfSector;
         boundary.emplace_back(
             std::cos(angle) * kRadiusCm,
             std::sin(angle) * kRadiusCm);
@@ -14127,6 +14206,43 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                         secondDirection[0],
                     tile.gridZ + firstDirection[1] +
                         secondDirection[1]));
+
+                // The rounded cliff foot recedes into the high tile's square
+                // footprint. That leaves one low-elevation quarter pocket on
+                // the high-cell side of the logical corner; the three outer
+                // donor sectors above do not own it. Split this last quadrant
+                // along its bisector so the first and second low neighbors
+                // extend their own material fields to the wall without either
+                // neighbor painting the complete turn.
+                const float interiorQuadrantSignX =
+                    cornerOffsets[corner][0] == 0 ? 1.0f : -1.0f;
+                const float interiorQuadrantSignZ =
+                    cornerOffsets[corner][1] == 0 ? 1.0f : -1.0f;
+                const auto appendLowCornerPocketHalf = [&](
+                        const TerrainTileState* donor,
+                        std::size_t half) {
+                    if (!donor || !hasSurface(*donor) ||
+                        donor->elevationLevel != firstNeighborLevel) {
+                        return;
+                    }
+                    append(
+                        ensureTerrainConvexLawnCornerPocketRepairObject(
+                            *donor,
+                            sourceCornerX,
+                            sourceCornerZ,
+                            interiorQuadrantSignX,
+                            interiorQuadrantSignZ,
+                            half),
+                        sourcePlacementMatrix(
+                            {sourceCornerX,
+                             static_cast<float>(firstNeighborLevel) *
+                                 kTerrainElevationStepCm,
+                             sourceCornerZ},
+                            {0.0f, 0.0f, 0.0f},
+                            {1.0f, 1.0f, 1.0f}));
+                };
+                appendLowCornerPocketHalf(firstLowTile, 0u);
+                appendLowCornerPocketHalf(secondLowTile, 1u);
 
                 // A convex junction belongs to three independently authored
                 // low tiles. Split its hidden ground carrier into their real

@@ -360,13 +360,16 @@ samples use the same five-centimetre contour lattice as the cliff and fringe.
 Convex endpoints reserve the same 32 cm turn as their corner arcs. Concave
 turns retain a compact 20 cm matching-lawn carrier strictly beneath the
 ordinary surface. A convex turn instead splits the low junction into three
-quarter repairs owned by the two side tiles and the diagonal tile. Each part
-therefore inherits its donor's exact UV fields and projected-shadow policy;
-one shadowless neighbor can no longer turn the whole junction into a pale
-wedge. Each low repair covers the complete decoded turn with an opaque lawn
-selector and sits at `+0.03 cm`, one hundredth above the rebuilt top. It is
-therefore authoritative over a retained material-19 atlas-void triangle rather
-than remaining hidden beneath the same black pixels it is meant to replace.
+quarter repairs owned by the two side tiles and the diagonal tile, plus two
+donor halves beneath the wall's recessed fourth quadrant. Each part therefore
+inherits its donor's exact UV fields and projected-shadow policy; one
+shadowless neighbor can no longer turn the whole junction into a pale wedge.
+The outer repairs cover a 52 cm half-tile source-triangle footprint rather than
+stopping at the 32 cm wall radius. Every repair uses an opaque lawn selector,
+sits at `+0.03 cm` (one hundredth above the rebuilt top), and is clipped from
+the same five-centimetre lattice as the terrain. It is therefore authoritative
+over retained material-19 atlas-void pixels without replacing them with a
+different long-triangle interpolation seam.
 The raised carrier follows the rounded crown footprint itself rather than using
 a circular disk, so it closes the independently tessellated cap without
 protruding beyond the wall. It samples the crown's source UV0/UV1 field and

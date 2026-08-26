@@ -342,12 +342,14 @@ complementary narrow underlaps around the rounded foot, meeting on the diagonal
 and stopping 1.50 cm outside the wall rather than reaching the logical tile
 corner. Inside turns retain a compact 20 cm matching-lawn disk beneath the
 ordinary surface. Outside turns split the low junction into three donor-owned
-quarter repairs, preserving the two side tiles' and diagonal tile's own UV
-and projected-shadow fields instead of spreading one neighbor's lighting over
-the whole corner. Those repairs reach two centimetres beyond the decoded
-32 cm turn, use an opaque lawn selector, and sit at `+0.03 cm`, one hundredth
-above the rebuilt top. They therefore replace retained atlas-void ground
-pixels instead of sitting invisibly beneath them. The raised safety carrier
+quarter repairs and split the recessed high-cell pocket between the two side
+donors, preserving every side and diagonal tile's own UV and projected-shadow
+fields instead of spreading one neighbor's lighting over the whole corner.
+The outer repairs cover a 52 cm half-tile source-triangle footprint rather than
+stopping at the decoded 32 cm turn. All five pieces use an opaque lawn selector,
+sit at `+0.03 cm` (one hundredth above the rebuilt top), and use the terrain's
+five-centimetre lattice. They therefore replace retained atlas-void ground
+pixels without introducing fan-shaped material interpolation seams. The raised safety carrier
 uses the actual rounded crown footprint rather than a second disk, so it cannot
 float past the wall. It retains the crown's source UV0/UV1 field and explicitly
 uses its raised-lawn UV2/Color0 controls instead of a light fallback. It is clipped from a five-centimetre lattice

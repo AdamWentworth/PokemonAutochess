@@ -674,6 +674,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundConcaveCrownUnderlay = false;
     bool foundLawnCornerUnderlay = false;
     bool foundConvexLawnCornerUnderlay = false;
+    bool foundConvexLawnCornerPocketRepair = false;
     bool foundConvexLawnCapUnderlay = false;
     bool foundSourceHandoffUnderlay = false;
     bool foundFringeCorner = false;
@@ -863,8 +864,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             const std::size_t indexCount = batch.sharedIndices
                 ? batch.sharedIndexCount
                 : batch.indices.size();
+            const auto* indices = batch.sharedIndices
+                ? batch.sharedIndices
+                : batch.indices.data();
             bool repairIsAboveLawn = true;
             float maximumRadiusCm = 0.0f;
+            float maximumTriangleEdgeCm = 0.0f;
             bool usesOpaqueCarrierField = true;
             const bool lightLawnCarrier =
                 batch.geometryCacheKey.find(
@@ -903,10 +908,31 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                 0.949999988f) <= 0.001f;
                 }
             }
-            if (vertexCount != 11u || indexCount != 30u ||
+            for (std::size_t index = 0u;
+                 index + 2u < indexCount;
+                 index += 3u) {
+                for (std::size_t corner = 0u; corner < 3u; ++corner) {
+                    const std::size_t next = (corner + 1u) % 3u;
+                    if (indices[index + corner] >= vertexCount ||
+                        indices[index + next] >= vertexCount) {
+                        maximumTriangleEdgeCm =
+                            std::numeric_limits<float>::infinity();
+                        continue;
+                    }
+                    const auto& first = vertices[indices[index + corner]];
+                    const auto& second = vertices[indices[index + next]];
+                    maximumTriangleEdgeCm = std::max(
+                        maximumTriangleEdgeCm,
+                        std::hypot(
+                            first.x - second.x,
+                            first.z - second.z));
+                }
+            }
+            if (vertexCount < 50u || indexCount < 150u ||
                 !repairIsAboveLawn ||
-                maximumRadiusCm < 33.9f ||
-                maximumRadiusCm > 34.1f ||
+                maximumRadiusCm < 51.9f ||
+                maximumRadiusCm > 52.1f ||
+                maximumTriangleEdgeCm > 7.2f ||
                 !usesOpaqueCarrierField) {
                 outFail =
                     "A rebuilt Route 1 convex ledge corner did not split its low contact repair into a donor-owned authoritative opaque quarter patch: " +
@@ -914,6 +940,103 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 return false;
             }
             foundConvexLawnCornerUnderlay = true;
+        }
+        if (batch.geometryCacheKey.find(
+                "route1:terrain-convex-lawn-corner-pocket-repair:") !=
+            std::string::npos) {
+            const auto* vertices = batch.sharedVertices
+                ? batch.sharedVertices
+                : batch.vertices.data();
+            const std::size_t vertexCount = batch.sharedVertices
+                ? batch.sharedVertexCount
+                : batch.vertices.size();
+            const std::size_t indexCount = batch.sharedIndices
+                ? batch.sharedIndexCount
+                : batch.indices.size();
+            const auto* indices = batch.sharedIndices
+                ? batch.sharedIndices
+                : batch.indices.data();
+            bool repairIsAboveLawn = true;
+            float maximumRadiusCm = 0.0f;
+            float maximumTriangleEdgeCm = 0.0f;
+            bool usesOpaqueCarrierField = true;
+            const bool lightLawnCarrier =
+                batch.geometryCacheKey.find(
+                    ":surface-light_lawn:") != std::string::npos;
+            const bool darkLawnCarrier =
+                batch.geometryCacheKey.find(
+                    ":surface-dark_lawn:") != std::string::npos;
+            for (std::size_t vertexIndex = 0u;
+                 vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                repairIsAboveLawn = repairIsAboveLawn &&
+                    vertices[vertexIndex].y > 0.02f &&
+                    vertices[vertexIndex].y < 0.04f;
+                maximumRadiusCm = std::max(
+                    maximumRadiusCm,
+                    std::hypot(
+                        vertices[vertexIndex].x,
+                        vertices[vertexIndex].z));
+                if (lightLawnCarrier) {
+                    usesOpaqueCarrierField =
+                        usesOpaqueCarrierField &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2U +
+                                0.101646f) <= 0.001f &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2V +
+                                1.071291f) <= 0.001f;
+                } else if (darkLawnCarrier) {
+                    usesOpaqueCarrierField =
+                        usesOpaqueCarrierField &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2U +
+                                0.049999952f) <= 0.001f &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2V -
+                                0.949999988f) <= 0.001f;
+                }
+            }
+            for (std::size_t index = 0u;
+                 index + 2u < indexCount;
+                 index += 3u) {
+                for (std::size_t corner = 0u; corner < 3u; ++corner) {
+                    const std::size_t next = (corner + 1u) % 3u;
+                    if (indices[index + corner] >= vertexCount ||
+                        indices[index + next] >= vertexCount) {
+                        maximumTriangleEdgeCm =
+                            std::numeric_limits<float>::infinity();
+                        continue;
+                    }
+                    const auto& first = vertices[indices[index + corner]];
+                    const auto& second = vertices[indices[index + next]];
+                    maximumTriangleEdgeCm = std::max(
+                        maximumTriangleEdgeCm,
+                        std::hypot(
+                            first.x - second.x,
+                            first.z - second.z));
+                }
+            }
+            if (vertexCount < 20u || indexCount < 45u ||
+                !repairIsAboveLawn ||
+                maximumRadiusCm < 33.9f ||
+                maximumRadiusCm > 34.1f ||
+                maximumTriangleEdgeCm > 7.2f ||
+                !usesOpaqueCarrierField) {
+                outFail =
+                    "A rebuilt Route 1 convex ledge corner did not assign its recessed low-elevation pocket to two authoritative donor halves: " +
+                    batch.geometryCacheKey +
+                    " (vertices=" + std::to_string(vertexCount) +
+                    ", indices=" + std::to_string(indexCount) +
+                    ", above=" + std::to_string(repairIsAboveLawn) +
+                    ", radius=" + std::to_string(maximumRadiusCm) +
+                    ", max-edge=" +
+                    std::to_string(maximumTriangleEdgeCm) +
+                    ", opaque=" +
+                    std::to_string(usesOpaqueCarrierField) + ")";
+                return false;
+            }
+            foundConvexLawnCornerPocketRepair = true;
         }
         if (batch.geometryCacheKey.find(
                 "route1:terrain-convex-lawn-cap-underlay:") !=
@@ -1610,6 +1733,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundConcaveCrownUnderlay ||
         !foundLawnCornerUnderlay ||
         !foundConvexLawnCornerUnderlay ||
+        !foundConvexLawnCornerPocketRepair ||
         !foundConvexLawnCapUnderlay ||
         !foundSourceHandoffUnderlay ||
         !foundFringeCorner ||
@@ -1640,6 +1764,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundLawnCornerUnderlay) +
             ", convex-lawn-corner-underlay=" +
             std::to_string(foundConvexLawnCornerUnderlay) +
+            ", convex-lawn-corner-pocket-repair=" +
+            std::to_string(foundConvexLawnCornerPocketRepair) +
             ", convex-lawn-cap-underlay=" +
             std::to_string(foundConvexLawnCapUnderlay) +
             ", source-handoff-underlay=" +
@@ -2225,6 +2351,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         "route1:terrain-fringe:cell-26--4:edge-2:");
     const bool foundEastHighCapUnderlay = submitted(
         "route1:terrain-convex-lawn-cap-underlay:cell-25--4:corner-2:level-1:");
+    const bool foundEastFirstPocketHalf = submitted(
+        "route1:terrain-convex-lawn-corner-pocket-repair:cell-25--5:x-2500:z--400:half-0:level-0:");
+    const bool foundEastSecondPocketHalf = submitted(
+        "route1:terrain-convex-lawn-corner-pocket-repair:cell-24--4:x-2500:z--400:half-1:level-0:");
     const bool foundEastLowSourceHandoff = submitted(
         "route1:terrain-source-handoff-underlay:cell-24--4:neighbor-24--5:edge-2:level-0:");
     struct RaisedCapBoundarySample {
@@ -2314,6 +2444,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundEastCornerCliffContinuation ||
         !foundEastCornerFringeContinuation ||
         !foundEastHighCapUnderlay ||
+        !foundEastFirstPocketHalf ||
+        !foundEastSecondPocketHalf ||
         !foundEastLowSourceHandoff ||
         foundEastStraightCliffContinuation ||
         foundEastStraightFringeContinuation ||
@@ -2338,6 +2470,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundEastCornerFringeContinuation) +
             ", east-high-cap-underlay=" +
             std::to_string(foundEastHighCapUnderlay) +
+            ", east-first-pocket-half=" +
+            std::to_string(foundEastFirstPocketHalf) +
+            ", east-second-pocket-half=" +
+            std::to_string(foundEastSecondPocketHalf) +
             ", east-low-source-handoff=" +
             std::to_string(foundEastLowSourceHandoff) +
             ", east-straight-cliff=" +
