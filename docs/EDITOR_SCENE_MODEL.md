@@ -357,16 +357,18 @@ inherits the ledge-foot blend while exposed soil retains its dirt Color0.
 A constant-width overlap is forbidden because its horizontal surface becomes a
 visible rectangular shelf when the ledge is viewed from above. All contact
 samples use the same five-centimetre contour lattice as the cliff and fringe.
-Convex endpoints reserve the same 32 cm turn as their corner arcs. Every inside
-and outside turn also adds a 20 cm matching-lawn carrier strictly beneath the
-ordinary surface, sealing the grass junction without exposing a circular
-overlay. Convex turns place a second carrier five centimetres inward from the
-rounded crown center at the raised-cap elevation; it remains fully behind the
-cap while closing the otherwise independent top/crown triangulations. Each of
-the two adjoining low tiles supplies a narrow half-corner underlap around the
-cliff foot, and the halves meet on the corner diagonal. The patch stops 1.50 cm
-outside the wall instead of extending to the logical tile corner, so neither a
-clear-colour crack nor a pointed square-lawn fan remains.
+Convex endpoints reserve the same 32 cm turn as their corner arcs. Concave
+turns retain a compact 20 cm matching-lawn carrier strictly beneath the
+ordinary surface. A convex turn instead splits the low junction into three
+quarter carriers owned by the two side tiles and the diagonal tile. Each part
+therefore inherits its donor's exact UV fields and projected-shadow policy;
+one shadowless neighbor can no longer turn the whole junction into a pale
+wedge. Its raised carrier follows the rounded crown footprint itself rather
+than using a circular disk, so it closes the independently tessellated cap
+without protruding beyond the wall. When an edited cap meets a generated copy
+of an irregular source cap, a one-centimetre source-material ribbon sits
+between the source `0.00 cm` and generated `+0.02 cm` planes. This seals their
+non-coincident triangulations without stretching either tile's atlas field.
 
 The contour resolver classifies straight, convex, and concave joins. Concave
 joins use the native asymmetric four-sample cliff and three-row leafy handoff

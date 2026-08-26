@@ -673,6 +673,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundConcaveFringeJoin = false;
     bool foundConcaveCrownUnderlay = false;
     bool foundLawnCornerUnderlay = false;
+    bool foundConvexLawnCornerUnderlay = false;
+    bool foundConvexLawnCapUnderlay = false;
+    bool foundSourceHandoffUnderlay = false;
     bool foundFringeCorner = false;
     bool foundCliffCorner = false;
     bool foundAdvancingFringeCornerField = false;
@@ -837,7 +840,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 underlayIsBelowLawn = underlayIsBelowLawn &&
                     vertices[vertexIndex].y < 0.0f;
             }
-            if (vertexCount != 26u || indexCount != 72u ||
+            if (vertexCount != 25u || indexCount != 72u ||
                 !underlayIsBelowLawn ||
                 maximumRadiusCm < 19.9f ||
                 maximumRadiusCm > 20.1f) {
@@ -847,6 +850,92 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 return false;
             }
             foundLawnCornerUnderlay = true;
+        }
+        if (batch.geometryCacheKey.find(
+                "route1:terrain-convex-lawn-corner-underlay:") !=
+            std::string::npos) {
+            const auto* vertices = batch.sharedVertices
+                ? batch.sharedVertices
+                : batch.vertices.data();
+            const std::size_t vertexCount = batch.sharedVertices
+                ? batch.sharedVertexCount
+                : batch.vertices.size();
+            const std::size_t indexCount = batch.sharedIndices
+                ? batch.sharedIndexCount
+                : batch.indices.size();
+            bool underlayIsBelowLawn = true;
+            for (std::size_t vertexIndex = 0u;
+                 vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                underlayIsBelowLawn = underlayIsBelowLawn &&
+                    vertices[vertexIndex].y < 0.0f;
+            }
+            if (vertexCount != 11u || indexCount != 30u ||
+                !underlayIsBelowLawn) {
+                outFail =
+                    "A rebuilt Route 1 convex ledge corner did not split its low seam carrier into a donor-owned quarter patch: " +
+                    batch.geometryCacheKey;
+                return false;
+            }
+            foundConvexLawnCornerUnderlay = true;
+        }
+        if (batch.geometryCacheKey.find(
+                "route1:terrain-convex-lawn-cap-underlay:") !=
+            std::string::npos) {
+            const auto* vertices = batch.sharedVertices
+                ? batch.sharedVertices
+                : batch.vertices.data();
+            const std::size_t vertexCount = batch.sharedVertices
+                ? batch.sharedVertexCount
+                : batch.vertices.size();
+            const std::size_t indexCount = batch.sharedIndices
+                ? batch.sharedIndexCount
+                : batch.indices.size();
+            bool underlayIsBelowLawn = true;
+            for (std::size_t vertexIndex = 0u;
+                 vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                underlayIsBelowLawn = underlayIsBelowLawn &&
+                    vertices[vertexIndex].y < 0.0f;
+            }
+            if (vertexCount != 13u || indexCount != 36u ||
+                !underlayIsBelowLawn) {
+                outFail =
+                    "A rebuilt Route 1 convex ledge cap did not submit its contour-clipped hidden carrier: " +
+                    batch.geometryCacheKey;
+                return false;
+            }
+            foundConvexLawnCapUnderlay = true;
+        }
+        if (batch.geometryCacheKey.find(
+                "route1:terrain-source-handoff-underlay:") !=
+            std::string::npos) {
+            const auto* vertices = batch.sharedVertices
+                ? batch.sharedVertices
+                : batch.vertices.data();
+            const std::size_t vertexCount = batch.sharedVertices
+                ? batch.sharedVertexCount
+                : batch.vertices.size();
+            const std::size_t indexCount = batch.sharedIndices
+                ? batch.sharedIndexCount
+                : batch.indices.size();
+            bool carrierBridgesSourceAndRebuiltPlanes = true;
+            for (std::size_t vertexIndex = 0u;
+                 vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                carrierBridgesSourceAndRebuiltPlanes =
+                    carrierBridgesSourceAndRebuiltPlanes &&
+                    std::abs(vertices[vertexIndex].y - 0.01f) <=
+                        0.001f;
+            }
+            if (vertexCount != 43u || indexCount != 126u ||
+                !carrierBridgesSourceAndRebuiltPlanes) {
+                outFail =
+                    "A rebuilt Route 1 generated/source lawn handoff did not submit its source-owned hidden seam strip: " +
+                    batch.geometryCacheKey;
+                return false;
+            }
+            foundSourceHandoffUnderlay = true;
         }
         if (batch.geometryCacheKey.find(
                 "route1:terrain-cliff-corner:") !=
@@ -1391,6 +1480,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundConcaveFringeJoin ||
         !foundConcaveCrownUnderlay ||
         !foundLawnCornerUnderlay ||
+        !foundConvexLawnCornerUnderlay ||
+        !foundConvexLawnCapUnderlay ||
+        !foundSourceHandoffUnderlay ||
         !foundFringeCorner ||
         !foundCliffCorner ||
         !foundAdvancingFringeCornerField ||
@@ -1417,6 +1509,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundConcaveCrownUnderlay) +
             ", lawn-corner-underlay=" +
             std::to_string(foundLawnCornerUnderlay) +
+            ", convex-lawn-corner-underlay=" +
+            std::to_string(foundConvexLawnCornerUnderlay) +
+            ", convex-lawn-cap-underlay=" +
+            std::to_string(foundConvexLawnCapUnderlay) +
+            ", source-handoff-underlay=" +
+            std::to_string(foundSourceHandoffUnderlay) +
             ", fringe-corner=" +
             std::to_string(foundFringeCorner) +
             ", cliff-corner=" +
@@ -1997,7 +2095,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     const bool foundEastStraightFringeContinuation = submitted(
         "route1:terrain-fringe:cell-26--4:edge-2:");
     const bool foundEastHighCapUnderlay = submitted(
-        "route1:terrain-lawn-corner-underlay:x-2537:z--363:level-1:");
+        "route1:terrain-convex-lawn-cap-underlay:cell-25--4:corner-2:level-1:");
+    const bool foundEastSourceHandoff = submitted(
+        "route1:terrain-source-handoff-underlay:cell-25--4:neighbor-26--4:edge-1:level-1:");
     struct RaisedCapBoundarySample {
         std::array<double, 3> point{};
         std::array<float, 15> attributes{};
@@ -2085,6 +2185,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundEastCornerCliffContinuation ||
         !foundEastCornerFringeContinuation ||
         !foundEastHighCapUnderlay ||
+        !foundEastSourceHandoff ||
         foundEastStraightCliffContinuation ||
         foundEastStraightFringeContinuation ||
         !foundWestSourceSideContactSurface ||
@@ -2108,6 +2209,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundEastCornerFringeContinuation) +
             ", east-high-cap-underlay=" +
             std::to_string(foundEastHighCapUnderlay) +
+            ", east-source-handoff=" +
+            std::to_string(foundEastSourceHandoff) +
             ", east-straight-cliff=" +
             std::to_string(foundEastStraightCliffContinuation) +
             ", east-straight-fringe=" +
