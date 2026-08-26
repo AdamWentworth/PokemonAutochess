@@ -349,17 +349,21 @@ The outer repairs cover a 52 cm half-tile source-triangle footprint rather than
 stopping at the decoded 32 cm turn. All five pieces use an opaque lawn selector,
 sit at `+0.03 cm` (one hundredth above the rebuilt top), and use the terrain's
 five-centimetre lattice. They therefore replace retained atlas-void ground
-pixels without introducing fan-shaped material interpolation seams. The raised safety carrier
-uses the actual rounded crown footprint rather than a second disk, so it cannot
-float past the wall. It retains the crown's source UV0/UV1 field and explicitly
-uses its raised-lawn UV2/Color0 controls instead of a light fallback. It is clipped from a five-centimetre lattice
+pixels without introducing fan-shaped material interpolation seams. The raised
+safety carrier uses the actual rounded crown footprint rather than a second
+disk, so it cannot float past the wall. It retains the crown's source UV0 field
+while assigning the same raised-lawn selector to UV1 and UV2 plus the recovered
+Color0; interpolating a raw light-lawn UV1 into the raised selector would cross
+an atlas void. It is clipped from a five-centimetre lattice
 instead of a metre-wide triangle fan; local material interpolation cannot form
 a diagonal line across the cap. Radially collapsed main-cap cells are retired,
 zero-area triangles are omitted, and any post-deformation winding reversal is
-corrected before submission. A narrow
-source-material handoff ribbon also bridges the `0.00 cm` imported plane and
-the `+0.02 cm` rebuilt plane where an edited cap meets an irregular generated
-source cap. At an inside corner, ordinary strips stop before the junction and
+corrected before submission. A narrow source-material handoff ribbon sits at
+`+0.03 cm`, one hundredth above the rebuilt plane, where a generated cap meets
+untouched source lawn. This authoritative strip is emitted for explicitly
+authored caps and source caps promoted transitively by a neighboring edit, and
+raised strips keep UV1 and UV2 on the same selector. At an inside corner,
+ordinary strips stop before the junction and
 hand off to the asymmetric four-sample cliff and three-row leafy profile decoded
 from mesh 35's native `(2800,-400)` corner. A source-sampled lawn underlay joins
 that foliage back to all three raised caps, preventing either an intersecting

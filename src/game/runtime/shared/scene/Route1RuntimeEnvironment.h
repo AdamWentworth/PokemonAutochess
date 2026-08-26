@@ -257,7 +257,8 @@ TerrainSharedEdgeProfile route1TerrainSharedEdgeProfile(
 bool route1TerrainNeedsSourceSeamOverlap(
     const TerrainTileState& tile,
     const TerrainTileState* neighbor,
-    std::size_t edge) noexcept;
+    std::size_t edge,
+    bool tileUsesGeneratedCap = false) noexcept;
 float route1TerrainProfileHeightCm(
     const TerrainTileState& tile,
     float localX,

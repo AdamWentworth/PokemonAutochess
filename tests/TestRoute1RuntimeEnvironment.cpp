@@ -747,6 +747,14 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                 "A same-height authored/source lawn boundary must receive the shared seam overlap.";
             return false;
         }
+        authoredTop.authored = false;
+        if (!route1TerrainNeedsSourceSeamOverlap(
+                authoredTop, &sourceTop, 0u, true)) {
+            outFail =
+                "A source cap promoted to generated geometry must retain its same-height source-neighbor overlap.";
+            return false;
+        }
+        authoredTop.authored = true;
         sourceTop.elevationLevel = 0;
         if (route1TerrainNeedsSourceSeamOverlap(
                 authoredTop, &sourceTop, 0u)) {

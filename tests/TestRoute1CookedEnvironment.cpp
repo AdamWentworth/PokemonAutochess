@@ -1061,6 +1061,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 usesRaisedCrownField =
                     usesRaisedCrownField &&
                     std::abs(
+                        vertices[vertexIndex].sourceUv1U +
+                            0.049999952f) <= 0.001f &&
+                    std::abs(
+                        vertices[vertexIndex].sourceUv1V -
+                            0.949999988f) <= 0.001f &&
+                    std::abs(
                         vertices[vertexIndex].sourceUv2U +
                             0.049999952f) <= 0.001f &&
                     std::abs(
@@ -1144,8 +1150,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             const std::size_t indexCount = batch.sharedIndices
                 ? batch.sharedIndexCount
                 : batch.indices.size();
-            bool carrierBridgesSourceAndRebuiltPlanes = true;
+            bool carrierIsAboveSourceAndRebuiltPlanes = true;
             bool usesOpaqueCarrierField = true;
+            const bool raisedLawnCarrier =
+                batch.geometryCacheKey.find(":level-0:") ==
+                std::string::npos;
             const bool lightLawnCarrier =
                 batch.geometryCacheKey.find(
                     ":surface-light_lawn:") != std::string::npos;
@@ -1155,11 +1164,26 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             for (std::size_t vertexIndex = 0u;
                  vertexIndex < vertexCount;
                  ++vertexIndex) {
-                carrierBridgesSourceAndRebuiltPlanes =
-                    carrierBridgesSourceAndRebuiltPlanes &&
-                    std::abs(vertices[vertexIndex].y - 0.01f) <=
-                        0.001f;
-                if (lightLawnCarrier) {
+                carrierIsAboveSourceAndRebuiltPlanes =
+                    carrierIsAboveSourceAndRebuiltPlanes &&
+                    vertices[vertexIndex].y > 0.02f &&
+                    vertices[vertexIndex].y < 0.04f;
+                if (raisedLawnCarrier || darkLawnCarrier) {
+                    usesOpaqueCarrierField =
+                        usesOpaqueCarrierField &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv1U +
+                                0.049999952f) <= 0.001f &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv1V -
+                                0.949999988f) <= 0.001f &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2U +
+                                0.049999952f) <= 0.001f &&
+                        std::abs(
+                            vertices[vertexIndex].sourceUv2V -
+                                0.949999988f) <= 0.001f;
+                } else if (lightLawnCarrier) {
                     usesOpaqueCarrierField =
                         usesOpaqueCarrierField &&
                         std::abs(
@@ -1168,22 +1192,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         std::abs(
                             vertices[vertexIndex].sourceUv2V +
                                 1.071291f) <= 0.001f;
-                } else if (darkLawnCarrier) {
-                    usesOpaqueCarrierField =
-                        usesOpaqueCarrierField &&
-                        std::abs(
-                            vertices[vertexIndex].sourceUv2U +
-                                0.049999952f) <= 0.001f &&
-                        std::abs(
-                            vertices[vertexIndex].sourceUv2V -
-                                0.949999988f) <= 0.001f;
                 }
             }
             if (vertexCount != 43u || indexCount != 126u ||
-                !carrierBridgesSourceAndRebuiltPlanes ||
+                !carrierIsAboveSourceAndRebuiltPlanes ||
                 !usesOpaqueCarrierField) {
                 outFail =
-                    "A rebuilt Route 1 generated/source lawn handoff did not submit its source-owned hidden seam strip: " +
+                    "A rebuilt Route 1 generated/source lawn handoff did not submit its selector-coherent authoritative seam strip: " +
                     batch.geometryCacheKey;
                 return false;
             }
@@ -2351,12 +2366,22 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         "route1:terrain-fringe:cell-26--4:edge-2:");
     const bool foundEastHighCapUnderlay = submitted(
         "route1:terrain-convex-lawn-cap-underlay:cell-25--4:corner-2:level-1:");
+    const bool foundWestHighCapUnderlay = submitted(
+        "route1:terrain-convex-lawn-cap-underlay:cell-16--4:corner-1:level-1:");
+    const bool foundWestRaisedSourceHandoff =
+        submitted(
+            "route1:terrain-source-handoff-underlay:cell-15--4:neighbor-16--4:edge-1:level-1:") ||
+        submitted(
+            "route1:terrain-source-handoff-underlay:cell-16--4:neighbor-15--4:edge-3:level-1:");
     const bool foundEastFirstPocketHalf = submitted(
         "route1:terrain-convex-lawn-corner-pocket-repair:cell-25--5:x-2500:z--400:half-0:level-0:");
     const bool foundEastSecondPocketHalf = submitted(
         "route1:terrain-convex-lawn-corner-pocket-repair:cell-24--4:x-2500:z--400:half-1:level-0:");
-    const bool foundEastLowSourceHandoff = submitted(
-        "route1:terrain-source-handoff-underlay:cell-24--4:neighbor-24--5:edge-2:level-0:");
+    const bool foundEastLowSourceHandoff =
+        submitted(
+            "route1:terrain-source-handoff-underlay:cell-24--5:neighbor-24--4:edge-0:level-0:") ||
+        submitted(
+            "route1:terrain-source-handoff-underlay:cell-24--4:neighbor-24--5:edge-2:level-0:");
     struct RaisedCapBoundarySample {
         std::array<double, 3> point{};
         std::array<float, 15> attributes{};
@@ -2443,6 +2468,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundWestCornerFringeContinuation ||
         !foundEastCornerCliffContinuation ||
         !foundEastCornerFringeContinuation ||
+        !foundWestHighCapUnderlay ||
+        !foundWestRaisedSourceHandoff ||
         !foundEastHighCapUnderlay ||
         !foundEastFirstPocketHalf ||
         !foundEastSecondPocketHalf ||
@@ -2468,6 +2495,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundEastCornerCliffContinuation) +
             ", east-fringe=" +
             std::to_string(foundEastCornerFringeContinuation) +
+            ", west-high-cap-underlay=" +
+            std::to_string(foundWestHighCapUnderlay) +
+            ", west-raised-source-handoff=" +
+            std::to_string(foundWestRaisedSourceHandoff) +
             ", east-high-cap-underlay=" +
             std::to_string(foundEastHighCapUnderlay) +
             ", east-first-pocket-half=" +

@@ -2561,9 +2561,10 @@ TerrainSharedEdgeProfile route1TerrainSharedEdgeProfile(
 bool route1TerrainNeedsSourceSeamOverlap(
     const TerrainTileState& tile,
     const TerrainTileState* neighbor,
-    std::size_t edge) noexcept {
+    std::size_t edge,
+    bool tileUsesGeneratedCap) noexcept {
     if (edge >= 4u ||
-        !tile.authored ||
+        (!tile.authored && !tileUsesGeneratedCap) ||
         tile.surface == "empty" ||
         tile.sourceReference ||
         !neighbor ||
@@ -7939,6 +7940,9 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 candidate.gridZ == tile.gridZ;
         });
     if (activeTile != terrainTiles.end()) {
+        const bool tileUsesGeneratedCap =
+            terrainMaskCells.contains({tile.gridX, tile.gridZ}) &&
+            !tile.sourceReference;
         for (std::size_t edge = 0u;
              edge < rampNeighborDirections.size();
              ++edge) {
@@ -7967,7 +7971,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     neighbor == terrainTiles.end()
                         ? nullptr
                         : &*neighbor,
-                    edge)) {
+                    edge,
+                    tileUsesGeneratedCap)) {
                 sourceSeamOverlapMask |= 1u << edge;
             }
             if (neighbor == terrainTiles.end() ||
@@ -12292,13 +12297,11 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
         const glm::vec2 uv0 = preserveSourceField
             ? sampledSource.uv0
             : fallbackUv;
-        const glm::vec2 uv1 = preserveSourceField
+        glm::vec2 uv1 = preserveSourceField
             ? sampledSource.uv1
             : fallbackUv;
         vertex.u = uv0.x;
         vertex.v = uv0.y;
-        vertex.sourceUv1U = uv1.x;
-        vertex.sourceUv1V = uv1.y;
 
         glm::vec2 uv2{
             vertex.sourceUv2U,
@@ -12307,6 +12310,8 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
             vertex.r, vertex.g, vertex.b, vertex.a};
         constexpr std::array<float, 3> kCarrierRaisedLawnTint{
             0.180392161f, 0.482352942f, 0.431372553f};
+        constexpr glm::vec2 kCarrierRaisedLawnFieldUv{
+            -0.049999952f, 0.949999988f};
         constexpr glm::vec2 kCarrierOpaqueLightLawnUv2{
             -0.101646f, -1.071291f};
         const bool preserveSourceSurface =
@@ -12316,7 +12321,16 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
             !materialTile->rebuildContinuousMaterialFields;
         if (forceRaisedCrownField ||
             (materialTile && materialTile->surface == "dark_lawn")) {
-            uv2 = {-0.049999952f, 0.949999988f};
+            if (forceRaisedCrownField) {
+                // A source light-lawn triangle can carry a different UV1
+                // selector right beside the rebuilt raised crown. Keeping
+                // that raw selector while forcing only UV2 makes the shader
+                // interpolate through unrelated atlas regions, drawing a
+                // black diagonal across the cap. The raised carrier is one
+                // semantic field, so keep both selector channels coherent.
+                uv1 = kCarrierRaisedLawnFieldUv;
+            }
+            uv2 = kCarrierRaisedLawnFieldUv;
             color = glm::vec4{
                 kCarrierRaisedLawnTint[0],
                 kCarrierRaisedLawnTint[1],
@@ -12369,6 +12383,8 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
         }
         vertex.sourceUv2U = uv2.x;
         vertex.sourceUv2V = uv2.y;
+        vertex.sourceUv1U = uv1.x;
+        vertex.sourceUv1V = uv1.y;
         vertex.r = color.r;
         vertex.g = color.g;
         vertex.b = color.b;
@@ -12889,14 +12905,15 @@ RuntimeEnvironment::Impl::ensureTerrainSourceHandoffUnderlayObject(
         glm::vec2{-1.0f, 0.0f}};
     constexpr std::uint32_t kSegments =
         kTerrainLedgeContourSegments;
-    // Sit between the recovered 0.00 cm source plane and the rebuilt 0.02 cm
-    // plane. The one-centimetre-wide source-material ribbon is hidden by the
-    // rebuilt side, matches the source side, and appears only through their
-    // sub-centimetre topology disagreement.
+    // The one-centimetre-wide source-material ribbon matches the adjoining
+    // source field. Put it one hundredth of a centimetre above the rebuilt
+    // 0.02 cm plane: an atlas-void boundary triangle can still write depth,
+    // so a ribbon between the source and rebuilt planes cannot repair it.
     constexpr float kHalfWidthCm = 1.0f;
     constexpr float kHalfLengthCm =
         kTerrainTileSizeCm * 0.5f;
-    constexpr float kSourceHandoffDepthCm = 0.01f;
+    constexpr float kSourceHandoffDepthCm =
+        kTerrainLawnCornerRepairDepthCm;
     const glm::vec2 outward = kOutward[edge];
     const glm::vec2 tangent{outward.y, -outward.x};
     const glm::vec2 edgeCenter = outward * kHalfLengthCm;
@@ -12934,7 +12951,8 @@ RuntimeEnvironment::Impl::ensureTerrainSourceHandoffUnderlayObject(
         sourceNeighbor.receivesProjectedShadow,
         &sourceNeighbor,
         boundary,
-        sourceNeighbor.surface == "dark_lawn",
+        sourceNeighbor.surface == "dark_lawn" ||
+            sourceNeighbor.elevationLevel > 0,
         kSourceHandoffDepthCm);
 }
 
@@ -13964,6 +13982,9 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
         std::array<std::array<std::int32_t, 2>, 4>
             edgeNeighborLevels{};
         std::array<bool, 4> edgeRebuilt{};
+        const bool tileUsesGeneratedSourceCap =
+            terrainMaskCells.contains({tile.gridX, tile.gridZ}) &&
+            !tile.sourceReference;
         for (std::size_t edge = 0u;
              edge < directions.size();
              ++edge) {
@@ -13976,9 +13997,20 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                 terrainMaskCells.contains(
                     {neighbor->gridX, neighbor->gridZ}) &&
                 !neighbor->sourceReference;
-            if (neighborUsesGeneratedSourceCap &&
+            const bool authoredSideOwnsHandoff =
+                neighborUsesGeneratedSourceCap &&
                 route1TerrainNeedsSourceSeamOverlap(
-                    tile, neighbor, edge)) {
+                    tile, neighbor, edge, false);
+            const bool promotedGeneratedSideOwnsHandoff =
+                tileUsesGeneratedSourceCap &&
+                !neighborUsesGeneratedSourceCap &&
+                route1TerrainNeedsSourceSeamOverlap(
+                    tile,
+                    neighbor,
+                    edge,
+                    tileUsesGeneratedSourceCap);
+            if (authoredSideOwnsHandoff ||
+                promotedGeneratedSideOwnsHandoff) {
                 append(
                     ensureTerrainSourceHandoffUnderlayObject(
                         tile, *neighbor, edge),

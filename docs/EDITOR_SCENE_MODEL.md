@@ -372,14 +372,17 @@ over retained material-19 atlas-void pixels without replacing them with a
 different long-triangle interpolation seam.
 The raised carrier follows the rounded crown footprint itself rather than using
 a circular disk, so it closes the independently tessellated cap without
-protruding beyond the wall. It samples the crown's source UV0/UV1 field and
-uses the raised-lawn UV2/Color0 controls; a light fallback can no longer appear
-as a diagonal stripe. The carrier uses the same five-centimetre lattice as the
+protruding beyond the wall. It samples the crown's source UV0 field and keeps
+both UV1 and UV2 on the raised-lawn selector with the matching Color0; a raw
+light-lawn selector can no longer interpolate through the atlas void as a
+diagonal stripe. The carrier uses the same five-centimetre lattice as the
 terrain top, while collapsed, zero-area, or reversed-winding cap triangles are
-retired or repaired after contour deformation. When an edited cap meets a generated copy
-of an irregular source cap, a one-centimetre source-material ribbon sits
-between the source `0.00 cm` and generated `+0.02 cm` planes. This seals their
-non-coincident triangulations without stretching either tile's atlas field.
+retired or repaired after contour deformation. When a generated cap meets
+untouched source lawn, a one-centimetre source-material ribbon sits at
+`+0.03 cm`, just above the generated `+0.02 cm` plane. Transitively promoted
+source caps own this handoff even when they have no explicit authored tile,
+sealing their non-coincident triangulations without stretching either atlas
+field.
 
 The contour resolver classifies straight, convex, and concave joins. Concave
 joins use the native asymmetric four-sample cliff and three-row leafy handoff
