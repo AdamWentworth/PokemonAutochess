@@ -358,11 +358,13 @@ A constant-width overlap is forbidden because its horizontal surface becomes a
 visible rectangular shelf when the ledge is viewed from above. All contact
 samples use the same five-centimetre contour lattice as the cliff and fringe.
 Convex endpoints reserve the same 32 cm turn as their corner arcs. Every inside
-and outside turn also adds an 18 cm matching-lawn carrier strictly beneath the
+and outside turn also adds a 20 cm matching-lawn carrier strictly beneath the
 ordinary surface, sealing the grass junction without exposing a circular
-overlay. Each of the
-two adjoining low tiles supplies a narrow half-corner underlap around the cliff
-foot, and the halves meet on the corner diagonal. The patch stops 1.50 cm
+overlay. Convex turns place a second carrier five centimetres inward from the
+rounded crown center at the raised-cap elevation; it remains fully behind the
+cap while closing the otherwise independent top/crown triangulations. Each of
+the two adjoining low tiles supplies a narrow half-corner underlap around the
+cliff foot, and the halves meet on the corner diagonal. The patch stops 1.50 cm
 outside the wall instead of extending to the logical tile corner, so neither a
 clear-colour crack nor a pointed square-lawn fan remains.
 

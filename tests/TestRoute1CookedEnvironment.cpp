@@ -839,8 +839,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             }
             if (vertexCount != 26u || indexCount != 72u ||
                 !underlayIsBelowLawn ||
-                maximumRadiusCm < 17.9f ||
-                maximumRadiusCm > 18.1f) {
+                maximumRadiusCm < 19.9f ||
+                maximumRadiusCm > 20.1f) {
                 outFail =
                     "A rebuilt Route 1 ledge corner did not submit its narrow hidden lawn seam carrier: " +
                     batch.geometryCacheKey;
@@ -1996,6 +1996,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         "route1:terrain-cliff:cell-26--4:edge-2:");
     const bool foundEastStraightFringeContinuation = submitted(
         "route1:terrain-fringe:cell-26--4:edge-2:");
+    const bool foundEastHighCapUnderlay = submitted(
+        "route1:terrain-lawn-corner-underlay:x-2537:z--363:level-1:");
     struct RaisedCapBoundarySample {
         std::array<double, 3> point{};
         std::array<float, 15> attributes{};
@@ -2082,6 +2084,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundWestCornerFringeContinuation ||
         !foundEastCornerCliffContinuation ||
         !foundEastCornerFringeContinuation ||
+        !foundEastHighCapUnderlay ||
         foundEastStraightCliffContinuation ||
         foundEastStraightFringeContinuation ||
         !foundWestSourceSideContactSurface ||
@@ -2103,6 +2106,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundEastCornerCliffContinuation) +
             ", east-fringe=" +
             std::to_string(foundEastCornerFringeContinuation) +
+            ", east-high-cap-underlay=" +
+            std::to_string(foundEastHighCapUnderlay) +
             ", east-straight-cliff=" +
             std::to_string(foundEastStraightCliffContinuation) +
             ", east-straight-fringe=" +

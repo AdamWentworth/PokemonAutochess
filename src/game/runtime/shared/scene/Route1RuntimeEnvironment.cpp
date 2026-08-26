@@ -12093,7 +12093,7 @@ RuntimeEnvironment::Impl::ensureTerrainLawnCornerUnderlayObject(
     // Only bridge the unresolved junction itself. A wider disk would become
     // visible through the intentional alpha-cut leaf silhouette around the
     // ledge and read as a circular patch on otherwise valid lawn.
-    constexpr float kRadiusCm = 18.0f;
+    constexpr float kRadiusCm = 20.0f;
     constexpr float kTau = 6.28318530717958647692f;
     prototype.vertices.reserve(kSegments + 2u);
     prototype.sourceVertices.reserve(kSegments + 2u);
@@ -13477,6 +13477,35 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                          static_cast<float>(firstNeighborLevel) *
                              kTerrainElevationStepCm,
                          sourceCornerZ},
+                        {0.0f, 0.0f, 0.0f},
+                        {1.0f, 1.0f, 1.0f}));
+                // The clipped high cap is independently tessellated from the
+                // two straight crown strips. Keep a compact lawn carrier
+                // entirely inside the rounded owner corner so a sub-pixel
+                // internal slit cannot reveal the backdrop. The five-
+                // centimetre inward bias keeps the disk behind the cap rather
+                // than floating over the low side of the curved wall.
+                constexpr float kHighCapUnderlayInsetCm =
+                    route1_terrain_ledges::kConvexCornerRadiusCm + 5.0f;
+                const float highUnderlayCenterX = sourceCornerX +
+                    static_cast<float>(
+                        cornerOffsets[corner][0] == 0 ? 1 : -1) *
+                    kHighCapUnderlayInsetCm;
+                const float highUnderlayCenterZ = sourceCornerZ +
+                    static_cast<float>(
+                        cornerOffsets[corner][1] == 0 ? 1 : -1) *
+                    kHighCapUnderlayInsetCm;
+                append(
+                    ensureTerrainLawnCornerUnderlayObject(
+                        highUnderlayCenterX,
+                        highUnderlayCenterZ,
+                        tile.elevationLevel,
+                        tile.receivesProjectedShadow),
+                    sourcePlacementMatrix(
+                        {highUnderlayCenterX,
+                         static_cast<float>(tile.elevationLevel) *
+                             kTerrainElevationStepCm,
+                         highUnderlayCenterZ},
                         {0.0f, 0.0f, 0.0f},
                         {1.0f, 1.0f, 1.0f}));
             }

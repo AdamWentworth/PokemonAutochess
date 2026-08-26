@@ -340,10 +340,12 @@ on the same five-centimetre lattice and trims convex endpoints to the paired
 corner's 32 cm reservation. The two adjoining low tiles then contribute
 complementary narrow underlaps around the rounded foot, meeting on the diagonal
 and stopping 1.50 cm outside the wall rather than reaching the logical tile
-corner. Every inside and outside turn also receives an 18 cm matching-lawn disk
+corner. Every inside and outside turn also receives a 20 cm matching-lawn disk
 strictly beneath the ordinary surface, closing raster coverage at the joined
-grass carriers without showing a broad circular patch. At an inside corner,
-ordinary strips stop before the junction and hand
+grass carriers without showing a broad circular patch. Convex turns add the
+same carrier at the high-cap elevation, biased five centimetres into the owner
+so it closes the top/crown triangulation without floating over the wall. At an
+inside corner, ordinary strips stop before the junction and hand
 off to the asymmetric four-sample cliff and three-row leafy profile decoded
 from mesh 35's native `(2800,-400)` corner. A source-sampled lawn underlay joins
 that foliage back to all three raised caps, preventing either an intersecting
