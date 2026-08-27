@@ -2546,6 +2546,101 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(maximumEastCornerGroundEdgeCm) + ").";
         return false;
     }
+    if (!environment.setTerrainPatchV2PreviewEnabled(true, &error)) {
+        outFail =
+            "Terrain Patch V2 rejected the cooked corner-continuation fixture: " +
+            error;
+        return false;
+    }
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
+        regionalCornerBatches;
+    environment.appendIndexedBatches(
+        0.0f,
+        regionalCornerBatches);
+    const auto regionalSubmitted = [&](std::string_view fragment) {
+        return std::any_of(
+            regionalCornerBatches.begin(),
+            regionalCornerBatches.end(),
+            [&](const auto& batch) {
+                return batch.geometryCacheKey.find(fragment) !=
+                    std::string::npos;
+            });
+    };
+    const bool retainedLegacyWideUnderlay =
+        regionalSubmitted("terrain-ledge-crown-underlay:") ||
+        regionalSubmitted("terrain-convex-lawn-corner-underlay:") ||
+        regionalSubmitted("terrain-convex-lawn-corner-pocket-repair:") ||
+        regionalSubmitted("terrain-convex-lawn-cap-underlay:") ||
+        regionalSubmitted("terrain-lawn-corner-underlay:");
+    bool contourEnvelopeValid = true;
+    std::size_t contourEnvelopeCount = 0u;
+    for (const auto& batch : regionalCornerBatches) {
+        const bool straightContour = batch.geometryCacheKey.find(
+            "terrain-ledge-crown-contour-underlay:cell-16--4:edge-1:") !=
+            std::string::npos;
+        const bool cornerContour = batch.geometryCacheKey.find(
+            "terrain-convex-crown-contour-underlay:cell-16--4:corner-1:") !=
+            std::string::npos;
+        if (!straightContour && !cornerContour) {
+            continue;
+        }
+        const auto* vertices = batch.sharedVertices
+            ? batch.sharedVertices
+            : batch.vertices.data();
+        const std::size_t vertexCount = batch.sharedVertices
+            ? batch.sharedVertexCount
+            : batch.vertices.size();
+        if (!vertices || vertexCount == 0u) {
+            contourEnvelopeValid = false;
+            continue;
+        }
+        ++contourEnvelopeCount;
+        float minimumX = vertices[0].x;
+        float maximumX = vertices[0].x;
+        float minimumZ = vertices[0].z;
+        float maximumZ = vertices[0].z;
+        for (std::size_t vertexIndex = 1u;
+             vertexIndex < vertexCount;
+             ++vertexIndex) {
+            minimumX = std::min(minimumX, vertices[vertexIndex].x);
+            maximumX = std::max(maximumX, vertices[vertexIndex].x);
+            minimumZ = std::min(minimumZ, vertices[vertexIndex].z);
+            maximumZ = std::max(maximumZ, vertices[vertexIndex].z);
+        }
+        const float spanX = maximumX - minimumX;
+        const float spanZ = maximumZ - minimumZ;
+        if (straightContour) {
+            contourEnvelopeValid = contourEnvelopeValid &&
+                std::min(spanX, spanZ) <= 24.0f &&
+                std::max(spanX, spanZ) <= 100.01f;
+        } else {
+            contourEnvelopeValid = contourEnvelopeValid &&
+                spanX <= 20.01f && spanZ <= 20.01f;
+        }
+    }
+    const bool foundWestStraightContour = regionalSubmitted(
+        "terrain-ledge-crown-contour-underlay:cell-16--4:edge-1:");
+    const bool foundWestCornerContour = regionalSubmitted(
+        "terrain-convex-crown-contour-underlay:cell-16--4:corner-1:");
+    if (retainedLegacyWideUnderlay ||
+        !contourEnvelopeValid ||
+        contourEnvelopeCount == 0u ||
+        !foundWestStraightContour ||
+        !foundWestCornerContour ||
+        !regionalSubmitted(
+            "route1:terrain-cliff:cell-16--4:edge-1:") ||
+        !regionalSubmitted(
+            "route1:terrain-fringe:cell-16--4:edge-1:") ||
+        !regionalSubmitted("route1:terrain-authored-surface:")) {
+        outFail =
+            "Terrain Patch V2 must submit its connected surface, bounded straight/corner contour gaskets, and source-profile cliff/fringe without the legacy rectangular crown/corner repair meshes (legacy=" +
+            std::to_string(retainedLegacyWideUnderlay) +
+            ", envelope=" + std::to_string(contourEnvelopeValid) +
+            ", count=" + std::to_string(contourEnvelopeCount) +
+            ", straight=" + std::to_string(foundWestStraightContour) +
+            ", corner=" + std::to_string(foundWestCornerContour) + ").";
+        return false;
+    }
     namespace variants =
         game::runtime::route1_scene_variants;
     const std::array variantCases{

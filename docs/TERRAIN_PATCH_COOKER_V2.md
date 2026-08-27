@@ -45,6 +45,12 @@ Implemented:
 - topology validation and runtime statistics;
 - regional continuous-material ownership;
 - shared vertex indices across compatible same-surface/same-height cell edges;
+- exact decoded geometry/material fields on source-transition cells instead of
+  moving a synthetic square delimiter one cell away from the authored edit;
+- source-profile straight and convex-corner crown gaskets that follow the
+  resolved ledge contour and are bounded to a narrow local envelope;
+- retirement of the legacy rectangular crown/corner safety meshes while the
+  V2 preview is active;
 - editor-only V2 preview, enabled by default for Route 1;
 - instant A/B fallback through **Terrain Patch V2 Preview** in the project
   commands;
@@ -52,7 +58,7 @@ Implemented:
 
 Still to complete before promotion:
 
-- drive the complete crown, cliff, and foliage profile from the regional
+- drive the remaining cliff and foliage ownership directly from the regional
   contour instead of the legacy ledge resolver;
 - add a geometric intersection/non-manifold validator after final
   triangulation;

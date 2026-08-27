@@ -485,6 +485,55 @@ public:
         environment_.appendIndexedBatches(
             simulationSeconds_,
             batches_);
+        if (!terrainBatchDiagnosticsWritten_ &&
+            engine::env::get(
+                "PAC_ROUTE1_TERRAIN_BATCH_DIAGNOSTICS")) {
+            terrainBatchDiagnosticsWritten_ = true;
+            for (const auto& batch : batches_) {
+                const auto& key = batch.geometryCacheKey;
+                if (key.find("route1:terrain-") ==
+                    std::string::npos) {
+                    continue;
+                }
+                const auto* vertices = batch.sharedVertices
+                    ? batch.sharedVertices
+                    : batch.vertices.data();
+                const std::size_t vertexCount = batch.sharedVertices
+                    ? batch.sharedVertexCount
+                    : batch.vertices.size();
+                if (!vertices || vertexCount == 0u) {
+                    continue;
+                }
+                std::array<float, 3> minimum{
+                    vertices[0].x, vertices[0].y, vertices[0].z};
+                std::array<float, 3> maximum = minimum;
+                for (std::size_t vertexIndex = 1u;
+                     vertexIndex < vertexCount;
+                     ++vertexIndex) {
+                    minimum[0] = std::min(
+                        minimum[0], vertices[vertexIndex].x);
+                    minimum[1] = std::min(
+                        minimum[1], vertices[vertexIndex].y);
+                    minimum[2] = std::min(
+                        minimum[2], vertices[vertexIndex].z);
+                    maximum[0] = std::max(
+                        maximum[0], vertices[vertexIndex].x);
+                    maximum[1] = std::max(
+                        maximum[1], vertices[vertexIndex].y);
+                    maximum[2] = std::max(
+                        maximum[2], vertices[vertexIndex].z);
+                }
+                std::cerr
+                    << "[PokemonAutochessEditor][TerrainBatch] key="
+                    << key
+                    << " vertices=" << vertexCount
+                    << " local_bounds_cm=["
+                    << minimum[0] << ',' << minimum[1] << ','
+                    << minimum[2] << "]-["
+                    << maximum[0] << ',' << maximum[1] << ','
+                    << maximum[2] << "]\n";
+            }
+        }
         game::runtime::shared_world_batches::
             submitWorldIndexedBatches(
                 *context.renderer,
@@ -3380,6 +3429,7 @@ private:
     bool layoutOverlayVisible_ = true;
     bool terrainSeamDiagnosticsVisible_ = false;
     bool terrainPatchV2PreviewEnabled_ = true;
+    bool terrainBatchDiagnosticsWritten_ = false;
     bool ownsTtf_ = false;
     static constexpr float kBootReplayDurationSeconds =
         2.5f;
