@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-08-22
+Last updated: 2026-08-27
 
 PokemonAutochess extends the reusable Phlosion Editor through
 `PokemonAutochessEditorProject`. The game repository owns every tool whose
@@ -51,6 +51,14 @@ their Route 1 logic, undo transaction, save, and status message.
   command optionally draws resolved component boundaries in cyan and
   projected-shadow mismatches in magenta; it starts hidden and does not alter
   the scene.
+- The **Exact Source Piece Catalog** inventories every occupied imported
+  terrain cell, classifies its ledge/ramp/boundary topology, and records all
+  four height-and-surface edge sockets. Its carousel ranks exact LGPE donor
+  geometry against one selected target cell. Applying a donor persists the
+  existing lossless `source_reference` path, so positions, normals, UVs,
+  vertex colors, materials, and topology come from the imported scene rather
+  than another generic ledge strip. See
+  [LGPE_TERRAIN_PIECE_WORKFLOW.md](LGPE_TERRAIN_PIECE_WORKFLOW.md).
 - The **Encounter Grass** controls remove or restore only the blade clusters
   whose source-weighted rendered geometry is centered in each selected terrain
   cell. Removal filters the owning source triangles instead of moving skin

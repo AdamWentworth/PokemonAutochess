@@ -1,5 +1,9 @@
 # Terrain Patch Cooker V2
 
+Status: Active
+Type: Architecture
+Last updated: 2026-08-27
+
 ## Purpose
 
 The battle board remains a strict integer grid because placement, occupancy,
@@ -14,6 +18,13 @@ between gameplay topology and environment presentation:
 - environment edits: cell-addressed selection input;
 - rendered environment: connected regional geometry with shared boundaries;
 - untouched environment: exact imported source geometry.
+
+For difficult source-authored turns and handoffs, the editor also exposes a
+complete exact-donor catalog. Terrain Patch V2 is not allowed to outvote an
+exact compatible LGPE carrier merely because it can synthesize a nearby
+contour. The donor catalog, socket rules, and final regional promotion boundary
+are specified in
+[LGPE_TERRAIN_PIECE_WORKFLOW.md](LGPE_TERRAIN_PIECE_WORKFLOW.md).
 
 ## Regional cook contract
 
@@ -40,7 +51,10 @@ into the transition ring.
 The editor deliberately keeps the fast grid workflow: select cells, change
 height/surface/shape, and save. A successful edit reload automatically reruns
 the seam resolver, regional planner, ledge resolver, and contour mesher. Map
-authors do not place seam patches or choose a corner mesh by hand.
+authors do not place synthetic seam patches by hand. When automatic topology
+has no production-quality answer, they can explicitly promote an exact,
+socket-compatible source donor through the catalog instead of tuning repair
+geometry.
 
 `TerrainContourMesher` is the reusable geometry boundary between an imported
 location profile and the renderer. It triangulates sampled contour strips and
@@ -126,7 +140,9 @@ Still to complete before promotion:
   combined source/patch mesh (intersection and non-manifold checks);
 - establish visual golden crops for source corners, authored convex/concave
   corners, light lawn, dark lawn, dirt transitions, and map boundaries;
-- remove superseded per-tile repair helpers only after the V2 golden set passes.
+- remove superseded per-tile repair helpers only after the V2 golden set passes;
+- feed approved exact-donor/source composition into an offline regional mesh
+  bake and validate the final combined output before runtime promotion.
 
 ## Promotion rule
 

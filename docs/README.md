@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Index
-Last updated: 2026-08-12
+Last updated: 2026-08-27
 
 This folder holds the live engineering docs for the repo. Historical or
 superseded plans belong in `docs/archive/`. Live docs stay in `docs/`; their
@@ -31,6 +31,9 @@ role is expressed through metadata rather than deep folder nesting.
 | `DISPLAY_GRAPHICS_ROADMAP.md` | `Roadmap` | Display/settings roadmap grounded in current implementation. |
 | `CI.md` | `Runbook` | CI scope and local equivalent checks. |
 | `VFX_PIPELINE.md` | `Architecture` | Current reusable vs game-specific VFX ownership and asset rules. |
+| `EDITOR_TOOLING.md` | `Architecture` | PokemonAutochess-owned Phlosion Editor extension behavior and persistence. |
+| `TERRAIN_PATCH_COOKER_V2.md` | `Architecture` | Regional terrain-preview topology, validation, and promotion rules. |
+| `LGPE_TERRAIN_PIECE_WORKFLOW.md` | `Architecture` | Complete exact-source donor catalog, socket matching, and production bake boundary. |
 
 ## Type Guide
 - `Goal`: Long-lived direction and success criteria.
