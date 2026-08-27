@@ -66,5 +66,18 @@ bool test_terrain_contour_mesher_contract(std::string& outFail) {
             "A caller-owned contour boundary must be triangulated without resampling it.";
         return false;
     }
+    const std::vector<contours::StripSample> closedSamples{
+        {{-10.0f, -10.0f}, {-5.0f, -5.0f}},
+        {{10.0f, -10.0f}, {5.0f, -5.0f}},
+        {{10.0f, 10.0f}, {5.0f, 5.0f}},
+        {{-10.0f, 10.0f}, {-5.0f, 5.0f}}};
+    const auto closedStrip = contours::makeStrip(closedSamples, true);
+    if (!contours::validate(closedStrip).valid ||
+        closedStrip.vertices.size() != 8u ||
+        closedStrip.indices.size() != 24u) {
+        outFail =
+            "A closed regional contour strip must weld its last sample back to its first without a cap fan.";
+        return false;
+    }
     return true;
 }

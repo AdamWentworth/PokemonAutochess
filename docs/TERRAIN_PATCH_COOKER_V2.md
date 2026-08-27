@@ -55,10 +55,13 @@ one-off coordinates.
 triangulator. The ledge resolver supplies semantic edges and join kinds once;
 the assembler turns them into one cached sequence of world-space position,
 outward, tangent, logical-distance, and material-distance frames. Crown,
-cliff, foliage, and low-foot batches now consume those same frames. A rebuilt
-V2 ledge may still sample the source material fields, but it no longer lets
-each material batch independently snap its geometry back to a nearby source
-triangle. Untouched source terrain continues to use the exact imported mesh.
+cliff, foliage, and low-foot batches now consume those same frames. Compatible
+flat-drop spans and convex turns are welded into one renderable contour run;
+the crown, cliff wall, and leafy fringe are emitted once per run rather than
+once per tile edge and corner. A rebuilt V2 ledge may still sample the source
+material fields, but it no longer lets each material batch independently snap
+its geometry back to a nearby source triangle. Untouched source terrain
+continues to use the exact imported mesh.
 
 A convex turn has one seam contract across all of its carriers:
 
@@ -94,6 +97,10 @@ Implemented:
 - contour-owned convex low-foot pockets on both mirrored Route 1 corners;
 - one validated frame owner for straight and convex lawn, wall, foliage, and
   foot carriers, including exact endpoint closure at every profile offset;
+- contour-level crown, cliff, and fringe objects with welded straight-to-turn
+  indices and continuous material distance across the complete run;
+- one decoded-source phase offset per edited fringe contour, avoiding the
+  stretched alpha-cutout leaves produced by independently blended endpoints;
 - material-only source sampling on edited V2 ledges, preventing independent
   source-geometry projections from reopening otherwise matched joins;
 - the same recovered LGPE ledge-contact tint and crown normal on the contour
@@ -101,8 +108,11 @@ Implemented:
   longer expose a bright synthetic ribbon beneath alpha-cut leaves;
 - mirrored west/east runtime regression coverage, rather than qualifying only
   the first corner that happened to be inspected;
-- retirement of the legacy rectangular crown/corner safety meshes while the
-  V2 preview is active;
+- retirement of the legacy rectangular crown/corner safety meshes and
+  source-handoff overlays while the V2 preview is active;
+- rejection of projected top-surface slivers that exceed the regional five-
+  centimetre lattice, and retirement of tile-local triangles that straddle a
+  contour-owned convex rim;
 - editor-only V2 preview, enabled by default for Route 1;
 - instant A/B fallback through **Terrain Patch V2 Preview** in the project
   commands;

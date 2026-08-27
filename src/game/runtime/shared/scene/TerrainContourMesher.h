@@ -30,7 +30,9 @@ struct Validation {
 // Triangulates a sampled contour strip without inventing a centre vertex.
 // Straight ledges and their turns use this same primitive so both sides of a
 // join can submit the exact same two endpoint vertices.
-Mesh makeStrip(const std::vector<StripSample>& samples);
+Mesh makeStrip(
+    const std::vector<StripSample>& samples,
+    bool closed = false);
 
 // Closes the inside of a curved strip with an explicit, bounded fan. This is
 // used only when the surface behind the contour was deliberately retired; the

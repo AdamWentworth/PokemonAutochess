@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <iterator>
 #include <set>
 #include <tuple>
 
@@ -285,6 +286,98 @@ Assembly assemble(
         }
         result.convexTurns.push_back(std::move(turn));
     }
+
+    for (std::uint32_t contourIndex = 0u;
+         contourIndex < resolution.contourCount;
+         ++contourIndex) {
+        const bool hasConcaveJoin = std::any_of(
+            resolution.edges.begin(),
+            resolution.edges.end(),
+            [&](const auto& edge) {
+                return edge.contourIndex == contourIndex &&
+                    (edge.startJoin ==
+                         route1_terrain_ledges::Join::Concave ||
+                     edge.endJoin ==
+                         route1_terrain_ledges::Join::Concave);
+            });
+        // Concave turns still use the decoded asymmetric LGPE handoff. They
+        // remain on that source-specific path until it can expose equivalent
+        // shared frames; never bridge the inside turn with an invented chord.
+        if (hasConcaveJoin) {
+            continue;
+        }
+
+        struct OrderedPart {
+            float materialStartCm = 0.0f;
+            std::uint32_t rank = 0u;
+            const std::vector<Frame>* frames = nullptr;
+        };
+        std::vector<OrderedPart> parts;
+        for (const auto& edge : result.edges) {
+            if (edge.contourIndex == contourIndex &&
+                !edge.frames.empty()) {
+                parts.push_back({
+                    edge.frames.front().materialContourCm,
+                    0u,
+                    &edge.frames});
+            }
+        }
+        for (const auto& turn : result.convexTurns) {
+            if (turn.contourIndex == contourIndex &&
+                !turn.frames.empty()) {
+                parts.push_back({
+                    turn.frames.front().materialContourCm,
+                    1u,
+                    &turn.frames});
+            }
+        }
+        std::stable_sort(
+            parts.begin(),
+            parts.end(),
+            [](const OrderedPart& left, const OrderedPart& right) {
+                return std::tie(left.materialStartCm, left.rank) <
+                    std::tie(right.materialStartCm, right.rank);
+            });
+        if (parts.empty()) {
+            continue;
+        }
+
+        ContourRun run{.contourIndex = contourIndex};
+        bool connected = true;
+        for (const auto& part : parts) {
+            if (!part.frames || part.frames->empty()) {
+                continue;
+            }
+            if (run.frames.empty()) {
+                run.frames.insert(
+                    run.frames.end(),
+                    part.frames->begin(),
+                    part.frames->end());
+                continue;
+            }
+            if (!near(run.frames.back().position,
+                      part.frames->front().position)) {
+                connected = false;
+                result.validation.valid = false;
+                ++result.validation.disconnectedContourRuns;
+                break;
+            }
+            run.frames.insert(
+                run.frames.end(),
+                std::next(part.frames->begin()),
+                part.frames->end());
+        }
+        if (!connected || run.frames.size() < 2u) {
+            continue;
+        }
+        run.closed = run.frames.size() > 2u &&
+            near(run.frames.front().position,
+                 run.frames.back().position);
+        if (run.closed) {
+            run.frames.pop_back();
+        }
+        result.runs.push_back(std::move(run));
+    }
     return result;
 }
 
@@ -314,6 +407,18 @@ const ConvexTurn* findConvexTurn(
                 candidate.corner == corner;
         });
     return found == assembly.convexTurns.end() ? nullptr : &*found;
+}
+
+const ContourRun* findRun(
+    const Assembly& assembly,
+    std::uint32_t contourIndex) noexcept {
+    const auto found = std::find_if(
+        assembly.runs.begin(),
+        assembly.runs.end(),
+        [&](const ContourRun& candidate) {
+            return candidate.contourIndex == contourIndex;
+        });
+    return found == assembly.runs.end() ? nullptr : &*found;
 }
 
 Point offset(const Frame& frame, float outwardCm) noexcept {

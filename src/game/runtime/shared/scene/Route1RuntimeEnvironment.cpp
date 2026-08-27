@@ -3225,6 +3225,14 @@ struct RuntimeEnvironment::Impl {
         route1_terrain_ledges::Join endJoin);
 
     IRenderBackend::WorldSceneRenderObjectHandle
+    ensureTerrainRegionalCliffContourObject(
+        std::uint32_t contourIndex);
+
+    IRenderBackend::WorldSceneRenderObjectHandle
+    ensureTerrainRegionalFringeContourObject(
+        std::uint32_t contourIndex);
+
+    IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainCliffCornerObject(
         const TerrainTileState& tile,
         std::size_t corner,
@@ -3291,6 +3299,10 @@ struct RuntimeEnvironment::Impl {
     ensureTerrainLedgeCrownContourUnderlayObject(
         const TerrainTileState& tile,
         std::size_t edge);
+
+    IRenderBackend::WorldSceneRenderObjectHandle
+    ensureTerrainRegionalCrownContourUnderlayObject(
+        std::uint32_t contourIndex);
 
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainConvexCrownContourUnderlayObject(
@@ -9304,12 +9316,39 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             convexCornerClippedVertexMasks[sourceFirst] &
             convexCornerClippedVertexMasks[sourceSecond] &
             convexCornerClippedVertexMasks[sourceThird];
-        if (commonClippedCorner != 0u) {
+        const std::uint32_t anyClippedCorner =
+            convexCornerClippedVertexMasks[sourceFirst] |
+            convexCornerClippedVertexMasks[sourceSecond] |
+            convexCornerClippedVertexMasks[sourceThird];
+        if (commonClippedCorner != 0u ||
+            (terrainPatchV2PreviewEnabled && anyClippedCorner != 0u)) {
             return;
         }
         const auto& first = prototype.vertices[emittedFirst];
         const auto& second = prototype.vertices[emittedSecond];
         const auto& third = prototype.vertices[emittedThird];
+        if (terrainPatchV2PreviewEnabled) {
+            const auto horizontalEdgeLength = [](const auto& left,
+                                                 const auto& right) {
+                const float dx = right.x - left.x;
+                const float dz = right.z - left.z;
+                return std::sqrt(dx * dx + dz * dz);
+            };
+            const float maximumHorizontalEdgeCm = std::max({
+                horizontalEdgeLength(first, second),
+                horizontalEdgeLength(second, third),
+                horizontalEdgeLength(third, first)});
+            // The generated top is a five-centimetre lattice. A much longer
+            // edge can only be a projection sliver produced where two old
+            // tile-local crown clips disagree at a contour handoff. Retiring
+            // it is safe because the regional crown owns that narrow contact
+            // band and prevents the former green spear from reappearing.
+            constexpr float kMaximumRegionalTopTriangleEdgeCm = 8.0f;
+            if (maximumHorizontalEdgeCm >
+                kMaximumRegionalTopTriangleEdgeCm) {
+                return;
+            }
+        }
         const float signedAreaTwice =
             (second.x - first.x) * (third.z - first.z) -
             (second.z - first.z) * (third.x - first.x);
@@ -10865,6 +10904,458 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
         static_cast<shared_world_scene::PipelineVariant>(
             terrainTilePrototypes.cliffPipelineVariant),
         terrainTilePrototypes.cliffCookedDrawSlot,
+        false);
+    return prototype.object;
+}
+
+IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureTerrainRegionalCliffContourObject(
+    std::uint32_t contourIndex) {
+    const auto* contourRun = route1_terrain_contours::findRun(
+        terrainContourAssembly, contourIndex);
+    if (!contourRun || contourRun->frames.size() < 2u) {
+        return {};
+    }
+
+    std::int32_t highLevel = 0;
+    std::int32_t lowLevel = 0;
+    bool foundEdge = false;
+    for (const auto& resolved : terrainLedgeResolution.edges) {
+        if (resolved.contourIndex != contourIndex) {
+            continue;
+        }
+        const auto tile = std::find_if(
+            terrainTiles.begin(),
+            terrainTiles.end(),
+            [&](const TerrainTileState& candidate) {
+                return candidate.gridX == resolved.ownerCell.first &&
+                    candidate.gridZ == resolved.ownerCell.second;
+            });
+        const bool completeFlatDrop =
+            tile != terrainTiles.end() && tile->shape == "flat" &&
+            resolved.profile.tileLevels[0u] ==
+                resolved.profile.tileLevels[1u] &&
+            resolved.profile.neighborLevels[0u] ==
+                resolved.profile.neighborLevels[1u] &&
+            resolved.profile.tileLevels[0u] >
+                resolved.profile.neighborLevels[0u];
+        if (!completeFlatDrop) {
+            return {};
+        }
+        if (!foundEdge) {
+            foundEdge = true;
+            highLevel = resolved.profile.tileLevels[0u];
+            lowLevel = resolved.profile.neighborLevels[0u];
+        } else if (
+            highLevel != resolved.profile.tileLevels[0u] ||
+            lowLevel != resolved.profile.neighborLevels[0u]) {
+            return {};
+        }
+    }
+    if (!foundEdge) {
+        return {};
+    }
+
+    const std::int32_t levelDifference = highLevel - lowLevel;
+    const std::string key =
+        "route1:terrain-regional-cliff-contour:contour-" +
+        std::to_string(contourIndex) + ":levels-" +
+        std::to_string(highLevel) + "-" + std::to_string(lowLevel) +
+        (contourRun->closed ? ":closed" : ":open");
+    auto [found, inserted] =
+        terrainTilePrototypes.cliffPrototypes.try_emplace(key);
+    auto& prototype = found->second;
+    if (!inserted) {
+        return prototype.object;
+    }
+
+    struct ProfileRow {
+        float yFromHigh;
+        float outward;
+        float normalY;
+        float normalOutward;
+        float cliffV;
+        float borderV;
+    };
+    constexpr float kGeneratedSeamY = -0.02f;
+    const float height = static_cast<float>(levelDifference) *
+        kTerrainElevationStepCm;
+    const float capBase = height - kTerrainElevationStepCm;
+    std::vector<ProfileRow> rows;
+    rows.reserve(5u);
+    if (levelDifference > 1) {
+        rows.push_back({
+            kGeneratedSeamY - height,
+            25.0f,
+            0.0f,
+            1.0f,
+            0.00249964f - static_cast<float>(levelDifference - 1),
+            0.79334f});
+    }
+    rows.push_back({
+        capBase + kGeneratedSeamY - height,
+        25.0f,
+        0.27f,
+        0.96f,
+        0.00249964f,
+        0.79334f});
+    rows.push_back({
+        capBase + 16.875f + kGeneratedSeamY - height,
+        20.0f,
+        0.27f,
+        0.96f,
+        0.338313f,
+        0.850f});
+    rows.push_back({
+        capBase + 35.02f + kGeneratedSeamY - height,
+        15.0f,
+        0.55f,
+        0.83f,
+        0.699455f,
+        0.850f});
+    rows.push_back({
+        kGeneratedSeamY,
+        0.0f,
+        0.76f,
+        0.65f,
+        0.9975f,
+        0.850f});
+
+    constexpr float kCliffUPerCentimetre = 0.00516529f;
+    constexpr float kBorderUPerCentimetre = 0.00510638f;
+    constexpr std::array<float, 4> kWhite{
+        1.0f, 1.0f, 1.0f, 1.0f};
+    constexpr std::array<float, 4> kLowerBandColor{
+        0.180392161f, 0.482352942f, 0.431372553f, 1.0f};
+    const std::uint32_t rowWidth = static_cast<std::uint32_t>(
+        contourRun->frames.size());
+    const std::uint32_t segmentCount = contourRun->closed
+        ? rowWidth
+        : rowWidth - 1u;
+    prototype.vertices.reserve(
+        (rows.size() - 1u) * 2u * rowWidth);
+    prototype.sourceVertices.reserve(
+        (rows.size() - 1u) * 2u * rowWidth);
+    prototype.indices.reserve(
+        (rows.size() - 1u) * segmentCount * 6u);
+    for (std::uint32_t band = 0u;
+         band + 1u < rows.size();
+         ++band) {
+        const std::uint32_t firstVertex =
+            static_cast<std::uint32_t>(prototype.vertices.size());
+        const bool usesContourBorder = band < rows.size() - 3u;
+        for (std::size_t rowInBand = 0u;
+             rowInBand < 2u;
+             ++rowInBand) {
+            const std::size_t rowIndex = band + rowInBand;
+            const auto& row = rows[rowIndex];
+            const auto& color = rowIndex < rows.size() - 3u
+                ? kLowerBandColor
+                : kWhite;
+            for (const auto& frame : contourRun->frames) {
+                const bool straightFrame =
+                    std::abs(frame.outward.x) <= 0.0001f ||
+                    std::abs(frame.outward.z) <= 0.0001f;
+                const float contourWobbleCm = straightFrame
+                    ? terrainLedgeContourWobbleCm(
+                          frame.logicalContourCm)
+                    : 0.0f;
+                const auto position = route1_terrain_contours::offset(
+                    frame,
+                    row.outward + kTerrainLedgeBaseInsetCm +
+                        contourWobbleCm);
+                auto vertex = terrainTilePrototypes.cliffVertexTemplate;
+                auto sourceVertex =
+                    terrainTilePrototypes.cliffSourceVertexTemplate;
+                vertex.x = position.x;
+                vertex.y = row.yFromHigh;
+                vertex.z = position.z;
+                vertex.nx = frame.outward.x * row.normalOutward;
+                vertex.ny = row.normalY;
+                vertex.nz = frame.outward.z * row.normalOutward;
+                vertex.u = position.x / 300.0f;
+                vertex.v = position.z / 300.0f;
+                vertex.sourceUv1U =
+                    frame.materialContourCm * kCliffUPerCentimetre;
+                vertex.sourceUv1V = row.cliffV;
+                vertex.sourceUv2U = usesContourBorder
+                    ? frame.materialContourCm * kBorderUPerCentimetre
+                    : -0.05f;
+                vertex.sourceUv2V = usesContourBorder
+                    ? row.borderV
+                    : 0.85f;
+                vertex.r = color[0u];
+                vertex.g = color[1u];
+                vertex.b = color[2u];
+                vertex.a = color[3u];
+                sourceVertex.texcoords[0] = {vertex.u, vertex.v};
+                sourceVertex.texcoords[1] = {
+                    vertex.sourceUv1U, vertex.sourceUv1V};
+                sourceVertex.texcoords[2] = {
+                    vertex.sourceUv2U, vertex.sourceUv2V};
+                sourceVertex.colors[0] = color;
+                prototype.vertices.push_back(vertex);
+                prototype.sourceVertices.push_back(sourceVertex);
+            }
+        }
+        for (std::uint32_t sample = 0u;
+             sample < segmentCount;
+             ++sample) {
+            const std::uint32_t next = (sample + 1u) % rowWidth;
+            const std::uint32_t lowerLeft = firstVertex + sample;
+            const std::uint32_t lowerRight = firstVertex + next;
+            const std::uint32_t upperLeft =
+                firstVertex + rowWidth + sample;
+            const std::uint32_t upperRight =
+                firstVertex + rowWidth + next;
+            prototype.indices.insert(
+                prototype.indices.end(),
+                {lowerLeft, lowerRight, upperRight,
+                 lowerLeft, upperRight, upperLeft});
+        }
+    }
+
+    const auto geometry = shared_world_scene::ensureRigidGeometry(
+        scene.registry,
+        &prototype,
+        key.c_str(),
+        prototype.vertices.data(),
+        prototype.vertices.size(),
+        prototype.indices.data(),
+        prototype.indices.size(),
+        prototype.sourceVertices.data(),
+        prototype.sourceVertices.size(),
+        terrainTilePrototypes.cliffSourceVertexSemanticMask,
+        std::numeric_limits<std::uint32_t>::max(),
+        0u);
+    prototype.object = shared_world_scene::ensureRenderObject(
+        scene.registry,
+        geometry,
+        terrainTilePrototypes.cliffMaterialHandle,
+        static_cast<shared_world_scene::PipelineVariant>(
+            terrainTilePrototypes.cliffPipelineVariant),
+        terrainTilePrototypes.cliffCookedDrawSlot,
+        false);
+    return prototype.object;
+}
+
+IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureTerrainRegionalFringeContourObject(
+    std::uint32_t contourIndex) {
+    const auto* contourRun = route1_terrain_contours::findRun(
+        terrainContourAssembly, contourIndex);
+    if (!contourRun || contourRun->frames.size() < 2u) {
+        return {};
+    }
+
+    std::int32_t elevationLevel = 0;
+    bool foundEdge = false;
+    for (const auto& resolved : terrainLedgeResolution.edges) {
+        if (resolved.contourIndex != contourIndex) {
+            continue;
+        }
+        const auto tile = std::find_if(
+            terrainTiles.begin(),
+            terrainTiles.end(),
+            [&](const TerrainTileState& candidate) {
+                return candidate.gridX == resolved.ownerCell.first &&
+                    candidate.gridZ == resolved.ownerCell.second;
+            });
+        const bool completeFlatDrop =
+            tile != terrainTiles.end() && tile->shape == "flat" &&
+            resolved.profile.tileLevels[0u] ==
+                resolved.profile.tileLevels[1u] &&
+            resolved.profile.neighborLevels[0u] ==
+                resolved.profile.neighborLevels[1u] &&
+            resolved.profile.tileLevels[0u] >
+                resolved.profile.neighborLevels[0u];
+        if (!completeFlatDrop) {
+            return {};
+        }
+        if (!foundEdge) {
+            foundEdge = true;
+            elevationLevel = resolved.profile.tileLevels[0u];
+        } else if (elevationLevel != resolved.profile.tileLevels[0u]) {
+            return {};
+        }
+    }
+    if (!foundEdge) {
+        return {};
+    }
+
+    const std::string key =
+        "route1:terrain-regional-fringe-contour:contour-" +
+        std::to_string(contourIndex) + ":level-" +
+        std::to_string(elevationLevel) +
+        (contourRun->closed ? ":closed" : ":open");
+    auto [found, inserted] =
+        terrainTilePrototypes.fringePrototypes.try_emplace(key);
+    auto& prototype = found->second;
+    if (!inserted) {
+        return prototype.object;
+    }
+
+    constexpr auto kRelativeY = kTerrainLedgeFringeRelativeY;
+    constexpr auto kOutward = kTerrainLedgeFringeOutwardCm;
+    constexpr auto kNormalY = kTerrainLedgeFringeNormalY;
+    constexpr auto kNormalOutward =
+        kTerrainLedgeFringeNormalOutward;
+    constexpr auto kMaskV = kTerrainLedgeFringeMaskV;
+    constexpr std::array<float, 2> kUv2{
+        -0.049999952f, 0.949999988f};
+    constexpr std::array<std::array<float, 4>, 3> kColors{{
+        {0.180392161f, 0.482352942f, 0.431372553f, 1.0f},
+        {0.686274529f, 0.796078444f, 0.780392170f, 1.0f},
+        {0.686274529f, 0.796078444f, 0.780392170f, 1.0f},
+    }};
+    const std::uint32_t rowWidth = static_cast<std::uint32_t>(
+        contourRun->frames.size());
+    const std::uint32_t segmentCount = contourRun->closed
+        ? rowWidth
+        : rowWidth - 1u;
+    float contourMaterialPhaseOffset = 0.0f;
+    for (const auto& frame : contourRun->frames) {
+        const bool straightFrame =
+            std::abs(frame.outward.x) <= 0.0001f ||
+            std::abs(frame.outward.z) <= 0.0001f;
+        const float contourWobbleCm = straightFrame
+            ? terrainLedgeContourWobbleCm(frame.logicalContourCm)
+            : 0.0f;
+        const auto anchor = route1_terrain_contours::offset(
+            frame, kOutward[0u] + contourWobbleCm);
+        const float generatedU = kTerrainLedgeFringeMaskUOffset +
+            frame.materialContourCm *
+                kTerrainLedgeFringeMaskUPerCentimetre;
+        float sourceU = generatedU;
+        glm::vec4 sourceColor{1.0f};
+        if (!sampleSourceTerrainFringeMaterial(
+                {anchor.x,
+                 static_cast<float>(elevationLevel) *
+                         kTerrainElevationStepCm +
+                     kRelativeY[0u],
+                 anchor.z},
+                {frame.tangent.x, frame.tangent.z},
+                0u,
+                sourceU,
+                sourceColor)) {
+            continue;
+        }
+        // The atlas repeats. Align one complete contour with a single
+        // decoded source phase instead of independently snapping endpoints;
+        // the latter stretches alpha-cutout leaves into visible green posts.
+        contourMaterialPhaseOffset = sourceU - generatedU;
+        contourMaterialPhaseOffset -=
+            std::round(contourMaterialPhaseOffset);
+        break;
+    }
+    prototype.vertices.reserve(kRelativeY.size() * rowWidth);
+    prototype.sourceVertices.reserve(kRelativeY.size() * rowWidth);
+    prototype.indices.reserve(
+        (kRelativeY.size() - 1u) * segmentCount * 6u);
+    for (std::size_t row = 0u; row < kRelativeY.size(); ++row) {
+        for (const auto& frame : contourRun->frames) {
+            const bool straightFrame =
+                std::abs(frame.outward.x) <= 0.0001f ||
+                std::abs(frame.outward.z) <= 0.0001f;
+            const float contourWobbleCm = straightFrame
+                ? terrainLedgeContourWobbleCm(frame.logicalContourCm)
+                : 0.0f;
+            const auto position = route1_terrain_contours::offset(
+                frame, kOutward[row] + contourWobbleCm);
+            const float generatedMaterialU =
+                kTerrainLedgeFringeMaskUOffset +
+                frame.materialContourCm *
+                    kTerrainLedgeFringeMaskUPerCentimetre +
+                contourMaterialPhaseOffset;
+            const float materialU = generatedMaterialU;
+            glm::vec4 materialColor{
+                kColors[row][0u],
+                kColors[row][1u],
+                kColors[row][2u],
+                kColors[row][3u]};
+            glm::vec3 generatedPosition{
+                position.x,
+                static_cast<float>(elevationLevel) *
+                        kTerrainElevationStepCm +
+                    kRelativeY[row],
+                position.z};
+            glm::vec3 generatedNormal = glm::normalize(glm::vec3{
+                frame.outward.x * kNormalOutward[row],
+                kNormalY[row],
+                frame.outward.z * kNormalOutward[row]});
+            auto vertex = terrainTilePrototypes.fringeVertexTemplate;
+            auto sourceVertex =
+                terrainTilePrototypes.fringeSourceVertexTemplate;
+            vertex.x = generatedPosition.x;
+            vertex.y = generatedPosition.y -
+                static_cast<float>(elevationLevel) *
+                    kTerrainElevationStepCm;
+            vertex.z = generatedPosition.z;
+            vertex.nx = generatedNormal.x;
+            vertex.ny = generatedNormal.y;
+            vertex.nz = generatedNormal.z;
+            vertex.u = generatedPosition.x / 300.0f;
+            vertex.v = generatedPosition.z / 300.0f;
+            vertex.sourceUv1U = materialU;
+            vertex.sourceUv1V = kMaskV[row];
+            vertex.sourceUv2U = kUv2[0u];
+            vertex.sourceUv2V = kUv2[1u];
+            vertex.r = materialColor.r;
+            vertex.g = materialColor.g;
+            vertex.b = materialColor.b;
+            vertex.a = materialColor.a;
+            sourceVertex.texcoords[0] = {vertex.u, vertex.v};
+            sourceVertex.texcoords[1] = {
+                vertex.sourceUv1U, vertex.sourceUv1V};
+            sourceVertex.texcoords[2] = kUv2;
+            sourceVertex.colors[0] = {
+                materialColor.r,
+                materialColor.g,
+                materialColor.b,
+                materialColor.a};
+            prototype.vertices.push_back(vertex);
+            prototype.sourceVertices.push_back(sourceVertex);
+        }
+    }
+    for (std::uint32_t row = 0u;
+         row + 1u < kRelativeY.size();
+         ++row) {
+        for (std::uint32_t sample = 0u;
+             sample < segmentCount;
+             ++sample) {
+            const std::uint32_t next = (sample + 1u) % rowWidth;
+            const std::uint32_t lowerLeft = row * rowWidth + sample;
+            const std::uint32_t lowerRight = row * rowWidth + next;
+            const std::uint32_t upperLeft =
+                (row + 1u) * rowWidth + sample;
+            const std::uint32_t upperRight =
+                (row + 1u) * rowWidth + next;
+            prototype.indices.insert(
+                prototype.indices.end(),
+                {lowerLeft, lowerRight, upperRight,
+                 lowerLeft, upperRight, upperLeft});
+        }
+    }
+    const auto geometry = shared_world_scene::ensureRigidGeometry(
+        scene.registry,
+        &prototype,
+        key.c_str(),
+        prototype.vertices.data(),
+        prototype.vertices.size(),
+        prototype.indices.data(),
+        prototype.indices.size(),
+        prototype.sourceVertices.data(),
+        prototype.sourceVertices.size(),
+        terrainTilePrototypes.fringeSourceVertexSemanticMask,
+        std::numeric_limits<std::uint32_t>::max(),
+        0u);
+    prototype.object = shared_world_scene::ensureRenderObject(
+        scene.registry,
+        geometry,
+        terrainTilePrototypes.fringeMaterialHandle,
+        static_cast<shared_world_scene::PipelineVariant>(
+            terrainTilePrototypes.fringePipelineVariant),
+        terrainTilePrototypes.fringeCookedDrawSlot,
         false);
     return prototype.object;
 }
@@ -12534,7 +13025,9 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
         "route1:terrain-convex-lawn-cap-underlay:");
     const bool tessellatePatch = tessellateContourCap || key.starts_with(
         "route1:terrain-convex-lawn-corner-underlay:") || key.starts_with(
-        "route1:terrain-convex-lawn-corner-pocket-repair:");
+        "route1:terrain-convex-lawn-corner-pocket-repair:") ||
+        key.starts_with(
+            "route1:terrain-regional-convex-foot-pocket:");
     prototype.vertices.reserve(
         tessellatePatch ? 600u : boundary.size() + 1u);
     prototype.sourceVertices.reserve(
@@ -12705,8 +13198,11 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
                     nullptr);
             }
         }
+        const bool regionalCrownCarrier = key.starts_with(
+            "route1:terrain-regional-crown-contour-underlay:");
         const bool contourCrownCarrier =
-            key.find("crown-contour-underlay") != std::string::npos;
+            key.find("crown-contour-underlay") != std::string::npos &&
+            !regionalCrownCarrier;
         if (!forceRaisedCrownField && !tessellateContourCap &&
             !contourCrownCarrier &&
             materialTile &&
@@ -13291,6 +13787,132 @@ RuntimeEnvironment::Impl::ensureTerrainLedgeCrownUnderlayObject(
 }
 
 IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureTerrainRegionalCrownContourUnderlayObject(
+    std::uint32_t contourIndex) {
+    const auto* contourRun = route1_terrain_contours::findRun(
+        terrainContourAssembly, contourIndex);
+    if (!contourRun || contourRun->frames.size() < 2u) {
+        return {};
+    }
+
+    const TerrainTileState* firstOwner = nullptr;
+    std::int32_t elevationLevel = 0;
+    bool receivesProjectedShadow = true;
+    bool foundEdge = false;
+    for (const auto& resolved : terrainLedgeResolution.edges) {
+        if (resolved.contourIndex != contourIndex) {
+            continue;
+        }
+        const auto tile = std::find_if(
+            terrainTiles.begin(),
+            terrainTiles.end(),
+            [&](const TerrainTileState& candidate) {
+                return candidate.gridX == resolved.ownerCell.first &&
+                    candidate.gridZ == resolved.ownerCell.second;
+            });
+        const bool completeFlatDrop =
+            tile != terrainTiles.end() && tile->shape == "flat" &&
+            resolved.profile.tileLevels[0u] ==
+                resolved.profile.tileLevels[1u] &&
+            resolved.profile.neighborLevels[0u] ==
+                resolved.profile.neighborLevels[1u] &&
+            resolved.profile.tileLevels[0u] >
+                resolved.profile.neighborLevels[0u];
+        if (!completeFlatDrop) {
+            // Ramps and asymmetric/concave source handoffs retain their
+            // decoded specialist paths. A regional flat contour must never
+            // flatten one of those profiles merely to close a render strip.
+            return {};
+        }
+        if (!foundEdge) {
+            foundEdge = true;
+            firstOwner = &*tile;
+            elevationLevel = resolved.profile.tileLevels[0u];
+            receivesProjectedShadow = tile->receivesProjectedShadow;
+        } else if (
+            elevationLevel != resolved.profile.tileLevels[0u] ||
+            receivesProjectedShadow != tile->receivesProjectedShadow) {
+            // One render object has one height anchor and shadow material.
+            // Split-cap support can be added when a real source contour needs
+            // it; falling back is safer than welding incompatible fields.
+            return {};
+        }
+    }
+    if (!foundEdge || !firstOwner) {
+        return {};
+    }
+
+    const std::string key =
+        "route1:terrain-regional-crown-contour-underlay:contour-" +
+        std::to_string(contourIndex) + ":level-" +
+        std::to_string(elevationLevel) +
+        (receivesProjectedShadow ? ":shadow" : ":shadowless") +
+        (contourRun->closed ? ":closed" : ":open");
+    constexpr float kOuterOverlapCm = 3.0f;
+    constexpr float kInnerOverlapCm = 4.0f;
+    std::vector<terrain_contours::StripSample> contourSamples;
+    contourSamples.reserve(contourRun->frames.size());
+    for (const auto& frame : contourRun->frames) {
+        const bool straightFrame =
+            std::abs(frame.outward.x) <= 0.0001f ||
+            std::abs(frame.outward.z) <= 0.0001f;
+        const float contourWobbleCm = straightFrame
+            ? terrainLedgeContourWobbleCm(frame.logicalContourCm)
+            : 0.0f;
+        const float baseOffsetCm =
+            kTerrainLedgeBaseInsetCm + contourWobbleCm +
+            kTerrainLedgeCrownSafetyOverlapCm;
+        const auto outer = route1_terrain_contours::offset(
+            frame, baseOffsetCm + kOuterOverlapCm);
+        const auto inner = route1_terrain_contours::offset(
+            frame, baseOffsetCm - kInnerOverlapCm);
+        contourSamples.push_back({
+            .outer = outer,
+            .inner = inner});
+    }
+    const auto contourMesh = terrain_contours::makeStrip(
+        contourSamples, contourRun->closed);
+    if (!terrain_contours::validate(contourMesh).valid) {
+        return {};
+    }
+
+    std::vector<glm::vec2> boundary;
+    boundary.reserve(contourMesh.vertices.size());
+    for (const auto& point : contourMesh.vertices) {
+        boundary.emplace_back(point.x, point.z);
+    }
+    std::vector<glm::vec3> normals;
+    normals.reserve(contourMesh.vertices.size());
+    for (const auto& frame : contourRun->frames) {
+        normals.emplace_back(
+            frame.outward.x * kTerrainLedgeFringeNormalOutward[0u],
+            kTerrainLedgeFringeNormalY[0u],
+            frame.outward.z * kTerrainLedgeFringeNormalOutward[0u]);
+    }
+    normals.insert(
+        normals.end(),
+        contourRun->frames.size(),
+        glm::vec3{0.0f, 1.0f, 0.0f});
+    std::vector<float> contactWeights(
+        contourMesh.vertices.size(), 0.0f);
+    std::fill_n(
+        contactWeights.begin(), contourRun->frames.size(), 1.0f);
+    return ensureTerrainLawnPatchObject(
+        key,
+        0.0f,
+        0.0f,
+        elevationLevel,
+        receivesProjectedShadow,
+        nullptr,
+        boundary,
+        false,
+        kTerrainLawnUnderlayDepthCm,
+        &contourMesh.indices,
+        &normals,
+        &contactWeights);
+}
+
+IRenderBackend::WorldSceneRenderObjectHandle
 RuntimeEnvironment::Impl::ensureTerrainLedgeCrownContourUnderlayObject(
     const TerrainTileState& tile,
     std::size_t edge) {
@@ -13636,7 +14258,7 @@ RuntimeEnvironment::Impl::ensureTerrainConvexFootContourUnderlayObject(
         ? donorTile->receivesProjectedShadow
         : tile.receivesProjectedShadow;
     const std::string key =
-        "route1:terrain-convex-foot-contour-underlay:cell-" +
+        "route1:terrain-regional-convex-foot-pocket:cell-" +
         std::to_string(tile.gridX) + "-" +
         std::to_string(tile.gridZ) + ":corner-" +
         std::to_string(corner) + ":level-" +
@@ -13652,8 +14274,7 @@ RuntimeEnvironment::Impl::ensureTerrainConvexFootContourUnderlayObject(
         donorTile,
         boundary,
         false,
-        kTerrainLawnCornerRepairDepthCm,
-        &contourMesh.indices);
+        kTerrainLawnCornerRepairDepthCm);
 }
 
 IRenderBackend::WorldSceneRenderObjectHandle
@@ -14805,6 +15426,59 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
         }
     }
 
+    std::vector<bool> regionalCrownContourSubmitted(
+        terrainLedgeResolution.contourCount, false);
+    std::vector<bool> regionalCliffContourSubmitted(
+        terrainLedgeResolution.contourCount, false);
+    std::vector<bool> regionalFringeContourSubmitted(
+        terrainLedgeResolution.contourCount, false);
+    if (terrainPatchV2PreviewEnabled) {
+        for (std::uint32_t contourIndex = 0u;
+             contourIndex < terrainLedgeResolution.contourCount;
+             ++contourIndex) {
+            const auto crownObject =
+                ensureTerrainRegionalCrownContourUnderlayObject(
+                    contourIndex);
+            const auto cliffObject =
+                ensureTerrainRegionalCliffContourObject(
+                    contourIndex);
+            const auto fringeObject =
+                ensureTerrainRegionalFringeContourObject(
+                    contourIndex);
+            if (!crownObject && !cliffObject && !fringeObject) {
+                continue;
+            }
+            const auto owner = std::find_if(
+                terrainLedgeResolution.edges.begin(),
+                terrainLedgeResolution.edges.end(),
+                [&](const auto& edge) {
+                    return edge.contourIndex == contourIndex;
+                });
+            if (owner == terrainLedgeResolution.edges.end()) {
+                continue;
+            }
+            const auto placement = sourcePlacementMatrix(
+                {0.0f,
+                 static_cast<float>(owner->profile.tileLevels[0u]) *
+                     kTerrainElevationStepCm,
+                 0.0f},
+                {0.0f, 0.0f, 0.0f},
+                {1.0f, 1.0f, 1.0f});
+            if (crownObject) {
+                append(crownObject, placement);
+                regionalCrownContourSubmitted[contourIndex] = true;
+            }
+            if (cliffObject) {
+                append(cliffObject, placement);
+                regionalCliffContourSubmitted[contourIndex] = true;
+            }
+            if (fringeObject) {
+                append(fringeObject, placement);
+                regionalFringeContourSubmitted[contourIndex] = true;
+            }
+        }
+    }
+
     for (const auto& tile : terrainTiles) {
         if (tile.surface == "empty") {
             continue;
@@ -14870,8 +15544,9 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     neighbor,
                     edge,
                     tileUsesGeneratedSourceCap);
-            if (authoredSideOwnsHandoff ||
-                promotedGeneratedSideOwnsHandoff) {
+            if (!terrainPatchV2PreviewEnabled &&
+                (authoredSideOwnsHandoff ||
+                 promotedGeneratedSideOwnsHandoff)) {
                 append(
                     ensureTerrainSourceHandoffUnderlayObject(
                         tile, *neighbor, edge),
@@ -14923,19 +15598,26 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
             if (tile.shape == "flat" &&
                 edgeDifferences[edge][0] > 0 &&
                 edgeDifferences[edge][1] > 0) {
-                append(
-                    terrainPatchV2PreviewEnabled
-                        ? ensureTerrainLedgeCrownContourUnderlayObject(
-                              tile, edge)
-                        : ensureTerrainLedgeCrownUnderlayObject(
-                              tile, edge),
-                    sourcePlacementMatrix(
-                        {center[0],
-                         static_cast<float>(tile.elevationLevel) *
-                             kTerrainElevationStepCm,
-                         center[2]},
-                        {0.0f, 0.0f, 0.0f},
-                        {1.0f, 1.0f, 1.0f}));
+                const bool regionalOwner =
+                    resolvedLedge->contourIndex <
+                        regionalCrownContourSubmitted.size() &&
+                    regionalCrownContourSubmitted[
+                        resolvedLedge->contourIndex];
+                if (!regionalOwner) {
+                    append(
+                        terrainPatchV2PreviewEnabled
+                            ? ensureTerrainLedgeCrownContourUnderlayObject(
+                                  tile, edge)
+                            : ensureTerrainLedgeCrownUnderlayObject(
+                                  tile, edge),
+                        sourcePlacementMatrix(
+                            {center[0],
+                             static_cast<float>(tile.elevationLevel) *
+                                 kTerrainElevationStepCm,
+                             center[2]},
+                            {0.0f, 0.0f, 0.0f},
+                            {1.0f, 1.0f, 1.0f}));
+                }
             }
             const float halfSize =
                 kTerrainTileSizeCm * 0.5f;
@@ -14952,35 +15634,49 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     kTerrainElevationStepCm,
                 center[2] +
                     static_cast<float>(direction[1]) * halfSize};
-            append(
-                ensureTerrainCliffObject(
-                    tile,
-                    edge,
-                    edgeProfile,
-                    contourStartCm,
-                    materialContourStartCm,
-                    startJoin,
-                    endJoin),
-                sourcePlacementMatrix(
-                    sideCenter,
-                    {0.0f, rotations[edge], 0.0f},
-                    {1.0f, 1.0f, 1.0f}));
-            append(
-                ensureTerrainFringeObject(
-                    tile,
-                    edge,
-                    edgeProfile,
-                    contourStartCm,
-                    materialContourStartCm,
-                    startJoin,
-                    endJoin),
-                sourcePlacementMatrix(
-                    {sideCenter[0],
-                     static_cast<float>(fringeAnchorLevel) *
-                         kTerrainElevationStepCm,
-                     sideCenter[2]},
-                    {0.0f, rotations[edge], 0.0f},
-                    {1.0f, 1.0f, 1.0f}));
+            const bool regionalCliffOwner =
+                resolvedLedge->contourIndex <
+                    regionalCliffContourSubmitted.size() &&
+                regionalCliffContourSubmitted[
+                    resolvedLedge->contourIndex];
+            if (!regionalCliffOwner) {
+                append(
+                    ensureTerrainCliffObject(
+                        tile,
+                        edge,
+                        edgeProfile,
+                        contourStartCm,
+                        materialContourStartCm,
+                        startJoin,
+                        endJoin),
+                    sourcePlacementMatrix(
+                        sideCenter,
+                        {0.0f, rotations[edge], 0.0f},
+                        {1.0f, 1.0f, 1.0f}));
+            }
+            const bool regionalFringeOwner =
+                resolvedLedge->contourIndex <
+                    regionalFringeContourSubmitted.size() &&
+                regionalFringeContourSubmitted[
+                    resolvedLedge->contourIndex];
+            if (!regionalFringeOwner) {
+                append(
+                    ensureTerrainFringeObject(
+                        tile,
+                        edge,
+                        edgeProfile,
+                        contourStartCm,
+                        materialContourStartCm,
+                        startJoin,
+                        endJoin),
+                    sourcePlacementMatrix(
+                        {sideCenter[0],
+                         static_cast<float>(fringeAnchorLevel) *
+                             kTerrainElevationStepCm,
+                         sideCenter[2]},
+                        {0.0f, rotations[edge], 0.0f},
+                        {1.0f, 1.0f, 1.0f}));
+            }
         }
         if (tile.shape == "flat") {
             constexpr std::array<std::array<std::size_t, 2>, 4>
@@ -15036,35 +15732,55 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     route1_terrain_ledges::materialStraightLengthCm(
                         firstResolved->startJoin,
                         firstResolved->endJoin);
-                append(
-                    ensureTerrainCliffCornerObject(
-                        tile,
-                        corner,
-                        firstDifference,
-                        cornerMaterialContourCm),
-                    sourcePlacementMatrix(
-                        {center[0],
-                         static_cast<float>(
-                             firstNeighborLevel) *
-                             kTerrainElevationStepCm,
-                         center[2]},
-                        {0.0f, 0.0f, 0.0f},
-                        {1.0f, 1.0f, 1.0f}));
-                append(
-                    ensureTerrainFringeCornerObject(
-                        tile,
-                        corner,
-                        firstDifference,
-                        cornerMaterialContourCm),
-                    sourcePlacementMatrix(
-                        {center[0],
-                         static_cast<float>(
-                             firstNeighborLevel) *
-                             kTerrainElevationStepCm,
-                         center[2]},
-                        {0.0f, 0.0f, 0.0f},
-                        {1.0f, 1.0f, 1.0f}));
-                if (terrainPatchV2PreviewEnabled) {
+                const bool regionalCliffOwner =
+                    firstResolved->contourIndex <
+                        regionalCliffContourSubmitted.size() &&
+                    regionalCliffContourSubmitted[
+                        firstResolved->contourIndex];
+                if (!regionalCliffOwner) {
+                    append(
+                        ensureTerrainCliffCornerObject(
+                            tile,
+                            corner,
+                            firstDifference,
+                            cornerMaterialContourCm),
+                        sourcePlacementMatrix(
+                            {center[0],
+                             static_cast<float>(
+                                 firstNeighborLevel) *
+                                 kTerrainElevationStepCm,
+                             center[2]},
+                            {0.0f, 0.0f, 0.0f},
+                            {1.0f, 1.0f, 1.0f}));
+                }
+                const bool regionalFringeOwner =
+                    firstResolved->contourIndex <
+                        regionalFringeContourSubmitted.size() &&
+                    regionalFringeContourSubmitted[
+                        firstResolved->contourIndex];
+                if (!regionalFringeOwner) {
+                    append(
+                        ensureTerrainFringeCornerObject(
+                            tile,
+                            corner,
+                            firstDifference,
+                            cornerMaterialContourCm),
+                        sourcePlacementMatrix(
+                            {center[0],
+                             static_cast<float>(
+                                 firstNeighborLevel) *
+                                 kTerrainElevationStepCm,
+                             center[2]},
+                            {0.0f, 0.0f, 0.0f},
+                            {1.0f, 1.0f, 1.0f}));
+                }
+                const bool regionalCrownOwner =
+                    firstResolved->contourIndex <
+                        regionalCrownContourSubmitted.size() &&
+                    regionalCrownContourSubmitted[
+                        firstResolved->contourIndex];
+                if (terrainPatchV2PreviewEnabled &&
+                    !regionalCrownOwner) {
                     append(
                         ensureTerrainConvexCrownContourUnderlayObject(
                             tile, corner),

@@ -52,13 +52,18 @@ Point normalizedBlend(
 
 } // namespace
 
-Mesh makeStrip(const std::vector<StripSample>& samples) {
+Mesh makeStrip(
+    const std::vector<StripSample>& samples,
+    bool closed) {
     Mesh mesh;
     if (samples.size() < 2u) {
         return mesh;
     }
     mesh.vertices.reserve(samples.size() * 2u);
-    mesh.indices.reserve((samples.size() - 1u) * 6u);
+    const std::size_t segmentCount = closed
+        ? samples.size()
+        : samples.size() - 1u;
+    mesh.indices.reserve(segmentCount * 6u);
     for (const auto& sample : samples) {
         mesh.vertices.push_back(sample.outer);
     }
@@ -67,12 +72,13 @@ Mesh makeStrip(const std::vector<StripSample>& samples) {
     }
     const auto rowWidth = static_cast<std::uint32_t>(samples.size());
     for (std::uint32_t sample = 0u;
-         sample + 1u < rowWidth;
+         sample < segmentCount;
          ++sample) {
+        const std::uint32_t next = (sample + 1u) % rowWidth;
         const std::uint32_t outerLeft = sample;
-        const std::uint32_t outerRight = sample + 1u;
+        const std::uint32_t outerRight = next;
         const std::uint32_t innerLeft = rowWidth + sample;
-        const std::uint32_t innerRight = innerLeft + 1u;
+        const std::uint32_t innerRight = rowWidth + next;
         appendTriangle(
             mesh, outerLeft, outerRight, innerRight);
         appendTriangle(

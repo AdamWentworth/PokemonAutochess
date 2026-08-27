@@ -46,7 +46,8 @@ bool test_route1_terrain_contour_assembler_contract(
 
     const auto assembly = contours::assemble(resolution, 8u, 8u);
     if (!assembly.validation.valid || assembly.edges.size() != 2u ||
-        assembly.convexTurns.size() != 1u) {
+        assembly.convexTurns.size() != 1u ||
+        assembly.runs.size() != 1u) {
         outFail =
             "A resolved outside turn must produce one validated shared contour frame.";
         return false;
@@ -57,12 +58,22 @@ bool test_route1_terrain_contour_assembler_contract(
         assembly, {25, -4}, 1u);
     const auto* turn = contours::findConvexTurn(
         assembly, {25, -4}, 0u);
+    const auto* run = contours::findRun(assembly, 0u);
     if (!incoming || !outgoing || !turn ||
+        !run || run->closed || run->frames.size() != 25u ||
         incoming->frames.size() != 9u ||
         outgoing->frames.size() != 9u ||
         turn->frames.size() != 9u) {
         outFail =
             "Every carrier must be able to address the same sampled straight and turn spans.";
+        return false;
+    }
+    if (!near(run->frames.front().position,
+              incoming->frames.front().position) ||
+        !near(run->frames.back().position,
+              outgoing->frames.back().position)) {
+        outFail =
+            "A renderable contour run must weld its ordered edge and turn frames into one open surface.";
         return false;
     }
 

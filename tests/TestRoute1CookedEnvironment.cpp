@@ -2568,37 +2568,76 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     };
     const bool retainedLegacyWideUnderlay =
         regionalSubmitted("terrain-ledge-crown-underlay:") ||
+        regionalSubmitted(
+            "terrain-ledge-crown-contour-underlay:cell-16--4:") ||
+        regionalSubmitted(
+            "terrain-ledge-crown-contour-underlay:cell-25--4:") ||
+        regionalSubmitted(
+            "terrain-convex-crown-contour-underlay:cell-16--4:") ||
+        regionalSubmitted(
+            "terrain-convex-crown-contour-underlay:cell-25--4:") ||
+        regionalSubmitted(
+            "terrain-convex-foot-contour-underlay:cell-16--4:") ||
+        regionalSubmitted(
+            "terrain-convex-foot-contour-underlay:cell-25--4:") ||
         regionalSubmitted("terrain-convex-lawn-corner-underlay:") ||
         regionalSubmitted("terrain-convex-lawn-corner-pocket-repair:") ||
         regionalSubmitted("terrain-convex-lawn-cap-underlay:") ||
-        regionalSubmitted("terrain-lawn-corner-underlay:");
+        regionalSubmitted("terrain-lawn-corner-underlay:") ||
+        regionalSubmitted("terrain-source-handoff-underlay:");
     bool contourEnvelopeValid = true;
     bool contourTopologyValid = true;
     bool contourContactFieldValid = true;
-    std::size_t contourEnvelopeCount = 0u;
+    std::size_t regionalCrownCount = 0u;
+    std::size_t regionalFootCount = 0u;
+    float maximumRegionalFringeUvDelta = 0.0f;
+    float maximumRegionalFringeEdgeCm = 0.0f;
     for (const auto& batch : regionalCornerBatches) {
-        const bool straightContour =
+        const bool regionalCrown =
             batch.geometryCacheKey.find(
-                "terrain-ledge-crown-contour-underlay:cell-16--4:edge-1:") !=
-                std::string::npos ||
-            batch.geometryCacheKey.find(
-                "terrain-ledge-crown-contour-underlay:cell-25--4:edge-2:") !=
+                "terrain-regional-crown-contour-underlay:") !=
                 std::string::npos;
-        const bool cornerContour =
+        const bool regionalFoot =
             batch.geometryCacheKey.find(
-                "terrain-convex-crown-contour-underlay:cell-16--4:corner-1:") !=
-                std::string::npos ||
-            batch.geometryCacheKey.find(
-                "terrain-convex-crown-contour-underlay:cell-25--4:corner-2:") !=
+                "terrain-regional-convex-foot-pocket:") !=
                 std::string::npos;
-        const bool footContour =
+        const bool regionalFringe =
             batch.geometryCacheKey.find(
-                "terrain-convex-foot-contour-underlay:cell-16--4:corner-1:") !=
-                std::string::npos ||
-            batch.geometryCacheKey.find(
-                "terrain-convex-foot-contour-underlay:cell-25--4:corner-2:") !=
+                "terrain-regional-fringe-contour:") !=
                 std::string::npos;
-        if (!straightContour && !cornerContour && !footContour) {
+        if (regionalFringe) {
+            const auto* fringeVertices = batch.sharedVertices
+                ? batch.sharedVertices
+                : batch.vertices.data();
+            const std::size_t fringeVertexCount = batch.sharedVertices
+                ? batch.sharedVertexCount
+                : batch.vertices.size();
+            const std::size_t rowWidth = fringeVertexCount / 3u;
+            const bool closed =
+                batch.geometryCacheKey.ends_with(":closed");
+            const std::size_t segments = closed
+                ? rowWidth
+                : rowWidth > 0u ? rowWidth - 1u : 0u;
+            for (std::size_t row = 0u; row < 3u; ++row) {
+                for (std::size_t sample = 0u;
+                     fringeVertices && sample < segments;
+                     ++sample) {
+                    const auto& left = fringeVertices[
+                        row * rowWidth + sample];
+                    const auto& right = fringeVertices[
+                        row * rowWidth + (sample + 1u) % rowWidth];
+                    maximumRegionalFringeUvDelta = std::max(
+                        maximumRegionalFringeUvDelta,
+                        std::abs(right.sourceUv1U - left.sourceUv1U));
+                    const float dx = right.x - left.x;
+                    const float dz = right.z - left.z;
+                    maximumRegionalFringeEdgeCm = std::max(
+                        maximumRegionalFringeEdgeCm,
+                        std::sqrt(dx * dx + dz * dz));
+                }
+            }
+        }
+        if (!regionalCrown && !regionalFoot) {
             continue;
         }
         const auto* vertices = batch.sharedVertices
@@ -2614,40 +2653,45 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             contourEnvelopeValid = false;
             continue;
         }
-        ++contourEnvelopeCount;
-        float minimumX = vertices[0].x;
-        float maximumX = vertices[0].x;
-        float minimumZ = vertices[0].z;
-        float maximumZ = vertices[0].z;
-        for (std::size_t vertexIndex = 1u;
-             vertexIndex < vertexCount;
-             ++vertexIndex) {
-            minimumX = std::min(minimumX, vertices[vertexIndex].x);
-            maximumX = std::max(maximumX, vertices[vertexIndex].x);
-            minimumZ = std::min(minimumZ, vertices[vertexIndex].z);
-            maximumZ = std::max(maximumZ, vertices[vertexIndex].z);
+        const auto* indices = batch.sharedIndices
+            ? batch.sharedIndices
+            : batch.indices.data();
+        float maximumTriangleEdgeCm = 0.0f;
+        for (std::size_t index = 0u;
+             indices && index + 2u < indexCount;
+             index += 3u) {
+            const std::array triangle{
+                indices[index], indices[index + 1u],
+                indices[index + 2u]};
+            if (triangle[0u] >= vertexCount ||
+                triangle[1u] >= vertexCount ||
+                triangle[2u] >= vertexCount) {
+                contourTopologyValid = false;
+                continue;
+            }
+            for (std::size_t edge = 0u; edge < 3u; ++edge) {
+                const auto& first = vertices[triangle[edge]];
+                const auto& second = vertices[triangle[(edge + 1u) % 3u]];
+                const float deltaX = second.x - first.x;
+                const float deltaZ = second.z - first.z;
+                maximumTriangleEdgeCm = std::max(
+                    maximumTriangleEdgeCm,
+                    std::sqrt(deltaX * deltaX + deltaZ * deltaZ));
+            }
         }
-        const float spanX = maximumX - minimumX;
-        const float spanZ = maximumZ - minimumZ;
-        if (straightContour) {
+        if (regionalCrown) {
+            ++regionalCrownCount;
+            const bool closed = batch.geometryCacheKey.ends_with(":closed");
+            const std::size_t rowWidth = vertexCount / 2u;
+            const std::size_t segmentCount = closed
+                ? rowWidth
+                : rowWidth > 0u ? rowWidth - 1u : 0u;
             contourEnvelopeValid = contourEnvelopeValid &&
-                std::min(spanX, spanZ) <= 24.0f &&
-                std::max(spanX, spanZ) <= 100.01f;
+                maximumTriangleEdgeCm <= 12.0f;
             contourTopologyValid = contourTopologyValid &&
-                vertexCount == 42u && indexCount == 120u;
-        } else if (cornerContour) {
-            contourEnvelopeValid = contourEnvelopeValid &&
-                spanX <= 20.01f && spanZ <= 20.01f;
-            contourTopologyValid = contourTopologyValid &&
-                vertexCount == 19u && indexCount == 72u;
-        } else {
-            contourEnvelopeValid = contourEnvelopeValid &&
-                spanX <= 32.01f && spanZ <= 32.01f;
-        }
-        if (straightContour || cornerContour) {
-            const std::size_t outerVertexCount = straightContour
-                ? 21u
-                : 9u;
+                vertexCount >= 4u && vertexCount % 2u == 0u &&
+                indexCount == segmentCount * 6u;
+            const std::size_t outerVertexCount = rowWidth;
             if (vertexCount < outerVertexCount) {
                 contourContactFieldValid = false;
             } else {
@@ -2667,35 +2711,34 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                             0.001f;
                 }
             }
+        } else {
+            ++regionalFootCount;
+            contourEnvelopeValid = contourEnvelopeValid &&
+                maximumTriangleEdgeCm <= 8.0f;
+            contourTopologyValid = contourTopologyValid &&
+                vertexCount >= 3u && indexCount >= 3u;
         }
     }
-    const bool foundWestStraightContour = regionalSubmitted(
-        "terrain-ledge-crown-contour-underlay:cell-16--4:edge-1:");
-    const bool foundWestCornerContour = regionalSubmitted(
-        "terrain-convex-crown-contour-underlay:cell-16--4:corner-1:");
     const bool foundWestFootContour = regionalSubmitted(
-        "terrain-convex-foot-contour-underlay:cell-16--4:corner-1:");
-    const bool foundEastStraightContour = regionalSubmitted(
-        "terrain-ledge-crown-contour-underlay:cell-25--4:edge-2:");
-    const bool foundEastCornerContour = regionalSubmitted(
-        "terrain-convex-crown-contour-underlay:cell-25--4:corner-2:");
+        "terrain-regional-convex-foot-pocket:cell-16--4:corner-1:");
     const bool foundEastFootContour = regionalSubmitted(
-        "terrain-convex-foot-contour-underlay:cell-25--4:corner-2:");
+        "terrain-regional-convex-foot-pocket:cell-25--4:corner-2:");
+    const bool foundRegionalCliff = regionalSubmitted(
+        "terrain-regional-cliff-contour:");
+    const bool foundRegionalFringe = regionalSubmitted(
+        "terrain-regional-fringe-contour:");
     if (retainedLegacyWideUnderlay ||
         !contourEnvelopeValid ||
         !contourTopologyValid ||
         !contourContactFieldValid ||
-        contourEnvelopeCount == 0u ||
-        !foundWestStraightContour ||
-        !foundWestCornerContour ||
+        regionalCrownCount == 0u ||
+        regionalFootCount == 0u ||
         !foundWestFootContour ||
-        !foundEastStraightContour ||
-        !foundEastCornerContour ||
         !foundEastFootContour ||
-        !regionalSubmitted(
-            "route1:terrain-cliff:cell-16--4:edge-1:") ||
-        !regionalSubmitted(
-            "route1:terrain-fringe:cell-16--4:edge-1:") ||
+        !foundRegionalCliff ||
+        !foundRegionalFringe ||
+        maximumRegionalFringeUvDelta > 0.05f ||
+        maximumRegionalFringeEdgeCm > 6.0f ||
         !regionalSubmitted("route1:terrain-authored-surface:")) {
         outFail =
             "Terrain Patch V2 must submit its connected surface, bounded straight/corner contour gaskets, and source-profile cliff/fringe without the legacy rectangular crown/corner repair meshes (legacy=" +
@@ -2704,16 +2747,21 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             ", topology=" + std::to_string(contourTopologyValid) +
             ", contact-field=" +
             std::to_string(contourContactFieldValid) +
-            ", count=" + std::to_string(contourEnvelopeCount) +
-            ", straight=" + std::to_string(foundWestStraightContour) +
-            ", corner=" + std::to_string(foundWestCornerContour) +
+            ", regional-crowns=" +
+            std::to_string(regionalCrownCount) +
+            ", regional-feet=" +
+            std::to_string(regionalFootCount) +
             ", west-foot=" + std::to_string(foundWestFootContour) +
-            ", east-straight=" +
-            std::to_string(foundEastStraightContour) +
-            ", east-corner=" +
-            std::to_string(foundEastCornerContour) +
             ", east-foot=" +
-            std::to_string(foundEastFootContour) + ").";
+            std::to_string(foundEastFootContour) +
+            ", regional-cliff=" +
+            std::to_string(foundRegionalCliff) +
+            ", regional-fringe=" +
+            std::to_string(foundRegionalFringe) +
+            ", fringe-max-du=" +
+            std::to_string(maximumRegionalFringeUvDelta) +
+            ", fringe-max-edge-cm=" +
+            std::to_string(maximumRegionalFringeEdgeCm) + ").";
         return false;
     }
     namespace variants =

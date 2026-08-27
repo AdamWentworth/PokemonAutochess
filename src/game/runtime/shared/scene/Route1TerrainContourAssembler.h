@@ -46,6 +46,15 @@ struct ConvexTurn {
     std::vector<Frame> frames;
 };
 
+// A renderable contour is assembled once from its ordered straight spans and
+// convex turns. Consumers receive one welded frame sequence rather than
+// independently triangulating each tile edge and corner.
+struct ContourRun {
+    std::uint32_t contourIndex = 0u;
+    std::vector<Frame> frames;
+    bool closed = false;
+};
+
 struct Validation {
     bool valid = true;
     std::uint32_t missingEdgeSamples = 0u;
@@ -54,11 +63,13 @@ struct Validation {
     std::uint32_t disconnectedCarrierRows = 0u;
     std::uint32_t discontinuousTurnNormals = 0u;
     std::uint32_t duplicateTurnOwners = 0u;
+    std::uint32_t disconnectedContourRuns = 0u;
 };
 
 struct Assembly {
     std::vector<EdgeSpan> edges;
     std::vector<ConvexTurn> convexTurns;
+    std::vector<ContourRun> runs;
     Validation validation;
 };
 
@@ -76,6 +87,10 @@ const ConvexTurn* findConvexTurn(
     const Assembly& assembly,
     GridCell ownerCell,
     std::size_t corner) noexcept;
+
+const ContourRun* findRun(
+    const Assembly& assembly,
+    std::uint32_t contourIndex) noexcept;
 
 Point offset(const Frame& frame, float outwardCm) noexcept;
 
