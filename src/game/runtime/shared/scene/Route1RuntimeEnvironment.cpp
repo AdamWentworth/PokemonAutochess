@@ -10,6 +10,7 @@
 #include "game/runtime/shared/scene/Route1ProjectedShadow.h"
 #include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
 #include "game/runtime/shared/scene/Route1TerrainLedgeResolver.h"
+#include "game/runtime/shared/scene/Route1TerrainPatchCooker.h"
 #include "game/runtime/shared/scene/Route1TerrainSeamResolver.h"
 #include "game/runtime/shared/scene/Route1TreeInstances.h"
 #include "game/runtime/shared/scene/PublishedEnvironmentSceneAdapter.h"
@@ -2956,7 +2957,9 @@ struct RuntimeEnvironment::Impl {
     std::vector<TerrainTileState> sourceTerrainTiles;
     std::vector<TerrainTileState> terrainTiles;
     route1_terrain_ledges::Resolution terrainLedgeResolution;
+    route1_terrain_patch_v2::Plan terrainPatchV2Plan;
     route1_terrain_seams::Resolution terrainSeamResolution;
+    bool terrainPatchV2PreviewEnabled = false;
     std::vector<SourceTerrainTriangle> sourceTerrainTriangles;
     std::map<
         std::pair<std::int32_t, std::int32_t>,
@@ -5779,6 +5782,20 @@ struct RuntimeEnvironment::Impl {
                 terrainLedgeResolution.edges.size());
         stats.terrainRebuiltLedgeContourCount =
             terrainLedgeResolution.contourCount;
+        stats.terrainPatchV2RegionCount = static_cast<std::uint32_t>(
+            terrainPatchV2Plan.regions.size());
+        stats.terrainPatchV2CoreCellCount =
+            terrainPatchV2Plan.coreCellCount;
+        stats.terrainPatchV2TransitionCellCount =
+            terrainPatchV2Plan.transitionCellCount;
+        stats.terrainPatchV2BoundaryLoopCount =
+            terrainPatchV2Plan.boundaryLoopCount;
+        stats.terrainPatchV2BoundaryEdgeCount =
+            terrainPatchV2Plan.boundaryEdgeCount;
+        stats.terrainPatchV2InvalidBoundaryCount =
+            terrainPatchV2Plan.validation.openBoundaryCount +
+            terrainPatchV2Plan.validation.duplicateDirectedEdgeCount +
+            terrainPatchV2Plan.validation.strandedBoundaryEdgeCount;
     }
 
     bool rebuildLayoutDependentState(
@@ -9427,6 +9444,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
         DirtTransitionUvField transitionUv;
     };
     std::vector<SurfaceTile> surfaceTiles;
+    std::vector<GridCell> surfaceVertexOwners;
     surfaceTiles.reserve(terrainTiles.size());
     for (const auto& sourceTile : terrainTiles) {
         if (sourceTile.surface == "empty") {
@@ -9722,12 +9740,111 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
             prototype.vertices.push_back(vertex);
             prototype.sourceVertices.push_back(
                 geometry.sourceVertices[vertexIndex]);
+            surfaceVertexOwners.emplace_back(
+                tile.gridX, tile.gridZ);
         }
         for (std::size_t index = 0u;
              index < geometry.indexCount;
              ++index) {
             prototype.indices.push_back(
                 vertexOffset + geometry.indices[index]);
+        }
+    }
+    if (terrainPatchV2PreviewEnabled &&
+        !prototype.vertices.empty() &&
+        surfaceVertexOwners.size() == prototype.vertices.size()) {
+        // The production path above deliberately preserves independently
+        // generated tile vertices. V2 makes compatible regional edges one
+        // topological edge: all triangles on both sides reference the same
+        // deterministic vertex. The transition ring has already normalized
+        // its source-world material fields, so retaining the first authored
+        // sample is stable and avoids interpolating periodic texture UVs.
+        using PositionKey =
+            std::tuple<std::int64_t, std::int64_t, std::int64_t>;
+        std::map<PositionKey, std::vector<std::uint32_t>> byPosition;
+        constexpr double kPositionQuantization = 1000.0;
+        for (std::size_t index = 0u;
+             index < prototype.vertices.size();
+             ++index) {
+            const auto& vertex = prototype.vertices[index];
+            byPosition[{
+                static_cast<std::int64_t>(std::llround(
+                    static_cast<double>(vertex.x) *
+                    kPositionQuantization)),
+                static_cast<std::int64_t>(std::llround(
+                    static_cast<double>(vertex.y) *
+                    kPositionQuantization)),
+                static_cast<std::int64_t>(std::llround(
+                    static_cast<double>(vertex.z) *
+                    kPositionQuantization))}].push_back(
+                        static_cast<std::uint32_t>(index));
+        }
+        std::vector<std::uint32_t> representative(
+            prototype.vertices.size());
+        for (std::size_t index = 0u;
+             index < representative.size();
+             ++index) {
+            representative[index] =
+                static_cast<std::uint32_t>(index);
+        }
+        const auto compatibleOwners = [&](const GridCell& left,
+                                          const GridCell& right) {
+            if (left == right) {
+                return false;
+            }
+            const auto* leftTile = findTile(left.first, left.second);
+            const auto* rightTile = findTile(right.first, right.second);
+            if (!leftTile || !rightTile ||
+                leftTile->terrainPatchV2RegionId == 0u ||
+                leftTile->terrainPatchV2RegionId !=
+                    rightTile->terrainPatchV2RegionId ||
+                leftTile->surface != rightTile->surface) {
+                return false;
+            }
+            const std::int32_t dx = right.first - left.first;
+            const std::int32_t dz = right.second - left.second;
+            std::size_t edge = 4u;
+            if (dx == 0 && dz == 1) {
+                edge = 0u;
+            } else if (dx == 1 && dz == 0) {
+                edge = 1u;
+            } else if (dx == 0 && dz == -1) {
+                edge = 2u;
+            } else if (dx == -1 && dz == 0) {
+                edge = 3u;
+            }
+            if (edge >= 4u) {
+                return false;
+            }
+            const auto profile = route1TerrainSharedEdgeProfile(
+                *leftTile, rightTile, edge);
+            return profile.tileLevels == profile.neighborLevels;
+        };
+        for (const auto& [position, indices] : byPosition) {
+            (void)position;
+            for (std::size_t index = 1u;
+                 index < indices.size();
+                 ++index) {
+                const auto candidate = indices[index];
+                for (std::size_t prior = 0u;
+                     prior < index;
+                     ++prior) {
+                    const auto anchor = indices[prior];
+                    if (!compatibleOwners(
+                            surfaceVertexOwners[candidate],
+                            surfaceVertexOwners[anchor])) {
+                        continue;
+                    }
+                    representative[candidate] =
+                        representative[anchor];
+                    break;
+                }
+            }
+        }
+        for (auto& index : prototype.indices) {
+            while (representative[index] != index) {
+                index = representative[index];
+            }
         }
     }
     if (prototype.vertices.empty() || prototype.indices.empty()) {
@@ -13186,6 +13303,31 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             nextCleanupCells.emplace(cell);
         }
     }
+    // Terrain Patch V2 expands an edit into a connected regional replacement
+    // with a one-cell source transition ring. Only the preview's generated
+    // ground carrier is expanded here: canonical cliffs and foliage remain
+    // authoritative unless the underlying authored edit already invalidated
+    // them. This makes the experiment reversible and avoids turning a visual
+    // transition into a destructive source-geometry cleanup.
+    if (terrainPatchV2PreviewEnabled &&
+        terrainPatchV2Plan.validation.valid) {
+        for (const auto& region : terrainPatchV2Plan.regions) {
+            for (const auto& patchCell : region.cells) {
+                const auto activeTile = std::find_if(
+                    terrainTiles.begin(),
+                    terrainTiles.end(),
+                    [&](const TerrainTileState& candidate) {
+                        return candidate.gridX == patchCell.cell.first &&
+                            candidate.gridZ == patchCell.cell.second;
+                    });
+                if (activeTile != terrainTiles.end() &&
+                    activeTile->surface != "empty" &&
+                    !activeTile->sourceReference) {
+                    nextCells.emplace(patchCell.cell);
+                }
+            }
+        }
+    }
     // The recovered fringe/cliff carriers are not tile-local. Matching-height
     // neighbors keep their cleanup geometry on their own side of the shared
     // source-metre plane. A height-changing edge is different: the exact
@@ -13850,6 +13992,52 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
     }
     terrainSeamResolution =
         route1_terrain_seams::resolve(terrainTiles);
+    terrainPatchV2Plan =
+        route1_terrain_patch_v2::cook(terrainTiles);
+    for (auto& tile : terrainTiles) {
+        tile.terrainPatchV2RegionId = 0u;
+        tile.terrainPatchV2Core = false;
+        tile.terrainPatchV2CoreBoundaryMask = 0u;
+        tile.terrainPatchV2SourceBoundaryMask = 0u;
+    }
+    const auto findMutableTile = [&](const GridCell& cell)
+        -> TerrainTileState* {
+        const auto found = std::find_if(
+            terrainTiles.begin(),
+            terrainTiles.end(),
+            [&](const TerrainTileState& candidate) {
+                return candidate.gridX == cell.first &&
+                    candidate.gridZ == cell.second;
+            });
+        return found == terrainTiles.end() ? nullptr : &*found;
+    };
+    for (const auto& region : terrainPatchV2Plan.regions) {
+        for (const auto& patchCell : region.cells) {
+            auto* tile = findMutableTile(patchCell.cell);
+            if (!tile) {
+                continue;
+            }
+            tile->terrainPatchV2RegionId = region.id;
+            tile->terrainPatchV2Core = patchCell.role ==
+                route1_terrain_patch_v2::CellRole::Core;
+            if (terrainPatchV2PreviewEnabled) {
+                tile->rebuildContinuousMaterialFields = true;
+            }
+        }
+        for (const auto& boundary : region.boundaries) {
+            for (const auto& edge : boundary.edges) {
+                auto* tile = findMutableTile(edge.ownerCell);
+                if (!tile || edge.edge >= 4u) {
+                    continue;
+                }
+                auto& mask = boundary.kind ==
+                        route1_terrain_patch_v2::BoundaryKind::CoreToTransition
+                    ? tile->terrainPatchV2CoreBoundaryMask
+                    : tile->terrainPatchV2SourceBoundaryMask;
+                mask |= static_cast<std::uint8_t>(1u << edge.edge);
+            }
+        }
+    }
 }
 
 void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
@@ -15579,6 +15767,40 @@ RuntimeEnvironment::terrainTiles() const noexcept {
 
 const RuntimeStats& RuntimeEnvironment::stats() const noexcept {
     return impl_->stats;
+}
+
+bool RuntimeEnvironment::terrainPatchV2PreviewEnabled() const noexcept {
+    return impl_ && impl_->terrainPatchV2PreviewEnabled;
+}
+
+bool RuntimeEnvironment::setTerrainPatchV2PreviewEnabled(
+    bool enabled,
+    std::string* outError) {
+    if (!loaded()) {
+        return fail(
+            outError,
+            "Route 1 must be mounted before changing Terrain Patch V2 preview state.");
+    }
+    if (impl_->terrainPatchV2PreviewEnabled == enabled) {
+        if (outError) {
+            outError->clear();
+        }
+        return true;
+    }
+    impl_->terrainPatchV2PreviewEnabled = enabled;
+    std::string error;
+    if (!impl_->rebuildLayoutDependentState(&error)) {
+        impl_->terrainPatchV2PreviewEnabled = !enabled;
+        std::string ignored;
+        impl_->rebuildLayoutDependentState(&ignored);
+        return fail(
+            outError,
+            "Terrain Patch V2 preview rebuild failed: " + error);
+    }
+    if (outError) {
+        outError->clear();
+    }
+    return true;
 }
 
 bool RuntimeEnvironment::sampleWorldTerrainHeight(

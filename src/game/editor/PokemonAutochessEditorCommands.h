@@ -15,12 +15,15 @@ inline constexpr std::string_view kResetImportedSceneId =
     "pokemonautochess.route1.reset_imported_scene";
 inline constexpr std::string_view kToggleTerrainSeamDiagnosticsId =
     "pokemonautochess.route1.toggle_terrain_seam_diagnostics";
+inline constexpr std::string_view kToggleTerrainPatchV2PreviewId =
+    "pokemonautochess.route1.toggle_terrain_patch_v2_preview";
 
 enum class Kind : std::uint8_t {
     Unknown = 0u,
     ClearBoardFootprint,
     ResetImportedScene,
     ToggleTerrainSeamDiagnostics,
+    ToggleTerrainPatchV2Preview,
 };
 
 struct BoardClearanceRequest {

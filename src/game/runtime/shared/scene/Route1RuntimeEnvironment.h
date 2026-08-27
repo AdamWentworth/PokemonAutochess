@@ -146,6 +146,10 @@ struct TerrainTileState {
     // not serialize into the authored scene.
     bool rebuildContinuousMaterialFields = false;
     std::uint8_t projectedShadowMismatchEdgeMask = 0u;
+    std::uint32_t terrainPatchV2RegionId = 0u;
+    bool terrainPatchV2Core = false;
+    std::uint8_t terrainPatchV2CoreBoundaryMask = 0u;
+    std::uint8_t terrainPatchV2SourceBoundaryMask = 0u;
 };
 
 struct TerrainSharedEdgeProfile {
@@ -190,6 +194,12 @@ struct RuntimeStats {
     std::uint32_t terrainProjectedShadowMismatchEdgeCount = 0u;
     std::uint32_t terrainRebuiltLedgeEdgeCount = 0u;
     std::uint32_t terrainRebuiltLedgeContourCount = 0u;
+    std::uint32_t terrainPatchV2RegionCount = 0u;
+    std::uint32_t terrainPatchV2CoreCellCount = 0u;
+    std::uint32_t terrainPatchV2TransitionCellCount = 0u;
+    std::uint32_t terrainPatchV2BoundaryLoopCount = 0u;
+    std::uint32_t terrainPatchV2BoundaryEdgeCount = 0u;
+    std::uint32_t terrainPatchV2InvalidBoundaryCount = 0u;
 };
 
 // A grounded gameplay actor currently travelling through the world. The
@@ -316,6 +326,13 @@ public:
     const std::vector<LayoutObject>& layoutObjects() const noexcept;
     const std::vector<TerrainTileState>& terrainTiles() const noexcept;
     const RuntimeStats& stats() const noexcept;
+    bool terrainPatchV2PreviewEnabled() const noexcept;
+    // Rebuilds the editor-only regional terrain replacement. The authored
+    // scene and board-cell metadata are unchanged; disabling this restores
+    // the current production tile cook immediately.
+    bool setTerrainPatchV2PreviewEnabled(
+        bool enabled,
+        std::string* outError = nullptr);
     // Samples the visible Route 1 ground at a gameplay-world X/Z position.
     // Authored ramps use their exact profile while untouched source terrain
     // retains the recovered triangle surface.

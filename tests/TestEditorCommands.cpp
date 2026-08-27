@@ -9,17 +9,18 @@
 bool test_editor_commands_contract(std::string& outFail) {
     namespace commands = game::editor::commands;
 
-    if (commands::count(false) != 0u || commands::count(true) != 3u ||
+    if (commands::count(false) != 0u || commands::count(true) != 4u ||
         commands::command(false, 0u).id ||
-        commands::command(true, 3u).id) {
+        commands::command(true, 4u).id) {
         outFail =
-            "Project commands should publish exactly three Route 1 entries only while Route 1 is available.";
+            "Project commands should publish exactly four Route 1 entries only while Route 1 is available.";
         return false;
     }
 
     const auto clearCommand = commands::command(true, 0u);
     const auto resetCommand = commands::command(true, 1u);
     const auto diagnosticsCommand = commands::command(true, 2u);
+    const auto patchPreviewCommand = commands::command(true, 3u);
     if (!clearCommand.id ||
         std::string_view(clearCommand.id) != commands::kClearBoardFootprintId ||
         !clearCommand.displayName || !clearCommand.category ||
@@ -35,7 +36,13 @@ bool test_editor_commands_contract(std::string& outFail) {
             commands::kToggleTerrainSeamDiagnosticsId ||
         diagnosticsCommand.confirmationRequired ||
         diagnosticsCommand.fields ||
-        diagnosticsCommand.fieldCount != 0u) {
+        diagnosticsCommand.fieldCount != 0u ||
+        !patchPreviewCommand.id ||
+        std::string_view(patchPreviewCommand.id) !=
+            commands::kToggleTerrainPatchV2PreviewId ||
+        patchPreviewCommand.confirmationRequired ||
+        patchPreviewCommand.fields ||
+        patchPreviewCommand.fieldCount != 0u) {
         outFail =
             "The Route 1 command catalog should preserve its stable IDs, display metadata, confirmations, and field ownership.";
         return false;
@@ -74,6 +81,8 @@ bool test_editor_commands_contract(std::string& outFail) {
             commands::Kind::ResetImportedScene ||
         commands::resolve(commands::kToggleTerrainSeamDiagnosticsId) !=
             commands::Kind::ToggleTerrainSeamDiagnostics ||
+        commands::resolve(commands::kToggleTerrainPatchV2PreviewId) !=
+            commands::Kind::ToggleTerrainPatchV2Preview ||
         commands::resolve("") != commands::Kind::Unknown ||
         commands::resolve("not-a-command") != commands::Kind::Unknown) {
         outFail = "Project command ID resolution should reject unknown IDs.";

@@ -37,7 +37,7 @@ constexpr std::array<engine::editor::EditorProjectCommandField, 6>
 } // namespace
 
 std::size_t count(bool route1Available) noexcept {
-    return route1Available ? 3u : 0u;
+    return route1Available ? 4u : 0u;
 }
 
 engine::editor::EditorProjectCommand command(
@@ -81,6 +81,15 @@ engine::editor::EditorProjectCommand command(
                 "Toggle cyan continuous-field boundaries and magenta projected-shadow mismatch edges in the project layout overlay.",
             .buttonLabel = "Toggle Seam Diagnostics"};
     }
+    if (index == 3u) {
+        return {
+            .id = kToggleTerrainPatchV2PreviewId.data(),
+            .displayName = "Terrain Patch V2 Preview",
+            .category = "PokemonAutochess / Route 1",
+            .description =
+                "Toggle the non-destructive regional terrain cook. It expands edited cells through a source transition ring while the gameplay board remains tile-addressable.",
+            .buttonLabel = "Toggle Regional Terrain Preview"};
+    }
     return {};
 }
 
@@ -93,6 +102,9 @@ Kind resolve(std::string_view commandId) noexcept {
     }
     if (commandId == kToggleTerrainSeamDiagnosticsId) {
         return Kind::ToggleTerrainSeamDiagnostics;
+    }
+    if (commandId == kToggleTerrainPatchV2PreviewId) {
+        return Kind::ToggleTerrainPatchV2Preview;
     }
     return Kind::Unknown;
 }

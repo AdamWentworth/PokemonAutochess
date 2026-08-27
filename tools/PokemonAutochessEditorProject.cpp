@@ -1829,6 +1829,38 @@ public:
                 .assetsChanged = false};
             return true;
         }
+        if (kind ==
+            editor_commands::Kind::ToggleTerrainPatchV2Preview) {
+            const bool enabled =
+                !environment_.terrainPatchV2PreviewEnabled();
+            if (!environment_.setTerrainPatchV2PreviewEnabled(
+                    enabled,
+                    outError)) {
+                return false;
+            }
+            terrainPatchV2PreviewEnabled_ = enabled;
+            const auto& diagnostics = environment_.stats();
+            commandStatus_ = enabled
+                ? "Terrain Patch V2 preview enabled: " +
+                    std::to_string(
+                        diagnostics.terrainPatchV2RegionCount) +
+                    " connected regions, " +
+                    std::to_string(
+                        diagnostics.terrainPatchV2CoreCellCount) +
+                    " edited cells, " +
+                    std::to_string(
+                        diagnostics.terrainPatchV2TransitionCellCount) +
+                    " source-transition cells; invalid boundaries: " +
+                    std::to_string(
+                        diagnostics.terrainPatchV2InvalidBoundaryCount) +
+                    "."
+                : "Terrain Patch V2 preview disabled; production tile cook restored.";
+            outResult = {
+                .status = commandStatus_.c_str(),
+                .sceneChanged = false,
+                .assetsChanged = false};
+            return true;
+        }
         if (outError) {
             *outError = editor_commands::unknownCommandError(id);
         }
@@ -3151,6 +3183,32 @@ private:
             }
             return false;
         }
+        if (terrainPatchV2PreviewEnabled_ &&
+            !nextEnvironment.setTerrainPatchV2PreviewEnabled(
+                true,
+                &error)) {
+            if (outError) {
+                *outError =
+                    "The non-destructive Terrain Patch V2 preview was rejected: " +
+                    error;
+            }
+            return false;
+        }
+        if (terrainPatchV2PreviewEnabled_) {
+            const auto& patchStats = nextEnvironment.stats();
+            std::cerr
+                << "[PokemonAutochessEditor][TerrainPatchV2] regions="
+                << patchStats.terrainPatchV2RegionCount
+                << " core_cells="
+                << patchStats.terrainPatchV2CoreCellCount
+                << " transition_cells="
+                << patchStats.terrainPatchV2TransitionCellCount
+                << " boundary_loops="
+                << patchStats.terrainPatchV2BoundaryLoopCount
+                << " invalid_boundaries="
+                << patchStats.terrainPatchV2InvalidBoundaryCount
+                << '\n';
+        }
         logPhase("authored_scene");
 
         sceneStore_ = std::move(nextSceneStore);
@@ -3321,6 +3379,7 @@ private:
     bool gameLayoutProjectionReady_ = false;
     bool layoutOverlayVisible_ = true;
     bool terrainSeamDiagnosticsVisible_ = false;
+    bool terrainPatchV2PreviewEnabled_ = true;
     bool ownsTtf_ = false;
     static constexpr float kBootReplayDurationSeconds =
         2.5f;
