@@ -3277,6 +3277,11 @@ struct RuntimeEnvironment::Impl {
         std::size_t corner);
 
     IRenderBackend::WorldSceneRenderObjectHandle
+    ensureTerrainLedgeCrownUnderlayObject(
+        const TerrainTileState& tile,
+        std::size_t edge);
+
+    IRenderBackend::WorldSceneRenderObjectHandle
     ensureTerrainSourceHandoffUnderlayObject(
         const TerrainTileState& tile,
         const TerrainTileState& sourceNeighbor,
@@ -8422,8 +8427,17 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                                 terrainTileCenterX,
                             sourceCrownSample.positionCm.z -
                                 terrainTileCenterZ};
+                        // Material 13 is alpha-cut at the leaf tips. Preserve
+                        // the two-centimetre lawn underlap after recovering the
+                        // irregular source crown; snapping material 19 back to
+                        // the exact material-13 contour exposes background in
+                        // the transparent texels as a dashed black seam.
+                        const glm::vec2 recoveredCapLocal =
+                            sourceCrownLocal -
+                            edgeDirection *
+                                kTerrainLedgeCrownSafetyOverlapCm;
                         const glm::vec2 sourceAdjustment =
-                            sourceCrownLocal - proceduralCrownLocal;
+                            recoveredCapLocal - proceduralCrownLocal;
                         vertex.x += sourceAdjustment.x *
                                     sourceCrownBlend;
                         vertex.z += sourceAdjustment.y *
@@ -12879,6 +12893,62 @@ RuntimeEnvironment::Impl::ensureTerrainConvexLawnCapUnderlayObject(
 }
 
 IRenderBackend::WorldSceneRenderObjectHandle
+RuntimeEnvironment::Impl::ensureTerrainLedgeCrownUnderlayObject(
+    const TerrainTileState& tile,
+    std::size_t edge) {
+    if (edge >= 4u) {
+        return {};
+    }
+    const std::string key =
+        "route1:terrain-ledge-crown-underlay:cell-" +
+        std::to_string(tile.gridX) + "-" +
+        std::to_string(tile.gridZ) + ":edge-" +
+        std::to_string(edge) + ":level-" +
+        std::to_string(tile.elevationLevel) + ":surface-" +
+        tile.surface +
+        (tile.receivesProjectedShadow ? ":shadow" : ":shadowless");
+    constexpr std::array<glm::vec2, 4> kOutward{
+        glm::vec2{0.0f, 1.0f},
+        glm::vec2{1.0f, 0.0f},
+        glm::vec2{0.0f, -1.0f},
+        glm::vec2{-1.0f, 0.0f}};
+    constexpr float kHalfLengthCm =
+        kTerrainTileSizeCm * 0.5f +
+        kTerrainLedgeCrownSafetyOverlapCm;
+    // The visible material-13 leaf crown sits about 25 cm inside the logical
+    // tile plane. Cover a wider hidden band on both sides of that contour so
+    // its alpha-cut tips can never expose clear color, while leaving the
+    // ordinary cap and its source material field in charge everywhere else.
+    constexpr float kOuterInwardCm = 12.0f;
+    constexpr float kInnerInwardCm = 40.0f;
+    const glm::vec2 outward = kOutward[edge];
+    const glm::vec2 tangent{outward.y, -outward.x};
+    const glm::vec2 logicalEdge =
+        outward * (kTerrainTileSizeCm * 0.5f);
+    const glm::vec2 outer =
+        logicalEdge - outward * kOuterInwardCm;
+    const glm::vec2 inner =
+        logicalEdge - outward * kInnerInwardCm;
+    const std::vector<glm::vec2> boundary{
+        outer - tangent * kHalfLengthCm,
+        outer + tangent * kHalfLengthCm,
+        inner + tangent * kHalfLengthCm,
+        inner - tangent * kHalfLengthCm};
+    return ensureTerrainLawnPatchObject(
+        key,
+        (static_cast<float>(tile.gridX) + 0.5f) *
+            kTerrainTileSizeCm,
+        (static_cast<float>(tile.gridZ) + 0.5f) *
+            kTerrainTileSizeCm,
+        tile.elevationLevel,
+        tile.receivesProjectedShadow,
+        &tile,
+        boundary,
+        tile.surface == "dark_lawn",
+        kTerrainLawnUnderlayDepthCm);
+}
+
+IRenderBackend::WorldSceneRenderObjectHandle
 RuntimeEnvironment::Impl::ensureTerrainSourceHandoffUnderlayObject(
     const TerrainTileState& tile,
     const TerrainTileState& sourceNeighbor,
@@ -14059,6 +14129,19 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
             const auto startJoin = resolvedLedge->startJoin;
             const auto endJoin = resolvedLedge->endJoin;
             edgeRebuilt[edge] = true;
+            if (tile.shape == "flat" &&
+                edgeDifferences[edge][0] > 0 &&
+                edgeDifferences[edge][1] > 0) {
+                append(
+                    ensureTerrainLedgeCrownUnderlayObject(tile, edge),
+                    sourcePlacementMatrix(
+                        {center[0],
+                         static_cast<float>(tile.elevationLevel) *
+                             kTerrainElevationStepCm,
+                         center[2]},
+                        {0.0f, 0.0f, 0.0f},
+                        {1.0f, 1.0f, 1.0f}));
+            }
             const float halfSize =
                 kTerrainTileSizeCm * 0.5f;
             const std::int32_t cliffAnchorLevel = std::min(

@@ -2040,6 +2040,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundWestRaisedCornerFloor = false;
     bool foundEastRaisedCornerFloor = false;
     bool retainedInvalidatedSourceCornerCarrier = false;
+    bool foundTile16SouthCrownUnderlay = false;
     double maximumWestCornerGroundEdgeCm = 0.0;
     double maximumEastCornerGroundEdgeCm = 0.0;
     const auto containsXZ = [](
@@ -2080,6 +2081,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundEastConcaveDiagonalCrown = false;
     bool retainedEastConcaveSourceCrown = false;
     for (const auto& batch : cornerContinuationBatches) {
+        foundTile16SouthCrownUnderlay =
+            foundTile16SouthCrownUnderlay ||
+            batch.geometryCacheKey.find(
+                "route1:terrain-ledge-crown-underlay:cell-16--4:edge-2:") !=
+                std::string::npos;
         const bool authoredSurface =
             batch.geometryCacheKey.find(
                 "route1:terrain-authored-surface:") !=
@@ -2174,6 +2180,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 appendInstance(instance.modelMatrix);
             }
         }
+    }
+    if (!foundTile16SouthCrownUnderlay) {
+        outFail =
+            "The rebuilt Route 1 ledge from (16, -4) toward (16, -5) lost its opaque crown underlay.";
+        return false;
     }
     std::size_t uncoveredEastCornerSamples = 0u;
     std::array<double, 2> firstUncoveredEastCorner{};
