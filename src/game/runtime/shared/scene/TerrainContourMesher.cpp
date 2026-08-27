@@ -106,6 +106,26 @@ Mesh makeCappedStrip(
     return mesh;
 }
 
+Mesh makeFan(
+    Point owner,
+    const std::vector<Point>& boundary) {
+    Mesh mesh;
+    if (boundary.size() < 2u) {
+        return mesh;
+    }
+    mesh.vertices.reserve(boundary.size() + 1u);
+    mesh.indices.reserve((boundary.size() - 1u) * 3u);
+    mesh.vertices.push_back(owner);
+    mesh.vertices.insert(
+        mesh.vertices.end(), boundary.begin(), boundary.end());
+    for (std::uint32_t sample = 0u;
+         sample + 1u < boundary.size();
+         ++sample) {
+        appendTriangle(mesh, 0u, sample + 1u, sample + 2u);
+    }
+    return mesh;
+}
+
 Mesh makeConvexFootPocket(
     Point logicalCorner,
     Point center,
@@ -113,27 +133,22 @@ Mesh makeConvexFootPocket(
     Point endOutward,
     float radiusCm,
     std::uint32_t segments) {
-    Mesh mesh;
     if (radiusCm <= 0.0f || segments == 0u) {
-        return mesh;
+        return {};
     }
     constexpr float kHalfPi = 1.57079632679489661923f;
-    mesh.vertices.reserve(static_cast<std::size_t>(segments) + 2u);
-    mesh.indices.reserve(static_cast<std::size_t>(segments) * 3u);
-    mesh.vertices.push_back(logicalCorner);
+    std::vector<Point> boundary;
+    boundary.reserve(static_cast<std::size_t>(segments) + 1u);
     for (std::uint32_t sample = 0u; sample <= segments; ++sample) {
         const float phase = static_cast<float>(sample) /
             static_cast<float>(segments);
         const Point outward = normalizedBlend(
             startOutward, endOutward, phase * kHalfPi);
-        mesh.vertices.push_back({
+        boundary.push_back({
             center.x + outward.x * radiusCm,
             center.z + outward.z * radiusCm});
     }
-    for (std::uint32_t sample = 0u; sample < segments; ++sample) {
-        appendTriangle(mesh, 0u, sample + 1u, sample + 2u);
-    }
-    return mesh;
+    return makeFan(logicalCorner, boundary);
 }
 
 Validation validate(const Mesh& mesh) noexcept {

@@ -51,6 +51,15 @@ samples. A later LGPE location can therefore reuse the topology cooker while
 providing its own decoded source field; it does not inherit Route 1 cell IDs or
 one-off coordinates.
 
+`Route1TerrainContourAssembler` is the LGPE adapter above that generic
+triangulator. The ledge resolver supplies semantic edges and join kinds once;
+the assembler turns them into one cached sequence of world-space position,
+outward, tangent, logical-distance, and material-distance frames. Crown,
+cliff, foliage, and low-foot batches now consume those same frames. A rebuilt
+V2 ledge may still sample the source material fields, but it no longer lets
+each material batch independently snap its geometry back to a nearby source
+triangle. Untouched source terrain continues to use the exact imported mesh.
+
 A convex turn has one seam contract across all of its carriers:
 
 - adjoining straight crown strips end at a positive inner radius;
@@ -83,6 +92,13 @@ Implemented:
 - positive-radius straight-to-corner crown handoffs, with no collapsed strip
   vertices;
 - contour-owned convex low-foot pockets on both mirrored Route 1 corners;
+- one validated frame owner for straight and convex lawn, wall, foliage, and
+  foot carriers, including exact endpoint closure at every profile offset;
+- material-only source sampling on edited V2 ledges, preventing independent
+  source-geometry projections from reopening otherwise matched joins;
+- the same recovered LGPE ledge-contact tint and crown normal on the contour
+  safety carrier as on the adjoining high lawn, so light-lawn regions no
+  longer expose a bright synthetic ribbon beneath alpha-cut leaves;
 - mirrored west/east runtime regression coverage, rather than qualifying only
   the first corner that happened to be inspected;
 - retirement of the legacy rectangular crown/corner safety meshes while the
@@ -94,8 +110,8 @@ Implemented:
 
 Still to complete before promotion:
 
-- drive the remaining cliff and foliage ownership directly from the regional
-  contour instead of the legacy ledge resolver;
+- migrate source-specific concave and ramp handoffs onto the shared contour
+  frame after their decoded asymmetric profiles receive equivalent fixtures;
 - extend the contour validator from its generated carriers to the final
   combined source/patch mesh (intersection and non-manifold checks);
 - establish visual golden crops for source corners, authored convex/concave

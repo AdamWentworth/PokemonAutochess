@@ -191,7 +191,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "4b868c3d475525e5ff4a5aa3d4d9097448109688"
+    "960b968140f2caecd6f2afb969d57e2e0881d1ca"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 
@@ -521,6 +521,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/scene/Route1ProjectedShadow.cpp
     src/game/runtime/shared/scene/Route1TreeInstances.cpp
     src/game/runtime/shared/scene/Route1TerrainAssemblies.cpp
+    src/game/runtime/shared/scene/Route1TerrainContourAssembler.cpp
     src/game/runtime/shared/scene/Route1TerrainLedgeResolver.cpp
     src/game/runtime/shared/scene/Route1TerrainPatchCooker.cpp
     src/game/runtime/shared/scene/TerrainContourMesher.cpp
@@ -886,6 +887,7 @@ if (BUILD_TESTING)
         tests/TestPublishedEnvironmentSceneAdapter.cpp
         tests/TestRoute1RuntimeEnvironment.cpp
         tests/TestRoute1TerrainPatchCooker.cpp
+        tests/TestRoute1TerrainContourAssembler.cpp
         tests/TestTerrainContourMesher.cpp
         tests/TestRoute1CookedEnvironment.cpp
         tests/TestRenderPrepWorldProjection.cpp

@@ -2573,6 +2573,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         regionalSubmitted("terrain-convex-lawn-cap-underlay:") ||
         regionalSubmitted("terrain-lawn-corner-underlay:");
     bool contourEnvelopeValid = true;
+    bool contourTopologyValid = true;
+    bool contourContactFieldValid = true;
     std::size_t contourEnvelopeCount = 0u;
     for (const auto& batch : regionalCornerBatches) {
         const bool straightContour =
@@ -2605,6 +2607,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         const std::size_t vertexCount = batch.sharedVertices
             ? batch.sharedVertexCount
             : batch.vertices.size();
+        const std::size_t indexCount = batch.sharedIndices
+            ? batch.sharedIndexCount
+            : batch.indices.size();
         if (!vertices || vertexCount == 0u) {
             contourEnvelopeValid = false;
             continue;
@@ -2628,12 +2633,40 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             contourEnvelopeValid = contourEnvelopeValid &&
                 std::min(spanX, spanZ) <= 24.0f &&
                 std::max(spanX, spanZ) <= 100.01f;
+            contourTopologyValid = contourTopologyValid &&
+                vertexCount == 42u && indexCount == 120u;
         } else if (cornerContour) {
             contourEnvelopeValid = contourEnvelopeValid &&
                 spanX <= 20.01f && spanZ <= 20.01f;
+            contourTopologyValid = contourTopologyValid &&
+                vertexCount == 19u && indexCount == 72u;
         } else {
             contourEnvelopeValid = contourEnvelopeValid &&
                 spanX <= 32.01f && spanZ <= 32.01f;
+        }
+        if (straightContour || cornerContour) {
+            const std::size_t outerVertexCount = straightContour
+                ? 21u
+                : 9u;
+            if (vertexCount < outerVertexCount) {
+                contourContactFieldValid = false;
+            } else {
+                for (std::size_t vertexIndex = 0u;
+                     vertexIndex < outerVertexCount;
+                     ++vertexIndex) {
+                    const auto& vertex = vertices[vertexIndex];
+                    contourContactFieldValid =
+                        contourContactFieldValid &&
+                        std::abs(vertex.r - 0.180392161f) <=
+                            0.001f &&
+                        std::abs(vertex.g - 0.482352942f) <=
+                            0.001f &&
+                        std::abs(vertex.b - 0.431372553f) <=
+                            0.001f &&
+                        std::abs(vertex.ny - 0.998535156f) <=
+                            0.001f;
+                }
+            }
         }
     }
     const bool foundWestStraightContour = regionalSubmitted(
@@ -2650,6 +2683,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         "terrain-convex-foot-contour-underlay:cell-25--4:corner-2:");
     if (retainedLegacyWideUnderlay ||
         !contourEnvelopeValid ||
+        !contourTopologyValid ||
+        !contourContactFieldValid ||
         contourEnvelopeCount == 0u ||
         !foundWestStraightContour ||
         !foundWestCornerContour ||
@@ -2666,6 +2701,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             "Terrain Patch V2 must submit its connected surface, bounded straight/corner contour gaskets, and source-profile cliff/fringe without the legacy rectangular crown/corner repair meshes (legacy=" +
             std::to_string(retainedLegacyWideUnderlay) +
             ", envelope=" + std::to_string(contourEnvelopeValid) +
+            ", topology=" + std::to_string(contourTopologyValid) +
+            ", contact-field=" +
+            std::to_string(contourContactFieldValid) +
             ", count=" + std::to_string(contourEnvelopeCount) +
             ", straight=" + std::to_string(foundWestStraightContour) +
             ", corner=" + std::to_string(foundWestCornerContour) +

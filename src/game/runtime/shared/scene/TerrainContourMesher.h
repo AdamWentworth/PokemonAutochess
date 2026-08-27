@@ -40,6 +40,13 @@ Mesh makeCappedStrip(
     const std::vector<StripSample>& samples,
     Point capCenter);
 
+// Connects one explicit owner point to an already sampled open boundary.
+// The caller owns the boundary geometry; this helper only triangulates it and
+// therefore cannot subtly resample a ledge corner differently from its wall.
+Mesh makeFan(
+    Point owner,
+    const std::vector<Point>& boundary);
+
 // Builds the low-ground pocket behind a rounded convex ledge foot. The first
 // vertex is the logical grid corner and the remaining vertices follow the
 // wall-owned arc. This fills only the curved triangular void; it cannot grow

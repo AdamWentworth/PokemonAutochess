@@ -53,5 +53,18 @@ bool test_terrain_contour_mesher_contract(std::string& outFail) {
             return false;
         }
     }
+    const std::vector<contours::Point> ownedBoundary{
+        {-10.0f, 0.0f},
+        {-7.0f, -7.0f},
+        {0.0f, -10.0f}};
+    const auto ownedFan = contours::makeFan(
+        {-12.0f, -12.0f}, ownedBoundary);
+    if (!contours::validate(ownedFan).valid ||
+        ownedFan.vertices.size() != 4u ||
+        ownedFan.indices.size() != 6u) {
+        outFail =
+            "A caller-owned contour boundary must be triangulated without resampling it.";
+        return false;
+    }
     return true;
 }

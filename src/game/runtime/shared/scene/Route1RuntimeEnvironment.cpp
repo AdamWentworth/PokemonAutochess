@@ -9,6 +9,7 @@
 #include "game/render/environment/Route1FieldSmallGrassMaterial.h"
 #include "game/runtime/shared/scene/Route1ProjectedShadow.h"
 #include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
+#include "game/runtime/shared/scene/Route1TerrainContourAssembler.h"
 #include "game/runtime/shared/scene/Route1TerrainLedgeResolver.h"
 #include "game/runtime/shared/scene/Route1TerrainPatchCooker.h"
 #include "game/runtime/shared/scene/TerrainContourMesher.h"
@@ -2958,6 +2959,7 @@ struct RuntimeEnvironment::Impl {
     std::vector<TerrainTileState> sourceTerrainTiles;
     std::vector<TerrainTileState> terrainTiles;
     route1_terrain_ledges::Resolution terrainLedgeResolution;
+    route1_terrain_contours::Assembly terrainContourAssembly;
     route1_terrain_patch_v2::Plan terrainPatchV2Plan;
     route1_terrain_seams::Resolution terrainSeamResolution;
     bool terrainPatchV2PreviewEnabled = false;
@@ -3319,7 +3321,9 @@ struct RuntimeEnvironment::Impl {
         const std::vector<glm::vec2>& boundary,
         bool forceRaisedCrownField,
         float localDepthCm,
-        const std::vector<std::uint32_t>* exactIndices = nullptr);
+        const std::vector<std::uint32_t>* exactIndices = nullptr,
+        const std::vector<glm::vec3>* exactNormals = nullptr,
+        const std::vector<float>* exactContactWeights = nullptr);
 
     bool sampleSourceTerrainSurface(
         const TerrainTileState& tile,
@@ -5822,6 +5826,30 @@ struct RuntimeEnvironment::Impl {
         if (!applyLocalDeltas(outError)) {
             return false;
         }
+        if (terrainPatchV2PreviewEnabled &&
+            !terrainContourAssembly.validation.valid) {
+            const auto& validation =
+                terrainContourAssembly.validation;
+            return fail(
+                outError,
+                "Route 1 Terrain Patch V2 rejected a disconnected ledge contour "
+                "(missing edge samples=" +
+                    std::to_string(validation.missingEdgeSamples) +
+                    ", missing turn partners=" +
+                    std::to_string(validation.missingTurnPartners) +
+                    ", disconnected turn endpoints=" +
+                    std::to_string(
+                        validation.disconnectedTurnEndpoints) +
+                    ", disconnected carrier rows=" +
+                    std::to_string(
+                        validation.disconnectedCarrierRows) +
+                    ", discontinuous turn normals=" +
+                    std::to_string(
+                        validation.discontinuousTurnNormals) +
+                    ", duplicate turn owners=" +
+                    std::to_string(validation.duplicateTurnOwners) +
+                    ").");
+        }
         const std::array<float, 3> shadowCenter{
             layout.sourceAnchorCm[0],
             layout.sourceAnchorCm[1],
@@ -7965,6 +7993,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     std::array<std::array<float, 2>, 4>
         ledgeCrownEndpointWeights{};
     std::array<float, 4> ledgeCrownContourStartCm{};
+    std::array<const route1_terrain_contours::EdgeSpan*, 4>
+        ledgeCrownContourEdges{};
     std::uint32_t ledgeContactOverlapMask = 0u;
     std::array<std::array<float, 2>, 4>
         ledgeContactEndpointWeights{};
@@ -8040,6 +8070,11 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         secondTileHigher ? 1.0f : 0.0f};
                     ledgeCrownContourStartCm[edge] =
                         resolvedTileLedge->contourStartCm;
+                    ledgeCrownContourEdges[edge] =
+                        route1_terrain_contours::findEdge(
+                            terrainContourAssembly,
+                            {activeTile->gridX, activeTile->gridZ},
+                            edge);
                 }
             }
             const bool firstNeighborHigher =
@@ -8227,6 +8262,16 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
         };
     for (std::size_t edge = 0u; edge < sourceCrownFields.size(); ++edge) {
         if ((ledgeCrownClipMask & (1u << edge)) == 0u) {
+            continue;
+        }
+        if (terrainPatchV2PreviewEnabled &&
+            ledgeCrownContourEdges[edge] &&
+            ledgeCrownContourEdges[edge]->frames.size() ==
+                kGridResolution + 1u) {
+            // Edited V2 carriers use the contour frame as their sole
+            // geometry/normal owner. Sampling the imported crown remains a
+            // material-reference operation elsewhere; independently snapping
+            // this cap back to it would reopen the shared join.
             continue;
         }
         bool hasRequiredSample = false;
@@ -10382,6 +10427,10 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
     if (edge >= 4u || maximumLevelDifference <= 0) {
         return {};
     }
+    const auto* contourEdge = route1_terrain_contours::findEdge(
+        terrainContourAssembly,
+        {tile.gridX, tile.gridZ},
+        edge);
     const std::string key =
         "route1:terrain-cliff:cell-" +
         std::to_string(tile.gridX) + "-" +
@@ -10540,6 +10589,11 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
     constexpr std::uint32_t kEdgeSegments =
         kTerrainLedgeContourSegments;
     constexpr std::uint32_t kEdgeSamples = kEdgeSegments + 1u;
+    const bool usesSharedContourFrame =
+        terrainPatchV2PreviewEnabled && contourEdge &&
+        contourEdge->frames.size() == kEdgeSamples &&
+        startJoin != route1_terrain_ledges::Join::Concave &&
+        endJoin != route1_terrain_ledges::Join::Concave;
     const float materialStraightLengthCm =
         route1_terrain_ledges::materialStraightLengthCm(
             startJoin,
@@ -10617,11 +10671,15 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                     .borderV = std::lerp(
                         startRow.borderV, endRow.borderV, t)};
                 const float logicalAlong = std::lerp(-50.0f, 50.0f, t);
-                const float contourDistance = contourStartCm +
-                    logicalAlong + kTerrainTileSizeCm * 0.5f;
+                const float contourDistance = usesSharedContourFrame
+                    ? contourEdge->frames[sample].logicalContourCm
+                    : contourStartCm + logicalAlong +
+                        kTerrainTileSizeCm * 0.5f;
                 const float materialContourDistance =
-                    materialContourStartCm +
-                    t * materialStraightLengthCm;
+                    usesSharedContourFrame
+                    ? contourEdge->frames[sample].materialContourCm
+                    : materialContourStartCm +
+                        t * materialStraightLengthCm;
                 const float dropWeight = std::lerp(
                     levelDifferences[0u] > 0 ? 1.0f : 0.0f,
                     levelDifferences[1u] > 0 ? 1.0f : 0.0f,
@@ -10630,7 +10688,7 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                     startEffectiveOutward,
                     endEffectiveOutward,
                     t);
-                const float geometryAlong =
+                float geometryAlong =
                     std::lerp(startAlong, endAlong, t);
                 float geometryOutward = effectiveOutward +
                     terrainLedgeContourWobbleCm(contourDistance) *
@@ -10659,6 +10717,19 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                         geometryOutward,
                         concaveEndOutward,
                         blend);
+                }
+                if (usesSharedContourFrame) {
+                    const auto sourcePosition =
+                        route1_terrain_contours::offset(
+                            contourEdge->frames[sample],
+                            geometryOutward);
+                    const glm::vec3 localPosition =
+                        inverseEdgeRotation * glm::vec3{
+                            sourcePosition.x - boundaryX,
+                            0.0f,
+                            sourcePosition.z - boundaryZ};
+                    geometryAlong = localPosition.x;
+                    geometryOutward = localPosition.z;
                 }
                 auto vertex =
                     terrainTilePrototypes.cliffVertexTemplate;
@@ -10749,7 +10820,8 @@ RuntimeEnvironment::Impl::ensureTerrainCliffObject(
                  lowerLeft, upperRight, upperLeft});
         }
     }
-    if (inheritsCompleteSourceGeometry &&
+    if (!usesSharedContourFrame &&
+        inheritsCompleteSourceGeometry &&
         inheritedSourcePositions.size() == prototype.vertices.size()) {
         const glm::vec3 sourceAnchor{
             boundaryX,
@@ -10813,6 +10885,10 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
         (levelDifferences[0] <= 0 && levelDifferences[1] <= 0)) {
         return {};
     }
+    const auto* contourEdge = route1_terrain_contours::findEdge(
+        terrainContourAssembly,
+        {tile.gridX, tile.gridZ},
+        edge);
     const std::string key =
         "route1:terrain-fringe:cell-" +
         std::to_string(tile.gridX) + "-" +
@@ -10846,6 +10922,11 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
     constexpr std::uint32_t kEdgeSegments =
         kTerrainLedgeContourSegments;
     constexpr std::uint32_t kEdgeSamples = kEdgeSegments + 1u;
+    const bool usesSharedContourFrame =
+        terrainPatchV2PreviewEnabled && contourEdge &&
+        contourEdge->frames.size() == kEdgeSamples &&
+        startJoin != route1_terrain_ledges::Join::Concave &&
+        endJoin != route1_terrain_ledges::Join::Concave;
     const float materialStraightLengthCm =
         route1_terrain_ledges::materialStraightLengthCm(
             startJoin,
@@ -10940,12 +11021,16 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
                 endHasDrop ? 1.0f : 0.0f,
                 t);
             const float logicalAlong = std::lerp(-50.0f, 50.0f, t);
-            const float contourDistance = contourStartCm +
-                logicalAlong + kTerrainTileSizeCm * 0.5f;
+            const float contourDistance = usesSharedContourFrame
+                ? contourEdge->frames[sample].logicalContourCm
+                : contourStartCm + logicalAlong +
+                    kTerrainTileSizeCm * 0.5f;
             const float materialContourDistance =
-                materialContourStartCm +
-                t * materialStraightLengthCm;
-            const float geometryAlong =
+                usesSharedContourFrame
+                ? contourEdge->frames[sample].materialContourCm
+                : materialContourStartCm +
+                    t * materialStraightLengthCm;
+            float geometryAlong =
                 std::lerp(startAlong, endAlong, t);
             float geometryOutward =
                 kRelativeOutward[row] * dropWeight +
@@ -10973,6 +11058,19 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
                     geometryOutward,
                     concaveEndOutward,
                     blend);
+            }
+            if (usesSharedContourFrame) {
+                const auto sourcePosition =
+                    route1_terrain_contours::offset(
+                        contourEdge->frames[sample],
+                        geometryOutward);
+                const glm::vec3 localPosition =
+                    inverseEdgeRotation * glm::vec3{
+                        sourcePosition.x - boundaryX,
+                        0.0f,
+                        sourcePosition.z - boundaryZ};
+                geometryAlong = localPosition.x;
+                geometryOutward = localPosition.z;
             }
             auto vertex =
                 terrainTilePrototypes.fringeVertexTemplate;
@@ -11053,7 +11151,8 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
             prototype.sourceVertices.push_back(sourceVertex);
         }
     }
-    if (inheritsCompleteSourceMaterialField) {
+    if (inheritsCompleteSourceMaterialField &&
+        !usesSharedContourFrame) {
         const glm::vec3 sourceAnchor{
             boundaryX,
             static_cast<float>(anchorLevel) *
@@ -11075,7 +11174,7 @@ RuntimeEnvironment::Impl::ensureTerrainFringeObject(
             vertex.ny = localNormal.y;
             vertex.nz = localNormal.z;
         }
-    } else {
+    } else if (!inheritsCompleteSourceMaterialField) {
         for (std::size_t row = 0u;
              row < kRelativeY.size();
              ++row) {
@@ -11155,6 +11254,11 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
     if (corner >= 4u || levelDifference <= 0) {
         return {};
     }
+    const auto* contourTurn =
+        route1_terrain_contours::findConvexTurn(
+            terrainContourAssembly,
+            {tile.gridX, tile.gridZ},
+            corner);
     const std::string key =
         "route1:terrain-fringe-corner:cell-" +
         std::to_string(tile.gridX) + "-" +
@@ -11225,6 +11329,9 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
         kRelativeY.size() * (kArcSegments + 1u));
     inheritedSourceNormals.reserve(
         kRelativeY.size() * (kArcSegments + 1u));
+    const bool usesSharedContourFrame =
+        terrainPatchV2PreviewEnabled && contourTurn &&
+        contourTurn->frames.size() == kArcSegments + 1u;
     bool inheritsCompleteSourceMaterialField = true;
     for (std::size_t row = 0u; row < kRelativeY.size(); ++row) {
         for (std::uint32_t arcIndex = 0u;
@@ -11232,26 +11339,44 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
              ++arcIndex) {
             const float phase = static_cast<float>(arcIndex) /
                 static_cast<float>(kArcSegments);
-            const float angle = phase * kHalfPi;
-            glm::vec2 outward =
-                glm::vec2(starts[corner][0], starts[corner][1]) *
-                    std::cos(angle) +
-                glm::vec2(ends[corner][0], ends[corner][1]) *
-                    std::sin(angle);
-            if (glm::length(outward) > 0.0f) {
-                outward = glm::normalize(outward);
+            glm::vec2 outward;
+            if (usesSharedContourFrame) {
+                outward = {
+                    contourTurn->frames[arcIndex].outward.x,
+                    contourTurn->frames[arcIndex].outward.z};
+            } else {
+                const float angle = phase * kHalfPi;
+                outward =
+                    glm::vec2(
+                        starts[corner][0], starts[corner][1]) *
+                        std::cos(angle) +
+                    glm::vec2(
+                        ends[corner][0], ends[corner][1]) *
+                        std::sin(angle);
+                if (glm::length(outward) > 0.0f) {
+                    outward = glm::normalize(outward);
+                }
             }
             const glm::vec2 sourceTangent{
                 outward.y, -outward.x};
             auto vertex = terrainTilePrototypes.fringeVertexTemplate;
             auto sourceVertex =
                 terrainTilePrototypes.fringeSourceVertexTemplate;
-            const float radius =
-                route1_terrain_ledges::kConvexCornerRadiusCm +
-                kOutward[row];
-            vertex.x = cornerCenterX + outward.x * radius;
+            if (usesSharedContourFrame) {
+                const auto sourcePosition =
+                    route1_terrain_contours::offset(
+                        contourTurn->frames[arcIndex],
+                        kOutward[row]);
+                vertex.x = sourcePosition.x - tileCenterX;
+                vertex.z = sourcePosition.z - tileCenterZ;
+            } else {
+                const float radius =
+                    route1_terrain_ledges::kConvexCornerRadiusCm +
+                    kOutward[row];
+                vertex.x = cornerCenterX + outward.x * radius;
+                vertex.z = cornerCenterZ + outward.y * radius;
+            }
             vertex.y = height + kRelativeY[row];
-            vertex.z = cornerCenterZ + outward.y * radius;
             vertex.nx = outward.x * kNormalOutward[row];
             vertex.ny = kNormalY[row];
             vertex.nz = outward.y * kNormalOutward[row];
@@ -11261,10 +11386,11 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
             vertex.v = sourceZ / 300.0f;
             float materialUv1U =
                 kTerrainLedgeFringeMaskUOffset +
-                (materialContourCm +
-                 phase *
-                     route1_terrain_ledges::
-                         kConvexCornerArcLengthCm) *
+                (usesSharedContourFrame
+                     ? contourTurn->frames[arcIndex].materialContourCm
+                     : materialContourCm + phase *
+                         route1_terrain_ledges::
+                             kConvexCornerArcLengthCm) *
                     kTerrainLedgeFringeMaskUPerCentimetre;
             glm::vec4 materialColor{
                 kColors[row][0],
@@ -11314,7 +11440,8 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
             prototype.sourceVertices.push_back(sourceVertex);
         }
     }
-    if (inheritsCompleteSourceMaterialField &&
+    if (!usesSharedContourFrame &&
+        inheritsCompleteSourceMaterialField &&
         inheritedSourcePositions.size() == prototype.vertices.size()) {
         const glm::vec3 sourceAnchor{
             tileCenterX,
@@ -11335,7 +11462,7 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
             vertex.ny = inheritedSourceNormals[vertexIndex].y;
             vertex.nz = inheritedSourceNormals[vertexIndex].z;
         }
-    } else {
+    } else if (!inheritsCompleteSourceMaterialField) {
         for (std::size_t row = 0u;
              row < kRelativeY.size();
              ++row) {
@@ -11348,9 +11475,12 @@ RuntimeEnvironment::Impl::ensureTerrainFringeCornerObject(
                     row * (kArcSegments + 1u) + arcIndex;
                 const float fallbackUv1U =
                     kTerrainLedgeFringeMaskUOffset +
-                    (materialContourCm +
-                     phase * route1_terrain_ledges::
-                         kConvexCornerArcLengthCm) *
+                    (usesSharedContourFrame
+                         ? contourTurn->frames[arcIndex]
+                               .materialContourCm
+                         : materialContourCm + phase *
+                             route1_terrain_ledges::
+                                 kConvexCornerArcLengthCm) *
                         kTerrainLedgeFringeMaskUPerCentimetre;
                 auto& vertex = prototype.vertices[vertexIndex];
                 auto& sourceVertex =
@@ -11416,6 +11546,11 @@ RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
     if (corner >= 4u || levelDifference <= 0) {
         return {};
     }
+    const auto* contourTurn =
+        route1_terrain_contours::findConvexTurn(
+            terrainContourAssembly,
+            {tile.gridX, tile.gridZ},
+            corner);
     const std::string key =
         "route1:terrain-cliff-corner:cell-" +
         std::to_string(tile.gridX) + "-" +
@@ -11489,6 +11624,9 @@ RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
     }};
     constexpr std::uint32_t kArcSegments =
         kTerrainLedgeCornerSegments;
+    const bool usesSharedContourFrame =
+        terrainPatchV2PreviewEnabled && contourTurn &&
+        contourTurn->frames.size() == kArcSegments + 1u;
     constexpr float kHalfPi = 1.57079632679489661923f;
     constexpr float cliffUPerCentimetre = 0.00516529f;
     constexpr float borderUPerCentimetre = 0.00510638f;
@@ -11536,22 +11674,42 @@ RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
                  ++arcIndex) {
                 const float phase = static_cast<float>(arcIndex) /
                     static_cast<float>(kArcSegments);
-                const float angle = phase * kHalfPi;
-                const glm::vec2 outward = glm::normalize(
-                    glm::vec2(starts[corner][0], starts[corner][1]) *
-                        std::cos(angle) +
-                    glm::vec2(ends[corner][0], ends[corner][1]) *
-                        std::sin(angle));
+                glm::vec2 outward;
+                if (usesSharedContourFrame) {
+                    outward = {
+                        contourTurn->frames[arcIndex].outward.x,
+                        contourTurn->frames[arcIndex].outward.z};
+                } else {
+                    const float angle = phase * kHalfPi;
+                    outward = glm::normalize(
+                        glm::vec2(
+                            starts[corner][0], starts[corner][1]) *
+                            std::cos(angle) +
+                        glm::vec2(
+                            ends[corner][0], ends[corner][1]) *
+                            std::sin(angle));
+                }
                 auto vertex =
                     terrainTilePrototypes.cliffVertexTemplate;
                 auto sourceVertex =
                     terrainTilePrototypes.cliffSourceVertexTemplate;
+                const float profileOffset =
+                    row.outward + kTerrainLedgeBaseInsetCm;
                 const float radius =
                     route1_terrain_ledges::kConvexCornerRadiusCm +
-                    row.outward + kTerrainLedgeBaseInsetCm;
-                vertex.x = cornerCenterX + outward.x * radius;
+                    profileOffset;
+                if (usesSharedContourFrame) {
+                    const auto sourcePosition =
+                        route1_terrain_contours::offset(
+                            contourTurn->frames[arcIndex],
+                            profileOffset);
+                    vertex.x = sourcePosition.x - tileCenterX;
+                    vertex.z = sourcePosition.z - tileCenterZ;
+                } else {
+                    vertex.x = cornerCenterX + outward.x * radius;
+                    vertex.z = cornerCenterZ + outward.y * radius;
+                }
                 vertex.y = row.y;
-                vertex.z = cornerCenterZ + outward.y * radius;
                 vertex.nx = outward.x * row.normalOutward;
                 vertex.ny = row.normalY;
                 vertex.nz = outward.y * row.normalOutward;
@@ -11583,8 +11741,9 @@ RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
                     inheritedSourceNormal);
                 vertex.u = sourceX / 300.0f;
                 vertex.v = sourceZ / 300.0f;
-                const float cornerAlong = materialContourCm +
-                    phase *
+                const float cornerAlong = usesSharedContourFrame
+                    ? contourTurn->frames[arcIndex].materialContourCm
+                    : materialContourCm + phase *
                         route1_terrain_ledges::
                             kConvexCornerArcLengthCm;
                 vertex.sourceUv1U =
@@ -11623,7 +11782,8 @@ RuntimeEnvironment::Impl::ensureTerrainCliffCornerObject(
                  lowerLeft, upperRight, upperLeft});
         }
     }
-    if (inheritsCompleteSourceGeometry &&
+    if (!usesSharedContourFrame &&
+        inheritsCompleteSourceGeometry &&
         inheritedSourcePositions.size() == prototype.vertices.size()) {
         const glm::vec3 sourceAnchor{
             tileCenterX,
@@ -12358,14 +12518,15 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
     const std::vector<glm::vec2>& boundary,
     bool forceRaisedCrownField,
     float localDepthCm,
-    const std::vector<std::uint32_t>* exactIndices) {
+    const std::vector<std::uint32_t>* exactIndices,
+    const std::vector<glm::vec3>* exactNormals,
+    const std::vector<float>* exactContactWeights) {
     auto [found, inserted] =
         terrainTilePrototypes.topPrototypes.try_emplace(key);
     auto& prototype = found->second;
     if (!inserted) {
         return prototype.object;
     }
-
     if (boundary.size() < 3u) {
         return {};
     }
@@ -12391,6 +12552,14 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
         vertex.nx = 0.0f;
         vertex.ny = 1.0f;
         vertex.nz = 0.0f;
+        const std::size_t vertexIndex = prototype.vertices.size();
+        if (exactNormals && vertexIndex < exactNormals->size()) {
+            const glm::vec3 normal = glm::normalize(
+                (*exactNormals)[vertexIndex]);
+            vertex.nx = normal.x;
+            vertex.ny = normal.y;
+            vertex.nz = normal.z;
+        }
         const float sourceX = sourceOriginX + localX;
         const float sourceZ = sourceOriginZ + localZ;
         const float worldGridX = sourceX / kTerrainTileSizeCm;
@@ -12536,7 +12705,10 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
                     nullptr);
             }
         }
+        const bool contourCrownCarrier =
+            key.find("crown-contour-underlay") != std::string::npos;
         if (!forceRaisedCrownField && !tessellateContourCap &&
+            !contourCrownCarrier &&
             materialTile &&
             materialTile->surface == "light_lawn") {
             // These meshes exist only to fill geometric coverage holes.
@@ -12545,6 +12717,17 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
             // same black hole. Keep the donor's UV0/UV1 and Color0, but use
             // the decoded opaque lawn selector for the hidden fill.
             uv2 = kCarrierOpaqueLightLawnUv2;
+        }
+        if (!forceRaisedCrownField && exactContactWeights &&
+            vertexIndex < exactContactWeights->size()) {
+            const float contactWeight = std::clamp(
+                (*exactContactWeights)[vertexIndex], 0.0f, 1.0f);
+            const glm::vec4 contactColor{
+                kCarrierRaisedLawnTint[0],
+                kCarrierRaisedLawnTint[1],
+                kCarrierRaisedLawnTint[2],
+                1.0f};
+            color = glm::mix(color, contactColor, contactWeight);
         }
         vertex.sourceUv2U = uv2.x;
         vertex.sourceUv2V = uv2.y;
@@ -13118,7 +13301,11 @@ RuntimeEnvironment::Impl::ensureTerrainLedgeCrownContourUnderlayObject(
         terrainLedgeResolution,
         {tile.gridX, tile.gridZ},
         edge);
-    if (!resolvedLedge) {
+    const auto* contourEdge = route1_terrain_contours::findEdge(
+        terrainContourAssembly,
+        {tile.gridX, tile.gridZ},
+        edge);
+    if (!resolvedLedge || !contourEdge) {
         return {};
     }
     const std::string key =
@@ -13135,18 +13322,6 @@ RuntimeEnvironment::Impl::ensureTerrainLedgeCrownContourUnderlayObject(
         std::to_string(static_cast<std::uint32_t>(
             resolvedLedge->endJoin)) +
         (tile.receivesProjectedShadow ? ":shadow" : ":shadowless");
-    auto [found, inserted] =
-        terrainTilePrototypes.topPrototypes.try_emplace(key);
-    auto& prototype = found->second;
-    if (!inserted) {
-        return prototype.object;
-    }
-
-    constexpr std::array<glm::vec2, 4> kOutward{
-        glm::vec2{0.0f, 1.0f},
-        glm::vec2{1.0f, 0.0f},
-        glm::vec2{0.0f, -1.0f},
-        glm::vec2{-1.0f, 0.0f}};
     constexpr std::array<std::array<std::int32_t, 2>, 4>
         kDirections{{
             {0, 1},
@@ -13174,11 +13349,12 @@ RuntimeEnvironment::Impl::ensureTerrainLedgeCrownContourUnderlayObject(
         profile.tileLevels[1] > profile.neighborLevels[1]
             ? 1.0f
             : 0.0f};
-    const glm::vec2 outward = kOutward[edge];
-    const glm::vec2 tangent{outward.y, -outward.x};
     constexpr std::uint32_t kSegments =
         kTerrainLedgeContourSegments;
     constexpr std::uint32_t kRowWidth = kSegments + 1u;
+    if (contourEdge->frames.size() != kRowWidth) {
+        return {};
+    }
     // This is an alpha-safety gasket, not a replacement lawn patch. Its two
     // rows hug the same recovered ledge contour within an eleven-centimetre
     // band. It cannot form the 28x104 cm or 52x52 cm rectangular sheets that
@@ -13191,46 +13367,26 @@ RuntimeEnvironment::Impl::ensureTerrainLedgeCrownContourUnderlayObject(
     // three-centimetre inner radius at the turn and let the ordinary cap own
     // everything farther inside.
     constexpr float kConvexInnerOverlapCm = 4.0f;
-    constexpr glm::vec2 kOpaqueLawnFieldUv{
-        -0.101646f, -1.071291f};
-    constexpr glm::vec4 kRaisedLawnColor{
-        0.180392161f, 0.482352942f, 0.431372553f, 1.0f};
     const float centerX =
         (static_cast<float>(tile.gridX) + 0.5f) *
         kTerrainTileSizeCm;
     const float centerZ =
         (static_cast<float>(tile.gridZ) + 0.5f) *
         kTerrainTileSizeCm;
-    prototype.vertices.reserve(kRowWidth * 2u);
-    prototype.sourceVertices.reserve(kRowWidth * 2u);
-    prototype.indices.reserve(kSegments * 6u);
-    const auto logicalBoundaryLocal = [&](float phase,
-                                          float rowOffset) {
-        const float startAlong =
-            route1_terrain_ledges::endpointAlongCm(
-                resolvedLedge->startJoin, true, rowOffset);
-        const float endAlong =
-            route1_terrain_ledges::endpointAlongCm(
-                resolvedLedge->endJoin, false, rowOffset);
-        const float along = std::lerp(
-            startAlong, endAlong, phase);
-        return outward * (kTerrainTileSizeCm * 0.5f) +
-            tangent * along;
-    };
     std::vector<terrain_contours::StripSample> contourSamples;
     contourSamples.reserve(kRowWidth);
     for (std::uint32_t sample = 0u;
          sample <= kSegments;
          ++sample) {
         terrain_contours::StripSample stripSample;
+        const auto& contourFrame = contourEdge->frames[sample];
         for (std::uint32_t row = 0u; row < 2u; ++row) {
             const float phase = static_cast<float>(sample) /
                 static_cast<float>(kSegments);
             const float weight = std::lerp(
                 endpointWeights[0], endpointWeights[1], phase);
             const float contourDistance =
-                resolvedLedge->contourStartCm +
-                phase * kTerrainTileSizeCm;
+                contourFrame.logicalContourCm;
             const float capContourOffset = weight *
                 (kTerrainLedgeBaseInsetCm +
                  terrainLedgeContourWobbleCm(contourDistance) +
@@ -13257,14 +13413,17 @@ RuntimeEnvironment::Impl::ensureTerrainLedgeCrownContourUnderlayObject(
             }
             const float rowOffset = capContourOffset + weight *
                 (row == 0u ? kOuterOverlapCm : -innerOverlapCm);
-            const glm::vec2 position =
-                logicalBoundaryLocal(phase, rowOffset) +
-                outward * rowOffset;
+            const auto sourcePosition =
+                route1_terrain_contours::offset(
+                    contourFrame, rowOffset);
+            const terrain_contours::Point position{
+                sourcePosition.x - centerX,
+                sourcePosition.z - centerZ};
 
             auto& contourPoint = row == 0u
                 ? stripSample.outer
                 : stripSample.inner;
-            contourPoint = {position.x, position.y};
+            contourPoint = position;
         }
         contourSamples.push_back(stripSample);
     }
@@ -13275,100 +13434,42 @@ RuntimeEnvironment::Impl::ensureTerrainLedgeCrownContourUnderlayObject(
     if (!contourValidation.valid) {
         return {};
     }
-    for (std::size_t vertexIndex = 0u;
-         vertexIndex < contourMesh.vertices.size();
-         ++vertexIndex) {
-        const auto& position = contourMesh.vertices[vertexIndex];
-
-        auto vertex = terrainTilePrototypes.groundVertexTemplate;
-        auto sourceVertex =
-            terrainTilePrototypes.groundSourceVertexTemplate;
-        vertex.x = position.x;
-        vertex.y = kTerrainLawnUnderlayDepthCm;
-        vertex.z = position.z;
-        vertex.nx = 0.0f;
-        vertex.ny = 1.0f;
-        vertex.nz = 0.0f;
-        const float sourceX = centerX + position.x;
-        const float sourceZ = centerZ + position.z;
-        SourceTerrainSurfaceSample sourceSample;
-        const bool sourceSampled = sampleSourceTerrainSurface(
-            tile,
-            std::clamp(
-                sourceX / kTerrainTileSizeCm -
-                    static_cast<float>(tile.gridX),
-                0.0f,
-                1.0f),
-            std::clamp(
-                sourceZ / kTerrainTileSizeCm -
-                    static_cast<float>(tile.gridZ),
-                0.0f,
-                1.0f),
-            sourceSample);
-        const glm::vec2 fallbackUv{
-            sourceX / 300.0f,
-            sourceZ / 300.0f};
-        const glm::vec2 uv0 = sourceSampled
-            ? sourceSample.uv0
-            : fallbackUv;
-        // Keep the source's large-scale grass field, but force only the
-        // opaque lawn mask and the crown tint. Pinning both UV channels
-        // to the raised selector rendered the safety gasket nearly black;
-        // using an untinted light-lawn selector rendered it as a bright
-        // strip. This pairing matches the surrounding grass while
-        // remaining opaque beneath the alpha-cut leaves.
-        const glm::vec2 uv1 = sourceSampled
-            ? sourceSample.uv1
-            : fallbackUv;
-        const glm::vec2 uv2 = kOpaqueLawnFieldUv;
-        const glm::vec4 color = kRaisedLawnColor;
-        vertex.u = uv0.x;
-        vertex.v = uv0.y;
-        vertex.sourceUv1U = uv1.x;
-        vertex.sourceUv1V = uv1.y;
-        vertex.sourceUv2U = uv2.x;
-        vertex.sourceUv2V = uv2.y;
-        vertex.r = color.r;
-        vertex.g = color.g;
-        vertex.b = color.b;
-        vertex.a = color.a;
-        sourceVertex.texcoords[0] = {uv0.x, uv0.y};
-        sourceVertex.texcoords[1] = {uv1.x, uv1.y};
-        sourceVertex.texcoords[2] = {uv2.x, uv2.y};
-        sourceVertex.colors[0] = {
-            color.r, color.g, color.b, color.a};
-        prototype.vertices.push_back(vertex);
-        prototype.sourceVertices.push_back(sourceVertex);
+    std::vector<glm::vec2> boundary;
+    boundary.reserve(contourMesh.vertices.size());
+    for (const auto& point : contourMesh.vertices) {
+        boundary.emplace_back(point.x, point.z);
     }
-    prototype.indices = contourMesh.indices;
-
-    if (prototype.indices.empty()) {
-        return {};
+    std::vector<glm::vec3> normals;
+    normals.reserve(contourMesh.vertices.size());
+    for (const auto& contourFrame : contourEdge->frames) {
+        normals.emplace_back(
+            contourFrame.outward.x *
+                kTerrainLedgeFringeNormalOutward[0u],
+            kTerrainLedgeFringeNormalY[0u],
+            contourFrame.outward.z *
+                kTerrainLedgeFringeNormalOutward[0u]);
     }
-    const auto geometry = shared_world_scene::ensureRigidGeometry(
-        scene.registry,
-        &prototype,
-        key.c_str(),
-        prototype.vertices.data(),
-        prototype.vertices.size(),
-        prototype.indices.data(),
-        prototype.indices.size(),
-        prototype.sourceVertices.data(),
-        prototype.sourceVertices.size(),
-        terrainTilePrototypes.groundSourceVertexSemanticMask,
-        std::numeric_limits<std::uint32_t>::max(),
-        0u);
-    prototype.object = shared_world_scene::ensureRenderObject(
-        scene.registry,
-        geometry,
-        tile.receivesProjectedShadow
-            ? terrainTilePrototypes.groundMaterialHandle
-            : terrainTilePrototypes.groundShadowlessMaterialHandle,
-        static_cast<shared_world_scene::PipelineVariant>(
-            terrainTilePrototypes.groundPipelineVariant),
-        terrainTilePrototypes.groundCookedDrawSlot,
-        false);
-    return prototype.object;
+    normals.insert(
+        normals.end(),
+        contourEdge->frames.size(),
+        glm::vec3{0.0f, 1.0f, 0.0f});
+    std::vector<float> contactWeights(
+        contourMesh.vertices.size(), 0.0f);
+    std::fill_n(
+        contactWeights.begin(), contourEdge->frames.size(), 1.0f);
+    return ensureTerrainLawnPatchObject(
+        key,
+        centerX,
+        centerZ,
+        tile.elevationLevel,
+        tile.receivesProjectedShadow,
+        &tile,
+        boundary,
+        tile.surface == "dark_lawn",
+        kTerrainLawnUnderlayDepthCm,
+        &contourMesh.indices,
+        &normals,
+        &contactWeights);
 }
 
 IRenderBackend::WorldSceneRenderObjectHandle
@@ -13376,6 +13477,14 @@ RuntimeEnvironment::Impl::ensureTerrainConvexCrownContourUnderlayObject(
     const TerrainTileState& tile,
     std::size_t corner) {
     if (corner >= 4u) {
+        return {};
+    }
+    const auto* contourTurn =
+        route1_terrain_contours::findConvexTurn(
+            terrainContourAssembly,
+            {tile.gridX, tile.gridZ},
+            corner);
+    if (!contourTurn) {
         return {};
     }
     const std::string key =
@@ -13386,46 +13495,18 @@ RuntimeEnvironment::Impl::ensureTerrainConvexCrownContourUnderlayObject(
         std::to_string(tile.elevationLevel) + ":surface-" +
         tile.surface +
         (tile.receivesProjectedShadow ? ":shadow" : ":shadowless");
-    auto [found, inserted] =
-        terrainTilePrototypes.topPrototypes.try_emplace(key);
-    auto& prototype = found->second;
-    if (!inserted) {
-        return prototype.object;
-    }
-
-    constexpr std::array<glm::vec2, 4> kStarts{
-        glm::vec2{0.0f, 1.0f},
-        glm::vec2{1.0f, 0.0f},
-        glm::vec2{0.0f, -1.0f},
-        glm::vec2{-1.0f, 0.0f}};
-    constexpr std::array<glm::vec2, 4> kEnds{
-        glm::vec2{1.0f, 0.0f},
-        glm::vec2{0.0f, -1.0f},
-        glm::vec2{-1.0f, 0.0f},
-        glm::vec2{0.0f, 1.0f}};
-    constexpr std::array<glm::vec2, 4> kCornerSigns{
-        glm::vec2{1.0f, 1.0f},
-        glm::vec2{1.0f, -1.0f},
-        glm::vec2{-1.0f, -1.0f},
-        glm::vec2{-1.0f, 1.0f}};
     constexpr std::uint32_t kSegments =
         kTerrainLedgeCornerSegments;
     constexpr std::uint32_t kRowWidth = kSegments + 1u;
-    constexpr float kHalfPi = 1.57079632679489661923f;
-    constexpr float kBaseRadiusCm =
-        route1_terrain_ledges::kConvexCornerRadiusCm +
+    if (contourTurn->frames.size() != kRowWidth) {
+        return {};
+    }
+    constexpr float kBaseOffsetCm =
         kTerrainLedgeBaseInsetCm +
         kTerrainLedgeCrownSafetyOverlapCm;
-    constexpr std::array<float, 2> kRadiiCm{
-        kBaseRadiusCm + 3.0f,
-        kBaseRadiusCm - 4.0f};
-    constexpr glm::vec2 kOpaqueLawnFieldUv{
-        -0.101646f, -1.071291f};
-    constexpr glm::vec4 kRaisedLawnColor{
-        0.180392161f, 0.482352942f, 0.431372553f, 1.0f};
-    const glm::vec2 cornerCenter = kCornerSigns[corner] *
-        (kTerrainTileSizeCm * 0.5f -
-         route1_terrain_ledges::kConvexCornerRadiusCm);
+    constexpr std::array<float, 2> kOffsetsCm{
+        kBaseOffsetCm + 3.0f,
+        kBaseOffsetCm - 4.0f};
     const float tileCenterX =
         (static_cast<float>(tile.gridX) + 0.5f) *
         kTerrainTileSizeCm;
@@ -13437,115 +13518,65 @@ RuntimeEnvironment::Impl::ensureTerrainConvexCrownContourUnderlayObject(
     for (std::uint32_t sample = 0u;
          sample <= kSegments;
          ++sample) {
-        const float phase = static_cast<float>(sample) /
-            static_cast<float>(kSegments);
-        const float angle = phase * kHalfPi;
-        const glm::vec2 outward = glm::normalize(
-            kStarts[corner] * std::cos(angle) +
-            kEnds[corner] * std::sin(angle));
+        const auto& contourFrame = contourTurn->frames[sample];
+        const auto outer = route1_terrain_contours::offset(
+            contourFrame, kOffsetsCm[0u]);
+        const auto inner = route1_terrain_contours::offset(
+            contourFrame, kOffsetsCm[1u]);
         contourSamples.push_back({
             .outer = {
-                cornerCenter.x + outward.x * kRadiiCm[0u],
-                cornerCenter.y + outward.y * kRadiiCm[0u]},
+                outer.x - tileCenterX,
+                outer.z - tileCenterZ},
             .inner = {
-                cornerCenter.x + outward.x * kRadiiCm[1u],
-                cornerCenter.y + outward.y * kRadiiCm[1u]}});
+                inner.x - tileCenterX,
+                inner.z - tileCenterZ}});
     }
     const auto contourMesh = terrain_contours::makeCappedStrip(
         contourSamples,
-        {cornerCenter.x, cornerCenter.y});
+        {contourTurn->center.x - tileCenterX,
+         contourTurn->center.z - tileCenterZ});
     const auto contourValidation = terrain_contours::validate(
         contourMesh);
     if (!contourValidation.valid) {
         return {};
     }
-    prototype.vertices.reserve(contourMesh.vertices.size());
-    prototype.sourceVertices.reserve(contourMesh.vertices.size());
-    prototype.indices.reserve(contourMesh.indices.size());
-    for (const auto& contourPoint : contourMesh.vertices) {
-        const glm::vec2 position{
-            contourPoint.x, contourPoint.z};
-        const float sourceX = tileCenterX + position.x;
-        const float sourceZ = tileCenterZ + position.y;
-        SourceTerrainSurfaceSample sourceSample;
-        const bool sourceSampled = sampleSourceTerrainSurface(
-            tile,
-            std::clamp(
-                sourceX / kTerrainTileSizeCm -
-                    static_cast<float>(tile.gridX),
-                0.0f,
-                1.0f),
-            std::clamp(
-                sourceZ / kTerrainTileSizeCm -
-                    static_cast<float>(tile.gridZ),
-                0.0f,
-                1.0f),
-            sourceSample);
-        const glm::vec2 uv0 = sourceSampled
-            ? sourceSample.uv0
-            : glm::vec2{sourceX / 300.0f, sourceZ / 300.0f};
-        auto vertex = terrainTilePrototypes.groundVertexTemplate;
-        auto sourceVertex =
-            terrainTilePrototypes.groundSourceVertexTemplate;
-        vertex.x = position.x;
-        vertex.y = kTerrainLawnUnderlayDepthCm;
-        vertex.z = position.y;
-        vertex.nx = 0.0f;
-        vertex.ny = 1.0f;
-        vertex.nz = 0.0f;
-        vertex.u = uv0.x;
-        vertex.v = uv0.y;
-        const glm::vec2 uv1 = sourceSampled
-            ? sourceSample.uv1
-            : uv0;
-        vertex.sourceUv1U = uv1.x;
-        vertex.sourceUv1V = uv1.y;
-        vertex.sourceUv2U = kOpaqueLawnFieldUv.x;
-        vertex.sourceUv2V = kOpaqueLawnFieldUv.y;
-        vertex.r = kRaisedLawnColor.r;
-        vertex.g = kRaisedLawnColor.g;
-        vertex.b = kRaisedLawnColor.b;
-        vertex.a = kRaisedLawnColor.a;
-        sourceVertex.texcoords[0] = {uv0.x, uv0.y};
-        sourceVertex.texcoords[1] = {
-            uv1.x,
-            uv1.y};
-        sourceVertex.texcoords[2] = {
-            kOpaqueLawnFieldUv.x,
-            kOpaqueLawnFieldUv.y};
-        sourceVertex.colors[0] = {
-            kRaisedLawnColor.r,
-            kRaisedLawnColor.g,
-            kRaisedLawnColor.b,
-            kRaisedLawnColor.a};
-        prototype.vertices.push_back(vertex);
-        prototype.sourceVertices.push_back(sourceVertex);
+    std::vector<glm::vec2> boundary;
+    boundary.reserve(contourMesh.vertices.size());
+    for (const auto& point : contourMesh.vertices) {
+        boundary.emplace_back(point.x, point.z);
     }
-    prototype.indices = contourMesh.indices;
-    const auto geometry = shared_world_scene::ensureRigidGeometry(
-        scene.registry,
-        &prototype,
-        key.c_str(),
-        prototype.vertices.data(),
-        prototype.vertices.size(),
-        prototype.indices.data(),
-        prototype.indices.size(),
-        prototype.sourceVertices.data(),
-        prototype.sourceVertices.size(),
-        terrainTilePrototypes.groundSourceVertexSemanticMask,
-        std::numeric_limits<std::uint32_t>::max(),
-        0u);
-    prototype.object = shared_world_scene::ensureRenderObject(
-        scene.registry,
-        geometry,
-        tile.receivesProjectedShadow
-            ? terrainTilePrototypes.groundMaterialHandle
-            : terrainTilePrototypes.groundShadowlessMaterialHandle,
-        static_cast<shared_world_scene::PipelineVariant>(
-            terrainTilePrototypes.groundPipelineVariant),
-        terrainTilePrototypes.groundCookedDrawSlot,
-        false);
-    return prototype.object;
+    std::vector<glm::vec3> normals;
+    normals.reserve(contourMesh.vertices.size());
+    for (const auto& contourFrame : contourTurn->frames) {
+        normals.emplace_back(
+            contourFrame.outward.x *
+                kTerrainLedgeFringeNormalOutward[0u],
+            kTerrainLedgeFringeNormalY[0u],
+            contourFrame.outward.z *
+                kTerrainLedgeFringeNormalOutward[0u]);
+    }
+    normals.insert(
+        normals.end(),
+        contourTurn->frames.size(),
+        glm::vec3{0.0f, 1.0f, 0.0f});
+    normals.emplace_back(0.0f, 1.0f, 0.0f);
+    std::vector<float> contactWeights(
+        contourMesh.vertices.size(), 0.0f);
+    std::fill_n(
+        contactWeights.begin(), contourTurn->frames.size(), 1.0f);
+    return ensureTerrainLawnPatchObject(
+        key,
+        tileCenterX,
+        tileCenterZ,
+        tile.elevationLevel,
+        tile.receivesProjectedShadow,
+        &tile,
+        boundary,
+        tile.surface == "dark_lawn",
+        kTerrainLawnUnderlayDepthCm,
+        &contourMesh.indices,
+        &normals,
+        &contactWeights);
 }
 
 IRenderBackend::WorldSceneRenderObjectHandle
@@ -13557,51 +13588,42 @@ RuntimeEnvironment::Impl::ensureTerrainConvexFootContourUnderlayObject(
     if (corner >= 4u) {
         return {};
     }
-    constexpr std::array<terrain_contours::Point, 4> kStarts{{
-        {0.0f, 1.0f},
-        {1.0f, 0.0f},
-        {0.0f, -1.0f},
-        {-1.0f, 0.0f},
-    }};
-    constexpr std::array<terrain_contours::Point, 4> kEnds{{
-        {1.0f, 0.0f},
-        {0.0f, -1.0f},
-        {-1.0f, 0.0f},
-        {0.0f, 1.0f},
-    }};
-    constexpr std::array<terrain_contours::Point, 4> kSigns{{
-        {1.0f, 1.0f},
-        {1.0f, -1.0f},
-        {-1.0f, -1.0f},
-        {-1.0f, 1.0f},
-    }};
-    const auto sign = kSigns[corner];
-    const terrain_contours::Point logicalCorner{
-        sign.x * kTerrainTileSizeCm * 0.5f,
-        sign.z * kTerrainTileSizeCm * 0.5f};
-    const terrain_contours::Point center{
-        sign.x *
-            (kTerrainTileSizeCm * 0.5f -
-             route1_terrain_ledges::kConvexCornerRadiusCm),
-        sign.z *
-            (kTerrainTileSizeCm * 0.5f -
-             route1_terrain_ledges::kConvexCornerRadiusCm)};
+    const auto* contourTurn =
+        route1_terrain_contours::findConvexTurn(
+            terrainContourAssembly,
+            {tile.gridX, tile.gridZ},
+            corner);
+    if (!contourTurn || contourTurn->frames.size() < 2u) {
+        return {};
+    }
+    const float tileCenterX =
+        (static_cast<float>(tile.gridX) + 0.5f) *
+        kTerrainTileSizeCm;
+    const float tileCenterZ =
+        (static_cast<float>(tile.gridZ) + 0.5f) *
+        kTerrainTileSizeCm;
     // The cliff foot sits at radius 30 cm. Carry the low lawn three
     // centimetres behind it, so alpha-tested foot foliage can never expose
     // the clear colour, while the patch remains the curved corner pocket
     // rather than a square or quadrant-sized overlay.
-    constexpr float kCliffFootRadiusCm =
-        route1_terrain_ledges::kConvexCornerRadiusCm +
+    constexpr float kCliffFootOffsetCm =
         25.0f + kTerrainLedgeBaseInsetCm;
     constexpr float kFootUnderlapCm = 3.0f;
-    const auto contourMesh =
-        terrain_contours::makeConvexFootPocket(
-            logicalCorner,
-            center,
-            kStarts[corner],
-            kEnds[corner],
-            kCliffFootRadiusCm - kFootUnderlapCm,
-            kTerrainLedgeCornerSegments);
+    std::vector<terrain_contours::Point> footBoundary;
+    footBoundary.reserve(contourTurn->frames.size());
+    for (const auto& frame : contourTurn->frames) {
+        const auto sourcePosition =
+            route1_terrain_contours::offset(
+                frame,
+                kCliffFootOffsetCm - kFootUnderlapCm);
+        footBoundary.push_back({
+            sourcePosition.x - tileCenterX,
+            sourcePosition.z - tileCenterZ});
+    }
+    const auto contourMesh = terrain_contours::makeFan(
+        {contourTurn->logicalCorner.x - tileCenterX,
+         contourTurn->logicalCorner.z - tileCenterZ},
+        footBoundary);
     if (!terrain_contours::validate(contourMesh).valid) {
         return {};
     }
@@ -13623,10 +13645,8 @@ RuntimeEnvironment::Impl::ensureTerrainConvexFootContourUnderlayObject(
         (receivesProjectedShadow ? ":shadow" : ":shadowless");
     return ensureTerrainLawnPatchObject(
         key,
-        (static_cast<float>(tile.gridX) + 0.5f) *
-            kTerrainTileSizeCm,
-        (static_cast<float>(tile.gridZ) + 0.5f) *
-            kTerrainTileSizeCm,
+        tileCenterX,
+        tileCenterZ,
         lowLevel,
         receivesProjectedShadow,
         donorTile,
@@ -14061,6 +14081,10 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
     terrainLedgeResolution = route1_terrain_ledges::resolve(
         terrainTiles,
         sourceTerrainTiles);
+    terrainContourAssembly = route1_terrain_contours::assemble(
+        terrainLedgeResolution,
+        kTerrainLedgeContourSegments,
+        kTerrainLedgeCornerSegments);
     for (const auto& ledge : terrainLedgeResolution.edges) {
         if (!ledge.rebuildsJoinedSourceBoundary || ledge.edge >= 4u) {
             continue;
