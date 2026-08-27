@@ -14515,12 +14515,12 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             nextCleanupCells.emplace(cell);
         }
     }
-    // Terrain Patch V2 expands an edit into a connected regional replacement
-    // with a one-cell source transition ring. Only the preview's generated
-    // ground carrier is expanded here: canonical cliffs and foliage remain
-    // authoritative unless the underlying authored edit already invalidated
-    // them. This makes the experiment reversible and avoids turning a visual
-    // transition into a destructive source-geometry cleanup.
+    // Terrain Patch V2 plans a one-cell source transition ring, but that ring
+    // is a socket/validation domain rather than permission to replace exact
+    // LGPE ground. Only core cells enter the generated carrier set. Untouched
+    // transition cells keep their imported triangle and material streams; the
+    // core-to-transition boundary is where an exact donor or constrained
+    // stitch must meet them.
     if (terrainPatchV2PreviewEnabled &&
         terrainPatchV2Plan.validation.valid) {
         for (const auto& region : terrainPatchV2Plan.regions) {
@@ -14532,7 +14532,9 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                         return candidate.gridX == patchCell.cell.first &&
                             candidate.gridZ == patchCell.cell.second;
                     });
-                if (activeTile != terrainTiles.end() &&
+                if (patchCell.role ==
+                        route1_terrain_patch_v2::CellRole::Core &&
+                    activeTile != terrainTiles.end() &&
                     activeTile->surface != "empty" &&
                     !activeTile->sourceReference) {
                     nextCells.emplace(patchCell.cell);

@@ -102,6 +102,11 @@ Implemented:
 - shared vertex indices across compatible same-surface/same-height cell edges;
 - exact decoded geometry/material fields on source-transition cells instead of
   moving a synthetic square delimiter one cell away from the authored edit;
+- immutable source-transition render ownership: only core cells enter the
+  generated ground-carrier set, while the ring remains a socket/validation
+  domain;
+- semantic core qualification: serialized shadow, vegetation, and other
+  metadata-only edits do not grant V2 permission to replace source geometry;
 - source-profile straight and convex-corner crown gaskets that follow the
   resolved ledge contour and are bounded to a narrow local envelope;
 - one reusable contour triangulator with deterministic winding/degeneracy

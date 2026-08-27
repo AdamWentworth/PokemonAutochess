@@ -25,10 +25,23 @@ bool activeSurface(const TerrainTileState& tile) {
 }
 
 bool startsRegionalCook(const TerrainTileState& tile) {
-    return activeSurface(tile) &&
-        (tile.authored ||
-         tile.cleanSuppressedEncounterGrassTint ||
-         tile.rebuildContinuousMaterialFields);
+    if (!activeSurface(tile)) {
+        return false;
+    }
+    // Authorship is not geometry authority. Shadow reception, vegetation
+    // ownership, and other render metadata serialize a terrain node without
+    // changing its imported surface. Treating every authored node as a core
+    // cell expanded V2 through untouched LGPE corners and replaced exact
+    // source carriers with generated transition grids.
+    const bool sourceAppearanceChanged =
+        !tile.sourceOccupied ||
+        tile.elevationLevel != tile.sourceElevationLevel ||
+        tile.surface != tile.sourceSurface ||
+        tile.shape != tile.sourceShape ||
+        tile.sourceReference.has_value();
+    return sourceAppearanceChanged ||
+        tile.cleanSuppressedEncounterGrassTint ||
+        tile.rebuildContinuousMaterialFields;
 }
 
 std::array<GridPoint, 4> edgeStarts(const GridCell& cell) {

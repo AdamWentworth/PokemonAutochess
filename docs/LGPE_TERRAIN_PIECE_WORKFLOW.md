@@ -113,6 +113,8 @@ Implemented now:
 - exact-match and best-first compatibility ranking;
 - Inspector previous/next carousel;
 - lossless exact-donor placement through existing scene persistence;
+- immutable V2 transition cells and geometry-aware core qualification, so an
+  adjacent metadata-only edit cannot replace an untouched source corner;
 - Debug/Release package builds and regression tests;
 - hidden D3D12 editor load proof.
 

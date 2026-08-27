@@ -70,10 +70,23 @@ bool test_route1_terrain_patch_cooker_contract(std::string& outFail) {
 
     {
         auto tiles = rectangle(0, 3, 0, 3);
+        find(tiles, 1, 1)->authored = true;
+        const auto metadataOnly = patch::cook(tiles);
+        if (!metadataOnly.regions.empty()) {
+            outFail =
+                "A source-identical authored tile must not grant Terrain Patch V2 permission to replace imported geometry.";
+            return false;
+        }
+    }
+
+    {
+        auto tiles = rectangle(0, 3, 0, 3);
         for (const auto cell : {
                  patch::GridCell{1, 1}, patch::GridCell{1, 2},
                  patch::GridCell{2, 1}, patch::GridCell{2, 2}}) {
-            find(tiles, cell.first, cell.second)->authored = true;
+            auto* edited = find(tiles, cell.first, cell.second);
+            edited->authored = true;
+            edited->elevationLevel = 1;
         }
         const auto plan = patch::cook(tiles);
         if (!plan.validation.valid ||
@@ -92,7 +105,9 @@ bool test_route1_terrain_patch_cooker_contract(std::string& outFail) {
     {
         auto tiles = rectangle(0, 7, 0, 3);
         find(tiles, 2, 1)->authored = true;
+        find(tiles, 2, 1)->elevationLevel = 1;
         find(tiles, 5, 1)->authored = true;
+        find(tiles, 5, 1)->elevationLevel = 1;
         const auto plan = patch::cook(tiles);
         if (!plan.validation.valid || plan.regions.size() != 1u) {
             outFail =
@@ -149,6 +164,7 @@ bool test_route1_terrain_patch_cooker_contract(std::string& outFail) {
         for (auto& value : tiles) {
             if (!(value.gridX == 2 && value.gridZ == 2)) {
                 value.authored = true;
+                value.elevationLevel = 1;
             } else {
                 value.surface = "empty";
                 value.sourceSurface = "empty";
