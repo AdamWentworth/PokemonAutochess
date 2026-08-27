@@ -35,6 +35,35 @@ The preview replaces source ground only inside a valid region. It does not
 persist new scene nodes and does not expand destructive cliff/foliage cleanup
 into the transition ring.
 
+## Authoring versus render topology
+
+The editor deliberately keeps the fast grid workflow: select cells, change
+height/surface/shape, and save. A successful edit reload automatically reruns
+the seam resolver, regional planner, ledge resolver, and contour mesher. Map
+authors do not place seam patches or choose a corner mesh by hand.
+
+`TerrainContourMesher` is the reusable geometry boundary between an imported
+location profile and the renderer. It triangulates sampled contour strips and
+the bounded curved pocket behind a convex ledge foot, validates indices,
+degenerate faces, and winding, and has no Route 1 or LGPE material dependency.
+The Route 1 adapter supplies the recovered LGPE cross-section and material
+samples. A later LGPE location can therefore reuse the topology cooker while
+providing its own decoded source field; it does not inherit Route 1 cell IDs or
+one-off coordinates.
+
+A convex turn has one seam contract across all of its carriers:
+
+- adjoining straight crown strips end at a positive inner radius;
+- the rounded crown uses those exact two endpoint rows and closes only its
+  small interior sector;
+- the cliff and foliage use the same turn centre and source-scale radius;
+- the low lawn owns one curved triangular foot pocket extending underneath
+  the wall, rather than several overlapping square safety meshes.
+
+This prevents the two recurring failure modes from being traded back and
+forth: collapsing an inner row into a long green spike, and removing the
+low-side owner to expose a backdrop-coloured triangle.
+
 ## Current implementation status
 
 Implemented:
@@ -49,6 +78,13 @@ Implemented:
   moving a synthetic square delimiter one cell away from the authored edit;
 - source-profile straight and convex-corner crown gaskets that follow the
   resolved ledge contour and are bounded to a narrow local envelope;
+- one reusable contour triangulator with deterministic winding/degeneracy
+  validation;
+- positive-radius straight-to-corner crown handoffs, with no collapsed strip
+  vertices;
+- contour-owned convex low-foot pockets on both mirrored Route 1 corners;
+- mirrored west/east runtime regression coverage, rather than qualifying only
+  the first corner that happened to be inspected;
 - retirement of the legacy rectangular crown/corner safety meshes while the
   V2 preview is active;
 - editor-only V2 preview, enabled by default for Route 1;
@@ -60,8 +96,8 @@ Still to complete before promotion:
 
 - drive the remaining cliff and foliage ownership directly from the regional
   contour instead of the legacy ledge resolver;
-- add a geometric intersection/non-manifold validator after final
-  triangulation;
+- extend the contour validator from its generated carriers to the final
+  combined source/patch mesh (intersection and non-manifold checks);
 - establish visual golden crops for source corners, authored convex/concave
   corners, light lawn, dark lawn, dirt transitions, and map boundaries;
 - remove superseded per-tile repair helpers only after the V2 golden set passes.

@@ -2575,13 +2575,28 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool contourEnvelopeValid = true;
     std::size_t contourEnvelopeCount = 0u;
     for (const auto& batch : regionalCornerBatches) {
-        const bool straightContour = batch.geometryCacheKey.find(
-            "terrain-ledge-crown-contour-underlay:cell-16--4:edge-1:") !=
-            std::string::npos;
-        const bool cornerContour = batch.geometryCacheKey.find(
-            "terrain-convex-crown-contour-underlay:cell-16--4:corner-1:") !=
-            std::string::npos;
-        if (!straightContour && !cornerContour) {
+        const bool straightContour =
+            batch.geometryCacheKey.find(
+                "terrain-ledge-crown-contour-underlay:cell-16--4:edge-1:") !=
+                std::string::npos ||
+            batch.geometryCacheKey.find(
+                "terrain-ledge-crown-contour-underlay:cell-25--4:edge-2:") !=
+                std::string::npos;
+        const bool cornerContour =
+            batch.geometryCacheKey.find(
+                "terrain-convex-crown-contour-underlay:cell-16--4:corner-1:") !=
+                std::string::npos ||
+            batch.geometryCacheKey.find(
+                "terrain-convex-crown-contour-underlay:cell-25--4:corner-2:") !=
+                std::string::npos;
+        const bool footContour =
+            batch.geometryCacheKey.find(
+                "terrain-convex-foot-contour-underlay:cell-16--4:corner-1:") !=
+                std::string::npos ||
+            batch.geometryCacheKey.find(
+                "terrain-convex-foot-contour-underlay:cell-25--4:corner-2:") !=
+                std::string::npos;
+        if (!straightContour && !cornerContour && !footContour) {
             continue;
         }
         const auto* vertices = batch.sharedVertices
@@ -2613,20 +2628,35 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             contourEnvelopeValid = contourEnvelopeValid &&
                 std::min(spanX, spanZ) <= 24.0f &&
                 std::max(spanX, spanZ) <= 100.01f;
-        } else {
+        } else if (cornerContour) {
             contourEnvelopeValid = contourEnvelopeValid &&
                 spanX <= 20.01f && spanZ <= 20.01f;
+        } else {
+            contourEnvelopeValid = contourEnvelopeValid &&
+                spanX <= 32.01f && spanZ <= 32.01f;
         }
     }
     const bool foundWestStraightContour = regionalSubmitted(
         "terrain-ledge-crown-contour-underlay:cell-16--4:edge-1:");
     const bool foundWestCornerContour = regionalSubmitted(
         "terrain-convex-crown-contour-underlay:cell-16--4:corner-1:");
+    const bool foundWestFootContour = regionalSubmitted(
+        "terrain-convex-foot-contour-underlay:cell-16--4:corner-1:");
+    const bool foundEastStraightContour = regionalSubmitted(
+        "terrain-ledge-crown-contour-underlay:cell-25--4:edge-2:");
+    const bool foundEastCornerContour = regionalSubmitted(
+        "terrain-convex-crown-contour-underlay:cell-25--4:corner-2:");
+    const bool foundEastFootContour = regionalSubmitted(
+        "terrain-convex-foot-contour-underlay:cell-25--4:corner-2:");
     if (retainedLegacyWideUnderlay ||
         !contourEnvelopeValid ||
         contourEnvelopeCount == 0u ||
         !foundWestStraightContour ||
         !foundWestCornerContour ||
+        !foundWestFootContour ||
+        !foundEastStraightContour ||
+        !foundEastCornerContour ||
+        !foundEastFootContour ||
         !regionalSubmitted(
             "route1:terrain-cliff:cell-16--4:edge-1:") ||
         !regionalSubmitted(
@@ -2638,7 +2668,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             ", envelope=" + std::to_string(contourEnvelopeValid) +
             ", count=" + std::to_string(contourEnvelopeCount) +
             ", straight=" + std::to_string(foundWestStraightContour) +
-            ", corner=" + std::to_string(foundWestCornerContour) + ").";
+            ", corner=" + std::to_string(foundWestCornerContour) +
+            ", west-foot=" + std::to_string(foundWestFootContour) +
+            ", east-straight=" +
+            std::to_string(foundEastStraightContour) +
+            ", east-corner=" +
+            std::to_string(foundEastCornerContour) +
+            ", east-foot=" +
+            std::to_string(foundEastFootContour) + ").";
         return false;
     }
     namespace variants =

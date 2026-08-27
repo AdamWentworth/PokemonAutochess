@@ -56,6 +56,7 @@ bool test_published_environment_scene_contract(std::string& outFail);
 bool test_published_environment_scene_adapter_contract(std::string& outFail);
 bool test_route1_runtime_environment_contract(std::string& outFail);
 bool test_route1_terrain_patch_cooker_contract(std::string& outFail);
+bool test_terrain_contour_mesher_contract(std::string& outFail);
 bool test_route1_cooked_environment_contract(std::string& outFail);
 bool test_render_prep_world_projection_contract(std::string& outFail);
 bool test_render_prep_world_proxy_geometry_contract(std::string& outFail);
@@ -328,6 +329,7 @@ int main(int argc, char** argv) {
         {"published_environment_scene_adapter_contract", &test_published_environment_scene_adapter_contract},
         {"route1_runtime_environment_contract", &test_route1_runtime_environment_contract},
         {"route1_terrain_patch_cooker_contract", &test_route1_terrain_patch_cooker_contract},
+        {"terrain_contour_mesher_contract", &test_terrain_contour_mesher_contract},
         {"route1_cooked_environment_contract", &test_route1_cooked_environment_contract},
         {"render_prep_world_projection_contract", &test_render_prep_world_projection_contract},
         {"render_prep_world_proxy_geometry_contract", &test_render_prep_world_proxy_geometry_contract},
