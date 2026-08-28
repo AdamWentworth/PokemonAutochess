@@ -3224,6 +3224,7 @@ private:
                     &error) ||
             !nextEnvironment.applyAuthoredScene(
                 authoredScene,
+                projectStore,
                 &error)) {
             if (outError) {
                 *outError =

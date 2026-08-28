@@ -2616,6 +2616,15 @@ bool prepareCanonicalScene(
     const game::assets::published_environment::CanonicalScene& source,
     PreparedScene& out,
     std::string* outError) {
+    return prepareCanonicalSceneWithMaterials(
+        source, source, out, outError);
+}
+
+bool prepareCanonicalSceneWithMaterials(
+    const game::assets::published_environment::CanonicalScene& source,
+    const game::assets::published_environment::CanonicalScene& materialSource,
+    PreparedScene& out,
+    std::string* outError) {
     PreparedScene prepared;
     // The shared registry's render-object lookup is keyed by registry address.
     // This local PreparedScene occupies a reusable stack address across
@@ -2626,9 +2635,9 @@ bool prepareCanonicalScene(
     prepared.stats.sourceMeshCount =
         static_cast<std::uint32_t>(source.meshes.size());
     prepared.stats.materialCount =
-        static_cast<std::uint32_t>(source.materials.size());
+        static_cast<std::uint32_t>(materialSource.materials.size());
     prepared.meshVertexStorage.resize(source.meshes.size());
-    prepared.materialStorage.resize(source.materials.size());
+    prepared.materialStorage.resize(materialSource.materials.size());
 
     std::size_t polygonGroupCount = 0u;
     for (const auto& mesh : source.meshes) {
@@ -2646,13 +2655,13 @@ bool prepareCanonicalScene(
         const game::assets::published_environment::Texture* texture = nullptr;
         std::size_t storageIndex = 0u;
     };
-    prepared.textureStorage.resize(source.textures.size());
+    prepared.textureStorage.resize(materialSource.textures.size());
     std::unordered_map<std::string, TextureLookup> textureByName;
-    textureByName.reserve(source.textures.size());
+    textureByName.reserve(materialSource.textures.size());
     for (std::size_t textureIndex = 0u;
-         textureIndex < source.textures.size();
+         textureIndex < materialSource.textures.size();
          ++textureIndex) {
-        const auto& texture = source.textures[textureIndex];
+        const auto& texture = materialSource.textures[textureIndex];
         buildMipStorage(texture, prepared.textureStorage[textureIndex]);
         textureByName.emplace(
             texture.name,
@@ -2660,11 +2669,11 @@ bool prepareCanonicalScene(
     }
 
     std::vector<IRenderBackend::WorldSceneMaterialHandle> materialHandles;
-    materialHandles.reserve(source.materials.size());
+    materialHandles.reserve(materialSource.materials.size());
     for (std::size_t materialIndex = 0u;
-         materialIndex < source.materials.size();
+         materialIndex < materialSource.materials.size();
          ++materialIndex) {
-        const auto& sourceMaterial = source.materials[materialIndex];
+        const auto& sourceMaterial = materialSource.materials[materialIndex];
         auto& storage = prepared.materialStorage[materialIndex];
         storage.sourceMaterialIndex = sourceMaterial.sourceIndex;
 
@@ -2738,7 +2747,7 @@ bool prepareCanonicalScene(
             const auto& preview = material.sourceTextureBindings[
                 static_cast<std::size_t>(material.sourcePreviewBindingIndex)];
             material.textureKey =
-                "published-environment:" + source.profileId + ":" +
+                "published-environment:" + materialSource.profileId + ":" +
                 preview.textureName;
             material.textureCacheKey =
                 authoredMipCacheKey(material.textureKey, preview);
@@ -2751,19 +2760,19 @@ bool prepareCanonicalScene(
             material.textureWrapT = preview.resolvedWrapT;
             ++prepared.stats.materialWithPreviewTextureCount;
         }
-        if (configureFieldGroundSurface(source.profileId, material)) {
+        if (configureFieldGroundSurface(materialSource.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldGroundSurfaceMaterialCount;
-        } else if (configureFieldCliffSurface(source.profileId, material)) {
+        } else if (configureFieldCliffSurface(materialSource.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldCliffSurfaceMaterialCount;
-        } else if (configureFieldOverlaySurface(source.profileId, material)) {
+        } else if (configureFieldOverlaySurface(materialSource.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {
                 --prepared.stats.materialWithPreviewTextureCount;
@@ -2775,25 +2784,25 @@ bool prepareCanonicalScene(
             } else {
                 ++prepared.stats.fieldRockMaskSurfaceMaterialCount;
             }
-        } else if (configureFieldFlowerSurface(source.profileId, material)) {
+        } else if (configureFieldFlowerSurface(materialSource.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldFlowerSurfaceMaterialCount;
-        } else if (configureFieldRockSurface(source.profileId, material)) {
+        } else if (configureFieldRockSurface(materialSource.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldRockSurfaceMaterialCount;
-        } else if (configureFieldSignSurface(source.profileId, material)) {
+        } else if (configureFieldSignSurface(materialSource.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldSignSurfaceMaterialCount;
-        } else if (configureFieldGrassSurface(source.profileId, material)) {
+        } else if (configureFieldGrassSurface(materialSource.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {
                 --prepared.stats.materialWithPreviewTextureCount;
@@ -2805,14 +2814,14 @@ bool prepareCanonicalScene(
                 ++prepared.stats.fieldGrass02SurfaceMaterialCount;
             }
         } else if (configureFieldEncounterGrassSurface(
-                       source.profileId, material)) {
+                       materialSource.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldEncounterGrassSurfaceMaterialCount;
         } else if (configureFieldSmallGrassSurface(
-                       source.profileId, material)) {
+                       materialSource.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {
                 --prepared.stats.materialWithPreviewTextureCount;
@@ -2824,26 +2833,26 @@ bool prepareCanonicalScene(
             } else {
                 ++prepared.stats.fieldGrass05SurfaceMaterialCount;
             }
-        } else if (configureFieldTree02Surface(source.profileId, material)) {
+        } else if (configureFieldTree02Surface(materialSource.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldTree02SurfaceMaterialCount;
-        } else if (configureFieldTree04Surface(source.profileId, material)) {
+        } else if (configureFieldTree04Surface(materialSource.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldTree04SurfaceMaterialCount;
-        } else if (configureFieldTree05Surface(source.profileId, material)) {
+        } else if (configureFieldTree05Surface(materialSource.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             ++prepared.stats.fieldTree05SurfaceMaterialCount;
         } else if (configureFieldObjectTreeMikiSurface(
-                       source.profileId, material)) {
+                       materialSource.profileId, material)) {
             if (material.sourcePreviewBindingIndex >= 0 &&
                 prepared.stats.materialWithPreviewTextureCount > 0u) {
                 --prepared.stats.materialWithPreviewTextureCount;
@@ -2896,7 +2905,7 @@ bool prepareCanonicalScene(
         const bool usesFloorFoliageMask =
             engine::render::route1_field_grass::
                 usesFloorFoliageMask(
-                    source.profileId,
+                    materialSource.profileId,
                     sourceMesh.name);
         for (const auto& vertex : sourceMesh.vertices) {
             auto preparedVertex = baseVertex(vertex);
@@ -2942,7 +2951,7 @@ bool prepareCanonicalScene(
                         "' contains unsupported primitive type '" +
                         sourceGroup.primitiveType + "'");
             }
-            if (sourceGroup.materialIndex >= source.materials.size()) {
+            if (sourceGroup.materialIndex >= materialSource.materials.size()) {
                 return fail(
                     outError,
                     "Environment mesh '" + sourceMesh.name +
@@ -2974,7 +2983,7 @@ bool prepareCanonicalScene(
             const std::uint64_t triangleCount =
                 sourceGroup.indices.size() / 3u;
             const auto& sourceMaterial =
-                source.materials[sourceGroup.materialIndex];
+                materialSource.materials[sourceGroup.materialIndex];
             const auto materialHandle =
                 materialHandles[sourceGroup.materialIndex];
             const auto& preparedMaterial =

@@ -79,6 +79,10 @@ bool test_editor_hierarchy_contract(std::string& outFail) {
     const std::vector<std::pair<route1::LayoutObject, std::string_view>>
         classificationCases{
             {route1::LayoutObject{
+                 .targetKind = "environment_mesh_patch",
+                 .authored = true},
+             "Blender Environment Mesh Patch"},
+            {route1::LayoutObject{
                  .targetKind = "canonical_terrain_assembly"},
              "Source Terrain Assembly"},
             {route1::LayoutObject{

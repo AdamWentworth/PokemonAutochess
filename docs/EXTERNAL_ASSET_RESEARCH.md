@@ -42,6 +42,11 @@ private research workspace + private source corpus
   `config/environment/route1_buildmodel_placements.json`, plus
   `config/environment/route1_board_layout.json`, contain the minimal published
   Route 1 composition required by the runtime and editor.
+- Authored environment-patch JSON is a source-neutral runtime payload, but it
+  remains ignored private content in the `environment/patches` subtree of
+  `content/phlosion/` and is published through the asset depot. Tracked
+  authored-scene documents reference its virtual asset path; they do not
+  embed source-derived vertices.
 
 These files may retain established artifact stems for compatibility, but they
 must not contain source archive locations, extracted shader programs, decoded

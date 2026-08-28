@@ -109,6 +109,7 @@ struct CanonicalScene {
     std::uint32_t schemaVersion = 0u;
     std::string profileId;
     std::string sourceModelSha256;
+    std::string geometrySha256;
     std::uint64_t triangleRecordCount = 0u;
     std::uint64_t uniqueMaterialIndexedTriangleCount = 0u;
     std::uint64_t duplicateMaterialIndexedTriangleRecordCount = 0u;

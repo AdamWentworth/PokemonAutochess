@@ -2120,6 +2120,7 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
                 !scratch.route1RuntimeEnvironment->
                     applyAuthoredScene(
                         authoredScene,
+                        rootStore,
                         &scratch.route1RuntimeLoadError)) {
                 scratch.route1RuntimeEnvironment.reset();
             }

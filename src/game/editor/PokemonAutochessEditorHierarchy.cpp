@@ -65,7 +65,9 @@ engine::editor::EditorProjectLayoutObject environmentObjectView(
         .stableId = object.stableId.c_str(),
         .displayName = object.displayName.c_str(),
         .typeName =
-            object.authored
+            object.targetKind == "environment_mesh_patch"
+            ? "Blender Environment Mesh Patch"
+            : object.authored
             ? "Authored Prefab Instance"
             : object.targetKind == "canonical_terrain_assembly"
             ? "Source Terrain Assembly"

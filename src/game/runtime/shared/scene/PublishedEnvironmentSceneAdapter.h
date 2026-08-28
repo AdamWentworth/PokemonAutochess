@@ -103,4 +103,14 @@ bool prepareCanonicalScene(
     PreparedScene& out,
     std::string* outError = nullptr);
 
+// Prepares geometry from one canonical-shaped document while resolving all
+// material and texture identities from an immutable canonical source scene.
+// This is the environment-patch path: authored vertices never duplicate or
+// reinterpret the source game's material records.
+bool prepareCanonicalSceneWithMaterials(
+    const game::assets::published_environment::CanonicalScene& geometrySource,
+    const game::assets::published_environment::CanonicalScene& materialSource,
+    PreparedScene& out,
+    std::string* outError = nullptr);
+
 } // namespace game::runtime::published_environment_scene

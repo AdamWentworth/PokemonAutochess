@@ -2,6 +2,7 @@
 #include "game/runtime/shared/scene/Route1SceneVariants.h"
 
 #include "game/assets/environment/PublishedEnvironmentScene.h"
+#include "engine/assets/phlosion/PhlosionEnvironmentPatch.h"
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
 #include "engine/core/Environment.h"
 #include "engine/core/IAssetStore.h"
@@ -29,6 +30,7 @@
 #include <charconv>
 #include <cctype>
 #include <cmath>
+#include <functional>
 #include <limits>
 #include <map>
 #include <set>
@@ -512,6 +514,13 @@ struct SourceTerrainCliffGeometrySegment {
 struct SceneMaterialTemplates {
     PreparedScene* scene = nullptr;
     std::vector<WorldBatch> materials;
+};
+
+struct PreparedEnvironmentPatch {
+    std::string nodeId;
+    CanonicalScene geometry;
+    PreparedScene scene;
+    LayoutObject layoutObject;
 };
 
 std::array<float, 16> sourcePlacementMatrix(
@@ -2314,6 +2323,15 @@ bool boardLayoutFromAuthoredScene(
                     .categoryPath = categoryPath});
             continue;
         }
+        if (node.meshPatch) {
+            if (categoryPath.empty()) {
+                return fail(
+                    outError,
+                    "Authored mesh patches require a hierarchy folder: " +
+                        node.id);
+            }
+            continue;
+        }
         const auto& prefab = *node.prefabInstance;
         if (categoryPath.empty()) {
             return fail(
@@ -2582,6 +2600,41 @@ bool route1TerrainNeedsSourceSeamOverlap(
     const auto profile = route1TerrainSharedEdgeProfile(
         tile, neighbor, edge);
     return profile.tileLevels == profile.neighborLevels;
+}
+
+void inheritAuthoredSceneMeshPatches(
+    AuthoredSceneDocument& document,
+    const AuthoredSceneDocument& previous) {
+    const auto alreadyPresent = [&](std::string_view id) {
+        return std::any_of(
+            document.nodes.begin(),
+            document.nodes.end(),
+            [&](const AuthoredSceneNode& node) {
+                return node.id == id;
+            });
+    };
+    std::function<void(const std::string&)> inheritNode;
+    inheritNode = [&](const std::string& id) {
+        if (id.empty() || alreadyPresent(id)) {
+            return;
+        }
+        const auto found = std::find_if(
+            previous.nodes.begin(),
+            previous.nodes.end(),
+            [&](const AuthoredSceneNode& node) {
+                return node.id == id;
+            });
+        if (found == previous.nodes.end()) {
+            return;
+        }
+        inheritNode(found->parentId);
+        document.nodes.push_back(*found);
+    };
+    for (const auto& node : previous.nodes) {
+        if (node.meshPatch) {
+            inheritNode(node.id);
+        }
+    }
 }
 
 bool route1TerrainUsesExactSourceSurfaceOverride(
@@ -2990,6 +3043,8 @@ struct RuntimeEnvironment::Impl {
     std::vector<PlacedVegetationLayer> placedVegetation;
     route1_projected_shadow::Atlas projectedShadowAtlas;
     std::vector<PreparedScene*> scenes;
+    std::vector<std::unique_ptr<PreparedEnvironmentPatch>>
+        environmentPatches;
     std::vector<SceneMaterialTemplates> materialTemplates;
     std::vector<LayoutObject> layoutObjects;
     glm::mat4 worldFromSource{1.0f};
@@ -5286,7 +5341,8 @@ struct RuntimeEnvironment::Impl {
             encounterGrassRecords.size() +
             54u +
             1u +
-            layout.authoredPrefabInstances.size());
+            layout.authoredPrefabInstances.size() +
+            environmentPatches.size());
         for (const auto& group : canonicalMeshGroups) {
             const bool treeSourceGroup =
                 route1_tree_instances::
@@ -5757,6 +5813,9 @@ struct RuntimeEnvironment::Impl {
                     .authored = true,
                     .reason = authored.reason});
         }
+        for (const auto& patch : environmentPatches) {
+            layoutObjects.push_back(patch->layoutObject);
+        }
         layout.declaredLocalDeltaCount =
             static_cast<std::uint32_t>(
                 layout.localLayoutDeltas.size());
@@ -6087,6 +6146,212 @@ struct RuntimeEnvironment::Impl {
                 set.materials.push_back(std::move(batch));
             }
         }
+    }
+
+    void rebuildSceneList() {
+        scenes.clear();
+        scenes.reserve(
+            1u + encounterGrass.size() + placedVegetation.size() +
+            environmentPatches.size());
+        scenes.push_back(&scene);
+        for (auto& layer : encounterGrass) {
+            scenes.push_back(&layer.scene);
+        }
+        for (auto& layer : placedVegetation) {
+            scenes.push_back(&layer.scene);
+        }
+        for (auto& patch : environmentPatches) {
+            scenes.push_back(&patch->scene);
+        }
+    }
+
+    bool replaceEnvironmentPatches(
+        const engine::assets::phlosion::AuthoredSceneDocument& document,
+        const engine::IAssetStore& store,
+        std::string* outError) {
+        using engine::assets::phlosion::EnvironmentPatchDocument;
+        std::vector<std::unique_ptr<PreparedEnvironmentPatch>> next;
+        std::set<std::string> assetPaths;
+        for (const auto& node : document.nodes) {
+            if (!node.meshPatch || !node.enabled) {
+                continue;
+            }
+            if (!assetPaths.insert(node.meshPatch->assetPath).second) {
+                return fail(
+                    outError,
+                    "An environment patch asset may only be mounted once per authored scene: " +
+                        node.meshPatch->assetPath);
+            }
+            EnvironmentPatchDocument patch;
+            std::string error;
+            if (!engine::assets::phlosion::loadEnvironmentPatchDocument(
+                    store,
+                    node.meshPatch->assetPath,
+                    patch,
+                    &error)) {
+                return fail(
+                    outError,
+                    "Could not load environment patch '" +
+                        node.meshPatch->assetPath + "': " + error);
+            }
+            if (patch.meshes.empty()) {
+                return fail(
+                    outError,
+                    "Mounted environment patch contains no mesh geometry: " +
+                        node.meshPatch->assetPath);
+            }
+            if (!route1EnvironmentProfilesCompatible(
+                    patch.source.profileId,
+                    source.profileId) ||
+                patch.source.modelSha256 != source.sourceModelSha256 ||
+                patch.source.geometrySha256 != source.geometrySha256 ||
+                patch.source.coordinateSystem != layout.coordinateSystem) {
+                return fail(
+                    outError,
+                    "Environment patch source lock does not match the mounted canonical Route 1 scene: " +
+                        node.meshPatch->assetPath);
+            }
+
+            auto prepared = std::make_unique<PreparedEnvironmentPatch>();
+            prepared->nodeId = node.id;
+            prepared->geometry.schemaVersion = source.schemaVersion;
+            prepared->geometry.profileId =
+                source.profileId + ":patch:" + node.id;
+            prepared->geometry.sourceModelSha256 = source.sourceModelSha256;
+            prepared->geometry.geometrySha256 = source.geometrySha256;
+            prepared->geometry.meshes.reserve(patch.meshes.size());
+            std::uint64_t triangleCount = 0u;
+            SourceBounds patchBounds{
+                .minimum = {
+                    std::numeric_limits<float>::max(),
+                    std::numeric_limits<float>::max(),
+                    std::numeric_limits<float>::max()},
+                .maximum = {
+                    std::numeric_limits<float>::lowest(),
+                    std::numeric_limits<float>::lowest(),
+                    std::numeric_limits<float>::lowest()}};
+            for (std::size_t meshIndex = 0u;
+                 meshIndex < patch.meshes.size();
+                 ++meshIndex) {
+                const auto& patchMesh = patch.meshes[meshIndex];
+                game::assets::published_environment::Mesh mesh;
+                mesh.sourceIndex = static_cast<std::uint32_t>(meshIndex);
+                mesh.name = "environment_patch:" + node.id + ":" +
+                    patchMesh.id;
+                mesh.transform = sourcePlacementMatrix(
+                    node.transform->translation,
+                    node.transform->rotationDegrees,
+                    node.transform->scale);
+                mesh.boundsMinimum = {
+                    std::numeric_limits<float>::max(),
+                    std::numeric_limits<float>::max(),
+                    std::numeric_limits<float>::max()};
+                mesh.boundsMaximum = {
+                    std::numeric_limits<float>::lowest(),
+                    std::numeric_limits<float>::lowest(),
+                    std::numeric_limits<float>::lowest()};
+                mesh.attributes = {
+                    {.semanticHint = "TEXCOORD_1"},
+                    {.semanticHint = "TEXCOORD_2"},
+                    {.semanticHint = "TEXCOORD_3"},
+                    {.semanticHint = "COLOR_1"},
+                    {.semanticHint = "COLOR_2"},
+                    {.semanticHint = "COLOR_3"}};
+                mesh.vertices.reserve(patchMesh.vertices.size());
+                for (const auto& patchVertex : patchMesh.vertices) {
+                    game::assets::published_environment::CanonicalVertex vertex{
+                        .position = patchVertex.position,
+                        .normal = patchVertex.normal,
+                        .tangent = patchVertex.tangent,
+                        .bitangent = patchVertex.bitangent,
+                        .texcoords = patchVertex.texcoords,
+                        .colors = patchVertex.colors,
+                        .normalW = patchVertex.normalW,
+                        .joints = patchVertex.joints,
+                        .weights = patchVertex.weights};
+                    mesh.vertices.push_back(vertex);
+                    for (std::size_t axis = 0u; axis < 3u; ++axis) {
+                        mesh.boundsMinimum[axis] = std::min(
+                            mesh.boundsMinimum[axis], vertex.position[axis]);
+                        mesh.boundsMaximum[axis] = std::max(
+                            mesh.boundsMaximum[axis], vertex.position[axis]);
+                    }
+                }
+                mesh.polygonGroups.reserve(patchMesh.materialGroups.size());
+                for (const auto& patchGroup : patchMesh.materialGroups) {
+                    mesh.polygonGroups.push_back(
+                        game::assets::published_environment::PolygonGroup{
+                            .materialIndex = patchGroup.materialIndex,
+                            .primitiveType = "Triangles",
+                            .indices = patchGroup.indices});
+                    triangleCount += patchGroup.indices.size() / 3u;
+                }
+                const auto transformedBounds = transformSourceBounds(
+                    mesh.boundsMinimum,
+                    mesh.boundsMaximum,
+                    glm::make_mat4(mesh.transform.data()));
+                for (std::size_t axis = 0u; axis < 3u; ++axis) {
+                    patchBounds.minimum[axis] = std::min(
+                        patchBounds.minimum[axis],
+                        transformedBounds.minimum[axis]);
+                    patchBounds.maximum[axis] = std::max(
+                        patchBounds.maximum[axis],
+                        transformedBounds.maximum[axis]);
+                }
+                prepared->geometry.meshes.push_back(std::move(mesh));
+            }
+            prepared->geometry.triangleRecordCount = triangleCount;
+            prepared->geometry.uniqueMaterialIndexedTriangleCount =
+                triangleCount;
+            if (!published_environment_scene::prepareCanonicalSceneWithMaterials(
+                    prepared->geometry,
+                    source,
+                    prepared->scene,
+                    &error)) {
+                return fail(
+                    outError,
+                    "Could not prepare environment patch '" +
+                        node.meshPatch->assetPath + "': " + error);
+            }
+            prepared->layoutObject = LayoutObject{
+                .stableId = node.id,
+                .displayName = node.displayName,
+                .targetKind = "environment_mesh_patch",
+                .categoryPath = authoredFolderPath(
+                    document, node.parentId, nullptr),
+                .prefabAssetId = node.meshPatch->assetPath,
+                .logicalName = node.meshPatch->assetPath,
+                .sourceTranslationCm = node.transform->translation,
+                .sourceRotationDegrees = node.transform->rotationDegrees,
+                .sourceScale = node.transform->scale,
+                .translationCm = node.transform->translation,
+                .rotationDegrees = node.transform->rotationDegrees,
+                .scale = node.transform->scale,
+                .boundsMinimumCm = patchBounds.minimum,
+                .boundsMaximumCm = patchBounds.maximum,
+                .hasOverride = true,
+                .authored = true,
+                .reason = node.reason};
+            next.push_back(std::move(prepared));
+        }
+        auto previous = std::move(environmentPatches);
+        environmentPatches = std::move(next);
+        rebuildSceneList();
+        std::string rebuildError;
+        if (!rebuildLayoutDependentState(&rebuildError)) {
+            environmentPatches = std::move(previous);
+            rebuildSceneList();
+            std::string ignored;
+            rebuildLayoutDependentState(&ignored);
+            return fail(
+                outError,
+                "Could not compose environment patches: " +
+                    rebuildError);
+        }
+        if (outError) {
+            outError->clear();
+        }
+        return true;
     }
 
     void appendScene(
@@ -9867,6 +10132,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 vertexOffset + geometry.indices[index]);
         }
     }
+
     if (terrainPatchV2PreviewEnabled &&
         !prototype.vertices.empty() &&
         surfaceVertexOwners.size() == prototype.vertices.size()) {
@@ -17088,20 +17354,15 @@ bool RuntimeEnvironment::load(
                 std::string(ex.what()));
     }
 
-    loaded->scenes.reserve(
-        1u + loaded->encounterGrass.size() +
-        loaded->placedVegetation.size());
-    loaded->scenes.push_back(&loaded->scene);
     for (auto& layer : loaded->encounterGrass) {
-        loaded->scenes.push_back(&layer.scene);
         loaded->stats.encounterGrassInstanceCount +=
             static_cast<std::uint32_t>(layer.instanceCount);
     }
     for (auto& layer : loaded->placedVegetation) {
-        loaded->scenes.push_back(&layer.scene);
         loaded->stats.placedVegetationInstanceCount +=
             static_cast<std::uint32_t>(layer.instanceCount);
     }
+    loaded->rebuildSceneList();
 
     if (!loaded->rebuildLayoutDependentState(&error)) {
         return fail(
@@ -17257,6 +17518,9 @@ bool RuntimeEnvironment::applyBoardLayout(
             impl_->layout,
             impl_->layoutObjects,
             sceneId);
+    inheritAuthoredSceneMeshPatches(
+        authored,
+        impl_->authoredScene);
     inheritAuthoredSceneOrdering(
         authored,
         impl_->authoredScene);
@@ -17317,10 +17581,36 @@ bool RuntimeEnvironment::previewBoardLayout(
 bool RuntimeEnvironment::applyAuthoredScene(
     const engine::assets::phlosion::AuthoredSceneDocument& document,
     std::string* outError) {
+    return applyAuthoredSceneInternal(document, nullptr, outError);
+}
+
+bool RuntimeEnvironment::applyAuthoredScene(
+    const engine::assets::phlosion::AuthoredSceneDocument& document,
+    const engine::IAssetStore& projectStore,
+    std::string* outError) {
+    return applyAuthoredSceneInternal(
+        document, &projectStore, outError);
+}
+
+bool RuntimeEnvironment::applyAuthoredSceneInternal(
+    const engine::assets::phlosion::AuthoredSceneDocument& document,
+    const engine::IAssetStore* projectStore,
+    std::string* outError) {
     if (!loaded()) {
         return fail(
             outError,
             "Route 1 must be mounted before applying an authored scene.");
+    }
+    const bool hasMeshPatches = std::any_of(
+        document.nodes.begin(),
+        document.nodes.end(),
+        [](const auto& node) {
+            return node.meshPatch.has_value();
+        });
+    if (hasMeshPatches && !projectStore) {
+        return fail(
+            outError,
+            "The authored scene contains mesh patches but no project asset store was supplied.");
     }
     BoardLayoutTransform registration = impl_->layout;
     registration.localLayoutDeltas.clear();
@@ -17337,6 +17627,16 @@ bool RuntimeEnvironment::applyAuthoredScene(
     }
     if (!applyBoardLayout(composed, outError)) {
         return false;
+    }
+    if (hasMeshPatches) {
+        if (!impl_->replaceEnvironmentPatches(
+                document, *projectStore, outError)) {
+            return false;
+        }
+    } else if (!impl_->environmentPatches.empty()) {
+        impl_->environmentPatches.clear();
+        impl_->rebuildSceneList();
+        impl_->rebuildMaterialTemplates();
     }
     // Preserve the validated project document while migrating retired
     // manual terrain appearance values to the automatic surface contract.

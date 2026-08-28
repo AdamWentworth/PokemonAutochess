@@ -354,6 +354,10 @@ public:
     bool applyAuthoredScene(
         const engine::assets::phlosion::AuthoredSceneDocument& document,
         std::string* outError = nullptr);
+    bool applyAuthoredScene(
+        const engine::assets::phlosion::AuthoredSceneDocument& document,
+        const engine::IAssetStore& projectStore,
+        std::string* outError = nullptr);
     bool setLayoutObjectOverride(
         const std::string& stableId,
         const std::array<float, 3>& translationCm,
@@ -411,6 +415,10 @@ public:
         std::vector<shared_world_batches::WorldIndexedBatch>& out);
 
 private:
+    bool applyAuthoredSceneInternal(
+        const engine::assets::phlosion::AuthoredSceneDocument& document,
+        const engine::IAssetStore* projectStore,
+        std::string* outError);
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };

@@ -79,6 +79,13 @@ loader and rejects every other read. Project-owned board/layout documents may
 still be applied afterward when present; they are authoring deltas, not source
 environment caches.
 
+Blender-authored Route 1 mesh patches are local runtime deltas in the
+`environment/patches/route1` subtree of `content/phlosion/`. They carry source
+hashes and canonical material indices but no copied textures or shaders;
+runtime resolves those from the mounted Route 1 PHSC. The directory is ignored
+and should be published/backed up with the private asset depot before a scene
+reference is shared.
+
 ## External model package
 
 Source-game import recipes, extraction orchestration, visual audits, gender and

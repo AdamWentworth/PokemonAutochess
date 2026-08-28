@@ -365,6 +365,8 @@ bool loadCanonicalScene(const engine::IAssetStore& store,
                 .at("model")
                 .at("sha256")
                 .get<std::string>();
+        decoded.geometrySha256 =
+            geometryDescriptor.value("sha256", std::string{});
         decoded.triangleRecordCount = expectedTriangleRecords;
         decoded.uniqueMaterialIndexedTriangleCount = expectedUniqueTriangles;
         decoded.duplicateMaterialIndexedTriangleRecordCount =

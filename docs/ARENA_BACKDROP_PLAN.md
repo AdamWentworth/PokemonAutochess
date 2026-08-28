@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-07-28
+Last updated: 2026-08-27
 
 This roadmap applies the published environment-package rules in
 `EXTERNAL_ASSET_RESEARCH.md` to the PokemonAutochess arena.
@@ -42,7 +42,10 @@ For Route 1:
 - the sibling environment workspace records extraction evidence, runtime
   captures, reconstruction scripts, validators, promoted Blender checkpoints,
   and restore points;
-- the current promoted Blender checkpoint is the editable review authority;
+- the direct canonical environment directory is the immutable geometry and
+  material identity authority consumed by both Blender and the runtime;
+- the persistent Blender authoring scene owns only bounded project patch
+  meshes and preview proxies, never a replacement source interpretation;
 - the original files and native captures remain the higher-priority fidelity
   authority when a Blender interpretation is questioned.
 
@@ -286,9 +289,11 @@ Implemented first-pass boundary:
   triangle belongs to exactly one assembly. Two cap profiles that change
   elevation are exposed as source ramps; the remaining pairs are labeled
   ledge/raised-platform assemblies without guessing a narrower role.
-- The generic Phlosion authored-scene schema version 1 owns project-created
+- The generic Phlosion authored-scene schema version 8 owns project-created
   prefab instances, imported-source transform/suppression overrides, and
   persistent hierarchy metadata without modifying the imported source scene.
+  Its source-neutral `mesh_patch` component can also mount a validated
+  Blender-authored patch carrying the full canonical vertex/material contract.
   Duplicate/Create Copy, Delete, Rename, and Hierarchy Folder operations now
   autosave atomically and share the same bounded Undo/Redo history as
   transforms. Deleting an imported object records suppression; deleting a
@@ -299,6 +304,13 @@ Implemented first-pass boundary:
   mirrored by one source-bound prefab entry in Assets, and Add Prefab To Scene
   creates an authored instance while sharing the immutable PHLO payload.
   Arbitrary footprint/spline editing remains a later parametric-terrain layer.
+- Blender is the bounded geometry escape hatch for edited environment regions,
+  while the board and gameplay cells remain tile-authored. The bridge locks the
+  regenerated canonical source, exports only `PAC_EDIT_PATCH`, verifies source
+  model/geometry hashes and canonical material indices without launching the
+  game, then resolves all runtime textures and material behavior from the
+  already-mounted canonical scene. Source suppressions stay explicit authored
+  scene nodes, and patch geometry has an isolated renderer cache namespace.
 - A Route 1-specific board-clearance command now intersects exact current
   object bounds with the authoritative 8x8 board footprint and configurable
   padding. It can suppress intersecting terrain, independently placed

@@ -1,5 +1,6 @@
 #include "engine/core/IAssetStore.h"
 #include "engine/core/Paths.h"
+#include "engine/assets/phlosion/PhlosionEnvironmentPatch.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/render/environment/Route1FieldEncounterGrassMaterial.h"
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
@@ -15,6 +16,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <unordered_map>
 #include <vector>
 
 namespace {
@@ -101,6 +103,33 @@ private:
     mutable std::vector<std::string> unexpectedReads_;
 };
 
+class PatchTextStore final : public engine::IAssetStore {
+public:
+    bool readText(
+        const std::string& virtualPath,
+        std::string& outText,
+        std::string* outError) const override {
+        const auto found = texts.find(virtualPath);
+        if (found == texts.end()) {
+            if (outError) *outError = "missing patch text";
+            return false;
+        }
+        outText = found->second;
+        return true;
+    }
+    bool readBytes(
+        const std::string&,
+        std::vector<std::uint8_t>&,
+        std::string* outError) const override {
+        if (outError) *outError = "patch store has no binary assets";
+        return false;
+    }
+    bool exists(const std::string& virtualPath) const override {
+        return texts.contains(virtualPath);
+    }
+    std::unordered_map<std::string, std::string> texts;
+};
+
 } // namespace
 
 bool test_route1_cooked_environment_contract(std::string& outFail) {
@@ -156,6 +185,107 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         outFail =
             "Route 1 cooked startup escaped the PHSC boundary and "
             "requested a loose/source-cache asset.";
+        return false;
+    }
+
+    // Prove that a project store can compose a source-locked mesh patch over
+    // the isolated cooked scene without reading loose canonical assets.
+    using namespace engine::assets::phlosion;
+    EnvironmentPatchVertex patchA{};
+    EnvironmentPatchVertex patchB{};
+    EnvironmentPatchVertex patchC{};
+    patchB.position[0] = 100.0f;
+    patchC.position[2] = 100.0f;
+    patchA.normal = patchB.normal = patchC.normal = {0.0f, 1.0f, 0.0f};
+    patchA.tangent = patchB.tangent = patchC.tangent =
+        {1.0f, 0.0f, 0.0f, 1.0f};
+    patchA.bitangent = patchB.bitangent = patchC.bitangent =
+        {0.0f, 0.0f, 1.0f, 1.0f};
+    EnvironmentPatchDocument patchDocument{
+        .source = EnvironmentPatchSourceLock{
+            .profileId = "lgpe_route1_road001_00",
+            .modelSha256 =
+                "941EBF95032362D08D516D7502F15865FB1BA47CA78DFA0334DC665D3BDC2A86",
+            .geometrySha256 =
+                "B2604501D1941FD8A643E596EF866F68D8E90D5455EF1BFAE4A8D973DAC4BC44",
+            .coordinateSystem = "source_centimetres_xyz_y_up"},
+        .meshes = {EnvironmentPatchMesh{
+            .id = "proof/runtime-triangle",
+            .displayName = "Runtime Patch Triangle",
+            .vertices = {patchA, patchB, patchC},
+            .materialGroups = {EnvironmentPatchMaterialGroup{
+                .materialIndex = 19u,
+                .indices = {0u, 1u, 2u}}}}}};
+    PatchTextStore patchStore;
+    constexpr char kPatchPath[] =
+        "tests/generated/runtime-proof.patch.json";
+    patchStore.texts[kPatchPath] =
+        serializeEnvironmentPatchDocument(patchDocument);
+    auto authored = environment.authoredScene();
+    const auto environmentFolder = std::find_if(
+        authored.nodes.begin(),
+        authored.nodes.end(),
+        [](const auto& node) {
+            return node.folder() && node.displayName == "Environment";
+        });
+    std::string environmentFolderId;
+    if (environmentFolder == authored.nodes.end()) {
+        environmentFolderId = "folder/environment";
+        authored.nodes.push_back(AuthoredSceneNode{
+            .id = environmentFolderId,
+            .displayName = "Environment"});
+    } else {
+        environmentFolderId = environmentFolder->id;
+    }
+    authored.nodes.push_back(AuthoredSceneNode{
+        .id = "mesh-patch/runtime-proof",
+        .displayName = "Runtime Patch Proof",
+        .parentId = environmentFolderId,
+        .siblingOrder = 999u,
+        .transform = AuthoredSceneTransform{},
+        .meshPatch = MeshPatchBinding{.assetPath = kPatchPath}});
+    if (!environment.applyAuthoredScene(
+            authored, patchStore, &error)) {
+        outFail = "Source-locked environment patch was rejected: " + error;
+        return false;
+    }
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
+        patchBatches;
+    environment.appendIndexedBatches(0.0f, patchBatches);
+    const bool foundPatchBatch = std::any_of(
+        patchBatches.begin(),
+        patchBatches.end(),
+        [](const auto& batch) {
+            return batch.geometryCacheKey.find(
+                ":patch:mesh-patch/runtime-proof:mesh:0:group:0") !=
+                std::string::npos;
+        });
+    if (!foundPatchBatch) {
+        outFail =
+            "The accepted environment patch did not reach indexed rendering with an isolated cache identity.";
+        return false;
+    }
+    if (std::none_of(
+            environment.layoutObjects().begin(),
+            environment.layoutObjects().end(),
+            [](const auto& object) {
+                return object.stableId == "mesh-patch/runtime-proof" &&
+                    object.targetKind == "environment_mesh_patch";
+            })) {
+        outFail =
+            "The rendered environment patch is missing from the editor hierarchy projection.";
+        return false;
+    }
+    if (!environment.applyBoardLayout(environment.layout(), &error) ||
+        std::none_of(
+            environment.authoredScene().nodes.begin(),
+            environment.authoredScene().nodes.end(),
+            [](const auto& node) {
+                return node.meshPatch.has_value();
+            })) {
+        outFail =
+            "A normal layout edit did not preserve the authored mesh-patch node: " +
+            error;
         return false;
     }
     // Existing PHSC archives retain the source-era profile identifier while
