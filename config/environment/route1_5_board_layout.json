@@ -10,7 +10,7 @@
       8,
       8
     ],
-    "intent": "pin the second Route 1 encounter board and both bench rows independently from the Route 1 entry board",
+    "intent": "register the source-centimetre qualification scene under the gameplay board and both bench rows",
     "status": "gameplay_footprint_terrain_grid_bound",
     "terrain_elevation_level": 0,
     "terrain_grid_origin": [

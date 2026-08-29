@@ -870,11 +870,14 @@
           "elevation_level": 2,
           "grid_x": 14,
           "grid_z": -13,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "ramp_south",
           "source_reference": {
             "grid_x": 19,
             "grid_z": -13
           },
+          "suppress_overlapping_vegetation": false,
           "surface": "dark_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -893,11 +896,14 @@
           "elevation_level": 3,
           "grid_x": 14,
           "grid_z": -14,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
           "source_reference": {
             "grid_x": 19,
             "grid_z": -14
           },
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -916,11 +922,14 @@
           "elevation_level": 3,
           "grid_x": 14,
           "grid_z": -15,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
           "source_reference": {
             "grid_x": 19,
             "grid_z": -15
           },
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -939,11 +948,14 @@
           "elevation_level": 2,
           "grid_x": 15,
           "grid_z": -13,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "ramp_south",
           "source_reference": {
             "grid_x": 20,
             "grid_z": -13
           },
+          "suppress_overlapping_vegetation": false,
           "surface": "dark_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -962,11 +974,14 @@
           "elevation_level": 3,
           "grid_x": 15,
           "grid_z": -14,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
           "source_reference": {
             "grid_x": 20,
             "grid_z": -14
           },
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -985,11 +1000,14 @@
           "elevation_level": 3,
           "grid_x": 15,
           "grid_z": -15,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
           "source_reference": {
             "grid_x": 20,
             "grid_z": -15
           },
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1008,7 +1026,10 @@
           "elevation_level": 2,
           "grid_x": 15,
           "grid_z": -16,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1027,7 +1048,10 @@
           "elevation_level": 2,
           "grid_x": 15,
           "grid_z": -17,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1046,7 +1070,10 @@
           "elevation_level": 1,
           "grid_x": 16,
           "grid_z": -10,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1065,7 +1092,10 @@
           "elevation_level": 1,
           "grid_x": 16,
           "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1084,7 +1114,10 @@
           "elevation_level": 1,
           "grid_x": 16,
           "grid_z": -12,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1103,11 +1136,14 @@
           "elevation_level": 2,
           "grid_x": 16,
           "grid_z": -13,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "ramp_south",
           "source_reference": {
             "grid_x": 21,
             "grid_z": -13
           },
+          "suppress_overlapping_vegetation": false,
           "surface": "dark_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1126,11 +1162,14 @@
           "elevation_level": 3,
           "grid_x": 16,
           "grid_z": -14,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
           "source_reference": {
             "grid_x": 21,
             "grid_z": -14
           },
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1149,11 +1188,14 @@
           "elevation_level": 3,
           "grid_x": 16,
           "grid_z": -15,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
           "source_reference": {
             "grid_x": 21,
             "grid_z": -15
           },
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1172,7 +1214,10 @@
           "elevation_level": 2,
           "grid_x": 16,
           "grid_z": -16,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1191,7 +1236,10 @@
           "elevation_level": 2,
           "grid_x": 16,
           "grid_z": -17,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1210,7 +1258,10 @@
           "elevation_level": 2,
           "grid_x": 16,
           "grid_z": -18,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1229,7 +1280,10 @@
           "elevation_level": 0,
           "grid_x": 16,
           "grid_z": -9,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "ramp_south",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1248,7 +1302,10 @@
           "elevation_level": 1,
           "grid_x": 17,
           "grid_z": -10,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1267,7 +1324,10 @@
           "elevation_level": 1,
           "grid_x": 17,
           "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "path_2"
@@ -1286,7 +1346,10 @@
           "elevation_level": 1,
           "grid_x": 17,
           "grid_z": -12,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1305,7 +1368,10 @@
           "elevation_level": 1,
           "grid_x": 17,
           "grid_z": -13,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "ramp_south",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1324,7 +1390,10 @@
           "elevation_level": 2,
           "grid_x": 17,
           "grid_z": -14,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1343,7 +1412,10 @@
           "elevation_level": 2,
           "grid_x": 17,
           "grid_z": -15,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1362,7 +1434,10 @@
           "elevation_level": 2,
           "grid_x": 17,
           "grid_z": -16,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1381,7 +1456,10 @@
           "elevation_level": 2,
           "grid_x": 17,
           "grid_z": -17,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1400,7 +1478,10 @@
           "elevation_level": 2,
           "grid_x": 17,
           "grid_z": -18,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1419,7 +1500,10 @@
           "elevation_level": 3,
           "grid_x": 17,
           "grid_z": -20,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "path_2"
@@ -1438,7 +1522,10 @@
           "elevation_level": 1,
           "grid_x": 18,
           "grid_z": -10,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1457,7 +1544,10 @@
           "elevation_level": 1,
           "grid_x": 18,
           "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "path_10"
@@ -1476,7 +1566,10 @@
           "elevation_level": 1,
           "grid_x": 18,
           "grid_z": -12,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1495,7 +1588,10 @@
           "elevation_level": 1,
           "grid_x": 18,
           "grid_z": -13,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "ramp_south",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1514,7 +1610,10 @@
           "elevation_level": 2,
           "grid_x": 18,
           "grid_z": -14,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1533,7 +1632,10 @@
           "elevation_level": 2,
           "grid_x": 18,
           "grid_z": -15,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1552,7 +1654,10 @@
           "elevation_level": 2,
           "grid_x": 18,
           "grid_z": -16,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1571,7 +1676,10 @@
           "elevation_level": 2,
           "grid_x": 18,
           "grid_z": -17,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1590,7 +1698,10 @@
           "elevation_level": 2,
           "grid_x": 18,
           "grid_z": -18,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1609,7 +1720,10 @@
           "elevation_level": 2,
           "grid_x": 18,
           "grid_z": -19,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "ramp_south",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1628,7 +1742,10 @@
           "elevation_level": 3,
           "grid_x": 18,
           "grid_z": -20,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "path_10"
@@ -1647,7 +1764,10 @@
           "elevation_level": 3,
           "grid_x": 18,
           "grid_z": -21,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1666,7 +1786,10 @@
           "elevation_level": 0,
           "grid_x": 18,
           "grid_z": -9,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "ramp_south",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1685,7 +1808,10 @@
           "elevation_level": 1,
           "grid_x": 19,
           "grid_z": -10,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1704,7 +1830,10 @@
           "elevation_level": 1,
           "grid_x": 19,
           "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "path_10"
@@ -1723,7 +1852,10 @@
           "elevation_level": 1,
           "grid_x": 19,
           "grid_z": -12,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1742,7 +1874,10 @@
           "elevation_level": 1,
           "grid_x": 19,
           "grid_z": -13,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "ramp_south",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1761,7 +1896,10 @@
           "elevation_level": 2,
           "grid_x": 19,
           "grid_z": -14,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1780,7 +1918,10 @@
           "elevation_level": 2,
           "grid_x": 19,
           "grid_z": -15,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1799,7 +1940,10 @@
           "elevation_level": 2,
           "grid_x": 19,
           "grid_z": -16,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1818,7 +1962,10 @@
           "elevation_level": 2,
           "grid_x": 19,
           "grid_z": -17,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1837,7 +1984,10 @@
           "elevation_level": 2,
           "grid_x": 19,
           "grid_z": -18,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1856,7 +2006,10 @@
           "elevation_level": 2,
           "grid_x": 19,
           "grid_z": -19,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "ramp_south",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1875,7 +2028,10 @@
           "elevation_level": 3,
           "grid_x": 19,
           "grid_z": -20,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "path_10"
@@ -1894,7 +2050,10 @@
           "elevation_level": 3,
           "grid_x": 19,
           "grid_z": -21,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1913,7 +2072,10 @@
           "elevation_level": 3,
           "grid_x": 19,
           "grid_z": -22,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1932,7 +2094,10 @@
           "elevation_level": 0,
           "grid_x": 19,
           "grid_z": -9,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "ramp_south",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1951,7 +2116,10 @@
           "elevation_level": 1,
           "grid_x": 20,
           "grid_z": -10,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -1970,7 +2138,10 @@
           "elevation_level": 1,
           "grid_x": 20,
           "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "path_10"
@@ -1989,7 +2160,10 @@
           "elevation_level": 1,
           "grid_x": 20,
           "grid_z": -12,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2008,7 +2182,10 @@
           "elevation_level": 1,
           "grid_x": 20,
           "grid_z": -13,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "ramp_south",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2027,7 +2204,10 @@
           "elevation_level": 2,
           "grid_x": 20,
           "grid_z": -14,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2046,7 +2226,10 @@
           "elevation_level": 2,
           "grid_x": 20,
           "grid_z": -15,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2065,7 +2248,10 @@
           "elevation_level": 2,
           "grid_x": 20,
           "grid_z": -16,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2084,7 +2270,10 @@
           "elevation_level": 2,
           "grid_x": 20,
           "grid_z": -17,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2103,7 +2292,10 @@
           "elevation_level": 3,
           "grid_x": 20,
           "grid_z": -21,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2122,7 +2314,10 @@
           "elevation_level": 3,
           "grid_x": 20,
           "grid_z": -22,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2141,7 +2336,10 @@
           "elevation_level": 1,
           "grid_x": 21,
           "grid_z": -10,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2160,7 +2358,10 @@
           "elevation_level": 1,
           "grid_x": 21,
           "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "path_10"
@@ -2179,7 +2380,10 @@
           "elevation_level": 1,
           "grid_x": 21,
           "grid_z": -12,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2198,7 +2402,10 @@
           "elevation_level": 1,
           "grid_x": 21,
           "grid_z": -13,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "ramp_south",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2217,7 +2424,10 @@
           "elevation_level": 2,
           "grid_x": 21,
           "grid_z": -14,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2236,7 +2446,10 @@
           "elevation_level": 2,
           "grid_x": 21,
           "grid_z": -15,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2255,7 +2468,10 @@
           "elevation_level": 2,
           "grid_x": 21,
           "grid_z": -16,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2274,7 +2490,10 @@
           "elevation_level": 2,
           "grid_x": 21,
           "grid_z": -17,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2293,7 +2512,10 @@
           "elevation_level": 3,
           "grid_x": 21,
           "grid_z": -21,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2312,7 +2534,10 @@
           "elevation_level": 3,
           "grid_x": 21,
           "grid_z": -22,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2323,7 +2548,7 @@
       "id": "terrain-tile/x-p21/z-n22",
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
-      "sibling_order": 133
+      "sibling_order": 74
     },
     {
       "components": {
@@ -2331,7 +2556,10 @@
           "elevation_level": 1,
           "grid_x": 22,
           "grid_z": -10,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2350,7 +2578,10 @@
           "elevation_level": 1,
           "grid_x": 22,
           "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "path_10"
@@ -2369,7 +2600,10 @@
           "elevation_level": 1,
           "grid_x": 22,
           "grid_z": -12,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2388,7 +2622,10 @@
           "elevation_level": 2,
           "grid_x": 22,
           "grid_z": -14,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2407,7 +2644,10 @@
           "elevation_level": 2,
           "grid_x": 22,
           "grid_z": -15,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2426,7 +2666,10 @@
           "elevation_level": 2,
           "grid_x": 22,
           "grid_z": -16,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2445,7 +2688,10 @@
           "elevation_level": 2,
           "grid_x": 22,
           "grid_z": -17,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2464,7 +2710,10 @@
           "elevation_level": 3,
           "grid_x": 22,
           "grid_z": -20,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "path_10"
@@ -2483,7 +2732,10 @@
           "elevation_level": 3,
           "grid_x": 22,
           "grid_z": -21,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2502,7 +2754,10 @@
           "elevation_level": 1,
           "grid_x": 23,
           "grid_z": -10,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2521,7 +2776,10 @@
           "elevation_level": 1,
           "grid_x": 23,
           "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "path_10"
@@ -2540,7 +2798,10 @@
           "elevation_level": 2,
           "grid_x": 23,
           "grid_z": -14,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2559,7 +2820,10 @@
           "elevation_level": 2,
           "grid_x": 23,
           "grid_z": -15,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2578,7 +2842,10 @@
           "elevation_level": 2,
           "grid_x": 23,
           "grid_z": -16,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2597,7 +2864,10 @@
           "elevation_level": 2,
           "grid_x": 23,
           "grid_z": -17,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2616,7 +2886,10 @@
           "elevation_level": 3,
           "grid_x": 23,
           "grid_z": -20,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "path_10"
@@ -2635,7 +2908,10 @@
           "elevation_level": 1,
           "grid_x": 24,
           "grid_z": -10,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2654,7 +2930,10 @@
           "elevation_level": 1,
           "grid_x": 24,
           "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "path_8"
@@ -2673,7 +2952,10 @@
           "elevation_level": 2,
           "grid_x": 24,
           "grid_z": -14,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2692,7 +2974,10 @@
           "elevation_level": 2,
           "grid_x": 24,
           "grid_z": -15,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2711,7 +2996,10 @@
           "elevation_level": 2,
           "grid_x": 24,
           "grid_z": -16,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2730,7 +3018,10 @@
           "elevation_level": 2,
           "grid_x": 24,
           "grid_z": -17,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
@@ -2749,7 +3040,10 @@
           "elevation_level": 3,
           "grid_x": 24,
           "grid_z": -20,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "dirt_path",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "path_8"
@@ -2768,11 +3062,13 @@
           "elevation_level": 2,
           "grid_x": 25,
           "grid_z": -14,
+          "normalize_source_tint": true,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto",
-          "normalize_source_tint": true
+          "visual_variant": "auto"
         }
       },
       "display_name": "Terrain Tile (25, -14)",
@@ -2788,11 +3084,13 @@
           "elevation_level": 2,
           "grid_x": 25,
           "grid_z": -15,
+          "normalize_source_tint": true,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto",
-          "normalize_source_tint": true
+          "visual_variant": "auto"
         }
       },
       "display_name": "Terrain Tile (25, -15)",
@@ -2808,11 +3106,13 @@
           "elevation_level": 2,
           "grid_x": 25,
           "grid_z": -16,
+          "normalize_source_tint": true,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto",
-          "normalize_source_tint": true
+          "visual_variant": "auto"
         }
       },
       "display_name": "Terrain Tile (25, -16)",
@@ -2828,11 +3128,13 @@
           "elevation_level": 2,
           "grid_x": 25,
           "grid_z": -17,
+          "normalize_source_tint": true,
+          "receives_projected_shadow": true,
           "shape": "flat",
+          "suppress_overlapping_vegetation": false,
           "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto",
-          "normalize_source_tint": true
+          "visual_variant": "auto"
         }
       },
       "display_name": "Terrain Tile (25, -17)",
@@ -2844,5 +3146,5 @@
     }
   ],
   "scene_id": "routes/route1-5",
-  "schema_version": 6
+  "schema_version": 7
 }

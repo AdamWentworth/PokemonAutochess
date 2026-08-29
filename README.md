@@ -159,12 +159,14 @@ cmake --build --preset debug --target PhlosionForge PhlosionTileTools
 .\build\Debug\PhlosionForge.exe cook-route1
 ```
 
-Then start the Engine-owned editor and choose this repository's
-`phlosion.project.json`:
+Then start the optimized Engine-owned editor and choose this repository's
+`phlosion.project.json`. Release is the supported interactive-authoring build;
+Debug keeps assertions and unoptimized hot paths for diagnosis and is not
+expected to provide a smooth large-scene viewport:
 
 ```powershell
 cd D:\Projects\Phlosion\PhlosionEngine
-.\build\Debug\PhlosionEditor.exe
+.\build\Release\PhlosionEditor.exe D:\Projects\Games\PokemonAutochess\phlosion.project.json
 ```
 
 The plugin is written to `.phlosion/editor/<configuration>` and the declared

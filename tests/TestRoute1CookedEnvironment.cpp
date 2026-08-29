@@ -12,9 +12,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <map>
 #include <set>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <unordered_map>
 #include <vector>
@@ -118,11 +120,16 @@ public:
         return true;
     }
     bool readBytes(
-        const std::string&,
-        std::vector<std::uint8_t>&,
+        const std::string& virtualPath,
+        std::vector<std::uint8_t>& outBytes,
         std::string* outError) const override {
-        if (outError) *outError = "patch store has no binary assets";
-        return false;
+        const auto found = texts.find(virtualPath);
+        if (found == texts.end()) {
+            if (outError) *outError = "missing patch bytes";
+            return false;
+        }
+        outBytes.assign(found->second.begin(), found->second.end());
+        return true;
     }
     bool exists(const std::string& virtualPath) const override {
         return texts.contains(virtualPath);
@@ -191,6 +198,41 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     // Prove that a project store can compose a source-locked mesh patch over
     // the isolated cooked scene without reading loose canonical assets.
     using namespace engine::assets::phlosion;
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
+        beforePatchBatches;
+    environment.appendIndexedBatches(0.0f, beforePatchBatches);
+    const auto terrainIndexCount = [](const auto& batches) {
+        std::size_t count = 0u;
+        for (const auto& batch : batches) {
+            if (batch.geometryCacheKey.find("route1:terrain-") ==
+                    std::string::npos &&
+                batch.geometryCacheKey.find(":mesh:29:") ==
+                    std::string::npos &&
+                batch.geometryCacheKey.find(":mesh:30:") ==
+                    std::string::npos &&
+                batch.geometryCacheKey.find(":mesh:31:") ==
+                    std::string::npos &&
+                batch.geometryCacheKey.find(":mesh:32:") ==
+                    std::string::npos &&
+                batch.geometryCacheKey.find(":mesh:33:") ==
+                    std::string::npos &&
+                batch.geometryCacheKey.find(":mesh:34:") ==
+                    std::string::npos &&
+                batch.geometryCacheKey.find(":mesh:35:") ==
+                    std::string::npos &&
+                batch.geometryCacheKey.find(":mesh:36:") ==
+                    std::string::npos) {
+                continue;
+            }
+            const std::size_t indexCount = batch.sharedIndices
+                ? batch.sharedIndexCount
+                : batch.indices.size();
+            count += indexCount * batch.instances.size();
+        }
+        return count;
+    };
+    const auto beforePatchTerrainIndexCount =
+        terrainIndexCount(beforePatchBatches);
     EnvironmentPatchVertex patchA{};
     EnvironmentPatchVertex patchB{};
     EnvironmentPatchVertex patchC{};
@@ -215,7 +257,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             .vertices = {patchA, patchB, patchC},
             .materialGroups = {EnvironmentPatchMaterialGroup{
                 .materialIndex = 19u,
-                .indices = {0u, 1u, 2u}}}}}};
+                .indices = {0u, 1u, 2u}}}}},
+        .terrainReplacement = EnvironmentPatchTerrainReplacement{
+            .tileSizeCm = 100.0f,
+            .cells = {{17, -19}}}};
     PatchTextStore patchStore;
     constexpr char kPatchPath[] =
         "tests/generated/runtime-proof.patch.json";
@@ -252,6 +297,51 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
         patchBatches;
     environment.appendIndexedBatches(0.0f, patchBatches);
+    if (terrainIndexCount(patchBatches) >=
+        beforePatchTerrainIndexCount) {
+        outFail =
+            "The mounted environment patch did not retire its declared terrain replacement cell.";
+        return false;
+    }
+    const auto filteredTerrain = std::find_if(
+        patchBatches.begin(),
+        patchBatches.end(),
+        [](const auto& batch) {
+            return batch.geometryCacheKey.find(
+                ":terrain-replacement-mask:") !=
+                std::string::npos;
+        });
+    if (filteredTerrain == patchBatches.end() ||
+        !filteredTerrain->sharedIndices ||
+        filteredTerrain->sharedIndexCount == 0u ||
+        !filteredTerrain->indices.empty()) {
+        outFail =
+            "Terrain replacement masking did not publish cached shared index storage.";
+        return false;
+    }
+    const auto* cachedTerrainIndices =
+        filteredTerrain->sharedIndices;
+    const auto cachedTerrainIndexCount =
+        filteredTerrain->sharedIndexCount;
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
+        repeatedPatchBatches;
+    environment.appendIndexedBatches(0.0f, repeatedPatchBatches);
+    const auto repeatedFilteredTerrain = std::find_if(
+        repeatedPatchBatches.begin(),
+        repeatedPatchBatches.end(),
+        [&](const auto& batch) {
+            return batch.geometryCacheKey ==
+                filteredTerrain->geometryCacheKey;
+        });
+    if (repeatedFilteredTerrain == repeatedPatchBatches.end() ||
+        repeatedFilteredTerrain->sharedIndices !=
+            cachedTerrainIndices ||
+        repeatedFilteredTerrain->sharedIndexCount !=
+            cachedTerrainIndexCount) {
+        outFail =
+            "Repeated terrain replacement submission did not reuse its cached index selection.";
+        return false;
+    }
     const bool foundPatchBatch = std::any_of(
         patchBatches.begin(),
         patchBatches.end(),
@@ -2894,6 +2984,1042 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(maximumRegionalFringeEdgeCm) + ").";
         return false;
     }
+    auto regionalMaterialHandoffLayout = environment.layout();
+    std::erase_if(
+        regionalMaterialHandoffLayout.authoredTerrainTiles,
+        [](const route1::AuthoredTerrainTile& tile) {
+            return tile.gridX == 22 &&
+                (tile.gridZ == -11 || tile.gridZ == -10);
+        });
+    auto regionalLawnSocket = authoredTileFromSource(
+        22, -10, 1, "light_lawn", "auto");
+    regionalLawnSocket.reason =
+        "terrain_regional_material_socket_lawn_regression";
+    regionalMaterialHandoffLayout.authoredTerrainTiles.push_back(
+        std::move(regionalLawnSocket));
+    auto regionalDirtSocket = authoredTileFromSource(
+        22, -11, 1, "dirt_path", "path_10");
+    regionalDirtSocket.reason =
+        "terrain_regional_material_handoff_regression";
+    regionalMaterialHandoffLayout.authoredTerrainTiles.push_back(
+        std::move(regionalDirtSocket));
+    if (!environment.applyBoardLayout(
+            regionalMaterialHandoffLayout, &error) ||
+        !environment.setTerrainPatchV2PreviewEnabled(true, &error)) {
+        outFail =
+            "Terrain Patch V2 rejected the generated-dirt/source-lawn handoff fixture: " +
+            error;
+        return false;
+    }
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
+        regionalMaterialHandoffBatches;
+    environment.appendIndexedBatches(
+        0.0f,
+        regionalMaterialHandoffBatches);
+    const auto regionalLawnTile = std::find_if(
+        environment.terrainTiles().begin(),
+        environment.terrainTiles().end(),
+        [](const route1::TerrainTileState& tile) {
+            return tile.gridX == 22 && tile.gridZ == -10;
+        });
+    bool foundGeneratedLawnSocketTriangle = false;
+    bool retainedSourceLawnSocketTriangle = false;
+    for (const auto& batch : regionalMaterialHandoffBatches) {
+        const bool generatedSurface =
+            batch.geometryCacheKey.find(
+                "route1:terrain-authored-surface:") !=
+            std::string::npos;
+        const auto materialIndex = batch.sharedTemplate
+            ? batch.sharedTemplate->sourceMaterialIndex
+            : batch.sourceMaterialIndex;
+        const bool sourceGround = materialIndex == 19u &&
+            batch.geometryCacheKey.starts_with(
+                "published-environment:");
+        if (!generatedSurface && !sourceGround) {
+            continue;
+        }
+        const auto* vertices = batch.sharedVertices
+            ? batch.sharedVertices
+            : batch.vertices.data();
+        const auto vertexCount = batch.sharedVertices
+            ? batch.sharedVertexCount
+            : batch.vertices.size();
+        const auto* indices = batch.sharedIndices
+            ? batch.sharedIndices
+            : batch.indices.data();
+        const auto indexCount = batch.sharedIndices
+            ? batch.sharedIndexCount
+            : batch.indices.size();
+        for (const auto& instance : batch.instances) {
+            for (std::size_t index = 0u;
+                 vertices && indices && index + 2u < indexCount;
+                 index += 3u) {
+                std::array<std::array<double, 3>, 3> points{};
+                bool valid = true;
+                for (std::size_t corner = 0u;
+                     corner < points.size();
+                     ++corner) {
+                    const auto vertexIndex = indices[index + corner];
+                    if (vertexIndex >= vertexCount) {
+                        valid = false;
+                        break;
+                    }
+                    const auto& vertex = vertices[vertexIndex];
+                    const auto worldPoint = transformPoint(
+                        instance.modelMatrix,
+                        {vertex.x, vertex.y, vertex.z});
+                    points[corner] = transformPoint(
+                        sourceFromWorld,
+                        worldPoint);
+                }
+                if (!valid) {
+                    continue;
+                }
+                const double centerX =
+                    (points[0][0] + points[1][0] + points[2][0]) /
+                    3.0;
+                const double centerZ =
+                    (points[0][2] + points[1][2] + points[2][2]) /
+                    3.0;
+                if (static_cast<std::int32_t>(std::floor(
+                        centerX / 100.0)) != 22 ||
+                    static_cast<std::int32_t>(std::floor(
+                        centerZ / 100.0)) != -10) {
+                    continue;
+                }
+                foundGeneratedLawnSocketTriangle =
+                    foundGeneratedLawnSocketTriangle ||
+                    generatedSurface;
+                retainedSourceLawnSocketTriangle =
+                    retainedSourceLawnSocketTriangle || sourceGround;
+            }
+        }
+    }
+    if (regionalLawnTile == environment.terrainTiles().end() ||
+        !regionalLawnTile->rebuildContinuousMaterialFields ||
+        !foundGeneratedLawnSocketTriangle ||
+        retainedSourceLawnSocketTriangle) {
+        outFail =
+            "Terrain Patch V2 did not replace a stale source dirt/lawn selector with one continuous generated lawn socket (field=" +
+            std::to_string(
+                regionalLawnTile != environment.terrainTiles().end() &&
+                regionalLawnTile->rebuildContinuousMaterialFields) +
+            ", generated=" +
+            std::to_string(foundGeneratedLawnSocketTriangle) +
+            ", retained-source=" +
+            std::to_string(retainedSourceLawnSocketTriangle) + ").";
+        return false;
+    }
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
+        canonicalBenchReferenceBatches;
+    environment.appendIndexedBatches(
+        0.0f, canonicalBenchReferenceBatches);
+    // appendIndexedBatches intentionally exposes registry-backed pointers for
+    // the runtime fast path. The fixture mutates the environment below, which
+    // can reallocate that registry; retain an owned diagnostic snapshot rather
+    // than dereferencing stale shared geometry/material pointers afterward.
+    for (auto& batch : canonicalBenchReferenceBatches) {
+        if (batch.sharedTemplate) {
+            batch.sourceMaterialIndex =
+                batch.sharedTemplate->sourceMaterialIndex;
+            batch.sharedTemplate = nullptr;
+        }
+        if (batch.sharedVertices && batch.sharedVertexCount > 0u) {
+            batch.vertices.assign(
+                batch.sharedVertices,
+                batch.sharedVertices + batch.sharedVertexCount);
+            batch.sharedVertices = nullptr;
+            batch.sharedVertexCount = 0u;
+        }
+        if (batch.sharedIndices && batch.sharedIndexCount > 0u) {
+            batch.indices.assign(
+                batch.sharedIndices,
+                batch.sharedIndices + batch.sharedIndexCount);
+            batch.sharedIndices = nullptr;
+            batch.sharedIndexCount = 0u;
+        }
+    }
+    auto benchCornerLayout = environment.layout();
+    std::erase_if(
+        benchCornerLayout.authoredTerrainTiles,
+        [](const route1::AuthoredTerrainTile& tile) {
+            return tile.gridX >= 16 && tile.gridX <= 19 &&
+                tile.gridZ >= -12 && tile.gridZ <= -11;
+        });
+    for (std::int32_t gridX = 16; gridX <= 19; ++gridX) {
+        auto lawn = authoredTileFromSource(
+            gridX, -12, 1, "light_lawn", "auto");
+        lawn.reason = "terrain_bench_corner_source_handoff_regression";
+        benchCornerLayout.authoredTerrainTiles.push_back(
+            std::move(lawn));
+    }
+    auto benchDirt = authoredTileFromSource(
+        19, -11, 1, "dirt_path", "path_10");
+    benchDirt.reason = "terrain_bench_corner_source_handoff_regression";
+    benchCornerLayout.authoredTerrainTiles.push_back(
+        std::move(benchDirt));
+    if (!environment.applyBoardLayout(benchCornerLayout, &error) ||
+        !environment.setTerrainPatchV2PreviewEnabled(true, &error)) {
+        outFail =
+            "Terrain Patch V2 rejected the source-preserving bench-corner fixture: " +
+            error;
+        return false;
+    }
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
+        benchCornerBatches;
+    environment.appendIndexedBatches(0.0f, benchCornerBatches);
+    std::size_t replacementLawnVertexCount = 0u;
+    bool replacementLawnUsesCleanSelector = true;
+    constexpr float kCleanLawnUv2U = -0.101646f;
+    constexpr float kCleanLawnUv2V = -1.071291f;
+    for (const auto& batch : benchCornerBatches) {
+        if (batch.geometryCacheKey.find(
+                "route1:terrain-authored-surface:") ==
+            std::string::npos) {
+            continue;
+        }
+        const auto* vertices = batch.sharedVertices
+            ? batch.sharedVertices
+            : batch.vertices.data();
+        const auto vertexCount = batch.sharedVertices
+            ? batch.sharedVertexCount
+            : batch.vertices.size();
+        for (const auto& instance : batch.instances) {
+            for (std::size_t vertexIndex = 0u;
+                 vertices && vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                const auto& vertex = vertices[vertexIndex];
+                const auto worldPoint = transformPoint(
+                    instance.modelMatrix,
+                    {vertex.x, vertex.y, vertex.z});
+                const auto sourcePoint = transformPoint(
+                    sourceFromWorld, worldPoint);
+                if (sourcePoint[0] <= 1700.01 ||
+                    sourcePoint[0] >= 1899.99 ||
+                    sourcePoint[2] <= -1199.99 ||
+                    sourcePoint[2] >= -1130.01 ||
+                    std::abs(sourcePoint[1] - 50.02) > 0.01) {
+                    continue;
+                }
+                ++replacementLawnVertexCount;
+                replacementLawnUsesCleanSelector =
+                    replacementLawnUsesCleanSelector &&
+                    std::abs(vertex.sourceUv2U - kCleanLawnUv2U) <=
+                        0.001f &&
+                    std::abs(vertex.sourceUv2V - kCleanLawnUv2V) <=
+                        0.001f;
+            }
+        }
+    }
+    if (replacementLawnVertexCount == 0u ||
+        !replacementLawnUsesCleanSelector) {
+        outFail =
+            "The Route 1 bench lawn replacement retained an unrelated source dirt/lawn selector field instead of one neutral continuous lawn selector.";
+        return false;
+    }
+    struct LawnSeamField {
+        std::array<float, 2> uv0{};
+        std::array<float, 2> uv1{};
+        std::array<float, 4> color{};
+        std::size_t sampleCount = 0u;
+    };
+    std::map<std::array<std::int64_t, 3>, LawnSeamField>
+        westLawnSeamFields;
+    float maximumWestLawnUv0Difference = 0.0f;
+    float maximumWestLawnUv1Difference = 0.0f;
+    float maximumWestLawnColorDifference = 0.0f;
+    for (const auto& batch : benchCornerBatches) {
+        if (batch.geometryCacheKey.find(
+                "route1:terrain-authored-surface:") ==
+            std::string::npos) {
+            continue;
+        }
+        const auto* vertices = batch.sharedVertices
+            ? batch.sharedVertices
+            : batch.vertices.data();
+        const auto vertexCount = batch.sharedVertices
+            ? batch.sharedVertexCount
+            : batch.vertices.size();
+        for (const auto& instance : batch.instances) {
+            for (std::size_t vertexIndex = 0u;
+                 vertices && vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                const auto& vertex = vertices[vertexIndex];
+                const auto worldPoint = transformPoint(
+                    instance.modelMatrix,
+                    {vertex.x, vertex.y, vertex.z});
+                const auto sourcePoint = transformPoint(
+                    sourceFromWorld, worldPoint);
+                if (std::abs(sourcePoint[0] - 1700.0) > 0.1 ||
+                    sourcePoint[2] < -1195.1 ||
+                    sourcePoint[2] > -1104.9 ||
+                    std::abs(sourcePoint[1] - 50.02) > 0.01 ||
+                    vertex.sourceUv2V > -1.0f) {
+                    continue;
+                }
+                const std::array<std::int64_t, 3> key{
+                    static_cast<std::int64_t>(std::llround(
+                        sourcePoint[0] * 10.0)),
+                    static_cast<std::int64_t>(std::llround(
+                        sourcePoint[1] * 10.0)),
+                    static_cast<std::int64_t>(std::llround(
+                        sourcePoint[2] * 10.0))};
+                auto& field = westLawnSeamFields[key];
+                const std::array<float, 2> uv0{vertex.u, vertex.v};
+                const std::array<float, 2> uv1{
+                    vertex.sourceUv1U,
+                    vertex.sourceUv1V};
+                const std::array<float, 4> color{
+                    vertex.r, vertex.g, vertex.b, vertex.a};
+                if (field.sampleCount == 0u) {
+                    field.uv0 = uv0;
+                    field.uv1 = uv1;
+                    field.color = color;
+                } else {
+                    for (std::size_t channel = 0u; channel < 2u;
+                         ++channel) {
+                        maximumWestLawnUv0Difference = std::max(
+                            maximumWestLawnUv0Difference,
+                            std::abs(uv0[channel] - field.uv0[channel]));
+                        maximumWestLawnUv1Difference = std::max(
+                            maximumWestLawnUv1Difference,
+                            std::abs(uv1[channel] - field.uv1[channel]));
+                    }
+                    for (std::size_t channel = 0u; channel < 4u;
+                         ++channel) {
+                        maximumWestLawnColorDifference = std::max(
+                            maximumWestLawnColorDifference,
+                            std::abs(
+                                color[channel] - field.color[channel]));
+                    }
+                }
+                ++field.sampleCount;
+            }
+        }
+    }
+    const auto pairedWestLawnPositionCount = std::count_if(
+        westLawnSeamFields.begin(),
+        westLawnSeamFields.end(),
+        [](const auto& entry) {
+            return entry.second.sampleCount >= 2u;
+        });
+    if (pairedWestLawnPositionCount < 12u ||
+        maximumWestLawnUv0Difference > 0.001f ||
+        maximumWestLawnUv1Difference > 0.001f ||
+        maximumWestLawnColorDifference > 0.001f) {
+        outFail =
+            "The generated lawn cells at (16,-12)/(17,-12) did not continue one exact LGPE material field across their shared edge (pairs=" +
+            std::to_string(pairedWestLawnPositionCount) +
+            ", uv0=" +
+            std::to_string(maximumWestLawnUv0Difference) +
+            ", uv1=" +
+            std::to_string(maximumWestLawnUv1Difference) +
+            ", color=" +
+            std::to_string(maximumWestLawnColorDifference) + ").";
+        return false;
+    }
+    struct GeneratedBoundarySample {
+        std::array<float, 2> uv0{};
+        std::array<float, 2> uv2{};
+        std::array<float, 4> color{};
+    };
+    using GeneratedBoundaryKey = std::array<std::int64_t, 3>;
+    struct GeneratedBoundaryPair {
+        std::vector<GeneratedBoundarySample> lawn;
+        std::vector<GeneratedBoundarySample> dirt;
+    };
+    std::map<GeneratedBoundaryKey, GeneratedBoundaryPair>
+        generatedBoundarySamples;
+    for (const auto& batch : benchCornerBatches) {
+        if (batch.geometryCacheKey.find(
+                "route1:terrain-authored-surface:") ==
+            std::string::npos) {
+            continue;
+        }
+        const auto* vertices = batch.sharedVertices
+            ? batch.sharedVertices
+            : batch.vertices.data();
+        const auto vertexCount = batch.sharedVertices
+            ? batch.sharedVertexCount
+            : batch.vertices.size();
+        for (const auto& instance : batch.instances) {
+            for (std::size_t vertexIndex = 0u;
+                 vertices && vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                const auto& vertex = vertices[vertexIndex];
+                const auto worldPoint = transformPoint(
+                    instance.modelMatrix,
+                    {vertex.x, vertex.y, vertex.z});
+                const auto sourcePoint = transformPoint(
+                    sourceFromWorld, worldPoint);
+                if (sourcePoint[0] < 1720.0 ||
+                    sourcePoint[0] > 1880.0 ||
+                    std::abs(sourcePoint[2] + 1100.0) > 0.1 ||
+                    std::abs(sourcePoint[1] - 50.02) > 0.01) {
+                    continue;
+                }
+                const bool lawnBoundary =
+                    vertex.sourceUv2V < -1.0f;
+                const bool dirtBoundary =
+                    vertex.sourceUv2V > 0.9f &&
+                    vertex.sourceUv2V < 0.95f;
+                if (!lawnBoundary && !dirtBoundary) {
+                    continue;
+                }
+                GeneratedBoundarySample sample{
+                    .uv0 = {vertex.u, vertex.v},
+                    .uv2 = {
+                        vertex.sourceUv2U,
+                        vertex.sourceUv2V},
+                    .color = {
+                        vertex.r,
+                        vertex.g,
+                        vertex.b,
+                        vertex.a}};
+                const GeneratedBoundaryKey key{
+                    static_cast<std::int64_t>(std::llround(
+                        sourcePoint[0] * 10.0)),
+                    static_cast<std::int64_t>(std::llround(
+                        sourcePoint[1] * 10.0)),
+                    static_cast<std::int64_t>(std::llround(
+                        sourcePoint[2] * 10.0))};
+                auto& pair = generatedBoundarySamples[key];
+                (lawnBoundary ? pair.lawn : pair.dirt)
+                    .push_back(sample);
+            }
+        }
+    }
+    const auto repeatDifference = [](float left, float right) {
+        const float difference = left - right;
+        return std::abs(difference - std::round(difference));
+    };
+    std::size_t compatibleBoundaryPairCount = 0u;
+    float maximumUv0Difference = 0.0f;
+    float maximumUv2RepeatDifference = 0.0f;
+    float maximumColorDifference = 0.0f;
+    for (const auto& [position, pair] : generatedBoundarySamples) {
+        (void)position;
+        for (const auto& lawn : pair.lawn) {
+            for (const auto& dirt : pair.dirt) {
+                maximumUv0Difference = std::max({
+                    maximumUv0Difference,
+                    std::abs(lawn.uv0[0] - dirt.uv0[0]),
+                    std::abs(lawn.uv0[1] - dirt.uv0[1])});
+                maximumUv2RepeatDifference = std::max({
+                    maximumUv2RepeatDifference,
+                    repeatDifference(lawn.uv2[0], dirt.uv2[0]),
+                    repeatDifference(lawn.uv2[1], dirt.uv2[1])});
+                for (std::size_t channel = 0u;
+                     channel < lawn.color.size();
+                     ++channel) {
+                    maximumColorDifference = std::max(
+                        maximumColorDifference,
+                        std::abs(
+                            lawn.color[channel] -
+                            dirt.color[channel]));
+                }
+                ++compatibleBoundaryPairCount;
+            }
+        }
+    }
+    // The material selector must use two vertices at the same position: one
+    // carries the lawn-side UV2 row and one carries the dirt-side UV2 row.
+    // Requiring one shared vertex here is impossible because an indexed
+    // vertex cannot carry both selector values. What must be shared exactly
+    // is geometry, UV0 (also sampled at 0.3 scale), Color0, and the repeat-
+    // equivalent UV2 phase along the boundary.
+    if (compatibleBoundaryPairCount < 8u ||
+        maximumUv0Difference > 0.001f ||
+        maximumUv2RepeatDifference > 0.001f ||
+        maximumColorDifference > 0.001f) {
+        outFail =
+            "The rebuilt bench dirt/lawn boundary did not preserve coincident geometry and repeat-compatible material fields (pairs=" +
+            std::to_string(compatibleBoundaryPairCount) +
+            ", uv0-difference=" +
+            std::to_string(maximumUv0Difference) +
+            ", uv2-repeat-difference=" +
+            std::to_string(maximumUv2RepeatDifference) +
+            ", color-difference=" +
+            std::to_string(maximumColorDifference) + ").";
+        return false;
+    }
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        preservedBenchCells{{
+            {17, -9},
+            {18, -9},
+            {17, -10},
+            {18, -10}}};
+    using BenchSourceCounts = std::array<std::size_t, 4>;
+    const auto inspectBenchBatches =
+        [&](const auto& inspectedBatches,
+            BenchSourceCounts& sourceCounts,
+            bool& generatedPreservedCell,
+            bool& generatedCorner,
+            bool& sourceCrossesCanonicalWestEdge,
+            bool& retainedCanonicalWestSide,
+            bool& foundGeneratedWestEdgeCarrier,
+            bool& generatedWestDirtTransitionCarrier,
+            bool& generatedWestCleanDirtCarrier) {
+            for (const auto& batch : inspectedBatches) {
+                const bool generatedSurface =
+                    batch.geometryCacheKey.find(
+                        "route1:terrain-authored-surface:") !=
+                    std::string::npos;
+                const auto materialIndex = batch.sharedTemplate
+                    ? batch.sharedTemplate->sourceMaterialIndex
+                    : batch.sourceMaterialIndex;
+                const bool sourceGround = materialIndex == 19u &&
+                    batch.geometryCacheKey.starts_with(
+                        "published-environment:");
+                if (!generatedSurface && !sourceGround) {
+                    continue;
+                }
+                const auto* vertices = batch.sharedVertices
+                    ? batch.sharedVertices
+                    : batch.vertices.data();
+                const auto vertexCount = batch.sharedVertices
+                    ? batch.sharedVertexCount
+                    : batch.vertices.size();
+                const auto* indices = batch.sharedIndices
+                    ? batch.sharedIndices
+                    : batch.indices.data();
+                const auto indexCount = batch.sharedIndices
+                    ? batch.sharedIndexCount
+                    : batch.indices.size();
+                for (const auto& instance : batch.instances) {
+                    for (std::size_t index = 0u;
+                         vertices && indices && index + 2u < indexCount;
+                         index += 3u) {
+                        std::array<std::array<double, 3>, 3> points{};
+                        bool valid = true;
+                        bool sourceTransition = false;
+                        for (std::size_t corner = 0u;
+                             corner < points.size();
+                             ++corner) {
+                            const auto vertexIndex = indices[index + corner];
+                            if (vertexIndex >= vertexCount) {
+                                valid = false;
+                                break;
+                            }
+                            const auto& vertex = vertices[vertexIndex];
+                            const auto worldPoint = transformPoint(
+                                instance.modelMatrix,
+                                {vertex.x, vertex.y, vertex.z});
+                            points[corner] = transformPoint(
+                                sourceFromWorld, worldPoint);
+                            sourceTransition = sourceTransition ||
+                                vertex.sourceUv2V > 0.5f;
+                            if (generatedSurface &&
+                                std::abs(points[corner][0] - 1700.0) <=
+                                    2.0 &&
+                                points[corner][2] > -1065.0 &&
+                                points[corner][2] < -1005.0) {
+                                foundGeneratedWestEdgeCarrier = true;
+                                generatedWestDirtTransitionCarrier =
+                                    generatedWestDirtTransitionCarrier ||
+                                    vertex.sourceUv2V > 0.5f;
+                                generatedWestCleanDirtCarrier =
+                                    generatedWestCleanDirtCarrier ||
+                                    (std::abs(
+                                         vertex.sourceUv2U +
+                                         0.222876f) <= 0.001f &&
+                                     std::abs(
+                                         vertex.sourceUv2V +
+                                         1.127860f) <= 0.001f);
+                            }
+                        }
+                        if (!valid) {
+                            continue;
+                        }
+                        const std::int32_t cellX =
+                            static_cast<std::int32_t>(std::floor(
+                                (points[0][0] + points[1][0] +
+                                 points[2][0]) /
+                                300.0));
+                        const std::int32_t cellZ =
+                            static_cast<std::int32_t>(std::floor(
+                                (points[0][2] + points[1][2] +
+                                 points[2][2]) /
+                                300.0));
+                        for (std::size_t target = 0u;
+                             target < preservedBenchCells.size();
+                             ++target) {
+                            if (cellX != preservedBenchCells[target][0] ||
+                                cellZ != preservedBenchCells[target][1]) {
+                                continue;
+                            }
+                            if (sourceGround) {
+                                ++sourceCounts[target];
+                            }
+                            generatedPreservedCell =
+                                generatedPreservedCell || generatedSurface;
+                        }
+                        generatedCorner = generatedCorner ||
+                            (generatedSurface &&
+                             cellX == 17 && cellZ == -11);
+                        if (!sourceGround || !sourceTransition) {
+                            continue;
+                        }
+                        double minimumX = points[0][0];
+                        double maximumX = points[0][0];
+                        double minimumZ = points[0][2];
+                        double maximumZ = points[0][2];
+                        for (std::size_t corner = 1u;
+                             corner < points.size();
+                             ++corner) {
+                            minimumX = std::min(minimumX, points[corner][0]);
+                            maximumX = std::max(maximumX, points[corner][0]);
+                            minimumZ = std::min(minimumZ, points[corner][2]);
+                            maximumZ = std::max(maximumZ, points[corner][2]);
+                        }
+                        sourceCrossesCanonicalWestEdge =
+                            sourceCrossesCanonicalWestEdge ||
+                            (minimumX < 1700.0 && maximumX > 1700.0 &&
+                             minimumZ <= -1099.0 &&
+                             maximumZ >= -1001.0);
+                        retainedCanonicalWestSide =
+                            retainedCanonicalWestSide ||
+                            (minimumX < 1700.0 &&
+                             maximumX <= 1700.001 &&
+                             maximumX >= 1699.999 &&
+                             minimumZ <= -1099.0 &&
+                             maximumZ >= -1001.0);
+                    }
+                }
+            }
+        };
+    BenchSourceCounts canonicalBenchCounts{};
+    BenchSourceCounts editedBenchCounts{};
+    bool ignoredGeneratedPreservedCell = false;
+    bool ignoredGeneratedCorner = false;
+    bool ignoredSourceCrossesCanonicalWestEdge = false;
+    bool ignoredRetainedCanonicalWestSide = false;
+    bool ignoredGeneratedWestEdgeCarrier = false;
+    bool ignoredGeneratedWestDirtTransitionCarrier = false;
+    bool ignoredGeneratedWestCleanDirtCarrier = false;
+    inspectBenchBatches(
+        canonicalBenchReferenceBatches,
+        canonicalBenchCounts,
+        ignoredGeneratedPreservedCell,
+        ignoredGeneratedCorner,
+        ignoredSourceCrossesCanonicalWestEdge,
+        ignoredRetainedCanonicalWestSide,
+        ignoredGeneratedWestEdgeCarrier,
+        ignoredGeneratedWestDirtTransitionCarrier,
+        ignoredGeneratedWestCleanDirtCarrier);
+    bool generatedPreservedCell = false;
+    bool generatedCorner = false;
+    bool sourceCrossesCanonicalWestEdge = false;
+    bool retainedCanonicalWestSide = false;
+    bool foundGeneratedWestEdgeCarrier = false;
+    bool generatedWestDirtTransitionCarrier = false;
+    bool generatedWestCleanDirtCarrier = false;
+    inspectBenchBatches(
+        benchCornerBatches,
+        editedBenchCounts,
+        generatedPreservedCell,
+        generatedCorner,
+        sourceCrossesCanonicalWestEdge,
+        retainedCanonicalWestSide,
+        foundGeneratedWestEdgeCarrier,
+        generatedWestDirtTransitionCarrier,
+        generatedWestCleanDirtCarrier);
+    std::size_t cleanInternalDirtEdgeVertexCount = 0u;
+    bool internalDirtEdgeContainsGrassSelector = false;
+    std::size_t continuedWestLawnRibbonVertexCount = 0u;
+    std::size_t continuedWestLawnEdgeVertexCount = 0u;
+    std::size_t roundedMixedOwnerCornerCandidateCount = 0u;
+    std::size_t roundedMixedOwnerCornerVertexCount = 0u;
+    double nearestRoundedCornerSampleDistanceSquared =
+        std::numeric_limits<double>::max();
+    std::array<double, 2> nearestRoundedCornerSample{};
+    bool nearestRoundedCornerSampleCleanDirt = true;
+    float nearestRoundedCornerSampleUv2V = 0.0f;
+    double nearestLawnOwnedTurnSampleDistanceSquared =
+        std::numeric_limits<double>::max();
+    std::array<double, 2> nearestLawnOwnedTurnSample{};
+    float nearestLawnOwnedTurnSampleUv2V = 0.0f;
+    std::size_t cornerInnerRibbonVertexCount = 0u;
+    std::size_t cornerInnerCleanDirtVertexCount = 0u;
+    std::size_t roundedCornerBridgeTriangleCount = 0u;
+    float maximumRoundedCornerBridgeExtentCm = 0.0f;
+    std::size_t cleanWestDirtVertexCount = 0u;
+    bool westDirtContainsNonDirtSelector = false;
+    float maximumBenchTriangleUv2USpan = 0.0f;
+    for (const auto& batch : benchCornerBatches) {
+        if (batch.geometryCacheKey.find(
+                "route1:terrain-authored-surface:") ==
+            std::string::npos) {
+            continue;
+        }
+        const auto* vertices = batch.sharedVertices
+            ? batch.sharedVertices : batch.vertices.data();
+        const auto vertexCount = batch.sharedVertices
+            ? batch.sharedVertexCount : batch.vertices.size();
+        const auto* indices = batch.sharedIndices
+            ? batch.sharedIndices : batch.indices.data();
+        const auto indexCount = batch.sharedIndices
+            ? batch.sharedIndexCount : batch.indices.size();
+        for (const auto& instance : batch.instances) {
+            for (std::size_t vertexIndex = 0u;
+                 vertices && vertexIndex < vertexCount;
+                 ++vertexIndex) {
+                const auto& vertex = vertices[vertexIndex];
+                const auto sourcePoint = transformPoint(
+                    sourceFromWorld,
+                    transformPoint(
+                        instance.modelMatrix,
+                        {vertex.x, vertex.y, vertex.z}));
+                const bool cleanDirtSelector =
+                    repeatDifference(
+                        vertex.sourceUv2U, -0.222876f) <= 0.001f &&
+                    repeatDifference(
+                        vertex.sourceUv2V, -1.127860f) <= 0.001f;
+                {
+                    const double dx = sourcePoint[0] - 1715.0;
+                    const double dz = sourcePoint[2] + 1080.0;
+                    const double distanceSquared = dx * dx + dz * dz;
+                    if (distanceSquared <
+                        nearestRoundedCornerSampleDistanceSquared) {
+                        nearestRoundedCornerSampleDistanceSquared =
+                            distanceSquared;
+                        nearestRoundedCornerSample = {
+                            sourcePoint[0], sourcePoint[2]};
+                        nearestRoundedCornerSampleCleanDirt =
+                            cleanDirtSelector;
+                        nearestRoundedCornerSampleUv2V =
+                            vertex.sourceUv2V;
+                    }
+                }
+                {
+                    const double dx = sourcePoint[0] - 1690.0;
+                    const double dz = sourcePoint[2] + 1090.0;
+                    const double distanceSquared = dx * dx + dz * dz;
+                    if (distanceSquared <
+                        nearestLawnOwnedTurnSampleDistanceSquared) {
+                        nearestLawnOwnedTurnSampleDistanceSquared =
+                            distanceSquared;
+                        nearestLawnOwnedTurnSample = {
+                            sourcePoint[0], sourcePoint[2]};
+                        nearestLawnOwnedTurnSampleUv2V =
+                            vertex.sourceUv2V;
+                    }
+                }
+                // The generated horizontal ribbon must remain present all the
+                // way to its left endpoint. The adjacent preserved vertical
+                // ribbon now performs the turn on its lawn-owned carrier.
+                if (sourcePoint[0] > 1708.0 &&
+                    sourcePoint[0] < 1725.0 &&
+                    sourcePoint[2] > -1090.0 &&
+                    sourcePoint[2] < -1070.0) {
+                    ++roundedMixedOwnerCornerCandidateCount;
+                    if (!cleanDirtSelector) {
+                        ++roundedMixedOwnerCornerVertexCount;
+                    }
+                }
+                if (sourcePoint[0] > 1704.0 &&
+                    sourcePoint[0] < 1726.0 &&
+                    std::abs(sourcePoint[2] + 1070.0) <= 0.2) {
+                    if (repeatDifference(
+                            vertex.sourceUv2V,
+                            0.991155148f) <= 0.002f) {
+                        ++cornerInnerRibbonVertexCount;
+                    }
+                    if (cleanDirtSelector) {
+                        ++cornerInnerCleanDirtVertexCount;
+                    }
+                }
+                if (sourcePoint[2] <= -1065.0 ||
+                    sourcePoint[2] >= -1005.0) {
+                    continue;
+                }
+                if (sourcePoint[0] > 1665.0 &&
+                    sourcePoint[0] < 1679.0 &&
+                    repeatDifference(
+                        vertex.sourceUv2V, -1.0690f) <= 0.004f &&
+                    repeatDifference(
+                        vertex.sourceUv2U, -0.101646f) > 0.001f) {
+                    ++continuedWestLawnRibbonVertexCount;
+                }
+                if (sourcePoint[0] > 1688.0 &&
+                    sourcePoint[0] < 1703.0 &&
+                    repeatDifference(
+                        vertex.sourceUv2V, 0.991155148f) <= 0.002f &&
+                    repeatDifference(
+                        vertex.sourceUv2U, -0.101646f) > 0.001f) {
+                    ++continuedWestLawnEdgeVertexCount;
+                }
+                if (sourcePoint[0] <= 1706.0 ||
+                    sourcePoint[0] >= 1729.0) {
+                    continue;
+                }
+                ++cleanWestDirtVertexCount;
+                westDirtContainsNonDirtSelector =
+                    westDirtContainsNonDirtSelector ||
+                    !cleanDirtSelector;
+            }
+            for (std::size_t index = 0u;
+                 vertices && indices && index + 2u < indexCount;
+                 index += 3u) {
+                float minimumX = std::numeric_limits<float>::max();
+                float maximumX = std::numeric_limits<float>::lowest();
+                float minimumZ = std::numeric_limits<float>::max();
+                float maximumZ = std::numeric_limits<float>::lowest();
+                float minimumU = std::numeric_limits<float>::max();
+                float maximumU = std::numeric_limits<float>::lowest();
+                bool valid = true;
+                for (std::size_t corner = 0u; corner < 3u; ++corner) {
+                    const auto vertexIndex = indices[index + corner];
+                    if (vertexIndex >= vertexCount) {
+                        valid = false;
+                        break;
+                    }
+                    const auto& vertex = vertices[vertexIndex];
+                    const auto sourcePoint = transformPoint(
+                        sourceFromWorld,
+                        transformPoint(
+                            instance.modelMatrix,
+                            {vertex.x, vertex.y, vertex.z}));
+                    minimumX = std::min(
+                        minimumX, static_cast<float>(sourcePoint[0]));
+                    maximumX = std::max(
+                        maximumX, static_cast<float>(sourcePoint[0]));
+                    minimumZ = std::min(
+                        minimumZ, static_cast<float>(sourcePoint[2]));
+                    maximumZ = std::max(
+                        maximumZ, static_cast<float>(sourcePoint[2]));
+                    minimumU = std::min(minimumU, vertex.sourceUv2U);
+                    maximumU = std::max(maximumU, vertex.sourceUv2U);
+                    const bool eastWestDirtJoin =
+                        std::abs(sourcePoint[0] - 1800.0) <= 0.1 &&
+                        sourcePoint[2] > -1065.0 &&
+                        sourcePoint[2] < -1005.0;
+                    const bool northSouthDirtJoin =
+                        std::abs(sourcePoint[2] + 1000.0) <= 0.1 &&
+                        sourcePoint[0] > 1735.0 &&
+                        sourcePoint[0] < 1795.0;
+                    if (eastWestDirtJoin || northSouthDirtJoin) {
+                        ++cleanInternalDirtEdgeVertexCount;
+                        internalDirtEdgeContainsGrassSelector =
+                            internalDirtEdgeContainsGrassSelector ||
+                            vertex.sourceUv2V > 0.5f;
+                    }
+                }
+                if (!valid || maximumX < 1700.0f || minimumX > 1800.0f ||
+                    maximumZ < -1100.0f || minimumZ > -1000.0f) {
+                    continue;
+                }
+                if (minimumX <= 1715.0f && maximumX >= 1715.0f &&
+                    minimumZ <= -1080.0f && maximumZ >= -1080.0f) {
+                    ++roundedCornerBridgeTriangleCount;
+                    maximumRoundedCornerBridgeExtentCm = std::max(
+                        maximumRoundedCornerBridgeExtentCm,
+                        std::max(
+                            maximumX - minimumX,
+                            maximumZ - minimumZ));
+                }
+                maximumBenchTriangleUv2USpan = std::max(
+                    maximumBenchTriangleUv2USpan,
+                    maximumU - minimumU);
+            }
+        }
+    }
+    // Material-19 source triangles cross logical cells, so rebuilding an
+    // adjacent lawn socket can repartition how many triangle centroids land in
+    // a preserved cell without replacing that cell. The protected ramp/flat
+    // cells remain source-owned, while both halves of the changed dirt/lawn
+    // socket are intentionally regenerated as one contour. Retaining only the
+    // old lawn half leaves its straight selector card inside the new corner.
+    if (std::any_of(
+            editedBenchCounts.begin(),
+            editedBenchCounts.end(),
+            [](std::size_t count) { return count == 0u; }) ||
+        generatedPreservedCell || !generatedCorner ||
+        sourceCrossesCanonicalWestEdge ||
+        !foundGeneratedWestEdgeCarrier ||
+        generatedWestDirtTransitionCarrier ||
+        !generatedWestCleanDirtCarrier ||
+        continuedWestLawnRibbonVertexCount < 8u ||
+        continuedWestLawnEdgeVertexCount < 8u ||
+        roundedMixedOwnerCornerVertexCount == 0u ||
+        repeatDifference(
+            nearestRoundedCornerSampleUv2V,
+            0.971730233f) > 0.003f ||
+        repeatDifference(
+            nearestLawnOwnedTurnSampleUv2V,
+            0.947719717f) > 0.003f ||
+        cornerInnerRibbonVertexCount < 3u ||
+        cornerInnerCleanDirtVertexCount < 3u ||
+        cleanWestDirtVertexCount < 8u ||
+        westDirtContainsNonDirtSelector ||
+        cleanInternalDirtEdgeVertexCount < 8u ||
+        internalDirtEdgeContainsGrassSelector ||
+        maximumBenchTriangleUv2USpan > 0.75f) {
+        outFail =
+            "The bench corner did not preserve source-owned ramps/flats while rebuilding both halves of the changed grass socket at cell (17,-11) (reference-source-triangles=" +
+            std::to_string(canonicalBenchCounts[0]) + "," +
+            std::to_string(canonicalBenchCounts[1]) + "," +
+            std::to_string(canonicalBenchCounts[2]) + "," +
+            std::to_string(canonicalBenchCounts[3]) +
+            "; edited=" +
+            std::to_string(editedBenchCounts[0]) + "," +
+            std::to_string(editedBenchCounts[1]) + "," +
+            std::to_string(editedBenchCounts[2]) + "," +
+            std::to_string(editedBenchCounts[3]) +
+            "; generated-preserved=" +
+            std::to_string(generatedPreservedCell) +
+            "; generated-corner=" + std::to_string(generatedCorner) +
+            "; source-crosses-west-edge=" +
+            std::to_string(sourceCrossesCanonicalWestEdge) +
+            "; retained-west-side=" +
+            std::to_string(retainedCanonicalWestSide) +
+            "; generated-west-carrier=" +
+            std::to_string(foundGeneratedWestEdgeCarrier) +
+            "; west-dirt-transition-carrier=" +
+            std::to_string(generatedWestDirtTransitionCarrier) +
+            "; west-clean-dirt-carrier=" +
+            std::to_string(generatedWestCleanDirtCarrier) +
+            "; west-lawn-ribbon-vertices=" +
+            std::to_string(continuedWestLawnRibbonVertexCount) +
+            "; west-lawn-edge-vertices=" +
+            std::to_string(continuedWestLawnEdgeVertexCount) +
+            "; rounded-mixed-owner-corner-vertices=" +
+            std::to_string(roundedMixedOwnerCornerVertexCount) +
+            "/" +
+            std::to_string(roundedMixedOwnerCornerCandidateCount) +
+            "; nearest-rounded-corner-sample=" +
+            std::to_string(nearestRoundedCornerSample[0]) + "," +
+            std::to_string(nearestRoundedCornerSample[1]) + ",clean=" +
+            std::to_string(nearestRoundedCornerSampleCleanDirt) +
+            ",uv2-v=" +
+            std::to_string(nearestRoundedCornerSampleUv2V) +
+            "; nearest-lawn-owned-turn-sample=" +
+            std::to_string(nearestLawnOwnedTurnSample[0]) + "," +
+            std::to_string(nearestLawnOwnedTurnSample[1]) + ",uv2-v=" +
+            std::to_string(nearestLawnOwnedTurnSampleUv2V) +
+            "; corner-inner-ribbon/clean-vertices=" +
+            std::to_string(cornerInnerRibbonVertexCount) + "/" +
+            std::to_string(cornerInnerCleanDirtVertexCount) +
+            "; rounded-corner-bridge-triangles=" +
+            std::to_string(roundedCornerBridgeTriangleCount) +
+            ",extent=" +
+            std::to_string(maximumRoundedCornerBridgeExtentCm) +
+            "; west-clean-dirt-vertices=" +
+            std::to_string(cleanWestDirtVertexCount) +
+            "; west-dirt-non-dirt-selector=" +
+            std::to_string(westDirtContainsNonDirtSelector) +
+            "; clean-internal-dirt-edge-vertices=" +
+            std::to_string(cleanInternalDirtEdgeVertexCount) +
+            "; internal-dirt-edge-grass-selector=" +
+            std::to_string(internalDirtEdgeContainsGrassSelector) +
+            "; maximum-triangle-uv2-u-span=" +
+            std::to_string(maximumBenchTriangleUv2USpan) + ").";
+        return false;
+    }
+    if (!environment.applyBoardLayout(
+            cornerContinuationLayout, &error) ||
+        !environment.setTerrainPatchV2PreviewEnabled(true, &error)) {
+        outFail =
+            "The Route 1 corner fixture could not be restored after the material-handoff regression: " +
+            error;
+        return false;
+    }
+    auto regionalDonorLayout = environment.layout();
+    auto eastSourceSocket = authoredTileFromSource(
+        25, -4, 1, "light_lawn", "auto");
+    eastSourceSocket.sourceReference =
+        std::array<std::int32_t, 2>{22, -4};
+    eastSourceSocket.reason = "terrain_tile_paste";
+    regionalDonorLayout.authoredTerrainTiles.push_back(
+        std::move(eastSourceSocket));
+    if (!environment.applyBoardLayout(regionalDonorLayout, &error)) {
+        outFail =
+            "The exact-donor corner socket regression fixture was rejected: " +
+            error;
+        return false;
+    }
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
+        donorSocketBatches;
+    environment.appendIndexedBatches(0.0f, donorSocketBatches);
+    using DonorVertexKey = std::array<std::int64_t, 3>;
+    using DonorTriangleKey = std::tuple<
+        std::uint32_t,
+        DonorVertexKey,
+        DonorVertexKey,
+        DonorVertexKey>;
+    std::set<DonorTriangleKey> donorTriangles;
+    bool foundDonorTriangle = false;
+    bool duplicateDonorTriangle = false;
+    for (const auto& batch : donorSocketBatches) {
+        if (batch.geometryCacheKey.find(
+                "terrain-source-reference-patch:") ==
+            std::string::npos) {
+            continue;
+        }
+        const auto* vertices = batch.sharedVertices
+            ? batch.sharedVertices
+            : batch.vertices.data();
+        const auto vertexCount = batch.sharedVertices
+            ? batch.sharedVertexCount
+            : batch.vertices.size();
+        const auto* indices = batch.sharedIndices
+            ? batch.sharedIndices
+            : batch.indices.data();
+        const auto indexCount = batch.sharedIndices
+            ? batch.sharedIndexCount
+            : batch.indices.size();
+        const auto materialIndex = batch.sharedTemplate
+            ? batch.sharedTemplate->sourceMaterialIndex
+            : batch.sourceMaterialIndex;
+        for (const auto& instance : batch.instances) {
+            for (std::size_t index = 0u;
+                 vertices && indices && index + 2u < indexCount;
+                 index += 3u) {
+                std::array<DonorVertexKey, 3> triangle{};
+                bool valid = true;
+                for (std::size_t corner = 0u;
+                     corner < triangle.size();
+                     ++corner) {
+                    const auto vertexIndex = indices[index + corner];
+                    if (vertexIndex >= vertexCount) {
+                        valid = false;
+                        break;
+                    }
+                    const auto& vertex = vertices[vertexIndex];
+                    const auto position = transformPoint(
+                        instance.modelMatrix,
+                        {vertex.x, vertex.y, vertex.z});
+                    for (std::size_t axis = 0u;
+                         axis < 3u;
+                         ++axis) {
+                        triangle[corner][axis] =
+                            static_cast<std::int64_t>(std::llround(
+                                position[axis] * 1000.0));
+                    }
+                }
+                if (!valid) {
+                    continue;
+                }
+                foundDonorTriangle = true;
+                std::sort(triangle.begin(), triangle.end());
+                if (!donorTriangles.emplace(
+                        materialIndex,
+                        triangle[0],
+                        triangle[1],
+                        triangle[2]).second) {
+                    duplicateDonorTriangle = true;
+                }
+            }
+        }
+    }
+    if (!foundDonorTriangle || duplicateDonorTriangle) {
+        outFail =
+            "A Route 1 exact-donor socket did not submit each canonical material triangle exactly once (found=" +
+            std::to_string(foundDonorTriangle) +
+            ", duplicate=" +
+            std::to_string(duplicateDonorTriangle) + ").";
+        return false;
+    }
     namespace variants =
         game::runtime::route1_scene_variants;
     const std::array variantCases{
@@ -2926,6 +4052,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 &error) ||
             !variantEnvironment.applyAuthoredScene(
                 variantScene,
+                workspace,
                 &error)) {
             outFail =
                 "Route 1 scene variant could not compose independently: " +

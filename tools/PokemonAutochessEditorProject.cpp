@@ -3221,10 +3221,19 @@ private:
                     projectStore,
                     authoredVirtualPath.generic_string(),
                     authoredScene,
-                    &error) ||
-            !nextEnvironment.applyAuthoredScene(
+                    &error)) {
+            if (outError) {
+                *outError =
+                    "The project-owned authored scene document could not be loaded: " +
+                    error;
+            }
+            return false;
+        }
+        logPhase("authored_scene_document");
+        if (!nextEnvironment.applyAuthoredScene(
                 authoredScene,
                 projectStore,
+                terrainPatchV2PreviewEnabled_,
                 &error)) {
             if (outError) {
                 *outError =
@@ -3233,17 +3242,7 @@ private:
             }
             return false;
         }
-        if (terrainPatchV2PreviewEnabled_ &&
-            !nextEnvironment.setTerrainPatchV2PreviewEnabled(
-                true,
-                &error)) {
-            if (outError) {
-                *outError =
-                    "The non-destructive Terrain Patch V2 preview was rejected: " +
-                    error;
-            }
-            return false;
-        }
+        logPhase("authored_scene_apply");
         if (terrainPatchV2PreviewEnabled_) {
             const auto& patchStats = nextEnvironment.stats();
             std::cerr
@@ -3259,7 +3258,7 @@ private:
                 << patchStats.terrainPatchV2InvalidBoundaryCount
                 << '\n';
         }
-        logPhase("authored_scene");
+        logPhase("terrain_patch_v2");
 
         sceneStore_ = std::move(nextSceneStore);
         environment_ = std::move(nextEnvironment);

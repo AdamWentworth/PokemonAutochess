@@ -2,7 +2,1110 @@
   "base_environment_asset_id": "environments/route1",
   "coordinate_system": "source_centimetres_xyz_y_up",
   "kind": "phlosion_authored_scene",
-  "nodes": [],
+  "nodes": [
+    {
+      "components": {},
+      "display_name": "Environment",
+      "enabled": true,
+      "id": "folder/environment",
+      "parent_id": "",
+      "reason": "",
+      "sibling_order": 0
+    },
+    {
+      "components": {},
+      "display_name": "Terrain",
+      "enabled": true,
+      "id": "folder/environment/terrain",
+      "parent_id": "folder/environment",
+      "reason": "",
+      "sibling_order": 0
+    },
+    {
+      "components": {},
+      "display_name": "Tiles",
+      "enabled": true,
+      "id": "folder/environment/terrain/tiles",
+      "parent_id": "folder/environment/terrain",
+      "reason": "",
+      "sibling_order": 0
+    },
+    {
+      "components": {},
+      "display_name": "Vegetation",
+      "enabled": true,
+      "id": "folder/environment/vegetation",
+      "parent_id": "folder/environment",
+      "reason": "",
+      "sibling_order": 1
+    },
+    {
+      "components": {},
+      "display_name": "Flowers",
+      "enabled": true,
+      "id": "folder/environment/vegetation/flowers",
+      "parent_id": "folder/environment/vegetation",
+      "reason": "",
+      "sibling_order": 1
+    },
+    {
+      "components": {},
+      "display_name": "Flowers 02",
+      "enabled": true,
+      "id": "folder/environment/vegetation/flowers/flowers-02",
+      "parent_id": "folder/environment/vegetation/flowers",
+      "reason": "",
+      "sibling_order": 0
+    },
+    {
+      "components": {},
+      "display_name": "Trees",
+      "enabled": true,
+      "id": "folder/environment/vegetation/trees",
+      "parent_id": "folder/environment/vegetation",
+      "reason": "",
+      "sibling_order": 0
+    },
+    {
+      "components": {},
+      "display_name": "Tree 006",
+      "enabled": true,
+      "id": "folder/environment/vegetation/trees/tree-006",
+      "parent_id": "folder/environment/vegetation/trees",
+      "reason": "",
+      "sibling_order": 0
+    },
+    {
+      "components": {
+        "imported_source_binding": {
+          "expected_source_transform": {
+            "rotation_degrees": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "translation": [
+              1700.0,
+              50.0,
+              -300.0
+            ]
+          },
+          "logical_name": "flowers02",
+          "record_index": 6,
+          "target_kind": "buildmodel_vegetation_placement"
+        },
+        "transform": {
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation": [
+            1660.701416015625,
+            50.0,
+            -300.0
+          ]
+        }
+      },
+      "display_name": "flowers02 - source record 6",
+      "enabled": true,
+      "id": "buildmodel-vegetation/flowers02/record-6",
+      "parent_id": "folder/environment/vegetation/flowers/flowers-02",
+      "reason": "editor_layout_override",
+      "sibling_order": 0
+    },
+    {
+      "components": {
+        "imported_source_binding": {
+          "expected_source_transform": {
+            "rotation_degrees": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "translation": [
+              2485.1708984375,
+              50.39220428466797,
+              -191.33445739746094
+            ]
+          },
+          "logical_name": "tree_006",
+          "record_index": 2,
+          "target_kind": "canonical_tree_instance"
+        },
+        "transform": {
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation": [
+            2485.1708984375,
+            50.39220428466797,
+            -191.33445739746094
+          ]
+        }
+      },
+      "display_name": "Tree 006 - source instance 3",
+      "enabled": false,
+      "id": "canonical-tree/tree_006/instance-2",
+      "parent_id": "folder/environment/vegetation/trees/tree-006",
+      "reason": "editor_deleted_imported_source_object",
+      "sibling_order": 0
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 16,
+          "grid_z": -12,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (16, -12)",
+      "enabled": true,
+      "id": "terrain-tile/x-p16/z-n12",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 42
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 17,
+          "grid_z": -1,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (17, -1)",
+      "enabled": true,
+      "id": "terrain-tile/x-p17/z-n1",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 18
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 17,
+          "grid_z": -12,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (17, -12)",
+      "enabled": true,
+      "id": "terrain-tile/x-p17/z-n12",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 26
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 17,
+          "grid_z": -2,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "dirt_path",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "path_2"
+        }
+      },
+      "display_name": "Terrain Tile (17, -2)",
+      "enabled": true,
+      "id": "terrain-tile/x-p17/z-n2",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 7
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 17,
+          "grid_z": -3,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (17, -3)",
+      "enabled": true,
+      "id": "terrain-tile/x-p17/z-n3",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_encounter_grass_restoration",
+      "sibling_order": 9
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 17,
+          "grid_z": -4,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (17, -4)",
+      "enabled": true,
+      "id": "terrain-tile/x-p17/z-n4",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_encounter_grass_restoration",
+      "sibling_order": 10
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 18,
+          "grid_z": -1,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (18, -1)",
+      "enabled": true,
+      "id": "terrain-tile/x-p18/z-n1",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 19
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 18,
+          "grid_z": -12,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (18, -12)",
+      "enabled": true,
+      "id": "terrain-tile/x-p18/z-n12",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 35
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 18,
+          "grid_z": -2,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "dirt_path",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "path_10"
+        }
+      },
+      "display_name": "Terrain Tile (18, -2)",
+      "enabled": true,
+      "id": "terrain-tile/x-p18/z-n2",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 6
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 18,
+          "grid_z": -3,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (18, -3)",
+      "enabled": true,
+      "id": "terrain-tile/x-p18/z-n3",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_encounter_grass_restoration",
+      "sibling_order": 8
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 18,
+          "grid_z": -4,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (18, -4)",
+      "enabled": true,
+      "id": "terrain-tile/x-p18/z-n4",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_encounter_grass_restoration",
+      "sibling_order": 11
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 19,
+          "grid_z": -1,
+          "normalize_source_tint": true,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": true,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (19, -1)",
+      "enabled": true,
+      "id": "terrain-tile/x-p19/z-n1",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_encounter_grass_suppression",
+      "sibling_order": 20
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 19,
+          "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "dirt_path",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "path_10"
+        }
+      },
+      "display_name": "Terrain Tile (19, -11)",
+      "enabled": true,
+      "id": "terrain-tile/x-p19/z-n11",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 28
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 19,
+          "grid_z": -12,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (19, -12)",
+      "enabled": true,
+      "id": "terrain-tile/x-p19/z-n12",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 36
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 19,
+          "grid_z": -2,
+          "normalize_source_tint": true,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": true,
+          "surface": "dirt_path",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "path_10"
+        }
+      },
+      "display_name": "Terrain Tile (19, -2)",
+      "enabled": true,
+      "id": "terrain-tile/x-p19/z-n2",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_encounter_grass_suppression",
+      "sibling_order": 5
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 20,
+          "grid_z": -1,
+          "normalize_source_tint": true,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": true,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (20, -1)",
+      "enabled": true,
+      "id": "terrain-tile/x-p20/z-n1",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_encounter_grass_suppression",
+      "sibling_order": 21
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 20,
+          "grid_z": -10,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (20, -10)",
+      "enabled": true,
+      "id": "terrain-tile/x-p20/z-n10",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 43
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 20,
+          "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "dirt_path",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "path_10"
+        }
+      },
+      "display_name": "Terrain Tile (20, -11)",
+      "enabled": true,
+      "id": "terrain-tile/x-p20/z-n11",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 29
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 20,
+          "grid_z": -12,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (20, -12)",
+      "enabled": true,
+      "id": "terrain-tile/x-p20/z-n12",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 37
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 20,
+          "grid_z": -2,
+          "normalize_source_tint": true,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": true,
+          "surface": "dirt_path",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "path_10"
+        }
+      },
+      "display_name": "Terrain Tile (20, -2)",
+      "enabled": true,
+      "id": "terrain-tile/x-p20/z-n2",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_encounter_grass_suppression",
+      "sibling_order": 0
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 21,
+          "grid_z": -1,
+          "normalize_source_tint": true,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": true,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (21, -1)",
+      "enabled": true,
+      "id": "terrain-tile/x-p21/z-n1",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_encounter_grass_suppression",
+      "sibling_order": 22
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 21,
+          "grid_z": -10,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (21, -10)",
+      "enabled": true,
+      "id": "terrain-tile/x-p21/z-n10",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 44
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 21,
+          "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "dirt_path",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "path_10"
+        }
+      },
+      "display_name": "Terrain Tile (21, -11)",
+      "enabled": true,
+      "id": "terrain-tile/x-p21/z-n11",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 30
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 21,
+          "grid_z": -12,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (21, -12)",
+      "enabled": true,
+      "id": "terrain-tile/x-p21/z-n12",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 38
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 21,
+          "grid_z": -2,
+          "normalize_source_tint": true,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": true,
+          "surface": "dirt_path",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "path_10"
+        }
+      },
+      "display_name": "Terrain Tile (21, -2)",
+      "enabled": true,
+      "id": "terrain-tile/x-p21/z-n2",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 1
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 22,
+          "grid_z": -1,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (22, -1)",
+      "enabled": true,
+      "id": "terrain-tile/x-p22/z-n1",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 23
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 22,
+          "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "dirt_path",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "path_10"
+        }
+      },
+      "display_name": "Terrain Tile (22, -11)",
+      "enabled": true,
+      "id": "terrain-tile/x-p22/z-n11",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 31
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 22,
+          "grid_z": -12,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (22, -12)",
+      "enabled": true,
+      "id": "terrain-tile/x-p22/z-n12",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 41
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 22,
+          "grid_z": -2,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "dirt_path",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "path_10"
+        }
+      },
+      "display_name": "Terrain Tile (22, -2)",
+      "enabled": true,
+      "id": "terrain-tile/x-p22/z-n2",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 2
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 22,
+          "grid_z": -3,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (22, -3)",
+      "enabled": true,
+      "id": "terrain-tile/x-p22/z-n3",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 13
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 22,
+          "grid_z": -4,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (22, -4)",
+      "enabled": true,
+      "id": "terrain-tile/x-p22/z-n4",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 12
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 23,
+          "grid_z": -1,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (23, -1)",
+      "enabled": true,
+      "id": "terrain-tile/x-p23/z-n1",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 24
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 23,
+          "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "dirt_path",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "path_10"
+        }
+      },
+      "display_name": "Terrain Tile (23, -11)",
+      "enabled": true,
+      "id": "terrain-tile/x-p23/z-n11",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 32
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 23,
+          "grid_z": -2,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "dirt_path",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "path_10"
+        }
+      },
+      "display_name": "Terrain Tile (23, -2)",
+      "enabled": true,
+      "id": "terrain-tile/x-p23/z-n2",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 3
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 23,
+          "grid_z": -3,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (23, -3)",
+      "enabled": true,
+      "id": "terrain-tile/x-p23/z-n3",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 16
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 23,
+          "grid_z": -4,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (23, -4)",
+      "enabled": true,
+      "id": "terrain-tile/x-p23/z-n4",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 14
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 24,
+          "grid_z": -1,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (24, -1)",
+      "enabled": true,
+      "id": "terrain-tile/x-p24/z-n1",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 25
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 24,
+          "grid_z": -11,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "dirt_path",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "path_8"
+        }
+      },
+      "display_name": "Terrain Tile (24, -11)",
+      "enabled": true,
+      "id": "terrain-tile/x-p24/z-n11",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 33
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 24,
+          "grid_z": -2,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "dirt_path",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "path_8"
+        }
+      },
+      "display_name": "Terrain Tile (24, -2)",
+      "enabled": true,
+      "id": "terrain-tile/x-p24/z-n2",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 4
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 24,
+          "grid_z": -3,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (24, -3)",
+      "enabled": true,
+      "id": "terrain-tile/x-p24/z-n3",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 17
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 24,
+          "grid_z": -4,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": false,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (24, -4)",
+      "enabled": true,
+      "id": "terrain-tile/x-p24/z-n4",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_shadow_receiver_authoring",
+      "sibling_order": 15
+    },
+    {
+      "components": {
+        "mesh_patch": {
+          "asset_path": "content/phlosion/environment/patches/route1/Route1_Entrance_Widened.phpatch"
+        },
+        "transform": {
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      },
+      "display_name": "Widened Entrance Terrain Bake",
+      "enabled": true,
+      "id": "mesh-patch/route1-entrance-widened",
+      "parent_id": "folder/environment/terrain",
+      "reason": "contiguous terrain bake from the authored widened Route 1 entrance",
+      "sibling_order": 999
+    }
+  ],
   "scene_id": "routes/route1",
-  "schema_version": 4
+  "schema_version": 8
 }

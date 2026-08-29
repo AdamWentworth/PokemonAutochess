@@ -745,6 +745,7 @@ shared_world_batches::WorldIndexedBatch makeWorldIndexedMaterialTemplate(
     out.emissiveFactorG = material.emissiveFactorG;
     out.emissiveFactorB = material.emissiveFactorB;
     out.characterInkingEnabled = material.characterInkingEnabled;
+    out.sourceMaterialIndex = material.sourceMaterialIndex;
     out.materialTimeSec = material.materialTimeSec;
     out.materialFlags = material.materialFlags;
     out.materialAtlasWidth = material.materialAtlasWidth;

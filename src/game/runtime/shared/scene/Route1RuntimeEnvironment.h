@@ -202,6 +202,13 @@ struct RuntimeStats {
     std::uint32_t terrainPatchV2InvalidBoundaryCount = 0u;
 };
 
+struct EnvironmentSourceIdentity {
+    std::string profileId;
+    std::string modelSha256;
+    std::string geometrySha256;
+    std::string coordinateSystem;
+};
+
 // A grounded gameplay actor currently travelling through the world. The
 // environment converts this world-space sample back into published source
 // space so
@@ -326,6 +333,7 @@ public:
     const std::vector<LayoutObject>& layoutObjects() const noexcept;
     const std::vector<TerrainTileState>& terrainTiles() const noexcept;
     const RuntimeStats& stats() const noexcept;
+    EnvironmentSourceIdentity sourceIdentity() const;
     bool terrainPatchV2PreviewEnabled() const noexcept;
     // Rebuilds the editor-only regional terrain replacement. The authored
     // scene and board-cell metadata are unchanged; disabling this restores
@@ -357,6 +365,15 @@ public:
     bool applyAuthoredScene(
         const engine::assets::phlosion::AuthoredSceneDocument& document,
         const engine::IAssetStore& projectStore,
+        std::string* outError = nullptr);
+    // Applies the document and the requested editor terrain-preview policy in
+    // one layout-dependent rebuild. This avoids cooking the complete authored
+    // terrain once for the production path and immediately cooking it again
+    // for Terrain Patch V2 during scene activation.
+    bool applyAuthoredScene(
+        const engine::assets::phlosion::AuthoredSceneDocument& document,
+        const engine::IAssetStore& projectStore,
+        bool terrainPatchV2PreviewEnabled,
         std::string* outError = nullptr);
     bool setLayoutObjectOverride(
         const std::string& stableId,

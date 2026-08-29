@@ -152,6 +152,10 @@ struct WorldIndexedBatch {
     float vertexColorMulB = 1.0f;
     float vertexColorMulA = 1.0f;
     std::uint8_t characterInkingEnabled = 0u;
+    // Retains the canonical source-material identity for diagnostics and
+    // source-locked environment patch baking. Derived presentation variants
+    // (for example shadowless ground) keep the same source index.
+    std::uint32_t sourceMaterialIndex = 0u;
     bool preserveSubmissionOrder = false;
     float sortDepth = 0.0f;
     float materialTimeSec = 0.0f;
