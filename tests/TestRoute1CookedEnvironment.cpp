@@ -3641,6 +3641,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     float nearestLawnOwnedTurnSampleUv2V = 0.0f;
     std::size_t cornerInnerRibbonVertexCount = 0u;
     std::size_t cornerInnerCleanDirtVertexCount = 0u;
+    std::size_t widePathDirtInteriorVertexCount = 0u;
+    std::size_t widePathLawnRibbonVertexCount = 0u;
     std::size_t roundedCornerBridgeTriangleCount = 0u;
     float maximumRoundedCornerBridgeExtentCm = 0.0f;
     std::size_t cleanWestDirtVertexCount = 0u;
@@ -3727,6 +3729,21 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     }
                     if (cleanDirtSelector) {
                         ++cornerInnerCleanDirtVertexCount;
+                    }
+                }
+                if (sourcePoint[0] >= 2220.0 &&
+                    sourcePoint[0] <= 2280.0 &&
+                    sourcePoint[2] >= -1020.0 &&
+                    sourcePoint[2] <= -1010.0 &&
+                    cleanDirtSelector) {
+                    ++widePathDirtInteriorVertexCount;
+                }
+                if (std::abs(sourcePoint[0] - 2250.0) <= 0.2) {
+                    if (std::abs(sourcePoint[2] + 970.0) <= 0.2 &&
+                        repeatDifference(
+                            vertex.sourceUv2V,
+                            0.932880402f) <= 0.003f) {
+                        ++widePathLawnRibbonVertexCount;
                     }
                 }
                 if (sourcePoint[2] <= -1065.0 ||
@@ -3850,6 +3867,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             0.947719717f) > 0.003f ||
         cornerInnerRibbonVertexCount < 3u ||
         cornerInnerCleanDirtVertexCount < 3u ||
+        widePathDirtInteriorVertexCount == 0u ||
+        widePathLawnRibbonVertexCount == 0u ||
         cleanWestDirtVertexCount < 8u ||
         westDirtContainsNonDirtSelector ||
         cleanInternalDirtEdgeVertexCount < 8u ||
@@ -3900,6 +3919,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             "; corner-inner-ribbon/clean-vertices=" +
             std::to_string(cornerInnerRibbonVertexCount) + "/" +
             std::to_string(cornerInnerCleanDirtVertexCount) +
+            "; wide-path-dirt/lawn=" +
+            std::to_string(widePathDirtInteriorVertexCount) + "/" +
+            std::to_string(widePathLawnRibbonVertexCount) +
             "; rounded-corner-bridge-triangles=" +
             std::to_string(roundedCornerBridgeTriangleCount) +
             ",extent=" +

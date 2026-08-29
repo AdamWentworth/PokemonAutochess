@@ -11081,6 +11081,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
         std::uint32_t dirtConnectionMask = 0u;
         std::uint32_t sourceOwnedDirtBoundaryMask = 0u;
         std::uint32_t sourceAlignedDirtBoundaryMask = 0u;
+        std::uint32_t lawnOwnedDirtBoundaryMask = 0u;
         DirtTransitionUvField transitionUv;
     };
     std::vector<SurfaceTile> surfaceTiles;
@@ -11245,6 +11246,32 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 manualConnectionMask)) {
             dirtConnectionMask = manualConnectionMask;
         }
+        // A manually-authored east/west corridor uses one stable wide-path
+        // profile across its complete run. Route 1's retained source already
+        // places the south ribbon on the lawn carrier; continue that same
+        // ownership through newly-authored cells so the path does not pinch
+        // from roughly 70 cm to 40 cm immediately after a bend.
+        std::uint32_t lawnOwnedDirtBoundaryMask =
+            sourceAlignedDirtBoundaryMask;
+        constexpr std::uint32_t kEastWestConnectionMask =
+            (1u << 1u) | (1u << 3u);
+        if (tile.surface == "dirt_path" &&
+            manualConnectionMask == kEastWestConnectionMask) {
+            constexpr std::size_t kSouthEdge = 0u;
+            const auto direction = directions[kSouthEdge];
+            const auto* neighbor = findTile(
+                tile.gridX + direction[0],
+                tile.gridZ + direction[1]);
+            const auto sharedEdgeProfile =
+                route1TerrainSharedEdgeProfile(
+                    tile, neighbor, kSouthEdge);
+            if (neighbor && hasSurface(*neighbor) &&
+                neighbor->surface.ends_with("lawn") &&
+                sharedEdgeProfile.tileLevels ==
+                    sharedEdgeProfile.neighborLevels) {
+                lawnOwnedDirtBoundaryMask |= 1u << kSouthEdge;
+            }
+        }
         surfaceTiles.push_back(
             SurfaceTile{
                 .tile = std::move(tile),
@@ -11252,7 +11279,9 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 .sourceOwnedDirtBoundaryMask =
                     sourceOwnedDirtBoundaryMask,
                 .sourceAlignedDirtBoundaryMask =
-                    sourceAlignedDirtBoundaryMask});
+                    sourceAlignedDirtBoundaryMask,
+                .lawnOwnedDirtBoundaryMask =
+                    lawnOwnedDirtBoundaryMask});
     }
 
     // Build the missing-side edges into deterministic clockwise contours.
@@ -11279,16 +11308,16 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
         }
         surfaceTile.transitionUv.boundaryMask =
             ((~surfaceTile.dirtConnectionMask) & 0x0fu) &
-            ~surfaceTile.sourceAlignedDirtBoundaryMask;
+            ~surfaceTile.lawnOwnedDirtBoundaryMask;
         surfaceTile.transitionUv.lawnOwnedBoundaryMask =
-            surfaceTile.sourceAlignedDirtBoundaryMask;
+            surfaceTile.lawnOwnedDirtBoundaryMask;
         // A retained source boundary can be visually owned by the lawn side,
         // but it still participates in the shared contour. That lets the
         // lawn continuation inherit the exact phase of the source edge below
         // while the dirt carrier remains clean up to the logical boundary.
         const std::uint32_t contourBoundaryMask =
             surfaceTile.transitionUv.boundaryMask |
-            surfaceTile.sourceAlignedDirtBoundaryMask;
+            surfaceTile.lawnOwnedDirtBoundaryMask;
         const std::int32_t x0 = surfaceTile.tile.gridX;
         const std::int32_t x1 = x0 + 1;
         const std::int32_t z0 = surfaceTile.tile.gridZ;
@@ -11623,7 +11652,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
             const std::size_t opposingEdge = (edge + 2u) % 4u;
             const std::uint32_t dirtContourMask =
                 dirtSurface->transitionUv.boundaryMask |
-                dirtSurface->sourceAlignedDirtBoundaryMask;
+                dirtSurface->lawnOwnedDirtBoundaryMask;
             if ((dirtContourMask & (1u << opposingEdge)) == 0u) {
                 continue;
             }
@@ -11631,7 +11660,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 dirtSurface->transitionUv.edgeUPerCm[opposingEdge] *
                 kTerrainTileSizeCm;
             lawnSurface.transitionUv.boundaryMask |= 1u << edge;
-            if ((dirtSurface->sourceAlignedDirtBoundaryMask &
+            if ((dirtSurface->lawnOwnedDirtBoundaryMask &
                  (1u << opposingEdge)) != 0u) {
                 lawnSurface.transitionUv.lawnOwnedBoundaryMask |=
                     1u << edge;
