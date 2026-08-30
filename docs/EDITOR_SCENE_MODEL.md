@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-08-21
+Last updated: 2026-08-30
 
 ## Semantic model
 
@@ -18,8 +18,8 @@ Frontend runtime state
 `-- Starter Selection
 
 Game scenes
-|-- Route 1 --------.
-|-- Route 1.5 ------+--> Route 1 Environment (shared cooked backdrop)
+|-- Route 1 - South Entrance --.
+|-- Route 1 - North Clearing --+--> Route 1 Environment (shared cooked backdrop)
 |-- Route 22 ----------> Route 22 Foothills (runtime-generated backdrop)
 |-- Route 2 -----------> Route 2 Forest Edge (runtime-generated backdrop)
 |-- Viridian Forest ---> Viridian Forest (runtime-generated backdrop)
@@ -40,9 +40,9 @@ presentation scene assets, but the state itself is not a route game scene.
 A **game scene** is a playable location/state container. It references an
 environment backdrop and may also identify a route runtime script. The
 environment is a separate reusable asset, so multiple game scenes may share
-one backdrop without becoming the same scene. Route 1 and Route 1.5 are the
-important current example: they remain separate game scenes while both
-reference the cooked Route 1 environment.
+one backdrop without becoming the same scene. Route 1 - South Entrance and
+Route 1 - North Clearing are the important current example: they remain
+separate game scenes while both reference the cooked Route 1 environment.
 
 Route 1 is currently the only source-faithful cooked environment `.phscene`.
 Route 22, Route 2, Viridian Forest, and Route 3 remain important game scenes
@@ -85,8 +85,8 @@ environment assets.
   Scene` creates a project-owned instance through the normal undo/autosave
   transaction.
 - **Scene** in the central Viewport is the frozen/editor-camera view of the
-  active scene's inspectable environment dependency. Route 1 and Route 1.5
-  therefore show the same Route 1 backdrop. A runtime-generated environment
+  active scene's inspectable environment dependency. Both current Route 1
+  locations therefore show the same Route 1 backdrop. A runtime-generated environment
   stays blank here until it gains a cooked Scene-view adapter.
 - **Game** in the central Viewport is the real game renderer and state.
 - **Game Preview** selects a named state in the embedded runtime. Route
@@ -130,9 +130,9 @@ Board cells are therefore owned Route 1 terrain cells, not a second grid that
 is merely snapped nearby. The board, both benches, gameplay unit placement,
 clearing footprint, and editor overlays all consume that registration. The two
 bench rows are derived as explicit one-tile-deep cell ranges and use an integer
-gap. Both promoted layouts use zero gap. **Route 1 - Source Baseline** proposes cells
+gap. Both promoted layouts use zero gap. **Route 1 - South Entrance** owns cells
 `x=17..24, z=-10..-3`, with benches at `z=-2` and `z=-11`.
-**Route 1.5 - North Clearing** owns cells `x=17..24, z=-19..-12`, with benches
+**Route 1 - North Clearing** owns cells `x=17..24, z=-19..-12`, with benches
 at `z=-11` and `z=-20`. The Inspector reports the board, north-bench, and
 south-bench ranges separately. In terrain-tile mode the editor outlines exact
 board-owned terrain quads in orange and exact bench-owned quads in blue, using
@@ -498,8 +498,9 @@ multi-tier selections coherent. Both paste modes validate every target against
 Route bounds before saving and enter undo/redo history as one atomic scene edit.
 
 Each operation is atomically saved to the active scene's authored document and
-is undoable as one command. Route 1 writes `scenes/route1.scene.json`; Route 1.5
-writes `scenes/route1_5.scene.json`. Board movement likewise writes only the
+is undoable as one command. Route 1 - South Entrance writes
+`scenes/route1.scene.json`; Route 1 - North Clearing writes
+`scenes/route1_5.scene.json`. Board movement likewise writes only the
 active scene's board-layout manifest. Authored cells mask their corresponding
 immutable source triangles, then derive top/ramp geometry and exposed ledge
 walls from neighbor elevations. **Restore Source** removes authored tile nodes
@@ -520,12 +521,14 @@ ledge is edited.
 ## Route 1 environment variants
 
 The cooked `environments/route1` asset remains the immutable LGPE-derived
-source environment. `scenes/route1.scene.json` deliberately contains no
-authored nodes: it is an editable, source-identical starting point for the
-first encounter at the southern board registration. The previously polished
-board is pinned as Route 1.5 in `scenes/route1_5.scene.json`; neither scene can
-overwrite the other's board registration or authored terrain. Any future Route
-1 edits remain project-owned overrides on top of the shared source.
+source environment. The finished **Route 1 - South Entrance** location is
+pinned in `scenes/route1.scene.json` at the southern board registration. The
+independent **Route 1 - North Clearing** location remains in
+`scenes/route1_5.scene.json`; neither scene can overwrite the other's board
+registration or authored terrain. The legacy `route1-5` internal identifier is
+retained for script and save compatibility and is not its player-facing name.
+Any future Route 1 edits remain project-owned overrides on top of the shared
+source.
 The editor also exposes **Route 1 - Published Environment** through
 `scenes/route1.reference.scene.json`. That authored document intentionally
 contains no overrides, so opening it always presents the untouched cooked

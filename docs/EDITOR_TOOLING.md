@@ -76,12 +76,12 @@ their Route 1 logic, undo transaction, save, and status message.
 ## Persistence
 
 - `scenes/route1.scene.json` and
-  `config/environment/route1_board_layout.json` own the Route 1 source
-  baseline and its proposed entry-board registration. The authored scene
-  starts with zero overrides so customization begins from the imported route.
+  `config/environment/route1_board_layout.json` own the finished
+  **Route 1 - South Entrance** location and its entry-board registration.
 - `scenes/route1_5.scene.json` and
   `config/environment/route1_5_board_layout.json` independently own the pinned
-  Route 1.5 board.
+  **Route 1 - North Clearing** board. The `route1_5` filename is a stable legacy
+  implementation identifier, not the editor-facing location name.
 - `config/editor/game_preview_layouts.json` stores per-preview Pokemon starting
   position and rotation overrides.
 - Cooked/private source assets remain outside Git according to the project

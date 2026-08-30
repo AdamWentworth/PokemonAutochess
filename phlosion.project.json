@@ -56,7 +56,7 @@
     },
     {
       "scene_id": "routes/route1",
-      "display_name": "Route 1 - Source Baseline",
+      "display_name": "Route 1 - South Entrance",
       "category": "Routes",
       "environment_asset_id": "environments/route1",
       "authored_scene_path": "scenes/route1.scene.json",
@@ -64,7 +64,7 @@
     },
     {
       "scene_id": "routes/route1-5",
-      "display_name": "Route 1.5 - North Clearing",
+      "display_name": "Route 1 - North Clearing",
       "category": "Routes",
       "environment_asset_id": "environments/route1",
       "authored_scene_path": "scenes/route1_5.scene.json",
