@@ -16784,6 +16784,44 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             {0, -1},
             {-1, 0},
         }};
+    // Source grass/soil ribbons belong to both sides of their material
+    // boundary. A source-identical lawn cell can therefore still carry a
+    // stale rising grass card when its neighboring dirt cell is authored as
+    // lawn. Treat a changed material pairing symmetrically: clean the old
+    // fringe carriers from both cells while leaving the unchanged cell's
+    // canonical ground triangles intact.
+    for (const auto& tile : terrainTiles) {
+        const GridCell cell{tile.gridX, tile.gridZ};
+        const auto* sourceTile = findSourceTerrainTile(cell);
+        if (!sourceTile) {
+            continue;
+        }
+        // East and north cover every undirected boundary once.
+        for (std::size_t edge = 0u; edge < 2u; ++edge) {
+            const auto& direction = directions[edge];
+            const GridCell neighborCell{
+                cell.first + direction[0],
+                cell.second + direction[1]};
+            const auto* neighbor = findTerrainTile(neighborCell);
+            const auto* sourceNeighbor =
+                findSourceTerrainTile(neighborCell);
+            if (!neighbor || !sourceNeighbor) {
+                continue;
+            }
+            const bool activeMaterialBoundary =
+                tile.surface != neighbor->surface;
+            const bool sourceMaterialBoundary =
+                sourceTile->surface != sourceNeighbor->surface;
+            const bool endpointMaterialChanged =
+                tile.surface != sourceTile->surface ||
+                neighbor->surface != sourceNeighbor->surface;
+            if (endpointMaterialChanged &&
+                (activeMaterialBoundary || sourceMaterialBoundary)) {
+                nextCleanupCells.emplace(cell);
+                nextCleanupCells.emplace(neighborCell);
+            }
+        }
+    }
     for (const auto& cell : exactSourceReferenceCells) {
         const auto* tile = findTerrainTile(cell);
         if (!tile || tile->surface == "empty") {

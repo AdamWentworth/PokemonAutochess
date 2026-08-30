@@ -914,8 +914,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 if (!valid) {
                     continue;
                 }
-                for (std::int32_t gridX = 17;
-                     gridX <= 21;
+                for (std::int32_t gridX = 16;
+                     gridX <= 22;
                      ++gridX) {
                     if (game::runtime::route1_environment::
                             route1TerrainCleanupCarrierIntersectsCellFootprint(
@@ -943,7 +943,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     }
     if (staleLedgeCleanupOverlay) {
         outFail =
-            "Broad LGPE cleanup overlays must not survive across the rebuilt light-lawn cells below the Route 1 ramp ledge; they stretch grass vertically over the canonical wall.";
+            "Broad LGPE cleanup overlays must not survive across either side of the rebuilt light-lawn material field below the Route 1 ramp ledge; the old lawn/dirt boundary stretches grass vertically over the canonical wall.";
         return false;
     }
     std::vector<std::array<float, 3>> formerLedgeUv2Samples;
