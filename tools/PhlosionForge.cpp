@@ -1794,13 +1794,17 @@ bool validateRoute1LayoutPrefabCoverage(
     std::size_t importedCount = 0u;
     std::size_t terrainCount = 0u;
     std::size_t boardGroundPrototypeCount = 0u;
+    std::size_t environmentMeshPatchCount = 0u;
     for (const auto& object : environment.layoutObjects()) {
+        const bool environmentMeshPatch =
+            object.targetKind == "environment_mesh_patch";
         if (!stableIds.insert(object.stableId).second ||
             object.prefabAssetId.empty() ||
-            !prefabIds.contains(object.prefabAssetId)) {
+            (!environmentMeshPatch &&
+             !prefabIds.contains(object.prefabAssetId))) {
             outError =
                 "Route 1 editable object does not have one valid source-bound PHLO prefab: " +
-                object.stableId;
+                    object.stableId;
             return false;
         }
         for (std::size_t axis = 0u; axis < 3u; ++axis) {
@@ -1813,6 +1817,16 @@ bool validateRoute1LayoutPrefabCoverage(
                     object.stableId;
                 return false;
             }
+        }
+        if (environmentMeshPatch) {
+            if (!object.authored ||
+                !object.prefabAssetId.ends_with(".phpatch")) {
+                outError =
+                    "Route 1 environment mesh patch does not reference one authored PHLP package: " +
+                    object.stableId;
+                return false;
+            }
+            ++environmentMeshPatchCount;
         }
         if (!object.authored) {
             ++importedCount;
@@ -1834,12 +1848,14 @@ bool validateRoute1LayoutPrefabCoverage(
         }
     }
     if (importedCount != 156u || terrainCount != 23u ||
-        boardGroundPrototypeCount != 1u) {
+        boardGroundPrototypeCount != 1u ||
+        environmentMeshPatchCount != 1u) {
         outError =
-            "Route 1 editable source inventory changed: expected 156 imported objects, 23 terrain assemblies, and one hidden board-ground prototype, found " +
+            "Route 1 editable source inventory changed: expected 156 imported objects, 23 terrain assemblies, one hidden board-ground prototype, and one authored environment mesh patch, found " +
             std::to_string(importedCount) + " and " +
             std::to_string(terrainCount) + " and " +
-            std::to_string(boardGroundPrototypeCount) + ".";
+            std::to_string(boardGroundPrototypeCount) + " and " +
+            std::to_string(environmentMeshPatchCount) + ".";
         return false;
     }
 
@@ -2131,6 +2147,7 @@ bool snapshotCookedRoute1(
                 &outError) ||
         !environment.applyAuthoredScene(
             authoredScene,
+            root,
             &outError) ||
         !validateRoute1LayoutPrefabCoverage(
             environment,

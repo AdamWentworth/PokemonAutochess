@@ -176,28 +176,6 @@
     {
       "components": {
         "terrain_tile": {
-          "elevation_level": 1,
-          "grid_x": 16,
-          "grid_z": -12,
-          "normalize_source_tint": false,
-          "receives_projected_shadow": true,
-          "shape": "flat",
-          "suppress_overlapping_vegetation": false,
-          "surface": "light_lawn",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (16, -12)",
-      "enabled": true,
-      "id": "terrain-tile/x-p16/z-n12",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 42
-    },
-    {
-      "components": {
-        "terrain_tile": {
           "elevation_level": 0,
           "grid_x": 17,
           "grid_z": -1,
@@ -216,28 +194,6 @@
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_shadow_receiver_authoring",
       "sibling_order": 18
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 1,
-          "grid_x": 17,
-          "grid_z": -12,
-          "normalize_source_tint": false,
-          "receives_projected_shadow": true,
-          "shape": "flat",
-          "suppress_overlapping_vegetation": false,
-          "surface": "light_lawn",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (17, -12)",
-      "enabled": true,
-      "id": "terrain-tile/x-p17/z-n12",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 26
     },
     {
       "components": {
@@ -326,28 +282,6 @@
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_shadow_receiver_authoring",
       "sibling_order": 19
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 1,
-          "grid_x": 18,
-          "grid_z": -12,
-          "normalize_source_tint": false,
-          "receives_projected_shadow": true,
-          "shape": "flat",
-          "suppress_overlapping_vegetation": false,
-          "surface": "light_lawn",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (18, -12)",
-      "enabled": true,
-      "id": "terrain-tile/x-p18/z-n12",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 35
     },
     {
       "components": {
@@ -462,28 +396,6 @@
     {
       "components": {
         "terrain_tile": {
-          "elevation_level": 1,
-          "grid_x": 19,
-          "grid_z": -12,
-          "normalize_source_tint": false,
-          "receives_projected_shadow": true,
-          "shape": "flat",
-          "suppress_overlapping_vegetation": false,
-          "surface": "light_lawn",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (19, -12)",
-      "enabled": true,
-      "id": "terrain-tile/x-p19/z-n12",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 36
-    },
-    {
-      "components": {
-        "terrain_tile": {
           "elevation_level": 0,
           "grid_x": 19,
           "grid_z": -2,
@@ -568,28 +480,6 @@
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
       "sibling_order": 29
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 1,
-          "grid_x": 20,
-          "grid_z": -12,
-          "normalize_source_tint": false,
-          "receives_projected_shadow": true,
-          "shape": "flat",
-          "suppress_overlapping_vegetation": false,
-          "surface": "light_lawn",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (20, -12)",
-      "enabled": true,
-      "id": "terrain-tile/x-p20/z-n12",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 37
     },
     {
       "components": {
@@ -682,28 +572,6 @@
     {
       "components": {
         "terrain_tile": {
-          "elevation_level": 1,
-          "grid_x": 21,
-          "grid_z": -12,
-          "normalize_source_tint": false,
-          "receives_projected_shadow": true,
-          "shape": "flat",
-          "suppress_overlapping_vegetation": false,
-          "surface": "light_lawn",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (21, -12)",
-      "enabled": true,
-      "id": "terrain-tile/x-p21/z-n12",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 38
-    },
-    {
-      "components": {
-        "terrain_tile": {
           "elevation_level": 0,
           "grid_x": 21,
           "grid_z": -2,
@@ -766,28 +634,6 @@
       "parent_id": "folder/environment/terrain/tiles",
       "reason": "terrain_tile_authoring",
       "sibling_order": 31
-    },
-    {
-      "components": {
-        "terrain_tile": {
-          "elevation_level": 1,
-          "grid_x": 22,
-          "grid_z": -12,
-          "normalize_source_tint": false,
-          "receives_projected_shadow": true,
-          "shape": "flat",
-          "suppress_overlapping_vegetation": false,
-          "surface": "light_lawn",
-          "tile_set_asset_id": "route1/terrain_tileset",
-          "visual_variant": "auto"
-        }
-      },
-      "display_name": "Terrain Tile (22, -12)",
-      "enabled": true,
-      "id": "terrain-tile/x-p22/z-n12",
-      "parent_id": "folder/environment/terrain/tiles",
-      "reason": "terrain_tile_authoring",
-      "sibling_order": 41
     },
     {
       "components": {
