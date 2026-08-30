@@ -11255,8 +11255,13 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
             sourceAlignedDirtBoundaryMask;
         constexpr std::uint32_t kEastWestConnectionMask =
             (1u << 1u) | (1u << 3u);
+        constexpr std::uint32_t kNorthSouthConnectionMask =
+            (1u << 0u) | (1u << 2u);
+        const bool horizontalCorridorPiece =
+            (manualConnectionMask & kEastWestConnectionMask) != 0u &&
+            (manualConnectionMask & kNorthSouthConnectionMask) == 0u;
         if (tile.surface == "dirt_path" &&
-            manualConnectionMask == kEastWestConnectionMask) {
+            horizontalCorridorPiece) {
             constexpr std::size_t kSouthEdge = 0u;
             const auto direction = directions[kSouthEdge];
             const auto* neighbor = findTile(

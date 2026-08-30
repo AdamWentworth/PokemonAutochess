@@ -3158,6 +3158,28 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     benchDirt.reason = "terrain_bench_corner_source_handoff_regression";
     benchCornerLayout.authoredTerrainTiles.push_back(
         std::move(benchDirt));
+    std::erase_if(
+        benchCornerLayout.authoredTerrainTiles,
+        [](const route1::AuthoredTerrainTile& tile) {
+            return tile.gridX >= 22 && tile.gridX <= 24 &&
+                (tile.gridZ == -11 || tile.gridZ == -10);
+        });
+    for (std::int32_t gridX = 22; gridX <= 24; ++gridX) {
+        auto lawn = authoredTileFromSource(
+            gridX, -10, 1, "light_lawn", "auto");
+        lawn.reason = "terrain_wide_path_end_cap_regression";
+        benchCornerLayout.authoredTerrainTiles.push_back(
+            std::move(lawn));
+        auto dirt = authoredTileFromSource(
+            gridX,
+            -11,
+            1,
+            "dirt_path",
+            gridX == 24 ? "path_8" : "path_10");
+        dirt.reason = "terrain_wide_path_end_cap_regression";
+        benchCornerLayout.authoredTerrainTiles.push_back(
+            std::move(dirt));
+    }
     if (!environment.applyBoardLayout(benchCornerLayout, &error) ||
         !environment.setTerrainPatchV2PreviewEnabled(true, &error)) {
         outFail =
@@ -3643,6 +3665,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     std::size_t cornerInnerCleanDirtVertexCount = 0u;
     std::size_t widePathDirtInteriorVertexCount = 0u;
     std::size_t widePathLawnRibbonVertexCount = 0u;
+    std::size_t widePathEndCapDirtInteriorVertexCount = 0u;
+    std::size_t widePathEndCapLawnRibbonVertexCount = 0u;
     std::size_t roundedCornerBridgeTriangleCount = 0u;
     float maximumRoundedCornerBridgeExtentCm = 0.0f;
     std::size_t cleanWestDirtVertexCount = 0u;
@@ -3745,6 +3769,20 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                             0.932880402f) <= 0.003f) {
                         ++widePathLawnRibbonVertexCount;
                     }
+                }
+                if (sourcePoint[0] >= 2420.0 &&
+                    sourcePoint[0] <= 2480.0 &&
+                    sourcePoint[2] >= -1020.0 &&
+                    sourcePoint[2] <= -1010.0 &&
+                    cleanDirtSelector) {
+                    ++widePathEndCapDirtInteriorVertexCount;
+                }
+                if (std::abs(sourcePoint[0] - 2450.0) <= 0.2 &&
+                    std::abs(sourcePoint[2] + 970.0) <= 0.2 &&
+                    repeatDifference(
+                        vertex.sourceUv2V,
+                        0.932880402f) <= 0.003f) {
+                    ++widePathEndCapLawnRibbonVertexCount;
                 }
                 if (sourcePoint[2] <= -1065.0 ||
                     sourcePoint[2] >= -1005.0) {
@@ -3869,6 +3907,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         cornerInnerCleanDirtVertexCount < 3u ||
         widePathDirtInteriorVertexCount == 0u ||
         widePathLawnRibbonVertexCount == 0u ||
+        widePathEndCapDirtInteriorVertexCount == 0u ||
+        widePathEndCapLawnRibbonVertexCount == 0u ||
         cleanWestDirtVertexCount < 8u ||
         westDirtContainsNonDirtSelector ||
         cleanInternalDirtEdgeVertexCount < 8u ||
@@ -3922,6 +3962,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             "; wide-path-dirt/lawn=" +
             std::to_string(widePathDirtInteriorVertexCount) + "/" +
             std::to_string(widePathLawnRibbonVertexCount) +
+            "; wide-path-end-cap-dirt/lawn=" +
+            std::to_string(widePathEndCapDirtInteriorVertexCount) + "/" +
+            std::to_string(widePathEndCapLawnRibbonVertexCount) +
             "; rounded-corner-bridge-triangles=" +
             std::to_string(roundedCornerBridgeTriangleCount) +
             ",extent=" +
