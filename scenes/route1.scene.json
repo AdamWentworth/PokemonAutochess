@@ -1468,6 +1468,36 @@
       "parent_id": "folder/environment/terrain",
       "reason": "contiguous terrain bake from the authored widened Route 1 entrance",
       "sibling_order": 999
+    },
+    {
+      "components": {
+        "mesh_patch": {
+          "asset_path": "config/environment/patches/route1_entrance_corner_seals.phpatch"
+        },
+        "transform": {
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "scale": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "translation": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      },
+      "display_name": "Route 1 Entrance Corner Grass Seals",
+      "enabled": true,
+      "id": "mesh-patch/route1-entrance-corner-grass-seals",
+      "parent_id": "folder/environment/terrain",
+      "reason": "seal the two enclosed top-lawn holes at 16,-4 and 25,-4 without changing the approved entrance bake",
+      "sibling_order": 1000
     }
   ],
   "scene_id": "routes/route1",

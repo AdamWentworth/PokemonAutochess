@@ -1,4 +1,5 @@
 #include "game/assets/environment/PublishedEnvironmentScene.h"
+#include "engine/assets/phlosion/PhlosionEnvironmentPatch.h"
 #include "engine/assets/phlosion/PhlosionResourceContainer.h"
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
 #include "game/assets/DevAssetStore.h"
@@ -212,6 +213,75 @@ bool writeJson(
         path,
         std::vector<std::uint8_t>(text.begin(), text.end()),
         outError);
+}
+
+bool compileEnvironmentPatch(
+    const fs::path& sourcePath,
+    const fs::path& outputPath,
+    std::string& outError) {
+    if (outputPath.extension() != ".phpatch") {
+        outError =
+            "Compiled environment patches must use the .phpatch extension.";
+        return false;
+    }
+    std::vector<std::uint8_t> sourceBytes;
+    if (!readFile(sourcePath, sourceBytes, outError)) {
+        return false;
+    }
+    engine::assets::phlosion::EnvironmentPatchDocument document;
+    if (!engine::assets::phlosion::parseEnvironmentPatchDocument(
+            std::string(
+                reinterpret_cast<const char*>(sourceBytes.data()),
+                sourceBytes.size()),
+            document,
+            &outError)) {
+        outError =
+            "Could not decode environment patch source " +
+            sourcePath.string() + ": " + outError;
+        return false;
+    }
+    std::vector<std::uint8_t> binary;
+    try {
+        binary =
+            engine::assets::phlosion::serializeEnvironmentPatchBinary(
+                document);
+    } catch (const std::exception& exception) {
+        outError =
+            "Could not compile environment patch " +
+            sourcePath.string() + ": " + exception.what();
+        return false;
+    }
+    engine::assets::phlosion::EnvironmentPatchDocument verification;
+    if (!engine::assets::phlosion::parseEnvironmentPatchBinary(
+            binary, verification, &outError)) {
+        outError =
+            "Could not verify compiled environment patch " +
+            outputPath.string() + ": " + outError;
+        return false;
+    }
+    if (verification.meshes.size() != document.meshes.size() ||
+        verification.terrainReplacement.has_value() !=
+            document.terrainReplacement.has_value()) {
+        outError =
+            "Compiled environment patch verification changed the document structure.";
+        return false;
+    }
+    if (!writeFile(outputPath, binary, outError)) {
+        return false;
+    }
+    std::size_t triangleCount = 0u;
+    for (const auto& mesh : verification.meshes) {
+        for (const auto& group : mesh.materialGroups) {
+            triangleCount += group.indices.size() / 3u;
+        }
+    }
+    std::cout
+        << "[Phlosion Forge] Compiled environment patch "
+        << sourcePath.string() << " -> " << outputPath.string()
+        << " (meshes=" << verification.meshes.size()
+        << ", triangles=" << triangleCount
+        << ", bytes=" << binary.size() << ").\n";
+    return true;
 }
 
 bool configuredPokemonModels(
@@ -1847,11 +1917,21 @@ bool validateRoute1LayoutPrefabCoverage(
             }
         }
     }
+    const std::size_t expectedEnvironmentMeshPatchCount =
+        static_cast<std::size_t>(std::count_if(
+            environment.authoredScene().nodes.begin(),
+            environment.authoredScene().nodes.end(),
+            [](const auto& node) {
+                return node.enabled && node.meshPatch.has_value();
+            }));
     if (importedCount != 156u || terrainCount != 23u ||
         boardGroundPrototypeCount != 1u ||
-        environmentMeshPatchCount != 1u) {
+        environmentMeshPatchCount !=
+            expectedEnvironmentMeshPatchCount) {
         outError =
-            "Route 1 editable source inventory changed: expected 156 imported objects, 23 terrain assemblies, one hidden board-ground prototype, and one authored environment mesh patch, found " +
+            "Route 1 editable source inventory changed: expected 156 imported objects, 23 terrain assemblies, one hidden board-ground prototype, and " +
+            std::to_string(expectedEnvironmentMeshPatchCount) +
+            " enabled authored environment mesh patches, found " +
             std::to_string(importedCount) + " and " +
             std::to_string(terrainCount) + " and " +
             std::to_string(boardGroundPrototypeCount) + " and " +
@@ -2029,6 +2109,7 @@ bool cookRoute1(
                 &outError) ||
         !environment.applyAuthoredScene(
             authoredScene,
+            root,
             &outError)) {
         outError =
             "Route 1 project composition validation failed: " +
@@ -2294,6 +2375,7 @@ bool validateAll(
                 &outError) ||
         !environment.applyAuthoredScene(
             authoredScene,
+            root,
             &outError)) {
         return false;
     }
@@ -2332,9 +2414,11 @@ bool validateAll(
             }) ||
         !environment.applyAuthoredScene(
             editedRoundTrip,
+            root,
             &outError) ||
         !environment.applyAuthoredScene(
             authoredScene,
+            root,
             &outError)) {
         outError =
             "Authored-scene deterministic edit round trip failed: " +
@@ -2688,6 +2772,7 @@ void usage() {
         << "       PhlosionForge inspect-model-materials <source-model>\n"
         << "       PhlosionForge inspect-route1-source-tile <x> <z>\n"
         << "       PhlosionForge inspect-route1-source-junction <x> <z> <output.json>\n"
+        << "       PhlosionForge compile-environment-patch <source.patch.json> <output.phpatch>\n"
         << "       PhlosionForge refresh-route1-manifest\n"
         << "       PhlosionForge author-route1-board <scene-id> <board-layout.json> <scene.json> [--replace]\n";
 }
@@ -2695,6 +2780,18 @@ void usage() {
 } // namespace
 
 int main(int argc, char** argv) {
+    if (argc == 4 &&
+        std::string_view(argv[1]) ==
+            "compile-environment-patch") {
+        std::string error;
+        if (!compileEnvironmentPatch(argv[2], argv[3], error)) {
+            std::cerr
+                << "[Phlosion Forge] ERROR: "
+                << error << "\n";
+            return 1;
+        }
+        return 0;
+    }
     if ((argc == 5 || argc == 6) &&
         std::string_view(argv[1]) == "author-route1-board") {
         const bool replaceExisting =
