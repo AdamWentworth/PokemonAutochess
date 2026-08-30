@@ -1401,11 +1401,12 @@ constexpr float kTerrainLedgeFootSafetyOverlapCm = 1.50f;
 // No additional outer-row tuck is needed: the 1.50 cm horizontal underlap
 // joins the alpha-tested foot while keeping the whole lawn carrier planar.
 constexpr float kTerrainLedgeContactTuckCm = 0.0f;
-// Material 18's cliff-foot foliage uses the same recovered dark-green Color0
-// control as raised lawn. Fade the adjoining light-lawn control across three
-// five-centimetre rows so its brighter material-19 field does not begin as a
-// hard line immediately after the alpha-tested leaves.
-constexpr float kTerrainLedgeFootColorBlendCm = 15.0f;
+// Material 18's cliff-foot foliage uses the recovered dark-green Color0
+// control. Match that control only on the lawn's contact row, then return to
+// the authored light-lawn field at the next five-centimetre lattice row. A
+// broader fade reads as a raised dark shelf and turns into a triangular wedge
+// where a ledge run ends.
+constexpr float kTerrainLedgeFootColorBlendCm = 5.0f;
 // A source-style dark-lawn plateau keeps one constant UV2 selector and
 // dark-green Color0 all the way across its cap. Light-lawn ledges keep their
 // independently resolved lawn fields; crown geometry must not silently change

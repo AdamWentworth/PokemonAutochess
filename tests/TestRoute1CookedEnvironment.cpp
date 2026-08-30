@@ -812,6 +812,20 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 std::move(eastOrdinaryTile));
         }
     }
+    std::erase_if(
+        loweredLawnLayout.authoredTerrainTiles,
+        [](const route1::AuthoredTerrainTile& tile) {
+            return tile.gridX >= 16 && tile.gridX <= 21 &&
+                tile.gridZ == -12;
+        });
+    for (std::int32_t gridX = 16; gridX <= 21; ++gridX) {
+        auto ledgeBaseLawn = authoredTileFromSource(
+            gridX, -12, 1, "light_lawn", "auto");
+        ledgeBaseLawn.reason =
+            "terrain_flat_light_lawn_ledge_base_regression";
+        loweredLawnLayout.authoredTerrainTiles.push_back(
+            std::move(ledgeBaseLawn));
+    }
     if (!environment.applyBoardLayout(loweredLawnLayout, &error)) {
         outFail =
             "A lowered source light-lawn cell beside an authored dirt path was rejected: " +
@@ -906,6 +920,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundFringeCrownSourcePlane = false;
     bool foundLowerLawnLedgeOverlap = false;
     bool foundLowerLawnFootColorBlend = false;
+    bool foundFlatLightLawnLedgeBase = false;
+    bool foundNormalLightLawnOneRowFromLedge = false;
+    bool flatLightLawnLedgeBaseRemainsPlanar = true;
     bool foundDirtLawnFootColorBlend = false;
     bool foundDirtFootCoreColor = false;
     bool foundLowerLawnTerminalEdgeFill = false;
@@ -1773,6 +1790,20 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                  std::abs(vertex.r - 0.180392161f) <= 0.001f &&
                  std::abs(vertex.g - 0.482352942f) <= 0.001f &&
                  std::abs(vertex.b - 0.431372553f) <= 0.001f);
+            if (vertex.x >= 1600.0f && vertex.x <= 2200.0f &&
+                vertex.z >= -1200.01f && vertex.z <= -1099.99f) {
+                foundFlatLightLawnLedgeBase = true;
+                flatLightLawnLedgeBaseRemainsPlanar =
+                    flatLightLawnLedgeBaseRemainsPlanar &&
+                    std::abs(vertex.y - 50.02f) <= 0.01f;
+                if (vertex.z >= -1195.01f &&
+                    vertex.z <= -1194.99f &&
+                    vertex.r >= 0.60f &&
+                    vertex.g >= 0.72f &&
+                    vertex.b >= 0.60f) {
+                    foundNormalLightLawnOneRowFromLedge = true;
+                }
+            }
             foundDirtLawnFootColorBlend =
                 foundDirtLawnFootColorBlend ||
                 (vertex.x >= 2503.49f && vertex.x <= 2503.51f &&
@@ -2023,6 +2054,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     }
     if (!foundLowerLawnLedgeOverlap ||
         !foundLowerLawnFootColorBlend ||
+        !foundFlatLightLawnLedgeBase ||
+        !foundNormalLightLawnOneRowFromLedge ||
+        !flatLightLawnLedgeBaseRemainsPlanar ||
         !foundDirtLawnFootColorBlend ||
         !foundDirtFootCoreColor ||
         !foundLowerLawnTerminalEdgeFill) {
@@ -2031,6 +2065,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundLowerLawnLedgeOverlap) +
             ", color=" +
             std::to_string(foundLowerLawnFootColorBlend) +
+            ", flat-light-lawn-base=" +
+            std::to_string(foundFlatLightLawnLedgeBase) +
+            ", normal-light-lawn-row=" +
+            std::to_string(foundNormalLightLawnOneRowFromLedge) +
+            ", planar-light-lawn-base=" +
+            std::to_string(flatLightLawnLedgeBaseRemainsPlanar) +
             ", dirt-lawn-color=" +
             std::to_string(foundDirtLawnFootColorBlend) +
             ", dirt-core-color=" +
