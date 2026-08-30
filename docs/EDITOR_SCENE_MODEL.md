@@ -19,7 +19,7 @@ Frontend runtime state
 
 Game scenes
 |-- Route 1 - South Entrance --.
-|-- Route 1 - North Clearing --+--> Route 1 Environment (shared cooked backdrop)
+|-- Route 1 - South Clearing --+--> Route 1 Environment (shared cooked backdrop)
 |-- Route 22 ----------> Route 22 Foothills (runtime-generated backdrop)
 |-- Route 2 -----------> Route 2 Forest Edge (runtime-generated backdrop)
 |-- Viridian Forest ---> Viridian Forest (runtime-generated backdrop)
@@ -41,7 +41,7 @@ A **game scene** is a playable location/state container. It references an
 environment backdrop and may also identify a route runtime script. The
 environment is a separate reusable asset, so multiple game scenes may share
 one backdrop without becoming the same scene. Route 1 - South Entrance and
-Route 1 - North Clearing are the important current example: they remain
+Route 1 - South Clearing are the important current example: they remain
 separate game scenes while both reference the cooked Route 1 environment.
 
 Route 1 is currently the only source-faithful cooked environment `.phscene`.
@@ -132,7 +132,7 @@ clearing footprint, and editor overlays all consume that registration. The two
 bench rows are derived as explicit one-tile-deep cell ranges and use an integer
 gap. Both promoted layouts use zero gap. **Route 1 - South Entrance** owns cells
 `x=17..24, z=-10..-3`, with benches at `z=-2` and `z=-11`.
-**Route 1 - North Clearing** owns cells `x=17..24, z=-19..-12`, with benches
+**Route 1 - South Clearing** owns cells `x=17..24, z=-19..-12`, with benches
 at `z=-11` and `z=-20`. The Inspector reports the board, north-bench, and
 south-bench ranges separately. In terrain-tile mode the editor outlines exact
 board-owned terrain quads in orange and exact bench-owned quads in blue, using
@@ -499,7 +499,7 @@ Route bounds before saving and enter undo/redo history as one atomic scene edit.
 
 Each operation is atomically saved to the active scene's authored document and
 is undoable as one command. Route 1 - South Entrance writes
-`scenes/route1.scene.json`; Route 1 - North Clearing writes
+`scenes/route1.scene.json`; Route 1 - South Clearing writes
 `scenes/route1_5.scene.json`. Board movement likewise writes only the
 active scene's board-layout manifest. Authored cells mask their corresponding
 immutable source triangles, then derive top/ramp geometry and exposed ledge
@@ -523,7 +523,7 @@ ledge is edited.
 The cooked `environments/route1` asset remains the immutable LGPE-derived
 source environment. The finished **Route 1 - South Entrance** location is
 pinned in `scenes/route1.scene.json` at the southern board registration. The
-independent **Route 1 - North Clearing** location remains in
+independent **Route 1 - South Clearing** location remains in
 `scenes/route1_5.scene.json`; neither scene can overwrite the other's board
 registration or authored terrain. The legacy `route1-5` internal identifier is
 retained for script and save compatibility and is not its player-facing name.

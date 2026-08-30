@@ -80,7 +80,7 @@ their Route 1 logic, undo transaction, save, and status message.
   **Route 1 - South Entrance** location and its entry-board registration.
 - `scenes/route1_5.scene.json` and
   `config/environment/route1_5_board_layout.json` independently own the pinned
-  **Route 1 - North Clearing** board. The `route1_5` filename is a stable legacy
+  **Route 1 - South Clearing** board. The `route1_5` filename is a stable legacy
   implementation identifier, not the editor-facing location name.
 - `config/editor/game_preview_layouts.json` stores per-preview Pokemon starting
   position and rotation overrides.
