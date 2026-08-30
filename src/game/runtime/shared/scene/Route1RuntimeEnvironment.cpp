@@ -2990,6 +2990,90 @@ bool route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
         });
 }
 
+bool route1TerrainCleanupCarrierIntersectsCellFootprint(
+    const std::array<std::array<float, 3>, 3>& positionsCm,
+    const std::array<std::int32_t, 2>& cell) noexcept {
+    using Point = std::array<float, 2>;
+    std::array<Point, 8> polygon{};
+    std::size_t polygonSize = positionsCm.size();
+    for (std::size_t index = 0u; index < positionsCm.size(); ++index) {
+        polygon[index] = {positionsCm[index][0], positionsCm[index][2]};
+    }
+
+    const auto clip = [&](std::size_t axis,
+                          float boundaryCm,
+                          bool keepLess) {
+        if (polygonSize == 0u) {
+            return;
+        }
+        const auto inside = [&](const Point& point) {
+            return keepLess
+                ? point[axis] <= boundaryCm
+                : point[axis] >= boundaryCm;
+        };
+        std::array<Point, 8> output{};
+        std::size_t outputSize = 0u;
+        const auto append = [&](const Point& point) {
+            if (outputSize < output.size()) {
+                output[outputSize++] = point;
+            }
+        };
+        Point previous = polygon[polygonSize - 1u];
+        bool previousInside = inside(previous);
+        for (std::size_t index = 0u; index < polygonSize; ++index) {
+            const Point current = polygon[index];
+            const bool currentInside = inside(current);
+            if (currentInside != previousInside) {
+                const float denominator =
+                    current[axis] - previous[axis];
+                if (std::abs(denominator) > 1.0e-6f) {
+                    const float weight = std::clamp(
+                        (boundaryCm - previous[axis]) /
+                            denominator,
+                        0.0f,
+                        1.0f);
+                    append({
+                        std::lerp(previous[0], current[0], weight),
+                        std::lerp(previous[1], current[1], weight)});
+                }
+            }
+            if (currentInside) {
+                append(current);
+            }
+            previous = current;
+            previousInside = currentInside;
+        }
+        polygon = output;
+        polygonSize = outputSize;
+    };
+
+    const float minimumX =
+        static_cast<float>(cell[0]) * kTerrainTileSizeCm;
+    const float maximumX = minimumX + kTerrainTileSizeCm;
+    const float minimumZ =
+        static_cast<float>(cell[1]) * kTerrainTileSizeCm;
+    const float maximumZ = minimumZ + kTerrainTileSizeCm;
+    clip(0u, minimumX, false);
+    clip(0u, maximumX, true);
+    clip(1u, minimumZ, false);
+    clip(1u, maximumZ, true);
+    if (polygonSize < 3u) {
+        return false;
+    }
+
+    double doubleArea = 0.0;
+    for (std::size_t index = 0u; index < polygonSize; ++index) {
+        const auto& left = polygon[index];
+        const auto& right = polygon[(index + 1u) % polygonSize];
+        doubleArea += static_cast<double>(left[0]) * right[1] -
+            static_cast<double>(right[0]) * left[1];
+    }
+    // Merely touching a shared grid line does not transfer ownership. Only a
+    // positive-area overlap means the imported carrier occupies this cell.
+    constexpr double kMinimumDoubleAreaCm2 = 1.0e-4;
+    return std::abs(doubleArea) > kMinimumDoubleAreaCm2;
+}
+
 void route1TerrainClampCleanupCarrierToOwnedCell(
     std::array<std::array<float, 3>, 3>& positionsCm,
     const std::array<std::int32_t, 2>& ownerCell,
@@ -17488,6 +17572,78 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                     {positions[2].x,
                      positions[2].y,
                      positions[2].z}}};
+            bool cleanupCarrierOverlapsEditedCell = false;
+            if (mask.cleanupOnly &&
+                mask.retireWhenIntersectingRebuiltBoundary &&
+                !maskedCells.empty()) {
+                const float minimumX = std::min({
+                    positions[0].x,
+                    positions[1].x,
+                    positions[2].x});
+                const float maximumX = std::max({
+                    positions[0].x,
+                    positions[1].x,
+                    positions[2].x});
+                const float minimumZ = std::min({
+                    positions[0].z,
+                    positions[1].z,
+                    positions[2].z});
+                const float maximumZ = std::max({
+                    positions[0].z,
+                    positions[1].z,
+                    positions[2].z});
+                constexpr float kOwnershipInsetCm = 0.001f;
+                const std::int32_t firstCellX =
+                    static_cast<std::int32_t>(std::floor(
+                        (minimumX + kOwnershipInsetCm) /
+                        kTerrainTileSizeCm));
+                const std::int32_t lastCellX =
+                    static_cast<std::int32_t>(std::floor(
+                        (maximumX - kOwnershipInsetCm) /
+                        kTerrainTileSizeCm));
+                const std::int32_t firstCellZ =
+                    static_cast<std::int32_t>(std::floor(
+                        (minimumZ + kOwnershipInsetCm) /
+                        kTerrainTileSizeCm));
+                const std::int32_t lastCellZ =
+                    static_cast<std::int32_t>(std::floor(
+                        (maximumZ - kOwnershipInsetCm) /
+                        kTerrainTileSizeCm));
+                for (std::int32_t gridZ = firstCellZ;
+                     gridZ <= lastCellZ &&
+                     !cleanupCarrierOverlapsEditedCell;
+                     ++gridZ) {
+                    for (std::int32_t gridX = firstCellX;
+                         gridX <= lastCellX;
+                         ++gridX) {
+                        const GridCell overlappedCell{gridX, gridZ};
+                        if (!maskedCells.contains(overlappedCell) ||
+                            !route1TerrainCleanupCarrierIntersectsCellFootprint(
+                                positionValues,
+                                {gridX, gridZ})) {
+                            continue;
+                        }
+                        // Meshes 16-27 are single-storey fringe/cleanup
+                        // overlays and already transfer ownership when any
+                        // vertex enters an edited cell. Area overlap closes
+                        // the large-triangle hole in that rule. Mesh 28 can
+                        // contain an independent upper storey, so retain its
+                        // established height guard.
+                        if (geometry.sourceMeshIndex != 28u ||
+                            route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
+                                positionValues,
+                                static_cast<float>(
+                                    cleanupCeilingLevel(overlappedCell)) *
+                                    kTerrainElevationStepCm)) {
+                            cleanupCarrierOverlapsEditedCell = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (cleanupCarrierOverlapsEditedCell) {
+                continue;
+            }
             const bool replacedByDonorSpill =
                 mask.cleanupOnly &&
                 std::any_of(

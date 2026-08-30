@@ -860,6 +860,92 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
         loweredLawnBatches;
     environment.appendIndexedBatches(0.0f, loweredLawnBatches);
+    bool staleLedgeCleanupOverlay = false;
+    for (const auto& batch : loweredLawnBatches) {
+        bool broadCleanupMesh = false;
+        for (std::uint32_t meshIndex = 16u;
+             meshIndex <= 27u;
+             ++meshIndex) {
+            if (batch.geometryCacheKey.find(
+                    ":mesh:" + std::to_string(meshIndex) + ":") !=
+                std::string::npos) {
+                broadCleanupMesh = true;
+                break;
+            }
+        }
+        if (!broadCleanupMesh) {
+            continue;
+        }
+        const auto* vertices = batch.sharedVertices
+            ? batch.sharedVertices
+            : batch.vertices.data();
+        const std::size_t vertexCount = batch.sharedVertices
+            ? batch.sharedVertexCount
+            : batch.vertices.size();
+        const auto* indices = batch.sharedIndices
+            ? batch.sharedIndices
+            : batch.indices.data();
+        const std::size_t indexCount = batch.sharedIndices
+            ? batch.sharedIndexCount
+            : batch.indices.size();
+        const auto inspectInstance = [&](const auto& matrix) {
+            for (std::size_t index = 0u;
+                 vertices && indices && index + 2u < indexCount;
+                 index += 3u) {
+                std::array<std::array<float, 3>, 3> points{};
+                bool valid = true;
+                for (std::size_t corner = 0u; corner < 3u; ++corner) {
+                    const auto vertexIndex = indices[index + corner];
+                    if (vertexIndex >= vertexCount) {
+                        valid = false;
+                        break;
+                    }
+                    const auto& vertex = vertices[vertexIndex];
+                    const auto sourcePoint = transformPoint(
+                        sourceFromWorld,
+                        transformPoint(
+                            matrix,
+                            {vertex.x, vertex.y, vertex.z}));
+                    points[corner] = {
+                        static_cast<float>(sourcePoint[0]),
+                        static_cast<float>(sourcePoint[1]),
+                        static_cast<float>(sourcePoint[2])};
+                }
+                if (!valid) {
+                    continue;
+                }
+                for (std::int32_t gridX = 17;
+                     gridX <= 21;
+                     ++gridX) {
+                    if (game::runtime::route1_environment::
+                            route1TerrainCleanupCarrierIntersectsCellFootprint(
+                                points,
+                                {gridX, -12})) {
+                        staleLedgeCleanupOverlay = true;
+                        return;
+                    }
+                }
+            }
+        };
+        if (batch.instances.empty()) {
+            inspectInstance(batch.modelMatrix);
+        } else {
+            for (const auto& instance : batch.instances) {
+                inspectInstance(instance.modelMatrix);
+                if (staleLedgeCleanupOverlay) {
+                    break;
+                }
+            }
+        }
+        if (staleLedgeCleanupOverlay) {
+            break;
+        }
+    }
+    if (staleLedgeCleanupOverlay) {
+        outFail =
+            "Broad LGPE cleanup overlays must not survive across the rebuilt light-lawn cells below the Route 1 ramp ledge; they stretch grass vertically over the canonical wall.";
+        return false;
+    }
     std::vector<std::array<float, 3>> formerLedgeUv2Samples;
     float minimumLawnUv2U = std::numeric_limits<float>::max();
     float maximumLawnUv2U = std::numeric_limits<float>::lowest();

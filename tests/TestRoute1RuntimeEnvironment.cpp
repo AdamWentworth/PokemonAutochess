@@ -689,6 +689,26 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                 "Every Route 1 cleanup ownership path must retire the rebuilt lower storey without erasing an independent source cliff that rises above its ceiling.";
             return false;
         }
+        const std::array<std::array<float, 3>, 3>
+            broadCleanupCarrier{{
+                {1600.0f, 52.0f, -1250.0f},
+                {2250.0f, 100.0f, -1250.0f},
+                {2250.0f, 52.0f, -1050.0f}}};
+        const std::array<std::array<float, 3>, 3>
+            boundaryOnlyCarrier{{
+                {1700.0f, 50.0f, -1200.0f},
+                {1800.0f, 50.0f, -1200.0f},
+                {1750.0f, 100.0f, -1250.0f}}};
+        if (!route1TerrainCleanupCarrierIntersectsCellFootprint(
+                broadCleanupCarrier,
+                {18, -12}) ||
+            route1TerrainCleanupCarrierIntersectsCellFootprint(
+                boundaryOnlyCarrier,
+                {17, -12})) {
+            outFail =
+                "Route 1 cleanup ownership must detect positive-area overlap from broad imported triangles even when their centroid and vertices miss the edited cell, without claiming a carrier that only touches its boundary.";
+            return false;
+        }
         std::array<std::array<float, 3>, 3>
             canonicalCarrier{{
                 {1392.911f, 95.033f, -1217.688f},

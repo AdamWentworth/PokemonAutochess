@@ -301,6 +301,9 @@ bool route1TerrainCleanupCarrierWithinBoundaryBand(
 bool route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
     const std::array<std::array<float, 3>, 3>& positionsCm,
     float boundaryCeilingCm) noexcept;
+bool route1TerrainCleanupCarrierIntersectsCellFootprint(
+    const std::array<std::array<float, 3>, 3>& positionsCm,
+    const std::array<std::int32_t, 2>& cell) noexcept;
 void route1TerrainClampCleanupCarrierToOwnedCell(
     std::array<std::array<float, 3>, 3>& positionsCm,
     const std::array<std::int32_t, 2>& ownerCell,
