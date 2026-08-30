@@ -523,6 +523,11 @@ struct TerrainMaskGeometry {
     std::array<float, 16> sourceModelMatrix{};
     bool cleanupOnly = false;
     bool sourceGround = false;
+    // Source meshes 0-9 are ground overlays. Cell-plane clipping can create
+    // new vertices for them just as it does for material-19 ground, so their
+    // filtered indices must address the filtered stream rather than the
+    // original source vertex buffer.
+    bool groundOverlay = false;
     bool maskWhenAnyVertexTouchesCell = false;
     bool retireWhenIntersectingRebuiltBoundary = false;
 };
@@ -1401,12 +1406,11 @@ constexpr float kTerrainLedgeFootSafetyOverlapCm = 1.50f;
 // No additional outer-row tuck is needed: the 1.50 cm horizontal underlap
 // joins the alpha-tested foot while keeping the whole lawn carrier planar.
 constexpr float kTerrainLedgeContactTuckCm = 0.0f;
-// Material 18's cliff-foot foliage uses the recovered dark-green Color0
-// control. Match that control only on the lawn's contact row, then return to
-// the authored light-lawn field at the next five-centimetre lattice row. A
-// broader fade reads as a raised dark shelf and turns into a triangular wedge
-// where a ledge run ends.
-constexpr float kTerrainLedgeFootColorBlendCm = 5.0f;
+// Material 18's cliff-foot foliage uses the same recovered dark-green Color0
+// control as raised lawn. Fade the adjoining light-lawn control across three
+// five-centimetre rows so its brighter material-19 field does not begin as a
+// hard line immediately after the alpha-tested leaves.
+constexpr float kTerrainLedgeFootColorBlendCm = 15.0f;
 // A source-style dark-lawn plateau keeps one constant UV2 selector and
 // dark-green Color0 all the way across its cap. Light-lawn ledges keep their
 // independently resolved lawn fields; crown geometry must not silently change
@@ -16421,6 +16425,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
             .sourceModelMatrix = sourceMesh->transform,
             .cleanupOnly = flattenedGroundCleanup,
             .sourceGround = sourceGround,
+            .groundOverlay = groundOverlay,
             // Foliage cards and low-detail overlay carriers regularly cross
             // a metre boundary. Keeping a triangle because only its centroid
             // missed the edited cell leaves the familiar floating slivers.
@@ -16939,7 +16944,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         mask.filteredSourceVertices.clear();
         mask.filteredIndices.clear();
         mask.filteredIndices.reserve(mask.originalIndices.size());
-        if (mask.cleanupOnly || mask.sourceGround) {
+        if (mask.cleanupOnly || mask.sourceGround ||
+            mask.groundOverlay) {
             mask.filteredVertices.reserve(
                 mask.originalIndices.size());
             if (mask.originalSourceVertices.size() ==
@@ -17640,7 +17646,7 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 continue;
             }
             if (!mask.cleanupOnly) {
-                if (mask.sourceGround) {
+                if (mask.sourceGround || mask.groundOverlay) {
                     appendGroundTriangle(triangle);
                 } else {
                     mask.filteredIndices.insert(
@@ -17686,7 +17692,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                         mask.filteredVertices.size() - 1u));
             }
         }
-        if (mask.cleanupOnly || mask.sourceGround) {
+        if (mask.cleanupOnly || mask.sourceGround ||
+            mask.groundOverlay) {
             geometry.vertices = mask.filteredVertices.data();
             geometry.vertexCount = mask.filteredVertices.size();
             geometry.sourceVertices =

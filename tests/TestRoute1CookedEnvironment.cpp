@@ -926,6 +926,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool foundDirtLawnFootColorBlend = false;
     bool foundDirtFootCoreColor = false;
     bool foundLowerLawnTerminalEdgeFill = false;
+    bool retainedSourceGroundShelfAtLedgeBase = false;
+    bool ledgeBaseGroundOverlayIndicesValid = true;
     bool foundUpperLawnCrownClip = false;
     bool foundUpperLawnCrownNormal = false;
     bool foundUpperSourceLawnFields = false;
@@ -949,6 +951,38 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     float maximumFullFringeCrownOutward =
         std::numeric_limits<float>::lowest();
     for (const auto& batch : loweredLawnBatches) {
+        if (batch.geometryCacheKey.find(
+                "mesh:0:group:0:terrain-mask:") !=
+            std::string::npos) {
+            const auto* overlayVertices = batch.sharedVertices
+                ? batch.sharedVertices
+                : batch.vertices.data();
+            const std::size_t overlayVertexCount = batch.sharedVertices
+                ? batch.sharedVertexCount
+                : batch.vertices.size();
+            const auto* overlayIndices = batch.sharedIndices
+                ? batch.sharedIndices
+                : batch.indices.data();
+            const std::size_t overlayIndexCount = batch.sharedIndices
+                ? batch.sharedIndexCount
+                : batch.indices.size();
+            for (std::size_t index = 0u;
+                 overlayVertices && overlayIndices &&
+                 index < overlayIndexCount;
+                 ++index) {
+                const auto vertexIndex = overlayIndices[index];
+                if (vertexIndex >= overlayVertexCount) {
+                    ledgeBaseGroundOverlayIndicesValid = false;
+                    continue;
+                }
+                const auto& vertex = overlayVertices[vertexIndex];
+                retainedSourceGroundShelfAtLedgeBase =
+                    retainedSourceGroundShelfAtLedgeBase ||
+                    (vertex.x >= 1600.0f && vertex.x <= 2200.0f &&
+                     vertex.z > -1199.9f && vertex.z < -1100.1f &&
+                     vertex.y >= 45.0f && vertex.y <= 55.0f);
+            }
+        }
         if (batch.geometryCacheKey.find(
                 "route1:terrain-cliff-concave-corner:") !=
             std::string::npos) {
@@ -2057,6 +2091,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         !foundFlatLightLawnLedgeBase ||
         !foundNormalLightLawnOneRowFromLedge ||
         !flatLightLawnLedgeBaseRemainsPlanar ||
+        retainedSourceGroundShelfAtLedgeBase ||
+        !ledgeBaseGroundOverlayIndicesValid ||
         !foundDirtLawnFootColorBlend ||
         !foundDirtFootCoreColor ||
         !foundLowerLawnTerminalEdgeFill) {
@@ -2071,6 +2107,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::to_string(foundNormalLightLawnOneRowFromLedge) +
             ", planar-light-lawn-base=" +
             std::to_string(flatLightLawnLedgeBaseRemainsPlanar) +
+            ", stale-source-ground-shelf=" +
+            std::to_string(retainedSourceGroundShelfAtLedgeBase) +
+            ", overlay-indices-valid=" +
+            std::to_string(ledgeBaseGroundOverlayIndicesValid) +
             ", dirt-lawn-color=" +
             std::to_string(foundDirtLawnFootColorBlend) +
             ", dirt-core-color=" +
