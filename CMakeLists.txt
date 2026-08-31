@@ -1170,6 +1170,14 @@ if (BUILD_TESTING)
         set_tests_properties(PAC_Tests.model_parse_smoke PROPERTIES
             TIMEOUT 600
         )
+        # This exhaustive contract reconstructs and inspects many complete
+        # Route 1 terrain variants. Debug builds on the reference Windows
+        # machine complete in roughly 140 seconds, so the generic 120-second
+        # limit incorrectly reports a hang after the assertions have passed.
+        set_tests_properties(
+            PAC_Tests.route1_cooked_environment_contract
+            PROPERTIES TIMEOUT 180
+        )
     endif()
 
     if (WIN32)

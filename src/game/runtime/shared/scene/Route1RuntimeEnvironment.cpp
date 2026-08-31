@@ -48,6 +48,11 @@ using PreparedScene = published_environment_scene::PreparedScene;
 using WorldBatch = shared_world_batches::WorldIndexedBatch;
 using GridCell = std::pair<int, int>;
 
+constexpr bool route1UsesRegionalTerrainMaterialField(
+    std::string_view sceneId) noexcept {
+    return sceneId == route1_scene_variants::kRoute1_5.sceneId;
+}
+
 bool route1TerrainReplacementGeometryKey(
     const std::string& key) noexcept {
     if (key.starts_with("route1:terrain-")) {
@@ -3209,6 +3214,13 @@ struct RuntimeEnvironment::Impl {
     TerrainTilePrototypeSet terrainTilePrototypes;
     std::vector<TerrainTileState> sourceTerrainTiles;
     std::vector<TerrainTileState> terrainTiles;
+    mutable std::map<
+        std::tuple<bool, std::int32_t, std::int32_t, std::int32_t>,
+        glm::vec4>
+        regionalTerrainColorAnchors;
+    mutable std::set<
+        std::tuple<bool, std::int32_t, std::int32_t, std::int32_t>>
+        missingRegionalTerrainColorAnchors;
     route1_terrain_ledges::Resolution terrainLedgeResolution;
     route1_terrain_contours::Assembly terrainContourAssembly;
     route1_terrain_patch_v2::Plan terrainPatchV2Plan;
@@ -8052,6 +8064,148 @@ bool RuntimeEnvironment::Impl::sampleTargetTerrainColor(
     };
     const bool targetUsesRaisedLawnField =
         surface == "dark_lawn";
+    const bool usesRegionalColorField =
+        route1UsesRegionalTerrainMaterialField(
+            authoredScene.sceneId);
+    if (usesRegionalColorField) {
+        using AnchorKey =
+            std::tuple<bool, std::int32_t, std::int32_t, std::int32_t>;
+        const auto sampleAnchor = [&] (
+                std::int32_t anchorX,
+                std::int32_t anchorZ,
+                glm::vec4& outAnchor) {
+            const AnchorKey key{
+                targetUsesRaisedLawnField,
+                elevationLevel,
+                anchorX,
+                anchorZ};
+            if (const auto found =
+                    regionalTerrainColorAnchors.find(key);
+                found != regionalTerrainColorAnchors.end()) {
+                outAnchor = found->second;
+                return true;
+            }
+            if (missingRegionalTerrainColorAnchors.contains(key)) {
+                return false;
+            }
+            std::array<Donor, kDonorCount> anchorDonors{};
+            for (const auto& candidate : sourceTerrainTiles) {
+                if (!candidate.sourceOccupied ||
+                    (candidate.sourceSurface == "dark_lawn") !=
+                        targetUsesRaisedLawnField ||
+                    candidate.sourceElevationLevel != elevationLevel) {
+                    continue;
+                }
+                const float sampleX = static_cast<float>(anchorX);
+                const float sampleZ = static_cast<float>(anchorZ);
+                const float minimumX =
+                    static_cast<float>(candidate.gridX);
+                const float maximumX = minimumX + 1.0f;
+                const float minimumZ =
+                    static_cast<float>(candidate.gridZ);
+                const float maximumZ = minimumZ + 1.0f;
+                const float deltaX = sampleX < minimumX
+                    ? minimumX - sampleX
+                    : (sampleX > maximumX
+                        ? sampleX - maximumX
+                        : 0.0f);
+                const float deltaZ = sampleZ < minimumZ
+                    ? minimumZ - sampleZ
+                    : (sampleZ > maximumZ
+                        ? sampleZ - maximumZ
+                        : 0.0f);
+                const Donor donor{
+                    .tile = &candidate,
+                    .distanceSquared =
+                        deltaX * deltaX + deltaZ * deltaZ};
+                if (!anchorDonors.back().tile ||
+                    donorLess(donor, anchorDonors.back())) {
+                    anchorDonors.back() = donor;
+                    std::sort(
+                        anchorDonors.begin(),
+                        anchorDonors.end(),
+                        donorLess);
+                }
+            }
+            constexpr float kAnchorSofteningSquared = 0.25f;
+            glm::vec4 weightedAnchor{0.0f};
+            float totalAnchorWeight = 0.0f;
+            for (const auto& donor : anchorDonors) {
+                if (!donor.tile) {
+                    continue;
+                }
+                SourceTerrainSurfaceSample sample;
+                if (!sampleSourceTerrainSurface(
+                        *donor.tile,
+                        std::clamp(
+                            static_cast<float>(anchorX -
+                                donor.tile->gridX),
+                            0.0f,
+                            1.0f),
+                        std::clamp(
+                            static_cast<float>(anchorZ -
+                                donor.tile->gridZ),
+                            0.0f,
+                            1.0f),
+                        sample)) {
+                    continue;
+                }
+                const float weight = 1.0f /
+                    (donor.distanceSquared +
+                     kAnchorSofteningSquared);
+                weightedAnchor += sample.color0 * weight;
+                totalAnchorWeight += weight;
+            }
+            if (totalAnchorWeight <= 0.0f) {
+                missingRegionalTerrainColorAnchors.emplace(key);
+                return false;
+            }
+            outAnchor = weightedAnchor / totalAnchorWeight;
+            regionalTerrainColorAnchors.emplace(key, outAnchor);
+            return true;
+        };
+        const std::int32_t baseX = static_cast<std::int32_t>(
+            std::floor(worldGridX));
+        const std::int32_t baseZ = static_cast<std::int32_t>(
+            std::floor(worldGridZ));
+        const float localX = worldGridX - static_cast<float>(baseX);
+        const float localZ = worldGridZ - static_cast<float>(baseZ);
+        const auto splineWeights = [](float phase) {
+            const float phase2 = phase * phase;
+            const float phase3 = phase2 * phase;
+            return std::array<float, 4>{
+                (1.0f - 3.0f * phase +
+                 3.0f * phase2 - phase3) / 6.0f,
+                (4.0f - 6.0f * phase2 +
+                 3.0f * phase3) / 6.0f,
+                (1.0f + 3.0f * phase +
+                 3.0f * phase2 -
+                 3.0f * phase3) / 6.0f,
+                phase3 / 6.0f};
+        };
+        const auto weightsX = splineWeights(localX);
+        const auto weightsZ = splineWeights(localZ);
+        glm::vec4 regionalColor{0.0f};
+        float regionalWeight = 0.0f;
+        for (std::size_t z = 0u; z < 4u; ++z) {
+            for (std::size_t x = 0u; x < 4u; ++x) {
+                glm::vec4 anchorColor{1.0f};
+                if (!sampleAnchor(
+                        baseX + static_cast<std::int32_t>(x) - 1,
+                        baseZ + static_cast<std::int32_t>(z) - 1,
+                        anchorColor)) {
+                    continue;
+                }
+                const float weight = weightsX[x] * weightsZ[z];
+                regionalColor += anchorColor * weight;
+                regionalWeight += weight;
+            }
+        }
+        if (regionalWeight > 0.0f) {
+            outColor = regionalColor / regionalWeight;
+            return true;
+        }
+    }
     for (const auto& candidate : sourceTerrainTiles) {
         if (!candidate.sourceOccupied ||
             (candidate.sourceSurface == "dark_lawn") !=
@@ -8084,6 +8238,9 @@ bool RuntimeEnvironment::Impl::sampleTargetTerrainColor(
 
     constexpr float kExactDistanceSquared = 1.0e-8f;
     constexpr float kShepardSofteningSquared = 0.0625f;
+    const bool preservesExactCellColorOwnership =
+        !route1UsesRegionalTerrainMaterialField(
+            authoredScene.sceneId);
     glm::vec4 weightedColor{0.0f};
     float totalWeight = 0.0f;
     bool hasExactDonor = false;
@@ -8093,7 +8250,8 @@ bool RuntimeEnvironment::Impl::sampleTargetTerrainColor(
         }
         const bool exact = donor.distanceSquared <=
             kExactDistanceSquared;
-        if (hasExactDonor && !exact) {
+        if (preservesExactCellColorOwnership &&
+            hasExactDonor && !exact) {
             continue;
         }
         SourceTerrainSurfaceSample sample;
@@ -8110,12 +8268,14 @@ bool RuntimeEnvironment::Impl::sampleTargetTerrainColor(
                 sample)) {
             continue;
         }
-        if (exact && !hasExactDonor) {
+        if (preservesExactCellColorOwnership &&
+            exact && !hasExactDonor) {
             weightedColor = glm::vec4{0.0f};
             totalWeight = 0.0f;
             hasExactDonor = true;
         }
-        const float weight = exact
+        const float weight =
+            preservesExactCellColorOwnership && exact
             ? 1.0f
             : 1.0f /
                 (donor.distanceSquared + kShepardSofteningSquared);
@@ -8543,6 +8703,9 @@ bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
 
     constexpr float kExactDistanceSquared = 1.0e-8f;
     constexpr float kShepardSofteningSquared = 0.0625f;
+    const bool preservesExactCellColorOwnership =
+        !route1UsesRegionalTerrainMaterialField(
+            authoredScene.sceneId);
     glm::vec4 weightedColor{0.0f};
     float totalWeight = 0.0f;
     bool hasExactDonor = false;
@@ -8552,7 +8715,8 @@ bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
         }
         const bool exact = donor.distanceSquared <=
             kExactDistanceSquared;
-        if (hasExactDonor && !exact) {
+        if (preservesExactCellColorOwnership &&
+            hasExactDonor && !exact) {
             continue;
         }
         const float donorGridX = std::clamp(
@@ -8574,12 +8738,14 @@ bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
             donorGridX,
             donorGridZ,
             donorColor);
-        if (exact && !hasExactDonor) {
+        if (preservesExactCellColorOwnership &&
+            exact && !hasExactDonor) {
             weightedColor = glm::vec4{0.0f};
             totalWeight = 0.0f;
             hasExactDonor = true;
         }
-        const float weight = exact
+        const float weight =
+            preservesExactCellColorOwnership && exact
             ? 1.0f
             : 1.0f /
                 (donor.distanceSquared + kShepardSofteningSquared);
@@ -10063,6 +10229,112 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 static_cast<float>(tile.gridZ) + 0.5f +
                 vertex.z / kTerrainTileSizeCm;
 
+            // A V2 transition-ring tile is regenerated so its interior can
+            // participate in the regional material field. At the outer edge
+            // of that ring, however, the untouched LGPE mesh remains the
+            // authority. Use one broad, smooth handoff for every material
+            // channel rather than reconciling only the coincident edge
+            // vertices; an edge-only correction leaves the rest of the metre
+            // as a plainly visible rectangular patch.
+            constexpr float kSourceMaterialHandoffWidthCm = 50.0f;
+            const std::array<float, 4> sourceEdgeDistancesCm{
+                (1.0f - localZ) * kTerrainTileSizeCm,
+                (1.0f - localX) * kTerrainTileSizeCm,
+                localZ * kTerrainTileSizeCm,
+                localX * kTerrainTileSizeCm};
+            float sourceMaterialHandoffWeight = 0.0f;
+            const bool usesRegionalMaterialField =
+                route1UsesRegionalTerrainMaterialField(
+                    authoredScene.sceneId);
+            SourceTerrainSurfaceSample sourceMaterialHandoffSample =
+                deformedSourceSample;
+            bool sourceMaterialHandoffSampled = false;
+            if (usesRegionalMaterialField &&
+                deformedSourceSampled && sourceTopologyMatches) {
+                glm::vec4 handoffColor{0.0f};
+                glm::vec2 handoffUv0{0.0f};
+                glm::vec2 handoffUv1{0.0f};
+                float handoffSampleWeight = 0.0f;
+                const auto unwrapNear = [](float value, float reference) {
+                    return value - std::round(value - reference);
+                };
+                for (std::size_t edge = 0u; edge < 4u; ++edge) {
+                    if ((sourceSeamOverlapMask & (1u << edge)) == 0u) {
+                        continue;
+                    }
+                    const float edgeWeight = 1.0f - glm::smoothstep(
+                        0.0f,
+                        kSourceMaterialHandoffWidthCm,
+                        sourceEdgeDistancesCm[edge]);
+                    sourceMaterialHandoffWeight = std::max(
+                        sourceMaterialHandoffWeight, edgeWeight);
+                    if (edgeWeight <= 0.0f) {
+                        continue;
+                    }
+                    const auto direction = rampNeighborDirections[edge];
+                    const auto sourceNeighbor = std::find_if(
+                        sourceTerrainTiles.begin(),
+                        sourceTerrainTiles.end(),
+                        [&](const TerrainTileState& candidate) {
+                            return candidate.gridX ==
+                                    tile.gridX + direction[0] &&
+                                candidate.gridZ ==
+                                    tile.gridZ + direction[1];
+                        });
+                    if (sourceNeighbor == sourceTerrainTiles.end() ||
+                        !sourceNeighbor->sourceOccupied) {
+                        continue;
+                    }
+                    SourceTerrainSurfaceSample neighborSample;
+                    if (!sampleSourceTerrainSurface(
+                            *sourceNeighbor,
+                            std::clamp(
+                                materialWorldGridX -
+                                    static_cast<float>(
+                                        sourceNeighbor->gridX),
+                                0.0f,
+                                1.0f),
+                            std::clamp(
+                                materialWorldGridZ -
+                                    static_cast<float>(
+                                        sourceNeighbor->gridZ),
+                                0.0f,
+                                1.0f),
+                            neighborSample)) {
+                        continue;
+                    }
+                    handoffColor += neighborSample.color0 * edgeWeight;
+                    handoffUv0 += glm::vec2{
+                        unwrapNear(
+                            neighborSample.uv0.x,
+                            deformedSourceSample.uv0.x),
+                        unwrapNear(
+                            neighborSample.uv0.y,
+                            deformedSourceSample.uv0.y)} * edgeWeight;
+                    handoffUv1 += glm::vec2{
+                        unwrapNear(
+                            neighborSample.uv1.x,
+                            deformedSourceSample.uv1.x),
+                        unwrapNear(
+                            neighborSample.uv1.y,
+                            deformedSourceSample.uv1.y)} * edgeWeight;
+                    handoffSampleWeight += edgeWeight;
+                }
+                if (handoffSampleWeight > 0.0f) {
+                    sourceMaterialHandoffSample.color0 =
+                        handoffColor / handoffSampleWeight;
+                    sourceMaterialHandoffSample.uv0 =
+                        handoffUv0 / handoffSampleWeight;
+                    sourceMaterialHandoffSample.uv1 =
+                        handoffUv1 / handoffSampleWeight;
+                    sourceMaterialHandoffSampled = true;
+                }
+            }
+            if (sourceMaterialHandoffWeight > 0.0f &&
+                !sourceMaterialHandoffSampled) {
+                sourceMaterialHandoffSampled = true;
+            }
+
             // The canonical Route 1 mesh, not a guessed metre grid, owns the
             // UV/color field. Source-backed cells retain their exact authored
             // samples; new cells use one continuous source-world fallback
@@ -10090,18 +10362,43 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     continuedUv0,
                     continuedUv1,
                     &distanceFromSourceSurfaceCells);
-            const glm::vec2 baseUv0 = preserveSourceField
+            glm::vec2 baseUv0 = preserveSourceField
                 ? deformedSourceSample.uv0
                 : (continuedSourceMaterialField
                     ? continuedUv0
                     : worldFallbackUv);
-            vertex.u = baseUv0.x;
-            vertex.v = baseUv0.y;
-            const glm::vec2 baseUv1 = preserveSourceField
+            glm::vec2 baseUv1 = preserveSourceField
                 ? deformedSourceSample.uv1
                 : (continuedSourceMaterialField
                     ? continuedUv1
                     : baseUv0);
+            if (!preserveSourceField &&
+                sourceMaterialHandoffWeight > 0.0f &&
+                sourceMaterialHandoffSampled) {
+                const auto unwrapNear = [](float value, float reference) {
+                    return value - std::round(value - reference);
+                };
+                const glm::vec2 sourceUv0{
+                    unwrapNear(
+                        sourceMaterialHandoffSample.uv0.x, baseUv0.x),
+                    unwrapNear(
+                        sourceMaterialHandoffSample.uv0.y, baseUv0.y)};
+                const glm::vec2 sourceUv1{
+                    unwrapNear(
+                        sourceMaterialHandoffSample.uv1.x, baseUv1.x),
+                    unwrapNear(
+                        sourceMaterialHandoffSample.uv1.y, baseUv1.y)};
+                baseUv0 = glm::mix(
+                    baseUv0,
+                    sourceUv0,
+                    sourceMaterialHandoffWeight);
+                baseUv1 = glm::mix(
+                    baseUv1,
+                    sourceUv1,
+                    sourceMaterialHandoffWeight);
+            }
+            vertex.u = baseUv0.x;
+            vertex.v = baseUv0.y;
             vertex.sourceUv1U = baseUv1.x;
             vertex.sourceUv1V = baseUv1.y;
             sourceVertex.texcoords[0] = {vertex.u, vertex.v};
@@ -10551,38 +10848,16 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     sampleTargetColorAtSurfaceHeight(targetColor);
             }
             if (targetColorSampled &&
-                tile.surface == "light_lawn" &&
-                tile.sourceSurface != tile.surface &&
-                deformedSourceSampled &&
-                sourceTopologyMatches &&
-                sourceSeamOverlapMask != 0u) {
-                // A material replacement can touch retained canonical lawn
-                // along only part of its perimeter. Match the exact local
-                // Color0 control at that handoff, then relax into the
-                // compatible lawn field inside the rebuilt cell. Using the
-                // donor everywhere leaves a rectangular tint step; retaining
-                // the former dirt Color0 everywhere merely moves that step to
-                // the opposite edge.
-                constexpr float kMaterialHandoffWidthCm = 30.0f;
-                float sourceHandoffWeight = 0.0f;
-                for (std::size_t edge = 0u; edge < 4u; ++edge) {
-                    if ((sourceSeamOverlapMask & (1u << edge)) == 0u) {
-                        continue;
-                    }
-                    float weight = std::clamp(
-                        1.0f - dirtEdgeDistancesCm[edge] /
-                            kMaterialHandoffWidthCm,
-                        0.0f,
-                        1.0f);
-                    weight = weight * weight *
-                        (3.0f - 2.0f * weight);
-                    sourceHandoffWeight = std::max(
-                        sourceHandoffWeight, weight);
-                }
+                sourceMaterialHandoffWeight > 0.0f &&
+                sourceMaterialHandoffSampled) {
+                // Color0 is part of the same transition contract as UV0/UV1.
+                // Applying this to every surface handles lawn, dirt, and ramp
+                // handoffs uniformly instead of accumulating special cases
+                // for individual tile kinds.
                 targetColor = glm::mix(
                     targetColor,
-                    deformedSourceSample.color0,
-                    sourceHandoffWeight);
+                    sourceMaterialHandoffSample.color0,
+                    sourceMaterialHandoffWeight);
             }
             if (targetColorSampled && !dark) {
                 vertex.r = targetColor.r;
@@ -11967,15 +12242,16 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
         // reference one material vertex. Dirt corners legitimately carry
         // different UV2 selector branches on adjoining triangles; replacing
         // an index with its neighbour therefore turns dirt into a large grass
-        // strip. Snap positions only here. A lawn-only pass below reconciles
-        // the non-selector material fields without sharing indices or UV2.
+        // strip. Snap positions only here. A terrain-material pass below
+        // reconciles the non-selector fields across lawn, dirt, and ramp
+        // ownership without sharing indices or UV2.
         using PositionKey =
             std::tuple<std::int64_t, std::int64_t, std::int64_t>;
         using HorizontalPositionKey =
             std::pair<std::int64_t, std::int64_t>;
         std::map<PositionKey, std::vector<std::uint32_t>> byPosition;
         std::map<HorizontalPositionKey, std::vector<std::uint32_t>>
-            lawnByHorizontalPosition;
+            surfaceByHorizontalPosition;
         constexpr double kPositionQuantization = 1000.0;
         for (std::size_t index = 0u;
              index < prototype.vertices.size();
@@ -12003,8 +12279,8 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                     static_cast<double>(vertex.z) *
                     kPositionQuantization))}].push_back(
                         static_cast<std::uint32_t>(index));
-            if (ownerTile && ownerTile->surface.ends_with("lawn")) {
-                lawnByHorizontalPosition[{
+            if (ownerTile && ownerTile->surface != "empty") {
+                surfaceByHorizontalPosition[{
                     static_cast<std::int64_t>(std::llround(
                         static_cast<double>(vertex.x) *
                         kPositionQuantization)),
@@ -12056,7 +12332,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 *leftTile, rightTile, edge);
             return profile.tileLevels == profile.neighborLevels;
         };
-        const auto compatibleLawnMaterialOwners = [&] (
+        const auto compatibleTerrainMaterialOwners = [&] (
                 const GridCell& left,
                 const GridCell& right) {
             if (left == right) {
@@ -12065,8 +12341,8 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
             const auto* leftTile = findTile(left.first, left.second);
             const auto* rightTile = findTile(right.first, right.second);
             if (!leftTile || !rightTile ||
-                leftTile->surface != rightTile->surface ||
-                !leftTile->surface.ends_with("lawn")) {
+                leftTile->surface == "empty" ||
+                rightTile->surface == "empty") {
                 return false;
             }
             const std::int32_t dx = right.first - left.first;
@@ -12114,7 +12390,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
             }
         }
 
-        const auto copyCompatibleLawnField = [&] (
+        const auto copyCompatibleSurfaceField = [&] (
                 std::uint32_t targetIndex,
                 std::uint32_t sourceIndex,
                 bool copyShadingBasis) {
@@ -12126,7 +12402,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
             const auto unwrapNear = [](float value, float reference) {
                 return value - std::round(value - reference);
             };
-            // Matching-height lawn profiles must own one physical boundary.
+            // Matching-height surface profiles must own one physical boundary.
             // Source-preserving and rebuilt tiles can otherwise disagree by
             // a fraction of a centimetre and expose a lighting crack even
             // after their texture fields have been reconciled.
@@ -12159,7 +12435,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
             targetSource.normalW = sourceSource.normalW;
             targetSource.bitangent = sourceSource.bitangent;
         };
-        const auto moreAuthoritativeLawnField = [&] (
+        const auto moreAuthoritativeSurfaceField = [&] (
                 std::uint32_t left,
                 std::uint32_t right) {
             const auto* leftTile = findTile(
@@ -12193,12 +12469,12 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
         // South Entrance is a pinned, approved production scene. Keep its
         // authored material stream byte-stable while applying this new
         // regional reconciliation rule to editable Route 1 variants.
-        const bool preservesPinnedSouthEntrance =
-            authoredScene.sceneId ==
-                route1_scene_variants::kRoute1.sceneId;
-        if (!preservesPinnedSouthEntrance) {
+        const bool usesRegionalMaterialField =
+            route1UsesRegionalTerrainMaterialField(
+                authoredScene.sceneId);
+        if (usesRegionalMaterialField) {
             for (const auto& [position, indices] :
-                 lawnByHorizontalPosition) {
+                 surfaceByHorizontalPosition) {
                 (void)position;
                 std::set<std::uint32_t> remaining(
                     indices.begin(), indices.end());
@@ -12211,7 +12487,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                          ++cursor) {
                         for (auto candidate = remaining.begin();
                              candidate != remaining.end();) {
-                            if (!compatibleLawnMaterialOwners(
+                            if (!compatibleTerrainMaterialOwners(
                                     surfaceVertexOwners[component[cursor]],
                                     surfaceVertexOwners[*candidate])) {
                                 ++candidate;
@@ -12227,14 +12503,13 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                     const auto* firstOwner = findTile(
                         surfaceVertexOwners[component.front()].first,
                         surfaceVertexOwners[component.front()].second);
-                    if (!firstOwner ||
-                        !firstOwner->surface.ends_with("lawn")) {
+                    if (!firstOwner) {
                         continue;
                     }
                     std::uint32_t authority = component.front();
                     bool commonShape = true;
                     for (const auto index : component) {
-                        authority = moreAuthoritativeLawnField(
+                        authority = moreAuthoritativeSurfaceField(
                             authority, index);
                         const auto* owner = findTile(
                             surfaceVertexOwners[index].first,
@@ -12244,7 +12519,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                     }
                     for (const auto index : component) {
                         if (index != authority) {
-                            copyCompatibleLawnField(
+                            copyCompatibleSurfaceField(
                                 index, authority, commonShape);
                         }
                     }
@@ -16912,12 +17187,14 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             nextCleanupCells.emplace(cell);
         }
     }
-    // Terrain Patch V2 plans a one-cell source transition ring, but that ring
-    // is a socket/validation domain rather than permission to replace exact
-    // LGPE ground. Only core cells enter the generated carrier set. Untouched
-    // transition cells keep their imported triangle and material streams; the
-    // core-to-transition boundary is where an exact donor or constrained
-    // stitch must meet them.
+    // The approved South Entrance keeps its exact imported transition ring.
+    // Editable variants regenerate the one-cell ring as a material handoff:
+    // its outer edge returns to the exact source field while its interior
+    // joins the regional field. Leaving that ring tile-owned merely moved the
+    // visible square delimiter from the edit to the core/transition boundary.
+    const bool regeneratesMaterialTransitionRing =
+        route1UsesRegionalTerrainMaterialField(
+            authoredScene.sceneId);
     if (terrainPatchV2PreviewEnabled &&
         terrainPatchV2Plan.validation.valid) {
         for (const auto& region : terrainPatchV2Plan.regions) {
@@ -16929,8 +17206,11 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                         return candidate.gridX == patchCell.cell.first &&
                             candidate.gridZ == patchCell.cell.second;
                     });
-                if (patchCell.role ==
-                        route1_terrain_patch_v2::CellRole::Core &&
+                if ((patchCell.role ==
+                         route1_terrain_patch_v2::CellRole::Core ||
+                     (regeneratesMaterialTransitionRing &&
+                      patchCell.role ==
+                          route1_terrain_patch_v2::CellRole::SourceTransition)) &&
                     activeTile != terrainTiles.end() &&
                     activeTile->surface != "empty" &&
                     !activeTile->sourceReference) {
@@ -17336,6 +17616,29 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             includeConcaveCrown({
                 ledge.ownerCell.first + tangent[0],
                 ledge.ownerCell.second + tangent[1]});
+        }
+    }
+    if (regeneratesMaterialTransitionRing) {
+        // `nextCells` is the complete generated terrain assembly, including
+        // cells promoted indirectly for ledge crowns, material sockets, and
+        // corner contacts. Every one of those carriers must use the same
+        // regional UV0/UV1/Color0 contract. Restricting the contract to V2's
+        // explicit core/ring cells leaves the indirectly promoted cells on
+        // their former tile-local fields and recreates checkerboard shading
+        // inside an otherwise continuous patch.
+        for (const auto& cell : nextCells) {
+            const auto activeTile = std::find_if(
+                terrainTiles.begin(),
+                terrainTiles.end(),
+                [&](const TerrainTileState& candidate) {
+                    return candidate.gridX == cell.first &&
+                        candidate.gridZ == cell.second;
+                });
+            if (activeTile != terrainTiles.end() &&
+                activeTile->surface != "empty" &&
+                !activeTile->sourceReference) {
+                activeTile->rebuildContinuousMaterialFields = true;
+            }
         }
     }
     if (nextCells == terrainMaskCells &&
@@ -18381,15 +18684,19 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
             tile->terrainPatchV2RegionId = region.id;
             tile->terrainPatchV2Core = patchCell.role ==
                 route1_terrain_patch_v2::CellRole::Core;
-            // The transition ring is source terrain, not an enlarged edit.
-            // Keep its decoded UV/color fields authoritative so the outer
-            // edge of a regional patch cannot merely move a square material
-            // delimiter one cell farther into the location. Only the core
-            // may synthesize continuous fields; transition cells retain the
-            // result chosen by Route1TerrainSeamResolver above.
+            const bool regeneratesMaterialTransitionRing =
+                route1UsesRegionalTerrainMaterialField(
+                    authoredScene.sceneId);
+            // Editable variants use the transition ring to move gradually
+            // from the regional field back to exact source data at its outer
+            // edge. Keeping tile-owned source fields throughout the ring
+            // exposes the ring itself as a row of rectangular patches.
             if (terrainPatchV2PreviewEnabled &&
-                patchCell.role ==
-                    route1_terrain_patch_v2::CellRole::Core &&
+                (patchCell.role ==
+                     route1_terrain_patch_v2::CellRole::Core ||
+                 (regeneratesMaterialTransitionRing &&
+                  patchCell.role ==
+                      route1_terrain_patch_v2::CellRole::SourceTransition)) &&
                 !terrainReplacementCells.contains(patchCell.cell)) {
                 tile->rebuildContinuousMaterialFields = true;
             }
