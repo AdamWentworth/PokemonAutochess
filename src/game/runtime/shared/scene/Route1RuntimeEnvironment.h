@@ -145,6 +145,10 @@ struct TerrainTileState {
     // Derived by Route1TerrainSeamResolver on every preview/commit. These do
     // not serialize into the authored scene.
     bool rebuildContinuousMaterialFields = false;
+    // True when cell-level cleanup retires the imported cliff/fringe carrier.
+    // A transition-ring ground rebuild alone does not own an unchanged source
+    // ledge; a displaced cleanup carrier does and must be regenerated.
+    bool sourceLedgeCarrierDisplaced = false;
     std::uint8_t projectedShadowMismatchEdgeMask = 0u;
     std::uint32_t terrainPatchV2RegionId = 0u;
     bool terrainPatchV2Core = false;

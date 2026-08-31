@@ -2693,14 +2693,23 @@ bool route1TerrainUsesExactSourceSurfaceOverride(
     // and, when necessary, resubmit them under the requested shadow policy.
     // Encounter-grass edits are excluded because their source Color0 field is
     // deliberately normalized after the grass carrier is removed/restored.
+    const bool preservesAuthoredSourceSurface =
+        tile.authored && !tile.rebuildContinuousMaterialFields;
+    const bool preservesIntactTransitionLedgeAssembly =
+        !tile.authored &&
+        tile.terrainPatchV2RegionId != 0u &&
+        !tile.terrainPatchV2Core &&
+        tile.rebuildContinuousMaterialFields &&
+        !tile.sourceLedgeCarrierDisplaced;
     const bool sourceEquivalent =
-        tile.authored && tile.sourceOccupied &&
+        (preservesAuthoredSourceSurface ||
+         preservesIntactTransitionLedgeAssembly) &&
+        tile.sourceOccupied &&
         !tile.sourceReference &&
         tile.elevationLevel == tile.sourceElevationLevel &&
         tile.shape == tile.sourceShape &&
         tile.surface == tile.sourceSurface &&
         tile.visualVariant == "auto" &&
-        !tile.rebuildContinuousMaterialFields &&
         !tile.normalizeSourceTint &&
         !tile.cleanSuppressedEncounterGrassTint &&
         !tile.reason.starts_with("terrain_encounter_grass_");
@@ -2735,6 +2744,7 @@ bool route1TerrainUsesExactSourceSurfaceOverride(
     if (!sourceTile) {
         return false;
     }
+    bool hasSourceLedgeBoundary = false;
     for (std::size_t edge = 0u;
          edge < directions.size();
          ++edge) {
@@ -2757,6 +2767,8 @@ bool route1TerrainUsesExactSourceSurfaceOverride(
             tile, activeNeighbor, edge);
         const auto sourceProfile = route1TerrainSharedEdgeProfile(
             *sourceTile, sourceNeighbor, edge);
+        hasSourceLedgeBoundary = hasSourceLedgeBoundary ||
+            sourceProfile.tileLevels != sourceProfile.neighborLevels;
         if (activeNeighbor->sourceReference ||
             activeNeighbor->cleanSuppressedEncounterGrassTint ||
             activeNeighbor->surface != sourceNeighbor->surface ||
@@ -2766,7 +2778,15 @@ bool route1TerrainUsesExactSourceSurfaceOverride(
             return false;
         }
     }
-    return true;
+    // A V2 transition field normally needs its generated regional material
+    // handoff. The exception is an unchanged imported ledge cell whose
+    // cliff/fringe cleanup carrier is still authoritative. Its material-19
+    // cap, leafy crown, wall, and foot are one coupled source assembly; mixing
+    // a generated square cap with the imported curved corner produces the
+    // diagonal flap and black wedge seen at cells such as South Clearing
+    // (26,-13). Preserve the exact cap only for that ledge-bearing case.
+    return !preservesIntactTransitionLedgeAssembly ||
+        hasSourceLedgeBoundary;
 }
 
 bool route1TerrainCanPreserveRelativeSourceGeometry(
@@ -17527,6 +17547,10 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
     // whether the set of masked cells changed. Resolve it before the mask
     // cache early-out so repeated live edits at the same cells still rebuild
     // their contour geometry and texture coordinates.
+    for (auto& tile : terrainTiles) {
+        tile.sourceLedgeCarrierDisplaced =
+            nextCleanupCells.contains({tile.gridX, tile.gridZ});
+    }
     terrainLedgeResolution = route1_terrain_ledges::resolve(
         terrainTiles,
         sourceTerrainTiles);

@@ -207,11 +207,24 @@ Resolution resolve(
             // exact source-profile ledge locally. Authored material sockets
             // keep the established source ledge path; rebuilding those here
             // would unnecessarily replace a whole canonical ledge run.
+            const auto derivedMaterialFieldDisplacesSourceCarrier =
+                [](const TerrainTileState& candidate) {
+                    if (candidate.authored ||
+                        !candidate.rebuildContinuousMaterialFields) {
+                        return false;
+                    }
+                    // V2 transition cells can regenerate material-19 ground
+                    // without retiring the imported cliff/fringe beside it.
+                    // Only core-derived fields or cells whose cleanup carrier
+                    // was actually displaced own a replacement ledge.
+                    return candidate.terrainPatchV2RegionId == 0u ||
+                        candidate.terrainPatchV2Core ||
+                        candidate.sourceLedgeCarrierDisplaced;
+                };
             const bool derivedMaterialFieldOwnsBoundary =
-                (!tile.authored &&
-                 tile.rebuildContinuousMaterialFields) ||
-                (neighbor && !neighbor->authored &&
-                 neighbor->rebuildContinuousMaterialFields);
+                derivedMaterialFieldDisplacesSourceCarrier(tile) ||
+                (neighbor &&
+                 derivedMaterialFieldDisplacesSourceCarrier(*neighbor));
             const bool rebuildBoundary =
                 ownerBoundaryStyleChanged ||
                 derivedMaterialFieldOwnsBoundary ||

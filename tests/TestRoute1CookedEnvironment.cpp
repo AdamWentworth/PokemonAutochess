@@ -4363,11 +4363,24 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 0.0f, variantBatches);
             std::array<bool, 4> retainedSouthLedgeCliffs{};
             std::array<bool, 4> retainedSouthLedgeFringes{};
+            bool replacedIntactSourceCorner = false;
+            bool retainedIntactSourceCornerCap = false;
             bool foundLightLawnCrownCarrier = false;
             bool forcedDarkLightLawnCrownCarrier = false;
             constexpr std::array<float, 3> raisedLawnTint{
                 0.180392161f, 0.482352942f, 0.431372553f};
             for (const auto& batch : variantBatches) {
+                replacedIntactSourceCorner =
+                    replacedIntactSourceCorner ||
+                    batch.geometryCacheKey.find(
+                        "cell-26--13:") != std::string::npos;
+                retainedIntactSourceCornerCap =
+                    retainedIntactSourceCornerCap ||
+                    (batch.geometryCacheKey.find(
+                         "route1:terrain-exact-source-surface:") !=
+                         std::string::npos &&
+                     batch.geometryCacheKey.find("26,-13;") !=
+                         std::string::npos);
                 for (std::size_t cell = 0u;
                      cell < retainedSouthLedgeCliffs.size();
                      ++cell) {
@@ -4433,10 +4446,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 [](bool retained) { return !retained; });
             if (missingSouthLedgeCliff ||
                 missingSouthLedgeFringe ||
+                replacedIntactSourceCorner ||
+                !retainedIntactSourceCornerCap ||
                 !foundLightLawnCrownCarrier ||
                 forcedDarkLightLawnCrownCarrier) {
                 outFail =
-                    "South Clearing must retain the generated ledge run from (21,-19) through (24,-19), while light-lawn crown gaskets inherit the lawn material instead of drawing a dark green line (cliffs=" +
+                    "South Clearing must retain the generated ledge run from (21,-19) through (24,-19), preserve the complete imported cap/corner at (26,-13), and let light-lawn crown gaskets inherit the lawn material instead of drawing a dark green line (cliffs=" +
                     std::to_string(retainedSouthLedgeCliffs[0]) + "," +
                     std::to_string(retainedSouthLedgeCliffs[1]) + "," +
                     std::to_string(retainedSouthLedgeCliffs[2]) + "," +
@@ -4446,6 +4461,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::to_string(retainedSouthLedgeFringes[1]) + "," +
                     std::to_string(retainedSouthLedgeFringes[2]) + "," +
                     std::to_string(retainedSouthLedgeFringes[3]) +
+                    ", replaced-source-corner=" +
+                    std::to_string(replacedIntactSourceCorner) +
+                    ", retained-source-cap=" +
+                    std::to_string(retainedIntactSourceCornerCap) +
                     ", light-crown=" +
                     std::to_string(foundLightLawnCrownCarrier) +
                     ", forced-dark=" +
