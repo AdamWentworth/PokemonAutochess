@@ -207,27 +207,11 @@ Resolution resolve(
             // exact source-profile ledge locally. Authored material sockets
             // keep the established source ledge path; rebuilding those here
             // would unnecessarily replace a whole canonical ledge run.
-            const auto derivedMaterialFieldDisplacesSourceCarrier =
-                [](const TerrainTileState& candidate) {
-                    if (candidate.authored ||
-                        !candidate.rebuildContinuousMaterialFields) {
-                        return false;
-                    }
-                    // A V2 source-transition cell regenerates only its
-                    // material-19 ground field. Its imported LGPE
-                    // cliff/fringe remains authoritative. Treating the ring
-                    // as full ledge ownership replaces untouched source
-                    // foliage with a synthetic crown gasket, exposing a
-                    // narrow green line along otherwise pristine ledges.
-                    // Core-derived fields really do displace their source
-                    // carriers and must continue to rebuild the boundary.
-                    return candidate.terrainPatchV2RegionId == 0u ||
-                        candidate.terrainPatchV2Core;
-                };
             const bool derivedMaterialFieldOwnsBoundary =
-                derivedMaterialFieldDisplacesSourceCarrier(tile) ||
-                (neighbor &&
-                 derivedMaterialFieldDisplacesSourceCarrier(*neighbor));
+                (!tile.authored &&
+                 tile.rebuildContinuousMaterialFields) ||
+                (neighbor && !neighbor->authored &&
+                 neighbor->rebuildContinuousMaterialFields);
             const bool rebuildBoundary =
                 ownerBoundaryStyleChanged ||
                 derivedMaterialFieldOwnsBoundary ||

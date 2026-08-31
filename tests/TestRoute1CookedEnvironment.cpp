@@ -4347,11 +4347,112 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::size_t retiredSourceDirtTintBandSampleCount = 0u;
             const auto cleanFlatDirtColor =
                 route1::route1CleanFlatDirtColor();
+            constexpr std::array<std::array<double, 2>, 6>
+                retiredSourceDirtTintProbes{{
+                    {1885.0, -1640.0},
+                    {1885.0, -1600.0},
+                    {1885.0, -1560.0},
+                    {1760.0, -1515.0},
+                    {1800.0, -1515.0},
+                    {1840.0, -1515.0},
+                }};
             std::vector<
                 game::runtime::shared_world_batches::WorldIndexedBatch>
                 variantBatches;
             variantEnvironment.appendIndexedBatches(
                 0.0f, variantBatches);
+            std::array<bool, 4> retainedSouthLedgeCliffs{};
+            std::array<bool, 4> retainedSouthLedgeFringes{};
+            bool foundLightLawnCrownCarrier = false;
+            bool forcedDarkLightLawnCrownCarrier = false;
+            constexpr std::array<float, 3> raisedLawnTint{
+                0.180392161f, 0.482352942f, 0.431372553f};
+            for (const auto& batch : variantBatches) {
+                for (std::size_t cell = 0u;
+                     cell < retainedSouthLedgeCliffs.size();
+                     ++cell) {
+                    const std::string cellKey = "cell-" +
+                        std::to_string(21u + cell) + "--19:edge-0:";
+                    retainedSouthLedgeCliffs[cell] =
+                        retainedSouthLedgeCliffs[cell] ||
+                        batch.geometryCacheKey.find(
+                            "terrain-cliff:" + cellKey) !=
+                            std::string::npos;
+                    retainedSouthLedgeFringes[cell] =
+                        retainedSouthLedgeFringes[cell] ||
+                        batch.geometryCacheKey.find(
+                            "terrain-fringe:" + cellKey) !=
+                            std::string::npos;
+                }
+                const bool lightLawnCrown =
+                    batch.geometryCacheKey.find(
+                        "terrain-ledge-crown-contour-underlay:") !=
+                        std::string::npos &&
+                    batch.geometryCacheKey.find(
+                        ":surface-light_lawn:") !=
+                        std::string::npos;
+                if (!lightLawnCrown) {
+                    continue;
+                }
+                foundLightLawnCrownCarrier = true;
+                const auto* vertices = batch.sharedVertices
+                    ? batch.sharedVertices
+                    : batch.vertices.data();
+                const std::size_t vertexCount = batch.sharedVertices
+                    ? batch.sharedVertexCount
+                    : batch.vertices.size();
+                const std::size_t outerRowCount = vertexCount / 2u;
+                const bool entireContactRowForcedDark =
+                    vertices && outerRowCount > 0u &&
+                    std::all_of(
+                        vertices,
+                        vertices + outerRowCount,
+                        [&](const auto& vertex) {
+                            return
+                                std::abs(
+                                    vertex.r - raisedLawnTint[0]) <=
+                                    0.001f &&
+                                std::abs(
+                                    vertex.g - raisedLawnTint[1]) <=
+                                    0.001f &&
+                                std::abs(
+                                    vertex.b - raisedLawnTint[2]) <=
+                                    0.001f;
+                        });
+                forcedDarkLightLawnCrownCarrier =
+                    forcedDarkLightLawnCrownCarrier ||
+                    entireContactRowForcedDark;
+            }
+            const bool missingSouthLedgeCliff = std::any_of(
+                retainedSouthLedgeCliffs.begin(),
+                retainedSouthLedgeCliffs.end(),
+                [](bool retained) { return !retained; });
+            const bool missingSouthLedgeFringe = std::any_of(
+                retainedSouthLedgeFringes.begin(),
+                retainedSouthLedgeFringes.end(),
+                [](bool retained) { return !retained; });
+            if (missingSouthLedgeCliff ||
+                missingSouthLedgeFringe ||
+                !foundLightLawnCrownCarrier ||
+                forcedDarkLightLawnCrownCarrier) {
+                outFail =
+                    "South Clearing must retain the generated ledge run from (21,-19) through (24,-19), while light-lawn crown gaskets inherit the lawn material instead of drawing a dark green line (cliffs=" +
+                    std::to_string(retainedSouthLedgeCliffs[0]) + "," +
+                    std::to_string(retainedSouthLedgeCliffs[1]) + "," +
+                    std::to_string(retainedSouthLedgeCliffs[2]) + "," +
+                    std::to_string(retainedSouthLedgeCliffs[3]) +
+                    ", fringes=" +
+                    std::to_string(retainedSouthLedgeFringes[0]) + "," +
+                    std::to_string(retainedSouthLedgeFringes[1]) + "," +
+                    std::to_string(retainedSouthLedgeFringes[2]) + "," +
+                    std::to_string(retainedSouthLedgeFringes[3]) +
+                    ", light-crown=" +
+                    std::to_string(foundLightLawnCrownCarrier) +
+                    ", forced-dark=" +
+                    std::to_string(
+                        forcedDarkLightLawnCrownCarrier) + ").";
+                return false;
+            }
             const auto variantSourceFromWorld =
                 route1::sourceFromWorldMatrix(
                     variantEnvironment.layout());
@@ -4458,7 +4559,89 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 const auto vertexCount = batch.sharedVertices
                     ? batch.sharedVertexCount
                     : batch.vertices.size();
+                const auto* indices = batch.sharedIndices
+                    ? batch.sharedIndices
+                    : batch.indices.data();
+                const auto indexCount = batch.sharedIndices
+                    ? batch.sharedIndexCount
+                    : batch.indices.size();
                 for (const auto& instance : batch.instances) {
+                    for (std::size_t index = 0u;
+                         vertices && indices &&
+                         index + 2u < indexCount;
+                         index += 3u) {
+                        std::array<std::array<double, 3>, 3>
+                            triangle{};
+                        std::array<std::array<float, 4>, 3>
+                            colors{};
+                        bool valid = true;
+                        for (std::size_t corner = 0u;
+                             corner < triangle.size();
+                             ++corner) {
+                            const auto vertexIndex =
+                                indices[index + corner];
+                            if (vertexIndex >= vertexCount) {
+                                valid = false;
+                                break;
+                            }
+                            const auto& vertex = vertices[vertexIndex];
+                            triangle[corner] = transformPoint(
+                                variantSourceFromWorld,
+                                transformPoint(
+                                    instance.modelMatrix,
+                                    {vertex.x, vertex.y, vertex.z}));
+                            colors[corner] = {
+                                vertex.r, vertex.g,
+                                vertex.b, vertex.a};
+                        }
+                        if (!valid) {
+                            continue;
+                        }
+                        const double denominator =
+                            (triangle[1][2] - triangle[2][2]) *
+                                (triangle[0][0] - triangle[2][0]) +
+                            (triangle[2][0] - triangle[1][0]) *
+                                (triangle[0][2] - triangle[2][2]);
+                        if (std::abs(denominator) <= 0.000001) {
+                            continue;
+                        }
+                        for (const auto& probe :
+                             retiredSourceDirtTintProbes) {
+                            if (!containsXZ(
+                                    triangle, probe[0], probe[1])) {
+                                continue;
+                            }
+                            const double firstWeight =
+                                ((triangle[1][2] - triangle[2][2]) *
+                                     (probe[0] - triangle[2][0]) +
+                                 (triangle[2][0] - triangle[1][0]) *
+                                     (probe[1] - triangle[2][2])) /
+                                denominator;
+                            const double secondWeight =
+                                ((triangle[2][2] - triangle[0][2]) *
+                                     (probe[0] - triangle[2][0]) +
+                                 (triangle[0][0] - triangle[2][0]) *
+                                     (probe[1] - triangle[2][2])) /
+                                denominator;
+                            const double thirdWeight =
+                                1.0 - firstWeight - secondWeight;
+                            for (std::size_t channel = 0u;
+                                 channel < cleanFlatDirtColor.size();
+                                 ++channel) {
+                                const double color =
+                                    firstWeight * colors[0][channel] +
+                                    secondWeight * colors[1][channel] +
+                                    thirdWeight * colors[2][channel];
+                                maximumRetiredSourceDirtColorDifference =
+                                    std::max(
+                                        maximumRetiredSourceDirtColorDifference,
+                                        static_cast<float>(std::abs(
+                                            color -
+                                            cleanFlatDirtColor[channel])));
+                            }
+                            ++retiredSourceDirtTintBandSampleCount;
+                        }
+                    }
                     for (std::size_t vertexIndex = 0u;
                          vertices && vertexIndex < vertexCount;
                          ++vertexIndex) {
@@ -4468,35 +4651,6 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                             {vertex.x, vertex.y, vertex.z});
                         const auto sourcePoint = transformPoint(
                             variantSourceFromWorld, worldPoint);
-                        // The active path connects across these former
-                        // source dirt/lawn boundaries. Its interior band must
-                        // remain neutral dirt instead of retaining the old
-                        // grass-side Color0 tint.
-                        const bool retiredSourceDirtTintBand =
-                            (sourcePoint[0] >= 1874.9 &&
-                             sourcePoint[0] <= 1895.1 &&
-                             sourcePoint[2] >= -1645.1 &&
-                             sourcePoint[2] <= -1554.9) ||
-                            (sourcePoint[2] >= -1525.1 &&
-                             sourcePoint[2] <= -1504.9 &&
-                             sourcePoint[0] >= 1754.9 &&
-                             sourcePoint[0] <= 1845.1);
-                        if (retiredSourceDirtTintBand) {
-                            const std::array<float, 4> color{
-                                vertex.r, vertex.g,
-                                vertex.b, vertex.a};
-                            for (std::size_t channel = 0u;
-                                 channel < color.size();
-                                 ++channel) {
-                                maximumRetiredSourceDirtColorDifference =
-                                    std::max(
-                                        maximumRetiredSourceDirtColorDifference,
-                                        std::abs(
-                                            color[channel] -
-                                            cleanFlatDirtColor[channel]));
-                            }
-                            ++retiredSourceDirtTintBandSampleCount;
-                        }
                         if (std::abs(sourcePoint[0] - 2500.0) > 0.1 ||
                             sourcePoint[2] <= -1695.1 ||
                             sourcePoint[2] >= -1604.9) {
@@ -4583,7 +4737,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 [](std::size_t count) { return count != 0u; });
             if (missingDonorSurface || retainedCanonicalSurface ||
                 pairedPositionCount < 8u ||
-                retiredSourceDirtTintBandSampleCount < 16u ||
+                retiredSourceDirtTintBandSampleCount <
+                    retiredSourceDirtTintProbes.size() ||
                 maximumRetiredSourceDirtColorDifference > 0.001f ||
                 maximumBoundaryHeightDifference > 0.001f ||
                 maximumBoundaryUv0Difference > 0.001f ||

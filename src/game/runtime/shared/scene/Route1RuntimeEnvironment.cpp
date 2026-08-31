@@ -15877,7 +15877,9 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
             uv2 = kCarrierOpaqueLightLawnUv2;
         }
         if (!forceRaisedCrownField && exactContactWeights &&
-            vertexIndex < exactContactWeights->size()) {
+            vertexIndex < exactContactWeights->size() &&
+            (regionalCrownCarrier || !materialTile ||
+             materialTile->surface != "light_lawn")) {
             const float contactWeight = std::clamp(
                 (*exactContactWeights)[vertexIndex], 0.0f, 1.0f);
             const glm::vec4 contactColor{
