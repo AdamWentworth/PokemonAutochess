@@ -4343,6 +4343,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             float maximumBoundaryUv1Difference = 0.0f;
             float maximumBoundaryColorDifference = 0.0f;
             float maximumBoundaryNormalDifference = 0.0f;
+            float maximumRetiredSourceDirtColorDifference = 0.0f;
+            std::size_t retiredSourceDirtTintBandSampleCount = 0u;
+            const auto cleanFlatDirtColor =
+                route1::route1CleanFlatDirtColor();
             std::vector<
                 game::runtime::shared_world_batches::WorldIndexedBatch>
                 variantBatches;
@@ -4379,6 +4383,35 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                             {vertex.x, vertex.y, vertex.z});
                         const auto sourcePoint = transformPoint(
                             variantSourceFromWorld, worldPoint);
+                        // The active path connects across these former
+                        // source dirt/lawn boundaries. Its interior band must
+                        // remain neutral dirt instead of retaining the old
+                        // grass-side Color0 tint.
+                        const bool retiredSourceDirtTintBand =
+                            (sourcePoint[0] >= 1874.9 &&
+                             sourcePoint[0] <= 1895.1 &&
+                             sourcePoint[2] >= -1645.1 &&
+                             sourcePoint[2] <= -1554.9) ||
+                            (sourcePoint[2] >= -1525.1 &&
+                             sourcePoint[2] <= -1504.9 &&
+                             sourcePoint[0] >= 1754.9 &&
+                             sourcePoint[0] <= 1845.1);
+                        if (retiredSourceDirtTintBand) {
+                            const std::array<float, 4> color{
+                                vertex.r, vertex.g,
+                                vertex.b, vertex.a};
+                            for (std::size_t channel = 0u;
+                                 channel < color.size();
+                                 ++channel) {
+                                maximumRetiredSourceDirtColorDifference =
+                                    std::max(
+                                        maximumRetiredSourceDirtColorDifference,
+                                        std::abs(
+                                            color[channel] -
+                                            cleanFlatDirtColor[channel]));
+                            }
+                            ++retiredSourceDirtTintBandSampleCount;
+                        }
                         if (std::abs(sourcePoint[0] - 2500.0) > 0.1 ||
                             sourcePoint[2] <= -1695.1 ||
                             sourcePoint[2] >= -1604.9) {
@@ -4456,14 +4489,22 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     return entry.second.sampleCount >= 2u;
                 });
             if (pairedPositionCount < 8u ||
+                retiredSourceDirtTintBandSampleCount < 16u ||
+                maximumRetiredSourceDirtColorDifference > 0.001f ||
                 maximumBoundaryHeightDifference > 0.001f ||
                 maximumBoundaryUv0Difference > 0.001f ||
                 maximumBoundaryUv1Difference > 0.001f ||
                 maximumBoundaryColorDifference > 0.001f ||
                 maximumBoundaryNormalDifference > 0.001f) {
                 outFail =
-                    "South Clearing did not reconcile the matching light-lawn boundary at (24,-17)/(25,-17) as one height/material field (pairs=" +
+                    "South Clearing did not reconcile its generated lawn and retired source dirt/lawn boundaries as continuous material fields (lawn-pairs=" +
                     std::to_string(pairedPositionCount) +
+                    ", retired-dirt-tint-samples=" +
+                    std::to_string(
+                        retiredSourceDirtTintBandSampleCount) +
+                    ", retired-dirt-color=" +
+                    std::to_string(
+                        maximumRetiredSourceDirtColorDifference) +
                     ", height=" +
                     std::to_string(maximumBoundaryHeightDifference) +
                     ", uv0=" +

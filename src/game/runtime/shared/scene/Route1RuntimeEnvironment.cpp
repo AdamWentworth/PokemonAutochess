@@ -10832,27 +10832,14 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     deformedSourceSampled) {
                     targetColor = deformedSourceSample.color0;
                 } else {
-                    glm::vec4 boundaryColor = cleanDirtColor;
-                    const bool boundaryColorSampled =
-                        sampleTargetTerrainColor(
-                            tile.surface,
-                            tile.elevationLevel,
-                            materialWorldGridX,
-                            materialWorldGridZ,
-                            boundaryColor);
-                    const float sourceBoundaryWeight =
-                        boundaryColorSampled &&
-                        std::isfinite(
-                            nearestRegeneratedDirtBoundaryCm)
-                        ? 1.0f - glm::smoothstep(
-                              0.0f,
-                              kBoundaryWidthCm,
-                              nearestRegeneratedDirtBoundaryCm)
-                        : 0.0f;
-                    targetColor = glm::mix(
-                        cleanDirtColor,
-                        boundaryColor,
-                        sourceBoundaryWeight);
+                    // An authored dirt connection can erase a source
+                    // dirt/lawn boundary. Its regenerated UV2 is already
+                    // clean soil, so blending the retired source Color0 back
+                    // over the same 30 cm band paints a green fringe inside
+                    // the continuous path. Begin from neutral source dirt;
+                    // the active dirt/lawn transition below remains the sole
+                    // owner of Color0 at boundaries that still exist.
+                    targetColor = cleanDirtColor;
                 }
                 targetColorSampled = true;
             } else if (!dark) {
