@@ -199,8 +199,23 @@ Resolution resolve(
                 !sourceTile || !hasSurface(*sourceTile) ||
                 tile.surface != sourceTile->surface ||
                 tile.cleanSuppressedEncounterGrassTint;
+            // Some source-identical cells become generated only because a
+            // derived cleanup field (for example suppressed encounter-grass
+            // tint) owns their material stream. Those cells are deliberately
+            // not authored geometry, but replacing their source carrier also
+            // removes any source cliff/fringe crossing the cell. Rebuild that
+            // exact source-profile ledge locally. Authored material sockets
+            // keep the established source ledge path; rebuilding those here
+            // would unnecessarily replace a whole canonical ledge run.
+            const bool derivedMaterialFieldOwnsBoundary =
+                (!tile.authored &&
+                 tile.rebuildContinuousMaterialFields) ||
+                (neighbor && !neighbor->authored &&
+                 neighbor->rebuildContinuousMaterialFields);
             const bool rebuildBoundary =
-                ownerBoundaryStyleChanged || !sourceBoundaryMatches;
+                ownerBoundaryStyleChanged ||
+                derivedMaterialFieldOwnsBoundary ||
+                !sourceBoundaryMatches;
 
             const auto node = [&](std::size_t endpoint) {
                 return BoundaryNode{

@@ -177,16 +177,16 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
         const auto resolution =
             game::runtime::route1_terrain_seams::resolve(
                 seamTiles);
-        if (resolution.continuousFieldCellCount != 3u ||
+        if (resolution.continuousFieldCellCount != 2u ||
             !seamTiles[0].rebuildContinuousMaterialFields ||
             !seamTiles[1].rebuildContinuousMaterialFields ||
-            !seamTiles[2].rebuildContinuousMaterialFields ||
+            seamTiles[2].rebuildContinuousMaterialFields ||
             seamTiles[3].rebuildContinuousMaterialFields ||
             seamTiles[4].rebuildContinuousMaterialFields ||
             seamTiles[5].rebuildContinuousMaterialFields ||
             seamTiles[6].rebuildContinuousMaterialFields) {
             outFail =
-                "Route 1 seam resolution must propagate a continuous material field only through compatible authored neighbors and stop at untouched source, surface changes, and height-profile changes.";
+                "Route 1 seam resolution must include one compatible authored handoff socket and stop before a local edit floods through distant source-identical cells, untouched source, surface changes, or height-profile changes.";
             return false;
         }
         if (resolution.projectedShadowMismatchEdgeCount != 1u ||
@@ -413,6 +413,30 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             metadataOnlyLedges.contourCount != 0u) {
             outFail =
                 "Serializing a render-only Route 1 tile override must not replace any source ledge geometry.";
+            return false;
+        }
+        auto derivedFieldTiles = joinedSourceTiles;
+        derivedFieldTiles[4].rebuildContinuousMaterialFields = true;
+        const auto derivedFieldLedges =
+            game::runtime::route1_terrain_ledges::resolve(
+                derivedFieldTiles,
+                joinedSourceTiles);
+        const auto* rebuiltDerivedBoundary =
+            game::runtime::route1_terrain_ledges::find(
+                derivedFieldLedges, {0, 0}, 1u);
+        if (!rebuiltDerivedBoundary) {
+            outFail =
+                "A derived material-field replacement on an un-authored Route 1 cell must rebuild the source-profile ledge carrier it displaces.";
+            return false;
+        }
+        derivedFieldTiles[4].authored = true;
+        const auto authoredFieldLedges =
+            game::runtime::route1_terrain_ledges::resolve(
+                derivedFieldTiles,
+                joinedSourceTiles);
+        if (!authoredFieldLedges.edges.empty()) {
+            outFail =
+                "An authored material socket must retain a matching source ledge instead of widening its procedural ownership boundary.";
             return false;
         }
         auto rampJoinedSourceTiles = joinedSourceTiles;
@@ -919,10 +943,10 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                 "Route 1 dirt grass ribbons must meet adjacent lawn with the lawn's Color0 and blend back to the dirt field across the recovered 30 cm band.";
             return false;
         }
-        if (!close(route1DirtTransitionUv2V(0.0f), 0.928709f) ||
+        if (!close(route1DirtTransitionUv2V(0.0f), 0.932880402f) ||
             !close(
                 route1DirtTransitionUv2V(5.0f),
-                0.932880402f) ||
+                0.942592859f) ||
             !close(
                 route1DirtTransitionUv2V(30.0f),
                 0.991155148f) ||

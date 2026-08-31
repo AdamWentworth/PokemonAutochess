@@ -3,7 +3,6 @@
 #include <array>
 #include <cstddef>
 #include <map>
-#include <queue>
 #include <utility>
 
 namespace game::runtime::route1_terrain_seams {
@@ -66,21 +65,23 @@ Resolution resolve(std::vector<TerrainTileState>& tiles) {
             GridCell{tile.gridX, tile.gridZ}, index);
     }
 
-    std::queue<std::size_t> pending;
+    std::vector<std::size_t> seeds;
     for (std::size_t index = 0u; index < tiles.size(); ++index) {
         if (!startsContinuousField(tiles[index])) {
             continue;
         }
         tiles[index].rebuildContinuousMaterialFields = true;
-        pending.push(index);
+        seeds.push_back(index);
     }
 
-    // A topology/material edit owns one continuous UV0/UV1 field across its
-    // compatible authored component. Untouched source cells remain exact and
-    // are joined by the existing source-overlap boundary carrier.
-    while (!pending.empty()) {
-        const std::size_t index = pending.front();
-        pending.pop();
+    // A topology/material edit owns its changed cells plus one compatible
+    // authored socket around them. Do not flood through the complete authored
+    // component: older Route 1 layouts contain long runs of source-identical
+    // serialized cells, and treating those as geometry authority rebuilds
+    // distant ramps, ledges, and lawn seams for no visual edit. The immediate
+    // socket is sufficient for a continuous handoff; its far edge returns to
+    // the exact imported carrier.
+    for (const std::size_t index : seeds) {
         const TerrainTileState& tile = tiles[index];
         for (std::size_t edge = 0u; edge < kDirections.size(); ++edge) {
             const auto direction = kDirections[edge];
@@ -97,7 +98,6 @@ Resolution resolve(std::vector<TerrainTileState>& tiles) {
                 continue;
             }
             neighbor.rebuildContinuousMaterialFields = true;
-            pending.push(found->second);
         }
     }
 

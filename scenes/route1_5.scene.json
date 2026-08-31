@@ -1519,6 +1519,28 @@
     {
       "components": {
         "terrain_tile": {
+          "elevation_level": 0,
+          "grid_x": 17,
+          "grid_z": -9,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "ramp_south",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (17, -9)",
+      "enabled": true,
+      "id": "terrain-tile/x-p17/z-n9",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_tile_authoring",
+      "sibling_order": 133
+    },
+    {
+      "components": {
+        "terrain_tile": {
           "elevation_level": 1,
           "grid_x": 18,
           "grid_z": -10,
@@ -1790,7 +1812,7 @@
           "receives_projected_shadow": true,
           "shape": "ramp_south",
           "suppress_overlapping_vegetation": false,
-          "surface": "dirt_path",
+          "surface": "light_lawn",
           "tile_set_asset_id": "route1/terrain_tileset",
           "visual_variant": "auto"
         }
@@ -3146,5 +3168,5 @@
     }
   ],
   "scene_id": "routes/route1-5",
-  "schema_version": 7
+  "schema_version": 8
 }

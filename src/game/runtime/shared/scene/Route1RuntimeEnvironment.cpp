@@ -2764,6 +2764,77 @@ bool route1TerrainUsesExactSourceSurfaceOverride(
     return true;
 }
 
+bool route1TerrainCanPreserveRelativeSourceGeometry(
+    const TerrainTileState& tile,
+    const std::vector<TerrainTileState>& activeTiles,
+    const std::vector<TerrainTileState>& sourceTiles) noexcept {
+    if (!tile.sourceOccupied || tile.sourceReference ||
+        tile.shape != tile.sourceShape) {
+        return false;
+    }
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        directions{{
+            {0, 1},
+            {1, 0},
+            {0, -1},
+            {-1, 0},
+        }};
+    const auto findAt = [](const auto& tiles,
+                           std::int32_t gridX,
+                           std::int32_t gridZ) {
+        const auto found = std::find_if(
+            tiles.begin(),
+            tiles.end(),
+            [&](const TerrainTileState& candidate) {
+                return candidate.gridX == gridX &&
+                    candidate.gridZ == gridZ;
+            });
+        return found == tiles.end() ? nullptr : &*found;
+    };
+    const auto hasSurface = [](const TerrainTileState* candidate) {
+        return candidate && candidate->surface != "empty" &&
+            (candidate->sourceOccupied || candidate->authored);
+    };
+    const auto* sourceTile = findAt(
+        sourceTiles, tile.gridX, tile.gridZ);
+    if (!sourceTile) {
+        return false;
+    }
+    for (std::size_t edge = 0u; edge < directions.size(); ++edge) {
+        const auto direction = directions[edge];
+        const auto* activeNeighbor = findAt(
+            activeTiles,
+            tile.gridX + direction[0],
+            tile.gridZ + direction[1]);
+        const auto* sourceNeighbor = findAt(
+            sourceTiles,
+            tile.gridX + direction[0],
+            tile.gridZ + direction[1]);
+        if (hasSurface(activeNeighbor) != hasSurface(sourceNeighbor)) {
+            return false;
+        }
+        if (!hasSurface(activeNeighbor)) {
+            continue;
+        }
+        const auto activeProfile = route1TerrainSharedEdgeProfile(
+            tile, activeNeighbor, edge);
+        const auto sourceProfile = route1TerrainSharedEdgeProfile(
+            *sourceTile, sourceNeighbor, edge);
+        for (std::size_t endpoint = 0u; endpoint < 2u; ++endpoint) {
+            const auto activeDifference =
+                activeProfile.tileLevels[endpoint] -
+                activeProfile.neighborLevels[endpoint];
+            const auto sourceDifference =
+                sourceProfile.tileLevels[endpoint] -
+                sourceProfile.neighborLevels[endpoint];
+            if (activeDifference != sourceDifference) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 float route1TerrainProfileHeightCm(
     const TerrainTileState& tile,
     float localX,
@@ -7979,9 +8050,12 @@ bool RuntimeEnvironment::Impl::sampleTargetTerrainColor(
         }
         return left.tile->gridX < right.tile->gridX;
     };
+    const bool targetUsesRaisedLawnField =
+        surface == "dark_lawn";
     for (const auto& candidate : sourceTerrainTiles) {
         if (!candidate.sourceOccupied ||
-            candidate.sourceSurface != surface ||
+            (candidate.sourceSurface == "dark_lawn") !=
+                targetUsesRaisedLawnField ||
             candidate.sourceElevationLevel != elevationLevel) {
             continue;
         }
@@ -8868,6 +8942,10 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     const bool dark = tile.surface == "dark_lawn";
     const bool dirt = tile.surface == "dirt_path";
     const bool ramp = tile.shape.starts_with("ramp_");
+    const bool explicitAutoContinuousRebuild =
+        tile.authored && !tile.reason.empty() &&
+        tile.visualVariant == "auto" &&
+        tile.rebuildContinuousMaterialFields;
     // Exact material-19 Color0 controls from the dirt core of the canonical
     // ramp beside the Route 1 sign (mesh 36, z=-900..-800 cm). Its shine is
     // not a specular or cliff-rim effect: FieldGroundShader01 feeds
@@ -8935,7 +9013,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 connected(sourceOwner, sourceNeighbor);
             if (activeConnected != sourceConnected) {
                 changedDirtBoundaryMask |= 1u << edge;
-            } else if (!sourceConnected && sourceOwner &&
+            } else if (!explicitAutoContinuousRebuild &&
+                       !sourceConnected && sourceOwner &&
                        sourceOwner->surface == "dirt_path" &&
                        sourceNeighbor &&
                        sourceNeighbor->surface != "dirt_path") {
@@ -9513,6 +9592,9 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             const bool sourceTopologyMatches =
                 tile.elevationLevel == tile.sourceElevationLevel &&
                 tile.shape == tile.sourceShape;
+            const bool relativeSourceGeometryFits =
+                route1TerrainCanPreserveRelativeSourceGeometry(
+                    tile, terrainTiles, sourceTerrainTiles);
             // A non-geometric edit can retain exact source UV0/UV1. Once the
             // elevation or shape changes, sampling those fields from the old
             // mesh alternates between the jagged former surface and fallback
@@ -9532,17 +9614,18 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             // authored tile to a procedural plane created the visible ruler-
             // straight seam beside otherwise untouched source ledges.
             const bool preserveSourceGeometry =
-                sourceSampled && sourceTopologyMatches &&
+                sourceSampled && relativeSourceGeometryFits &&
+                !explicitAutoContinuousRebuild &&
                 !ledgeDeformsSurface;
             const bool preserveSourceDirtField =
                 sourceSampled && dirt && sourceTopologyMatches &&
-                tile.sourceSurface == tile.surface;
+                tile.sourceSurface == tile.surface &&
+                !tile.rebuildContinuousMaterialFields;
             const bool preserveSourceField =
                 preserveSourceDirtField ||
-                (sourceSampled && sourceTopologyMatches &&
-                 tile.sourceSurface != tile.surface) ||
                 (sourceSampled &&
                  !tile.rebuildContinuousMaterialFields &&
+                 tile.sourceSurface == tile.surface &&
                  (!tile.authored || sourceTopologyMatches));
             vertex.x = (localX - 0.5f) * kTerrainTileSizeCm;
             vertex.y = preserveSourceGeometry
@@ -9997,6 +10080,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             const bool continuedSourceMaterialField =
                 continuesReplacementSurfaceField &&
                 sourceTopologyMatches &&
+                !tile.rebuildContinuousMaterialFields &&
                 !preserveSourceField &&
                 sampleTargetTerrainUv01(
                     tile.surface,
@@ -10365,12 +10449,54 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             }
             glm::vec4 targetColor{1.0f};
             bool targetColorSampled = false;
+            const auto sampleTargetColorAtSurfaceHeight =
+                [&](glm::vec4& outColor) {
+                    glm::vec4 lowColor{1.0f};
+                    const bool lowSampled = sampleTargetTerrainColor(
+                        tile.surface,
+                        tile.elevationLevel,
+                        materialWorldGridX,
+                        materialWorldGridZ,
+                        lowColor);
+                    if (!ramp) {
+                        if (lowSampled) {
+                            outColor = lowColor;
+                        }
+                        return lowSampled;
+                    }
+                    glm::vec4 highColor{1.0f};
+                    const bool highSampled = sampleTargetTerrainColor(
+                        tile.surface,
+                        tile.elevationLevel + 1,
+                        materialWorldGridX,
+                        materialWorldGridZ,
+                        highColor);
+                    if (!lowSampled && !highSampled) {
+                        return false;
+                    }
+                    if (!lowSampled) {
+                        outColor = highColor;
+                        return true;
+                    }
+                    if (!highSampled) {
+                        outColor = lowColor;
+                        return true;
+                    }
+                    const float highWeight = std::clamp(
+                        vertex.y / kTerrainElevationStepCm,
+                        0.0f,
+                        1.0f);
+                    outColor = glm::mix(
+                        lowColor, highColor, highWeight);
+                    return true;
+                };
             if (tile.cleanSuppressedEncounterGrassTint) {
                 targetColor = normalizedTintColor;
                 targetColorSampled = normalizedTintSampled;
             } else if (tile.surface == "light_lawn" &&
                        deformedSourceSampled &&
                        sourceTopologyMatches &&
+                       !tile.rebuildContinuousMaterialFields &&
                        !tile.cleanSuppressedEncounterGrassTint) {
                 // Color0 carries the source's local lighting/tint field
                 // independently of UV2's lawn/soil selector. Retain it only
@@ -10399,7 +10525,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 } else {
                     glm::vec4 boundaryColor = cleanDirtColor;
                     const bool boundaryColorSampled =
-                        continuedSourceMaterialField &&
                         sampleTargetTerrainColor(
                             tile.surface,
                             tile.elevationLevel,
@@ -10407,11 +10532,13 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                             materialWorldGridZ,
                             boundaryColor);
                     const float sourceBoundaryWeight =
-                        boundaryColorSampled
+                        boundaryColorSampled &&
+                        std::isfinite(
+                            nearestRegeneratedDirtBoundaryCm)
                         ? 1.0f - glm::smoothstep(
                               0.0f,
-                              1.0f,
-                              distanceFromSourceSurfaceCells)
+                              kBoundaryWidthCm,
+                              nearestRegeneratedDirtBoundaryCm)
                         : 0.0f;
                     targetColor = glm::mix(
                         cleanDirtColor,
@@ -10420,12 +10547,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 }
                 targetColorSampled = true;
             } else if (!dark) {
-                targetColorSampled = sampleTargetTerrainColor(
-                    tile.surface,
-                    tile.elevationLevel,
-                    materialWorldGridX,
-                    materialWorldGridZ,
-                    targetColor);
+                targetColorSampled =
+                    sampleTargetColorAtSurfaceHeight(targetColor);
             }
             if (targetColorSampled &&
                 tile.surface == "light_lawn" &&
@@ -11296,9 +11419,20 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
             const auto* canonicalNeighbor = neighbor
                 ? findSourceTile(neighbor->gridX, neighbor->gridZ)
                 : nullptr;
+            const bool explicitAutoContinuousRebuild =
+                sourceTile.authored && !sourceTile.reason.empty() &&
+                sourceTile.visualVariant == "auto" &&
+                sourceTile.rebuildContinuousMaterialFields;
+            const bool neighborExplicitAutoContinuousRebuild =
+                neighbor && neighbor->authored &&
+                !neighbor->reason.empty() &&
+                neighbor->visualVariant == "auto" &&
+                neighbor->rebuildContinuousMaterialFields;
             const bool sourceMatchesUnchangedDirtLawnBoundary =
                 tile.surface == "dirt_path" && neighbor &&
                 neighbor->surface.ends_with("lawn") &&
+                !explicitAutoContinuousRebuild &&
+                !neighborExplicitAutoContinuousRebuild &&
                 canonicalTile && canonicalNeighbor &&
                 canonicalTile->surface == tile.surface &&
                 canonicalTile->shape == tile.shape &&
@@ -16674,11 +16808,18 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             }
         }
         for (const auto& dirtCell : generatedDirtCells) {
-            const auto* dirtTile = activeTileAt(
+            auto* dirtTile = activeTileAt(
                 dirtCell.first, dirtCell.second);
             if (!dirtTile) {
                 continue;
             }
+            // The dirt side and its lawn socket are one regenerated material
+            // field. Mark both sides before prototypes are requested so UV0,
+            // UV1, and the dirt selector use the same world-space branch at
+            // their coincident edge; preserving the dirt tile's old source
+            // field while rebuilding only the lawn produced a full-repeat
+            // delimiter through otherwise continuous paths.
+            dirtTile->rebuildContinuousMaterialFields = true;
             nextCells.emplace(dirtCell);
             // Material-19 transition sockets also own the imported edge
             // overlays/cards for their footprint. Keeping those cleanup
@@ -17031,24 +17172,23 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
     if (terrainMaskRevision == 0u) {
         terrainMaskRevision = 1u;
     }
-    std::set<GridCell> flatMaterialFieldCells;
+    std::set<GridCell> exactGroundReplacementCells;
     for (const auto& cell : terrainMaskCells) {
         const auto* activeTile = findTerrainTile(cell);
         const auto* sourceTile = findSourceTerrainTile(cell);
         if (!activeTile || !sourceTile || activeTile->sourceReference ||
-            activeTile->surface == "empty" ||
-            activeTile->shape != "flat" ||
-            sourceTile->shape != "flat" ||
-            activeTile->elevationLevel !=
-                sourceTile->elevationLevel) {
+            activeTile->surface == "empty") {
             continue;
         }
-        const bool materialFieldRebuilt =
+        const bool sourceTopRebuilt =
             activeTile->surface != sourceTile->surface ||
             activeTile->rebuildContinuousMaterialFields ||
+            activeTile->shape != sourceTile->shape ||
+            activeTile->elevationLevel !=
+                sourceTile->elevationLevel ||
             activeTile->surface == "dirt_path";
-        if (materialFieldRebuilt) {
-            flatMaterialFieldCells.emplace(cell);
+        if (sourceTopRebuilt) {
+            exactGroundReplacementCells.emplace(cell);
         }
     }
     for (auto& mask : terrainMaskGeometries) {
@@ -17459,9 +17599,9 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             }
             const bool sourceGroundTriangle =
                 mask.sourceGround || mask.sourceMeshIndex <= 9u;
-            bool intersectsFlatMaterialFieldCell = false;
+            bool intersectsExactGroundReplacementCell = false;
             if (sourceGroundTriangle &&
-                !flatMaterialFieldCells.empty()) {
+                !exactGroundReplacementCells.empty()) {
                 const float minimumX = std::min({
                     positions[0].x,
                     positions[1].x,
@@ -17511,15 +17651,25 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 constexpr float kFlatGroundHeightToleranceCm = 12.5f;
                 for (std::int32_t gridZ = firstCellZ;
                      gridZ <= lastCellZ &&
-                     !intersectsFlatMaterialFieldCell;
+                     !intersectsExactGroundReplacementCell;
                      ++gridZ) {
                     for (std::int32_t gridX = firstCellX;
                          gridX <= lastCellX;
                          ++gridX) {
                         const GridCell overlappedCell{gridX, gridZ};
-                        if (!flatMaterialFieldCells.contains(
+                        if (!exactGroundReplacementCells.contains(
                                 overlappedCell)) {
                             continue;
+                        }
+                        // Source-ground groups contain the imported top
+                        // surface. Once a cell regenerates that surface, it
+                        // owns the complete XZ footprint regardless of the
+                        // old storey or ramp direction. This also catches
+                        // broad source triangles whose centroid and vertices
+                        // fall in the neighbouring canonical cell.
+                        if (mask.sourceGround) {
+                            intersectsExactGroundReplacementCell = true;
+                            break;
                         }
                         const auto* sourceTile =
                             findSourceTerrainTile(overlappedCell);
@@ -17530,22 +17680,20 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                                     sourceTile->elevationLevel) *
                                     kTerrainElevationStepCm) <=
                                 kFlatGroundHeightToleranceCm) {
-                            intersectsFlatMaterialFieldCell = true;
+                            intersectsExactGroundReplacementCell = true;
                             break;
                         }
                     }
                 }
             }
-            if (intersectsFlatMaterialFieldCell) {
-                // Edited, same-height material fields own their exact source
-                // metre. Split any broad imported ground triangle on the
-                // shared cell planes and retain only the canonical fragments
-                // outside those fields. Letting both carriers survive causes
-                // the ruler-like marks and straight seams seen around the
-                // Route 1 bench corner; applying this only to flat matching
-                // storeys avoids disturbing nearby ramps and ledges.
+            if (intersectsExactGroundReplacementCell) {
+                // An edited generated surface owns its exact source metre.
+                // Split any broad imported ground triangle on shared cell
+                // planes and retain only canonical fragments outside those
+                // fields. Letting both carriers survive causes ruler marks,
+                // dark ramp slivers, and straight material seams.
                 appendClippedGroundOutsideCells(
-                    triangle, flatMaterialFieldCells);
+                    triangle, exactGroundReplacementCells);
                 continue;
             }
             if ((mask.sourceGround ||
