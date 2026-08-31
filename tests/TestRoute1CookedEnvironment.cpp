@@ -4303,6 +4303,163 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 std::string(variant->sceneId);
             return false;
         }
+        if (variant == &variants::kRoute1_5) {
+            if (!variantEnvironment.setTerrainPatchV2PreviewEnabled(
+                    true, &error)) {
+                outFail =
+                    "South Clearing could not enable its Terrain Patch V2 seam contract: " +
+                    error;
+                return false;
+            }
+            struct LawnBoundaryField {
+                float y = 0.0f;
+                std::array<float, 2> uv0{};
+                std::array<float, 2> uv1{};
+                std::array<float, 4> color{};
+                std::array<float, 3> normal{};
+                std::size_t sampleCount = 0u;
+            };
+            std::map<std::array<std::int64_t, 2>, LawnBoundaryField>
+                boundaryFields;
+            float maximumBoundaryHeightDifference = 0.0f;
+            float maximumBoundaryUv0Difference = 0.0f;
+            float maximumBoundaryUv1Difference = 0.0f;
+            float maximumBoundaryColorDifference = 0.0f;
+            float maximumBoundaryNormalDifference = 0.0f;
+            std::vector<
+                game::runtime::shared_world_batches::WorldIndexedBatch>
+                variantBatches;
+            variantEnvironment.appendIndexedBatches(
+                0.0f, variantBatches);
+            const auto variantSourceFromWorld =
+                route1::sourceFromWorldMatrix(
+                    variantEnvironment.layout());
+            const auto periodicDifference = [](float left,
+                                               float right) {
+                const float difference = left - right;
+                return std::abs(
+                    difference - std::round(difference));
+            };
+            for (const auto& batch : variantBatches) {
+                if (batch.geometryCacheKey.find(
+                        "route1:terrain-authored-surface:") ==
+                    std::string::npos) {
+                    continue;
+                }
+                const auto* vertices = batch.sharedVertices
+                    ? batch.sharedVertices
+                    : batch.vertices.data();
+                const auto vertexCount = batch.sharedVertices
+                    ? batch.sharedVertexCount
+                    : batch.vertices.size();
+                for (const auto& instance : batch.instances) {
+                    for (std::size_t vertexIndex = 0u;
+                         vertices && vertexIndex < vertexCount;
+                         ++vertexIndex) {
+                        const auto& vertex = vertices[vertexIndex];
+                        const auto worldPoint = transformPoint(
+                            instance.modelMatrix,
+                            {vertex.x, vertex.y, vertex.z});
+                        const auto sourcePoint = transformPoint(
+                            variantSourceFromWorld, worldPoint);
+                        if (std::abs(sourcePoint[0] - 2500.0) > 0.1 ||
+                            sourcePoint[2] <= -1695.1 ||
+                            sourcePoint[2] >= -1604.9) {
+                            continue;
+                        }
+                        const std::array<std::int64_t, 2> key{
+                            static_cast<std::int64_t>(std::llround(
+                                sourcePoint[0] * 10.0)),
+                            static_cast<std::int64_t>(std::llround(
+                                sourcePoint[2] * 10.0))};
+                        auto& field = boundaryFields[key];
+                        const std::array<float, 2> uv0{
+                            vertex.u, vertex.v};
+                        const std::array<float, 2> uv1{
+                            vertex.sourceUv1U,
+                            vertex.sourceUv1V};
+                        const std::array<float, 4> color{
+                            vertex.r, vertex.g,
+                            vertex.b, vertex.a};
+                        const std::array<float, 3> normal{
+                            vertex.nx, vertex.ny, vertex.nz};
+                        if (field.sampleCount == 0u) {
+                            field.y = static_cast<float>(sourcePoint[1]);
+                            field.uv0 = uv0;
+                            field.uv1 = uv1;
+                            field.color = color;
+                            field.normal = normal;
+                        } else {
+                            maximumBoundaryHeightDifference = std::max(
+                                maximumBoundaryHeightDifference,
+                                std::abs(
+                                    static_cast<float>(sourcePoint[1]) -
+                                    field.y));
+                            for (std::size_t channel = 0u;
+                                 channel < 2u;
+                                 ++channel) {
+                                maximumBoundaryUv0Difference = std::max(
+                                    maximumBoundaryUv0Difference,
+                                    periodicDifference(
+                                        uv0[channel],
+                                        field.uv0[channel]));
+                                maximumBoundaryUv1Difference = std::max(
+                                    maximumBoundaryUv1Difference,
+                                    periodicDifference(
+                                        uv1[channel],
+                                        field.uv1[channel]));
+                            }
+                            for (std::size_t channel = 0u;
+                                 channel < 4u;
+                                 ++channel) {
+                                maximumBoundaryColorDifference = std::max(
+                                    maximumBoundaryColorDifference,
+                                    std::abs(
+                                        color[channel] -
+                                        field.color[channel]));
+                            }
+                            for (std::size_t channel = 0u;
+                                 channel < 3u;
+                                 ++channel) {
+                                maximumBoundaryNormalDifference = std::max(
+                                    maximumBoundaryNormalDifference,
+                                    std::abs(
+                                        normal[channel] -
+                                        field.normal[channel]));
+                            }
+                        }
+                        ++field.sampleCount;
+                    }
+                }
+            }
+            const auto pairedPositionCount = std::count_if(
+                boundaryFields.begin(),
+                boundaryFields.end(),
+                [](const auto& entry) {
+                    return entry.second.sampleCount >= 2u;
+                });
+            if (pairedPositionCount < 8u ||
+                maximumBoundaryHeightDifference > 0.001f ||
+                maximumBoundaryUv0Difference > 0.001f ||
+                maximumBoundaryUv1Difference > 0.001f ||
+                maximumBoundaryColorDifference > 0.001f ||
+                maximumBoundaryNormalDifference > 0.001f) {
+                outFail =
+                    "South Clearing did not reconcile the matching light-lawn boundary at (24,-17)/(25,-17) as one height/material field (pairs=" +
+                    std::to_string(pairedPositionCount) +
+                    ", height=" +
+                    std::to_string(maximumBoundaryHeightDifference) +
+                    ", uv0=" +
+                    std::to_string(maximumBoundaryUv0Difference) +
+                    ", uv1=" +
+                    std::to_string(maximumBoundaryUv1Difference) +
+                    ", color=" +
+                    std::to_string(maximumBoundaryColorDifference) +
+                    ", normal=" +
+                    std::to_string(maximumBoundaryNormalDifference) + ").";
+                return false;
+            }
+        }
     }
 
     CookedSceneOnlyStore missingHost({});

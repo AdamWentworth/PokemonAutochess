@@ -11967,11 +11967,15 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
         // reference one material vertex. Dirt corners legitimately carry
         // different UV2 selector branches on adjoining triangles; replacing
         // an index with its neighbour therefore turns dirt into a large grass
-        // strip. Snap positions only and leave every triangle's UVs, tint,
-        // normal, and source material data intact.
+        // strip. Snap positions only here. A lawn-only pass below reconciles
+        // the non-selector material fields without sharing indices or UV2.
         using PositionKey =
             std::tuple<std::int64_t, std::int64_t, std::int64_t>;
+        using HorizontalPositionKey =
+            std::pair<std::int64_t, std::int64_t>;
         std::map<PositionKey, std::vector<std::uint32_t>> byPosition;
+        std::map<HorizontalPositionKey, std::vector<std::uint32_t>>
+            lawnByHorizontalPosition;
         constexpr double kPositionQuantization = 1000.0;
         for (std::size_t index = 0u;
              index < prototype.vertices.size();
@@ -11999,6 +12003,16 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                     static_cast<double>(vertex.z) *
                     kPositionQuantization))}].push_back(
                         static_cast<std::uint32_t>(index));
+            if (ownerTile && ownerTile->surface.ends_with("lawn")) {
+                lawnByHorizontalPosition[{
+                    static_cast<std::int64_t>(std::llround(
+                        static_cast<double>(vertex.x) *
+                        kPositionQuantization)),
+                    static_cast<std::int64_t>(std::llround(
+                        static_cast<double>(vertex.z) *
+                        kPositionQuantization))}].push_back(
+                            static_cast<std::uint32_t>(index));
+            }
         }
         const auto compatibleOwners = [&](const GridCell& left,
                                           const GridCell& right) {
@@ -12042,6 +12056,38 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 *leftTile, rightTile, edge);
             return profile.tileLevels == profile.neighborLevels;
         };
+        const auto compatibleLawnMaterialOwners = [&] (
+                const GridCell& left,
+                const GridCell& right) {
+            if (left == right) {
+                return false;
+            }
+            const auto* leftTile = findTile(left.first, left.second);
+            const auto* rightTile = findTile(right.first, right.second);
+            if (!leftTile || !rightTile ||
+                leftTile->surface != rightTile->surface ||
+                !leftTile->surface.ends_with("lawn")) {
+                return false;
+            }
+            const std::int32_t dx = right.first - left.first;
+            const std::int32_t dz = right.second - left.second;
+            std::size_t edge = 4u;
+            if (dx == 0 && dz == 1) {
+                edge = 0u;
+            } else if (dx == 1 && dz == 0) {
+                edge = 1u;
+            } else if (dx == 0 && dz == -1) {
+                edge = 2u;
+            } else if (dx == -1 && dz == 0) {
+                edge = 3u;
+            }
+            if (edge >= 4u) {
+                return false;
+            }
+            const auto profile = route1TerrainSharedEdgeProfile(
+                *leftTile, rightTile, edge);
+            return profile.tileLevels == profile.neighborLevels;
+        };
         for (const auto& [position, indices] : byPosition) {
             (void)position;
             for (std::size_t index = 1u;
@@ -12064,6 +12110,144 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                     prototype.vertices[candidate].z =
                         prototype.vertices[anchor].z;
                     break;
+                }
+            }
+        }
+
+        const auto copyCompatibleLawnField = [&] (
+                std::uint32_t targetIndex,
+                std::uint32_t sourceIndex,
+                bool copyShadingBasis) {
+            auto& target = prototype.vertices[targetIndex];
+            const auto& source = prototype.vertices[sourceIndex];
+            auto& targetSource = prototype.sourceVertices[targetIndex];
+            const auto& sourceSource =
+                prototype.sourceVertices[sourceIndex];
+            const auto unwrapNear = [](float value, float reference) {
+                return value - std::round(value - reference);
+            };
+            // Matching-height lawn profiles must own one physical boundary.
+            // Source-preserving and rebuilt tiles can otherwise disagree by
+            // a fraction of a centimetre and expose a lighting crack even
+            // after their texture fields have been reconciled.
+            target.y = source.y;
+            target.u = unwrapNear(source.u, target.u);
+            target.v = unwrapNear(source.v, target.v);
+            target.sourceUv1U = unwrapNear(
+                source.sourceUv1U, target.sourceUv1U);
+            target.sourceUv1V = unwrapNear(
+                source.sourceUv1V, target.sourceUv1V);
+            target.r = source.r;
+            target.g = source.g;
+            target.b = source.b;
+            target.a = source.a;
+            targetSource.texcoords[0] = {target.u, target.v};
+            targetSource.texcoords[1] = {
+                target.sourceUv1U, target.sourceUv1V};
+            targetSource.colors[0] = {
+                target.r, target.g, target.b, target.a};
+            if (!copyShadingBasis) {
+                return;
+            }
+            target.nx = source.nx;
+            target.ny = source.ny;
+            target.nz = source.nz;
+            target.tx = source.tx;
+            target.ty = source.ty;
+            target.tz = source.tz;
+            target.tw = source.tw;
+            targetSource.normalW = sourceSource.normalW;
+            targetSource.bitangent = sourceSource.bitangent;
+        };
+        const auto moreAuthoritativeLawnField = [&] (
+                std::uint32_t left,
+                std::uint32_t right) {
+            const auto* leftTile = findTile(
+                surfaceVertexOwners[left].first,
+                surfaceVertexOwners[left].second);
+            const auto* rightTile = findTile(
+                surfaceVertexOwners[right].first,
+                surfaceVertexOwners[right].second);
+            const auto score = [](const TerrainTileState* tile) {
+                const bool exactSourceField = tile &&
+                    tile->sourceOccupied &&
+                    tile->surface == tile->sourceSurface &&
+                    tile->shape == tile->sourceShape &&
+                    tile->elevationLevel ==
+                        tile->sourceElevationLevel &&
+                    !tile->rebuildContinuousMaterialFields &&
+                    !tile->cleanSuppressedEncounterGrassTint &&
+                    !tile->normalizeSourceTint;
+                return std::tuple{
+                    exactSourceField,
+                    tile && !tile->rebuildContinuousMaterialFields,
+                    tile && !tile->normalizeSourceTint,
+                    tile && !tile->cleanSuppressedEncounterGrassTint,
+                    tile ? -tile->gridZ : 0,
+                    tile ? -tile->gridX : 0};
+            };
+            return score(leftTile) >= score(rightTile)
+                ? left
+                : right;
+        };
+        // South Entrance is a pinned, approved production scene. Keep its
+        // authored material stream byte-stable while applying this new
+        // regional reconciliation rule to editable Route 1 variants.
+        const bool preservesPinnedSouthEntrance =
+            authoredScene.sceneId ==
+                route1_scene_variants::kRoute1.sceneId;
+        if (!preservesPinnedSouthEntrance) {
+            for (const auto& [position, indices] :
+                 lawnByHorizontalPosition) {
+                (void)position;
+                std::set<std::uint32_t> remaining(
+                    indices.begin(), indices.end());
+                while (!remaining.empty()) {
+                    std::vector<std::uint32_t> component{
+                        *remaining.begin()};
+                    remaining.erase(remaining.begin());
+                    for (std::size_t cursor = 0u;
+                         cursor < component.size();
+                         ++cursor) {
+                        for (auto candidate = remaining.begin();
+                             candidate != remaining.end();) {
+                            if (!compatibleLawnMaterialOwners(
+                                    surfaceVertexOwners[component[cursor]],
+                                    surfaceVertexOwners[*candidate])) {
+                                ++candidate;
+                                continue;
+                            }
+                            component.push_back(*candidate);
+                            candidate = remaining.erase(candidate);
+                        }
+                    }
+                    if (component.size() < 2u) {
+                        continue;
+                    }
+                    const auto* firstOwner = findTile(
+                        surfaceVertexOwners[component.front()].first,
+                        surfaceVertexOwners[component.front()].second);
+                    if (!firstOwner ||
+                        !firstOwner->surface.ends_with("lawn")) {
+                        continue;
+                    }
+                    std::uint32_t authority = component.front();
+                    bool commonShape = true;
+                    for (const auto index : component) {
+                        authority = moreAuthoritativeLawnField(
+                            authority, index);
+                        const auto* owner = findTile(
+                            surfaceVertexOwners[index].first,
+                            surfaceVertexOwners[index].second);
+                        commonShape = commonShape && owner &&
+                            owner->shape == firstOwner->shape;
+                    }
+                    for (const auto index : component) {
+                        if (index != authority) {
+                            copyCompatibleLawnField(
+                                index, authority, commonShape);
+                        }
+                    }
                 }
             }
         }
@@ -20355,7 +20539,13 @@ bool RuntimeEnvironment::applyAuthoredSceneInternal(
         return false;
     }
     const BoardLayoutTransform previousLayout = impl_->layout;
+    const std::string previousSceneId = impl_->authoredScene.sceneId;
+    // Scene-specific terrain policies must observe the document being
+    // composed, not the previously active scene. The complete validated
+    // document is installed below after the rebuild succeeds.
+    impl_->authoredScene.sceneId = document.sceneId;
     const auto restorePreviousLayoutAndState = [&]() {
+        impl_->authoredScene.sceneId = previousSceneId;
         impl_->layout = previousLayout;
         impl_->worldFromSource = boardMatrix(impl_->layout);
         impl_->sourceFromWorld = glm::inverse(impl_->worldFromSource);
@@ -20371,6 +20561,7 @@ bool RuntimeEnvironment::applyAuthoredSceneInternal(
         // after patch installation made editor scene activation needlessly
         // pay for the same terrain cook twice.
         if (!previewBoardLayout(composed, outError)) {
+            impl_->authoredScene.sceneId = previousSceneId;
             return false;
         }
         if (!impl_->replaceEnvironmentPatches(
@@ -20380,6 +20571,7 @@ bool RuntimeEnvironment::applyAuthoredSceneInternal(
         }
     } else if (!impl_->environmentPatches.empty()) {
         if (!previewBoardLayout(composed, outError)) {
+            impl_->authoredScene.sceneId = previousSceneId;
             return false;
         }
         auto previousPatches = std::move(
@@ -20404,6 +20596,7 @@ bool RuntimeEnvironment::applyAuthoredSceneInternal(
                     error);
         }
     } else if (!applyBoardLayout(composed, outError)) {
+        impl_->authoredScene.sceneId = previousSceneId;
         return false;
     }
     // Preserve the validated project document while migrating retired
