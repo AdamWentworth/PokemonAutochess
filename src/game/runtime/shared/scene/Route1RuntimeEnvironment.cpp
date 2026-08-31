@@ -78,6 +78,11 @@ bool route1TerrainReplacementGeometryKey(
 
 constexpr float kInitialWindPhaseCycles = 36.0f / 120.0f;
 constexpr float kWindPeriodSeconds = 4.0f;
+// Authored terrain tops are lifted 0.02 cm above the masked source surface.
+// A two-times-depth margin keeps that regenerated plane from comparing
+// against itself in Route 1's 24-bit projected-shadow atlas while preserving
+// real vegetation and prop shadows.
+constexpr float kRegionalTerrainProjectedShadowBias = 0.00002f;
 
 bool fail(std::string* outError, std::string message) {
     if (outError) {
@@ -460,6 +465,8 @@ struct TerrainTilePrototypeSet {
     IRenderBackend::WorldSceneSourceVertex groundSourceVertexTemplate{};
     std::uint32_t groundSourceVertexSemanticMask = 0u;
     IRenderBackend::WorldSceneMaterialHandle groundMaterialHandle{};
+    IRenderBackend::WorldSceneMaterialHandle
+        groundRegionalMaterialHandle{};
     IRenderBackend::WorldSceneMaterialHandle
         groundShadowlessMaterialHandle{};
     std::uint8_t groundPipelineVariant = 0u;
@@ -3460,6 +3467,10 @@ struct RuntimeEnvironment::Impl {
     IRenderBackend::WorldSceneRenderObjectHandle
     ensureAuthoredTerrainSurfaceObject(
         bool receivesProjectedShadow);
+
+    IRenderBackend::WorldSceneMaterialHandle
+    terrainGroundMaterialHandle(
+        bool receivesProjectedShadow) const;
 
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
     ensureTerrainSourceReferenceObjects(
@@ -7265,9 +7276,18 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
             outError,
             "Route 1 terrain tiles lost the source ground material.");
     }
-    auto shadowlessGroundMaterial =
-        scene.registry.materials[
-            lightObject->materialHandle.id - 1u];
+    const auto groundMaterial = scene.registry.materials[
+        lightObject->materialHandle.id - 1u];
+    auto regionalGroundMaterial = groundMaterial;
+    regionalGroundMaterial.projectedShadowBias = std::max(
+        regionalGroundMaterial.projectedShadowBias,
+        kRegionalTerrainProjectedShadowBias);
+    terrainTilePrototypes.groundRegionalMaterialHandle =
+        shared_world_scene::ensureMaterial(
+            scene.registry,
+            &terrainTilePrototypes.groundRegionalMaterialHandle,
+            regionalGroundMaterial);
+    auto shadowlessGroundMaterial = groundMaterial;
     shadowlessGroundMaterial.projectedShadowEnabled = 0u;
     shadowlessGroundMaterial.sourceEnabledSwitchMask &=
         ~engine::render::backend::
@@ -8943,6 +8963,18 @@ bool RuntimeEnvironment::Impl::sampleSourceTerrainGroundMaskAlpha(
         alphaAt(firstX + 1, firstY + 1) * blendX;
     outAlpha = top * (1.0f - blendY) + bottom * blendY;
     return true;
+}
+
+IRenderBackend::WorldSceneMaterialHandle
+RuntimeEnvironment::Impl::terrainGroundMaterialHandle(
+    bool receivesProjectedShadow) const {
+    if (!receivesProjectedShadow) {
+        return terrainTilePrototypes.groundShadowlessMaterialHandle;
+    }
+    return route1UsesRegionalTerrainMaterialField(
+               authoredScene.sceneId)
+        ? terrainTilePrototypes.groundRegionalMaterialHandle
+        : terrainTilePrototypes.groundMaterialHandle;
 }
 
 IRenderBackend::WorldSceneRenderObjectHandle
@@ -11450,7 +11482,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     prototype.object = shared_world_scene::ensureRenderObject(
         scene.registry,
         geometry,
-        terrainTilePrototypes.groundMaterialHandle,
+        terrainGroundMaterialHandle(true),
         static_cast<shared_world_scene::PipelineVariant>(
             terrainTilePrototypes.groundPipelineVariant),
         terrainTilePrototypes.groundCookedDrawSlot,
@@ -12629,9 +12661,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
     prototype.object = shared_world_scene::ensureRenderObject(
         scene.registry,
         geometry,
-        receivesProjectedShadow
-            ? terrainTilePrototypes.groundMaterialHandle
-            : terrainTilePrototypes.groundShadowlessMaterialHandle,
+        terrainGroundMaterialHandle(receivesProjectedShadow),
         static_cast<shared_world_scene::PipelineVariant>(
             terrainTilePrototypes.groundPipelineVariant),
         terrainTilePrototypes.groundCookedDrawSlot,
@@ -15653,7 +15683,7 @@ RuntimeEnvironment::Impl::ensureTerrainConcaveCrownObject(
     prototype.object = shared_world_scene::ensureRenderObject(
         scene.registry,
         geometry,
-        terrainTilePrototypes.groundMaterialHandle,
+        terrainGroundMaterialHandle(true),
         static_cast<shared_world_scene::PipelineVariant>(
             terrainTilePrototypes.groundPipelineVariant),
         terrainTilePrototypes.groundCookedDrawSlot,
@@ -16141,9 +16171,7 @@ RuntimeEnvironment::Impl::ensureTerrainLawnPatchObject(
     prototype.object = shared_world_scene::ensureRenderObject(
         scene.registry,
         geometry,
-        receivesProjectedShadow
-            ? terrainTilePrototypes.groundMaterialHandle
-            : terrainTilePrototypes.groundShadowlessMaterialHandle,
+        terrainGroundMaterialHandle(receivesProjectedShadow),
         static_cast<shared_world_scene::PipelineVariant>(
             terrainTilePrototypes.groundPipelineVariant),
         terrainTilePrototypes.groundCookedDrawSlot,

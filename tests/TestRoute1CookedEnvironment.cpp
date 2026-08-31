@@ -4340,12 +4340,20 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 return std::abs(
                     difference - std::round(difference));
             };
+            bool regionalGroundShadowBiasValid = false;
             for (const auto& batch : variantBatches) {
                 if (batch.geometryCacheKey.find(
                         "route1:terrain-authored-surface:") ==
                     std::string::npos) {
                     continue;
                 }
+                const auto& material =
+                    game::runtime::shared_world_batches::
+                        resolvedMaterialBatch(batch);
+                regionalGroundShadowBiasValid =
+                    regionalGroundShadowBiasValid ||
+                    (material.projectedShadowEnabled != 0u &&
+                     material.projectedShadowBias >= 0.000019f);
                 const auto* vertices = batch.sharedVertices
                     ? batch.sharedVertices
                     : batch.vertices.data();
@@ -4438,14 +4446,17 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 [](const auto& entry) {
                     return entry.second.sampleCount >= 2u;
                 });
-            if (pairedPositionCount < 8u ||
+            if (!regionalGroundShadowBiasValid ||
+                pairedPositionCount < 8u ||
                 maximumBoundaryHeightDifference > 0.001f ||
                 maximumBoundaryUv0Difference > 0.001f ||
                 maximumBoundaryUv1Difference > 0.001f ||
                 maximumBoundaryColorDifference > 0.001f ||
                 maximumBoundaryNormalDifference > 0.001f) {
                 outFail =
-                    "South Clearing did not reconcile the matching light-lawn boundary at (24,-17)/(25,-17) as one height/material field (pairs=" +
+                    "South Clearing did not reconcile the matching light-lawn boundary at (24,-17)/(25,-17) as one height/material field with a self-shadow-safe projected-depth bias (shadow-bias=" +
+                    std::to_string(regionalGroundShadowBiasValid) +
+                    ", pairs=" +
                     std::to_string(pairedPositionCount) +
                     ", height=" +
                     std::to_string(maximumBoundaryHeightDifference) +
