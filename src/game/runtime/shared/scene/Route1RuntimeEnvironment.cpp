@@ -3263,6 +3263,8 @@ struct RuntimeEnvironment::Impl {
     std::set<std::pair<std::int32_t, std::int32_t>>
         terrainCleanupCells;
     std::set<std::pair<std::int32_t, std::int32_t>>
+        terrainBroadOverlayCleanupCells;
+    std::set<std::pair<std::int32_t, std::int32_t>>
         terrainSourceReferenceCells;
     std::set<std::pair<GridCell, GridCell>>
         terrainInvalidatedSourceCleanupBoundaries;
@@ -17044,6 +17046,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
     terrainMaskGeometries.clear();
     terrainMaskCells.clear();
     terrainCleanupCells.clear();
+    terrainBroadOverlayCleanupCells.clear();
     terrainSourceReferenceCells.clear();
     terrainInvalidatedSourceCleanupBoundaries.clear();
     terrainMaskRevision = 0u;
@@ -17159,7 +17162,11 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
     std::set<std::pair<std::int32_t, std::int32_t>> nextCells;
     std::set<std::pair<std::int32_t, std::int32_t>> nextCleanupCells;
     std::set<std::pair<std::int32_t, std::int32_t>>
+        nextBroadOverlayCleanupCells;
+    std::set<std::pair<std::int32_t, std::int32_t>>
         nextSourceReferenceCells;
+    std::set<std::pair<GridCell, GridCell>>
+        nextInvalidatedSourceCleanupBoundaries;
     for (const auto& tile : layout.authoredTerrainTiles) {
         const auto cell = std::pair{tile.gridX, tile.gridZ};
         const auto sourceTile = std::find_if(
@@ -17345,7 +17352,17 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 neighbor->rebuildContinuousMaterialFields = true;
                 nextCells.emplace(
                     neighbor->gridX, neighbor->gridZ);
-                nextCleanupCells.emplace(
+                // The unchanged lawn owns only the half of the imported
+                // dirt/lawn ribbon that crosses this edited socket. Retiring
+                // every cleanup carrier in its whole metre also deletes an
+                // unrelated source ledge on the opposite edge. Keep canonical
+                // cliff/fringe cleanup boundary-scoped on the unchanged side;
+                // the separate broad-overlay set still retires mesh 16-28's
+                // large baked grass/dirt cards across this metre.
+                nextInvalidatedSourceCleanupBoundaries.emplace(
+                    GridCell{neighbor->gridX, neighbor->gridZ},
+                    dirtCell);
+                nextBroadOverlayCleanupCells.emplace(
                     neighbor->gridX, neighbor->gridZ);
             }
         }
@@ -17361,8 +17378,6 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         planeClippedCleanupBoundaries;
     std::vector<std::pair<GridCell, GridCell>>
         donorOwnedSpillBoundaries;
-    std::set<std::pair<GridCell, GridCell>>
-        nextInvalidatedSourceCleanupBoundaries;
     const auto findTerrainTile =
         [&](const auto& cell) -> const TerrainTileState* {
             const auto found = std::find_if(
@@ -17438,13 +17453,28 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 tile.surface != neighbor->surface;
             const bool sourceMaterialBoundary =
                 sourceTile->surface != sourceNeighbor->surface;
-            const bool endpointMaterialChanged =
-                tile.surface != sourceTile->surface ||
+            const bool tileMaterialChanged =
+                tile.surface != sourceTile->surface;
+            const bool neighborMaterialChanged =
                 neighbor->surface != sourceNeighbor->surface;
+            const bool endpointMaterialChanged =
+                tileMaterialChanged || neighborMaterialChanged;
             if (endpointMaterialChanged &&
                 (activeMaterialBoundary || sourceMaterialBoundary)) {
-                nextCleanupCells.emplace(cell);
-                nextCleanupCells.emplace(neighborCell);
+                if (tileMaterialChanged) {
+                    nextCleanupCells.emplace(cell);
+                } else {
+                    nextInvalidatedSourceCleanupBoundaries.emplace(
+                        cell, neighborCell);
+                    nextBroadOverlayCleanupCells.emplace(cell);
+                }
+                if (neighborMaterialChanged) {
+                    nextCleanupCells.emplace(neighborCell);
+                } else {
+                    nextInvalidatedSourceCleanupBoundaries.emplace(
+                        neighborCell, cell);
+                    nextBroadOverlayCleanupCells.emplace(neighborCell);
+                }
             }
         }
     }
@@ -17559,7 +17589,7 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         kTerrainLedgeContourSegments,
         kTerrainLedgeCornerSegments);
     for (const auto& ledge : terrainLedgeResolution.edges) {
-        if (!ledge.rebuildsJoinedSourceBoundary || ledge.edge >= 4u) {
+        if (ledge.edge >= 4u) {
             continue;
         }
         const auto& direction = directions[ledge.edge];
@@ -17574,14 +17604,19 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         const GridCell neighborCell{
             ledge.ownerCell.first + direction[0],
             ledge.ownerCell.second + direction[1]};
-        nextInvalidatedSourceCleanupBoundaries.emplace(
-            ledge.ownerCell,
-            neighborCell);
-        // A propagated source ledge is only half of the handoff. Its rounded
-        // corner also reserves ground on both sides of the logical grid
-        // corner. Rebuild the raised cap and the adjoining lower contact tile
-        // together; retaining either square source top leaves a rectangular
-        // flap through the arc or a clear-color triangle beneath it.
+        if (ledge.rebuildsJoinedSourceBoundary) {
+            nextInvalidatedSourceCleanupBoundaries.emplace(
+                ledge.ownerCell,
+                neighborCell);
+        }
+        // Every generated ledge needs generated support on both sides of its
+        // contact, whether the ledge was rebuilt directly or inherited from
+        // an invalidated source contour. Restricting this promotion to the
+        // inherited case leaves direct transition-field ledges with a mixed
+        // set of source and generated lower caps. The cliff foot's alpha
+        // cutout then reveals repeated backdrop-colored gaps along the run.
+        // Rebuild the raised cap and adjoining lower contact tile together;
+        // their narrow overlap follows the same contour as the wall.
         if (const auto* owner = findTerrainTile(ledge.ownerCell);
             owner && owner->surface != "empty") {
             nextCells.emplace(ledge.ownerCell);
@@ -17668,6 +17703,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
     }
     if (nextCells == terrainMaskCells &&
         nextCleanupCells == terrainCleanupCells &&
+        nextBroadOverlayCleanupCells ==
+            terrainBroadOverlayCleanupCells &&
         nextSourceReferenceCells == terrainSourceReferenceCells &&
         nextInvalidatedSourceCleanupBoundaries ==
             terrainInvalidatedSourceCleanupBoundaries &&
@@ -17676,6 +17713,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
     }
     terrainMaskCells = std::move(nextCells);
     terrainCleanupCells = std::move(nextCleanupCells);
+    terrainBroadOverlayCleanupCells =
+        std::move(nextBroadOverlayCleanupCells);
     terrainSourceReferenceCells =
         std::move(nextSourceReferenceCells);
     terrainInvalidatedSourceCleanupBoundaries =
@@ -18279,7 +18318,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             bool cleanupCarrierOverlapsEditedCell = false;
             if (mask.cleanupOnly &&
                 mask.retireWhenIntersectingRebuiltBoundary &&
-                !maskedCells.empty()) {
+                (!maskedCells.empty() ||
+                 !terrainBroadOverlayCleanupCells.empty())) {
                 const float minimumX = std::min({
                     positions[0].x,
                     positions[1].x,
@@ -18321,7 +18361,9 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                          gridX <= lastCellX;
                          ++gridX) {
                         const GridCell overlappedCell{gridX, gridZ};
-                        if (!maskedCells.contains(overlappedCell) ||
+                        if ((!maskedCells.contains(overlappedCell) &&
+                             !terrainBroadOverlayCleanupCells.contains(
+                                 overlappedCell)) ||
                             !route1TerrainCleanupCarrierIntersectsCellFootprint(
                                 positionValues,
                                 {gridX, gridZ})) {
@@ -18380,61 +18422,134 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                     });
             const bool replacedByInvalidatedSourceBoundary =
                 mask.cleanupOnly &&
-                std::any_of(
-                    terrainInvalidatedSourceCleanupBoundaries.begin(),
-                    terrainInvalidatedSourceCleanupBoundaries.end(),
-                    [&](const auto& boundary) {
-                        const auto& [ownerCell, editedCell] =
-                            boundary;
-                        const std::int32_t boundaryCeilingLevel =
-                            std::max(
-                                cleanupCeilingLevel(ownerCell),
-                                cleanupCeilingLevel(editedCell));
-                        // Mesh 28 is a compound two-storey source carrier. Its
-                        // lower sheet intersects the newly rebuilt L0/L1 wall,
-                        // but several of those broad triangles also reach the
-                        // independent L1/L2 cliff above. Retire only the part
-                        // at or below this boundary's highest current/source
-                        // profile; otherwise editing the lower shelf erases
-                        // the complete upper wall and exposes the dark lawn
-                        // behind it.
-                        const bool cleanupEligibleHeight =
-                            geometry.sourceMeshIndex != 28u ||
-                            route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
-                                positionValues,
-                                static_cast<float>(boundaryCeilingLevel) *
-                                    kTerrainElevationStepCm);
-                        const bool rebuiltCorridorCarrier =
-                            route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
-                                positionValues,
-                                static_cast<float>(boundaryCeilingLevel) *
-                                    kTerrainElevationStepCm) &&
-                            route1TerrainCleanupCarrierWithinRebuiltBoundaryCorridor(
-                                positionValues,
-                                {ownerCell.first, ownerCell.second},
-                                {editedCell.first, editedCell.second});
-                        return cell == ownerCell &&
-                            cleanupEligibleHeight &&
-                            (route1TerrainCleanupCarrierEntersNeighbor(
-                                 positionValues,
-                                 {ownerCell.first, ownerCell.second},
-                                 {editedCell.first,
-                                  editedCell.second}) ||
-                             route1TerrainCleanupCarrierWithinBoundaryBand(
-                                 positionValues,
-                                 {editedCell.first,
-                                  editedCell.second},
-                                  {ownerCell.first,
-                                   ownerCell.second}) ||
-                             rebuiltCorridorCarrier ||
-                             (mask.retireWhenIntersectingRebuiltBoundary &&
-                              route1TerrainCleanupCarrierIntersectsBoundaryBand(
-                                  positionValues,
-                                  {editedCell.first,
-                                   editedCell.second},
-                                  {ownerCell.first,
-                                   ownerCell.second})));
-                    });
+                [&]() {
+                    const float minimumX = std::min({
+                        positions[0].x,
+                        positions[1].x,
+                        positions[2].x});
+                    const float maximumX = std::max({
+                        positions[0].x,
+                        positions[1].x,
+                        positions[2].x});
+                    const float minimumZ = std::min({
+                        positions[0].z,
+                        positions[1].z,
+                        positions[2].z});
+                    const float maximumZ = std::max({
+                        positions[0].z,
+                        positions[1].z,
+                        positions[2].z});
+                    constexpr float kOwnershipInsetCm = 0.001f;
+                    const std::int32_t firstCellX =
+                        static_cast<std::int32_t>(std::floor(
+                            (minimumX + kOwnershipInsetCm) /
+                            kTerrainTileSizeCm));
+                    const std::int32_t lastCellX =
+                        static_cast<std::int32_t>(std::floor(
+                            (maximumX - kOwnershipInsetCm) /
+                            kTerrainTileSizeCm));
+                    const std::int32_t firstCellZ =
+                        static_cast<std::int32_t>(std::floor(
+                            (minimumZ + kOwnershipInsetCm) /
+                            kTerrainTileSizeCm));
+                    const std::int32_t lastCellZ =
+                        static_cast<std::int32_t>(std::floor(
+                            (maximumZ - kOwnershipInsetCm) /
+                            kTerrainTileSizeCm));
+                    for (std::int32_t ownerX = firstCellX;
+                         ownerX <= lastCellX;
+                         ++ownerX) {
+                        for (std::int32_t ownerZ = firstCellZ;
+                             ownerZ <= lastCellZ;
+                             ++ownerZ) {
+                            const GridCell candidateOwner{
+                                ownerX, ownerZ};
+                            const auto boundaryBegin =
+                                terrainInvalidatedSourceCleanupBoundaries
+                                    .lower_bound({
+                                        candidateOwner,
+                                        GridCell{
+                                            std::numeric_limits<
+                                                std::int32_t>::lowest(),
+                                            std::numeric_limits<
+                                                std::int32_t>::lowest()}});
+                            const auto boundaryEnd =
+                                terrainInvalidatedSourceCleanupBoundaries
+                                    .upper_bound({
+                                        candidateOwner,
+                                        GridCell{
+                                            std::numeric_limits<
+                                                std::int32_t>::max(),
+                                            std::numeric_limits<
+                                                std::int32_t>::max()}});
+                            const bool replaced = std::any_of(
+                                boundaryBegin,
+                                boundaryEnd,
+                                [&](const auto& boundary) {
+                                    const auto& [ownerCell, editedCell] =
+                                        boundary;
+                                    const std::int32_t boundaryCeilingLevel =
+                                        std::max(
+                                            cleanupCeilingLevel(ownerCell),
+                                            cleanupCeilingLevel(editedCell));
+                                    // Mesh 28 is a compound two-storey source
+                                    // carrier. Its lower sheet intersects the
+                                    // newly rebuilt L0/L1 wall, but several of
+                                    // those broad triangles also reach the
+                                    // independent L1/L2 cliff above. Retire
+                                    // only the part at or below this boundary's
+                                    // highest current/source profile;
+                                    // otherwise editing the lower shelf erases
+                                    // the complete upper wall and exposes the
+                                    // dark lawn behind it.
+                                    const bool cleanupEligibleHeight =
+                                        geometry.sourceMeshIndex != 28u ||
+                                        route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
+                                            positionValues,
+                                            static_cast<float>(
+                                                boundaryCeilingLevel) *
+                                                kTerrainElevationStepCm);
+                                    const bool rebuiltCorridorCarrier =
+                                        route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
+                                            positionValues,
+                                            static_cast<float>(
+                                                boundaryCeilingLevel) *
+                                                kTerrainElevationStepCm) &&
+                                        route1TerrainCleanupCarrierWithinRebuiltBoundaryCorridor(
+                                            positionValues,
+                                            {ownerCell.first,
+                                             ownerCell.second},
+                                            {editedCell.first,
+                                             editedCell.second});
+                                    return cleanupEligibleHeight &&
+                                        (route1TerrainCleanupCarrierEntersNeighbor(
+                                             positionValues,
+                                             {ownerCell.first,
+                                              ownerCell.second},
+                                             {editedCell.first,
+                                              editedCell.second}) ||
+                                         route1TerrainCleanupCarrierWithinBoundaryBand(
+                                             positionValues,
+                                             {editedCell.first,
+                                              editedCell.second},
+                                             {ownerCell.first,
+                                              ownerCell.second}) ||
+                                         rebuiltCorridorCarrier ||
+                                         (mask.retireWhenIntersectingRebuiltBoundary &&
+                                          route1TerrainCleanupCarrierIntersectsBoundaryBand(
+                                              positionValues,
+                                              {editedCell.first,
+                                               editedCell.second},
+                                              {ownerCell.first,
+                                               ownerCell.second})));
+                                });
+                            if (replaced) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }();
             if (replacedByDonorSpill ||
                 replacedByInvalidatedSourceBoundary) {
                 continue;

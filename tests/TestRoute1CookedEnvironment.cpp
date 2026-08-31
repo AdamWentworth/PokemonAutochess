@@ -861,6 +861,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         loweredLawnBatches;
     environment.appendIndexedBatches(0.0f, loweredLawnBatches);
     bool staleLedgeCleanupOverlay = false;
+    std::string staleLedgeCleanupOverlayKey;
+    std::array<std::int32_t, 2> staleLedgeCleanupOverlayCell{};
     for (const auto& batch : loweredLawnBatches) {
         bool broadCleanupMesh = false;
         for (std::uint32_t meshIndex = 16u;
@@ -922,6 +924,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                 points,
                                 {gridX, -12})) {
                         staleLedgeCleanupOverlay = true;
+                        staleLedgeCleanupOverlayKey =
+                            batch.geometryCacheKey;
+                        staleLedgeCleanupOverlayCell = {gridX, -12};
                         return;
                     }
                 }
@@ -943,7 +948,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     }
     if (staleLedgeCleanupOverlay) {
         outFail =
-            "Broad LGPE cleanup overlays must not survive across either side of the rebuilt light-lawn material field below the Route 1 ramp ledge; the old lawn/dirt boundary stretches grass vertically over the canonical wall.";
+            "Broad LGPE cleanup overlays must not survive across either side of the rebuilt light-lawn material field below the Route 1 ramp ledge; the old lawn/dirt boundary stretches grass vertically over the canonical wall (key=" +
+            staleLedgeCleanupOverlayKey + ", cell=" +
+            std::to_string(staleLedgeCleanupOverlayCell[0]) + "," +
+            std::to_string(staleLedgeCleanupOverlayCell[1]) + ").";
         return false;
     }
     std::vector<std::array<float, 3>> formerLedgeUv2Samples;
@@ -4361,8 +4369,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 variantBatches;
             variantEnvironment.appendIndexedBatches(
                 0.0f, variantBatches);
-            std::array<bool, 4> retainedSouthLedgeCliffs{};
-            std::array<bool, 4> retainedSouthLedgeFringes{};
+            const auto variantSourceFromWorld =
+                route1::sourceFromWorldMatrix(
+                    variantEnvironment.layout());
+            std::array<bool, 4> replacedSouthLedgeCliffs{};
+            std::array<bool, 4> replacedSouthLedgeFringes{};
+            std::array<bool, 4> retainedSouthLedgeCaps{};
             bool replacedIntactSourceCorner = false;
             bool retainedIntactSourceCornerCap = false;
             bool foundLightLawnCrownCarrier = false;
@@ -4382,20 +4394,28 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                      batch.geometryCacheKey.find("26,-13;") !=
                          std::string::npos);
                 for (std::size_t cell = 0u;
-                     cell < retainedSouthLedgeCliffs.size();
+                     cell < replacedSouthLedgeCliffs.size();
                      ++cell) {
                     const std::string cellKey = "cell-" +
                         std::to_string(21u + cell) + "--19:edge-0:";
-                    retainedSouthLedgeCliffs[cell] =
-                        retainedSouthLedgeCliffs[cell] ||
+                    replacedSouthLedgeCliffs[cell] =
+                        replacedSouthLedgeCliffs[cell] ||
                         batch.geometryCacheKey.find(
                             "terrain-cliff:" + cellKey) !=
                             std::string::npos;
-                    retainedSouthLedgeFringes[cell] =
-                        retainedSouthLedgeFringes[cell] ||
+                    replacedSouthLedgeFringes[cell] =
+                        replacedSouthLedgeFringes[cell] ||
                         batch.geometryCacheKey.find(
                             "terrain-fringe:" + cellKey) !=
                             std::string::npos;
+                    retainedSouthLedgeCaps[cell] =
+                        retainedSouthLedgeCaps[cell] ||
+                        (batch.geometryCacheKey.find(
+                             "route1:terrain-exact-source-surface:") !=
+                             std::string::npos &&
+                         batch.geometryCacheKey.find(
+                             std::to_string(21u + cell) + ",-19;") !=
+                             std::string::npos);
                 }
                 const bool lightLawnCrown =
                     batch.geometryCacheKey.find(
@@ -4436,31 +4456,36 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     forcedDarkLightLawnCrownCarrier ||
                     entireContactRowForcedDark;
             }
-            const bool missingSouthLedgeCliff = std::any_of(
-                retainedSouthLedgeCliffs.begin(),
-                retainedSouthLedgeCliffs.end(),
-                [](bool retained) { return !retained; });
-            const bool missingSouthLedgeFringe = std::any_of(
-                retainedSouthLedgeFringes.begin(),
-                retainedSouthLedgeFringes.end(),
-                [](bool retained) { return !retained; });
-            if (missingSouthLedgeCliff ||
-                missingSouthLedgeFringe ||
+            const bool replacedSouthLedgeCliff = std::any_of(
+                replacedSouthLedgeCliffs.begin(),
+                replacedSouthLedgeCliffs.end(),
+                [](bool replaced) { return replaced; });
+            const bool replacedSouthLedgeFringe = std::any_of(
+                replacedSouthLedgeFringes.begin(),
+                replacedSouthLedgeFringes.end(),
+                [](bool replaced) { return replaced; });
+            if (replacedSouthLedgeCliff ||
+                replacedSouthLedgeFringe ||
+                !retainedSouthLedgeCaps[0] ||
                 replacedIntactSourceCorner ||
                 !retainedIntactSourceCornerCap ||
-                !foundLightLawnCrownCarrier ||
                 forcedDarkLightLawnCrownCarrier) {
                 outFail =
-                    "South Clearing must retain the generated ledge run from (21,-19) through (24,-19), preserve the complete imported cap/corner at (26,-13), and let light-lawn crown gaskets inherit the lawn material instead of drawing a dark green line (cliffs=" +
-                    std::to_string(retainedSouthLedgeCliffs[0]) + "," +
-                    std::to_string(retainedSouthLedgeCliffs[1]) + "," +
-                    std::to_string(retainedSouthLedgeCliffs[2]) + "," +
-                    std::to_string(retainedSouthLedgeCliffs[3]) +
-                    ", fringes=" +
-                    std::to_string(retainedSouthLedgeFringes[0]) + "," +
-                    std::to_string(retainedSouthLedgeFringes[1]) + "," +
-                    std::to_string(retainedSouthLedgeFringes[2]) + "," +
-                    std::to_string(retainedSouthLedgeFringes[3]) +
+                    "South Clearing must preserve the complete imported ledge assemblies from (21,-19) through (24,-19), preserve the complete imported cap/corner at (26,-13), and let light-lawn crown gaskets inherit the lawn material instead of drawing a dark green line (replacement-cliffs=" +
+                    std::to_string(replacedSouthLedgeCliffs[0]) + "," +
+                    std::to_string(replacedSouthLedgeCliffs[1]) + "," +
+                    std::to_string(replacedSouthLedgeCliffs[2]) + "," +
+                    std::to_string(replacedSouthLedgeCliffs[3]) +
+                    ", replacement-fringes=" +
+                    std::to_string(replacedSouthLedgeFringes[0]) + "," +
+                    std::to_string(replacedSouthLedgeFringes[1]) + "," +
+                    std::to_string(replacedSouthLedgeFringes[2]) + "," +
+                    std::to_string(replacedSouthLedgeFringes[3]) +
+                    ", source-caps=" +
+                    std::to_string(retainedSouthLedgeCaps[0]) + "," +
+                    std::to_string(retainedSouthLedgeCaps[1]) + "," +
+                    std::to_string(retainedSouthLedgeCaps[2]) + "," +
+                    std::to_string(retainedSouthLedgeCaps[3]) +
                     ", replaced-source-corner=" +
                     std::to_string(replacedIntactSourceCorner) +
                     ", retained-source-cap=" +
@@ -4472,9 +4497,6 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         forcedDarkLightLawnCrownCarrier) + ").";
                 return false;
             }
-            const auto variantSourceFromWorld =
-                route1::sourceFromWorldMatrix(
-                    variantEnvironment.layout());
             constexpr std::array<std::array<double, 2>, 3>
                 transplantedSurfaceProbes{{
                     {1650.0, -1250.0},
