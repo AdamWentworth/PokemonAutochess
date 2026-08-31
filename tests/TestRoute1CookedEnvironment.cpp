@@ -4303,6 +4303,23 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 std::string(variant->sceneId);
             return false;
         }
+        const auto& variantStats = variantEnvironment.stats();
+        if (variantStats.shadowTriangleCount == 0u ||
+            (variant == &variants::kRoute1 &&
+             variantStats.shadowGroundTriangleCount == 0u) ||
+            (variant == &variants::kRoute1_5 &&
+             variantStats.shadowGroundTriangleCount != 0u)) {
+            outFail =
+                "Route 1 scene variant did not preserve its projected-shadow caster contract (scene=" +
+                std::string(variant->sceneId) +
+                ", all=" +
+                std::to_string(variantStats.shadowTriangleCount) +
+                ", ground=" +
+                std::to_string(
+                    variantStats.shadowGroundTriangleCount) +
+                ").";
+            return false;
+        }
         if (variant == &variants::kRoute1_5) {
             if (!variantEnvironment.setTerrainPatchV2PreviewEnabled(
                     true, &error)) {
@@ -4340,20 +4357,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 return std::abs(
                     difference - std::round(difference));
             };
-            bool regionalGroundShadowBiasValid = false;
             for (const auto& batch : variantBatches) {
                 if (batch.geometryCacheKey.find(
                         "route1:terrain-authored-surface:") ==
                     std::string::npos) {
                     continue;
                 }
-                const auto& material =
-                    game::runtime::shared_world_batches::
-                        resolvedMaterialBatch(batch);
-                regionalGroundShadowBiasValid =
-                    regionalGroundShadowBiasValid ||
-                    (material.projectedShadowEnabled != 0u &&
-                     material.projectedShadowBias >= 0.000019f);
                 const auto* vertices = batch.sharedVertices
                     ? batch.sharedVertices
                     : batch.vertices.data();
@@ -4446,17 +4455,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 [](const auto& entry) {
                     return entry.second.sampleCount >= 2u;
                 });
-            if (!regionalGroundShadowBiasValid ||
-                pairedPositionCount < 8u ||
+            if (pairedPositionCount < 8u ||
                 maximumBoundaryHeightDifference > 0.001f ||
                 maximumBoundaryUv0Difference > 0.001f ||
                 maximumBoundaryUv1Difference > 0.001f ||
                 maximumBoundaryColorDifference > 0.001f ||
                 maximumBoundaryNormalDifference > 0.001f) {
                 outFail =
-                    "South Clearing did not reconcile the matching light-lawn boundary at (24,-17)/(25,-17) as one height/material field with a self-shadow-safe projected-depth bias (shadow-bias=" +
-                    std::to_string(regionalGroundShadowBiasValid) +
-                    ", pairs=" +
+                    "South Clearing did not reconcile the matching light-lawn boundary at (24,-17)/(25,-17) as one height/material field (pairs=" +
                     std::to_string(pairedPositionCount) +
                     ", height=" +
                     std::to_string(maximumBoundaryHeightDifference) +

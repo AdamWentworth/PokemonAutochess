@@ -190,6 +190,7 @@ struct RuntimeStats {
     std::uint32_t placedVegetationInstanceCount = 0u;
     std::uint64_t visibleTriangleCount = 0u;
     std::uint64_t shadowTriangleCount = 0u;
+    std::uint64_t shadowGroundTriangleCount = 0u;
     std::uint32_t terrainContinuousFieldCellCount = 0u;
     std::uint32_t terrainProjectedShadowMismatchEdgeCount = 0u;
     std::uint32_t terrainRebuiltLedgeEdgeCount = 0u;

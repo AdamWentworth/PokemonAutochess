@@ -240,6 +240,21 @@ bool Atlas::build(
         sourceCenterCm,
         kNativeAtlasWidth,
         kNativeAtlasHeight,
+        BuildOptions{},
+        outError);
+}
+
+bool Atlas::build(
+    const std::vector<published_environment_scene::PreparedScene*>& scenes,
+    const std::array<float, 3>& sourceCenterCm,
+    const BuildOptions& options,
+    std::string* outError) {
+    return build(
+        scenes,
+        sourceCenterCm,
+        kNativeAtlasWidth,
+        kNativeAtlasHeight,
+        options,
         outError);
 }
 
@@ -248,6 +263,22 @@ bool Atlas::build(
     const std::array<float, 3>& sourceCenterCm,
     int atlasWidth,
     int atlasHeight,
+    std::string* outError) {
+    return build(
+        scenes,
+        sourceCenterCm,
+        atlasWidth,
+        atlasHeight,
+        BuildOptions{},
+        outError);
+}
+
+bool Atlas::build(
+    const std::vector<published_environment_scene::PreparedScene*>& scenes,
+    const std::array<float, 3>& sourceCenterCm,
+    int atlasWidth,
+    int atlasHeight,
+    const BuildOptions& options,
     std::string* outError) {
     if (scenes.empty()) {
         return fail(outError, "Route 1 projected-shadow build has no scenes");
@@ -290,8 +321,20 @@ bool Atlas::build(
                      WorldSceneSourceMaterialSwitchCastShadow) == 0u) {
                 continue;
             }
+            if (!options.includeGroundCasters &&
+                surface->sourceMaterialFamily ==
+                    engine::render::backend::
+                        WorldSceneSourceMaterialFamily::Ground) {
+                continue;
+            }
             ++stats_.drawCount;
             stats_.submittedTriangleCount += mesh->indexCount / 3u;
+            if (surface->sourceMaterialFamily ==
+                engine::render::backend::
+                    WorldSceneSourceMaterialFamily::Ground) {
+                stats_.groundSubmittedTriangleCount +=
+                    mesh->indexCount / 3u;
+            }
             const bool alphaCutout =
                 surface->alphaMode != 0u && surface->textureRgba &&
                 surface->textureWidth > 0 && surface->textureHeight > 0;

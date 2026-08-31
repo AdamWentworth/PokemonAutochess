@@ -16,8 +16,13 @@ struct BuildStats {
     std::uint64_t drawCount = 0u;
     std::uint64_t instanceCount = 0u;
     std::uint64_t submittedTriangleCount = 0u;
+    std::uint64_t groundSubmittedTriangleCount = 0u;
     std::uint64_t rasterizedTriangleCount = 0u;
     std::uint64_t writtenPixelCount = 0u;
+};
+
+struct BuildOptions {
+    bool includeGroundCasters = true;
 };
 
 // Exact orthographic basis recovered from the synchronous Route 1 guest
@@ -36,8 +41,22 @@ public:
     bool build(
         const std::vector<published_environment_scene::PreparedScene*>& scenes,
         const std::array<float, 3>& sourceCenterCm,
+        const BuildOptions& options,
+        std::string* outError = nullptr);
+
+    bool build(
+        const std::vector<published_environment_scene::PreparedScene*>& scenes,
+        const std::array<float, 3>& sourceCenterCm,
         int atlasWidth,
         int atlasHeight,
+        std::string* outError = nullptr);
+
+    bool build(
+        const std::vector<published_environment_scene::PreparedScene*>& scenes,
+        const std::array<float, 3>& sourceCenterCm,
+        int atlasWidth,
+        int atlasHeight,
+        const BuildOptions& options,
         std::string* outError = nullptr);
 
     void attach(
