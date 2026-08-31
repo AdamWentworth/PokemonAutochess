@@ -429,6 +429,19 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
                 "A derived material-field replacement on an un-authored Route 1 cell must rebuild the source-profile ledge carrier it displaces.";
             return false;
         }
+        auto transitionFieldTiles = joinedSourceTiles;
+        transitionFieldTiles[4].rebuildContinuousMaterialFields = true;
+        transitionFieldTiles[4].terrainPatchV2RegionId = 1u;
+        transitionFieldTiles[4].terrainPatchV2Core = false;
+        const auto transitionFieldLedges =
+            game::runtime::route1_terrain_ledges::resolve(
+                transitionFieldTiles,
+                joinedSourceTiles);
+        if (!transitionFieldLedges.edges.empty()) {
+            outFail =
+                "A Route 1 V2 source-transition cell may regenerate its ground material field, but it must retain untouched imported ledge geometry.";
+            return false;
+        }
         derivedFieldTiles[4].authored = true;
         const auto authoredFieldLedges =
             game::runtime::route1_terrain_ledges::resolve(
