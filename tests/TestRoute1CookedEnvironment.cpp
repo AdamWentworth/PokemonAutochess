@@ -4355,6 +4355,91 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             const auto variantSourceFromWorld =
                 route1::sourceFromWorldMatrix(
                     variantEnvironment.layout());
+            constexpr std::array<std::array<double, 2>, 3>
+                transplantedSurfaceProbes{{
+                    {1650.0, -1250.0},
+                    {1650.0, -1350.0},
+                    {1650.0, -1450.0},
+                }};
+            std::array<std::size_t, 3>
+                donorSurfaceProbeCounts{};
+            std::array<std::size_t, 3>
+                canonicalSurfaceProbeCounts{};
+            for (const auto& batch : variantBatches) {
+                const auto materialIndex = batch.sharedTemplate
+                    ? batch.sharedTemplate->sourceMaterialIndex
+                    : batch.sourceMaterialIndex;
+                if (materialIndex != 19u) {
+                    continue;
+                }
+                const bool donorSurface =
+                    batch.geometryCacheKey.find(
+                        "terrain-source-reference-patch:") !=
+                    std::string::npos;
+                const bool canonicalSurface =
+                    !donorSurface &&
+                    batch.geometryCacheKey.find(":terrain-mask:") !=
+                        std::string::npos;
+                if (!donorSurface && !canonicalSurface) {
+                    continue;
+                }
+                const auto* vertices = batch.sharedVertices
+                    ? batch.sharedVertices
+                    : batch.vertices.data();
+                const auto vertexCount = batch.sharedVertices
+                    ? batch.sharedVertexCount
+                    : batch.vertices.size();
+                const auto* indices = batch.sharedIndices
+                    ? batch.sharedIndices
+                    : batch.indices.data();
+                const auto indexCount = batch.sharedIndices
+                    ? batch.sharedIndexCount
+                    : batch.indices.size();
+                for (const auto& instance : batch.instances) {
+                    for (std::size_t index = 0u;
+                         vertices && indices &&
+                         index + 2u < indexCount;
+                         index += 3u) {
+                        std::array<std::array<double, 3>, 3>
+                            triangle{};
+                        bool valid = true;
+                        for (std::size_t corner = 0u;
+                             corner < triangle.size();
+                             ++corner) {
+                            const auto vertexIndex =
+                                indices[index + corner];
+                            if (vertexIndex >= vertexCount) {
+                                valid = false;
+                                break;
+                            }
+                            const auto& vertex = vertices[vertexIndex];
+                            triangle[corner] = transformPoint(
+                                variantSourceFromWorld,
+                                transformPoint(
+                                    instance.modelMatrix,
+                                    {vertex.x, vertex.y, vertex.z}));
+                        }
+                        if (!valid) {
+                            continue;
+                        }
+                        for (std::size_t probe = 0u;
+                             probe < transplantedSurfaceProbes.size();
+                             ++probe) {
+                            if (!containsXZ(
+                                    triangle,
+                                    transplantedSurfaceProbes[probe][0],
+                                    transplantedSurfaceProbes[probe][1])) {
+                                continue;
+                            }
+                            if (donorSurface) {
+                                ++donorSurfaceProbeCounts[probe];
+                            } else {
+                                ++canonicalSurfaceProbeCounts[probe];
+                            }
+                        }
+                    }
+                }
+            }
             const auto periodicDifference = [](float left,
                                                float right) {
                 const float difference = left - right;
@@ -4488,7 +4573,16 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 [](const auto& entry) {
                     return entry.second.sampleCount >= 2u;
                 });
-            if (pairedPositionCount < 8u ||
+            const bool missingDonorSurface = std::any_of(
+                donorSurfaceProbeCounts.begin(),
+                donorSurfaceProbeCounts.end(),
+                [](std::size_t count) { return count == 0u; });
+            const bool retainedCanonicalSurface = std::any_of(
+                canonicalSurfaceProbeCounts.begin(),
+                canonicalSurfaceProbeCounts.end(),
+                [](std::size_t count) { return count != 0u; });
+            if (missingDonorSurface || retainedCanonicalSurface ||
+                pairedPositionCount < 8u ||
                 retiredSourceDirtTintBandSampleCount < 16u ||
                 maximumRetiredSourceDirtColorDifference > 0.001f ||
                 maximumBoundaryHeightDifference > 0.001f ||
@@ -4499,6 +4593,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 outFail =
                     "South Clearing did not reconcile its generated lawn and retired source dirt/lawn boundaries as continuous material fields (lawn-pairs=" +
                     std::to_string(pairedPositionCount) +
+                    ", donor-surface-probes=" +
+                    std::to_string(donorSurfaceProbeCounts[0]) + "," +
+                    std::to_string(donorSurfaceProbeCounts[1]) + "," +
+                    std::to_string(donorSurfaceProbeCounts[2]) +
+                    ", canonical-surface-probes=" +
+                    std::to_string(canonicalSurfaceProbeCounts[0]) + "," +
+                    std::to_string(canonicalSurfaceProbeCounts[1]) + "," +
+                    std::to_string(canonicalSurfaceProbeCounts[2]) +
                     ", retired-dirt-tint-samples=" +
                     std::to_string(
                         retiredSourceDirtTintBandSampleCount) +

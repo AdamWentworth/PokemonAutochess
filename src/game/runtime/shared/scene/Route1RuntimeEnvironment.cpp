@@ -17662,11 +17662,17 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
     for (const auto& cell : terrainMaskCells) {
         const auto* activeTile = findTerrainTile(cell);
         const auto* sourceTile = findSourceTerrainTile(cell);
-        if (!activeTile || !sourceTile || activeTile->sourceReference ||
+        if (!activeTile || !sourceTile ||
             activeTile->surface == "empty") {
             continue;
         }
+        // A transplanted donor owns the complete destination metre just as
+        // a generated cap does. Centroid-only masking is insufficient here:
+        // broad canonical ground triangles can cross the destination while
+        // keeping every centroid outside it, leaving an old square cap at
+        // the source elevation above or coincident with the donor surface.
         const bool sourceTopRebuilt =
+            activeTile->sourceReference.has_value() ||
             activeTile->surface != sourceTile->surface ||
             activeTile->rebuildContinuousMaterialFields ||
             activeTile->shape != sourceTile->shape ||
