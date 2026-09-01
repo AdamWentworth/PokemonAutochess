@@ -11329,15 +11329,19 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 targetColor = normalizedTintColor;
                 targetColorSampled = normalizedTintSampled;
             } else if (tile.surface == "light_lawn" &&
-                       rebuildsEditedRampRun && sourceSampled) {
+                       rebuildsEditedRampRun && sourceSampled &&
+                       tile.sourceElevationLevel ==
+                           tile.elevationLevel) {
                 // Replacing a source ramp's material does not retire its
-                // world-lighting field. Color0 is independent from UV2's
-                // dirt/lawn selection, and the imported ramp already carries
-                // the shaped lighting that makes the slope belong to both
-                // adjoining lawns. Reusing it avoids painting the whole
-                // replacement ramp as one bright rectangular strip. The
-                // regional seam reconciliation pass still gives the exact
-                // high/low boundary vertices to their flat-lawn neighbours.
+                // world-lighting field when it remains on the same vertical
+                // source stratum. Color0 is independent from UV2's dirt/lawn
+                // selection, and the imported ramp already carries the shaped
+                // lighting that makes the slope belong to both adjoining
+                // lawns. A ramp moved to another elevation must instead use
+                // its active neighbours; retaining the displaced stratum's
+                // tint paints a dark rectangular strip over the new slope.
+                // The regional seam reconciliation pass still gives the
+                // exact high/low boundary vertices to the flat-lawn owners.
                 targetColor = sourceSample.color0;
                 targetColorSampled = true;
             } else if (tile.surface == "light_lawn" &&

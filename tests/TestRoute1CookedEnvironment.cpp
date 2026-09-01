@@ -4481,6 +4481,18 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             bool foundSouthClearingRampSourceLighting = false;
             float maximumSouthClearingRampSourceLightingDifference =
                 0.0f;
+            constexpr std::array<std::array<float, 4>, 5>
+                loweredSouthClearingRampLighting{{
+                    {{0.527040f, 0.720294f, 0.773135f, 1.000000f}},
+                    {{0.543981f, 0.736277f, 0.788921f, 0.999994f}},
+                    {{0.581948f, 0.765840f, 0.809263f, 0.999488f}},
+                    {{0.644630f, 0.804033f, 0.842362f, 0.990271f}},
+                    {{0.730700f, 0.848742f, 0.886474f, 0.970888f}},
+                }};
+            std::array<bool, loweredSouthClearingRampLighting.size()>
+                foundLoweredSouthClearingRampLighting{};
+            float maximumLoweredSouthClearingRampLightingDifference =
+                0.0f;
             struct SourceRampProbe {
                 std::array<double, 2> sourceXZ{};
                 std::array<float, 3> normal{};
@@ -4686,6 +4698,38 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                                 channel]));
                             }
                         }
+                        for (std::size_t ramp = 0u;
+                             ramp <
+                                 loweredSouthClearingRampLighting.size();
+                             ++ramp) {
+                            const double expectedX =
+                                1750.0 +
+                                static_cast<double>(ramp) * 100.0;
+                            if (std::abs(
+                                    sourcePoint[0] - expectedX) > 0.1 ||
+                                std::abs(sourcePoint[1] - 75.02) > 0.01 ||
+                                std::abs(sourcePoint[2] + 1250.0) > 0.1) {
+                                continue;
+                            }
+                            foundLoweredSouthClearingRampLighting[ramp] =
+                                true;
+                            const std::array<float, 4> color{
+                                vertex.r,
+                                vertex.g,
+                                vertex.b,
+                                vertex.a};
+                            for (std::size_t channel = 0u;
+                                 channel < color.size();
+                                 ++channel) {
+                                maximumLoweredSouthClearingRampLightingDifference =
+                                    std::max(
+                                        maximumLoweredSouthClearingRampLightingDifference,
+                                        std::abs(
+                                            color[channel] -
+                                            loweredSouthClearingRampLighting[
+                                                ramp][channel]));
+                            }
+                        }
                         for (auto& probe : untouchedSourceRampProbes) {
                             if (std::abs(
                                     sourcePoint[0] -
@@ -4796,6 +4840,19 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     ", difference=" +
                     std::to_string(
                         maximumSouthClearingRampSourceLightingDifference) +
+                    ").";
+                return false;
+            }
+            if (!std::all_of(
+                    foundLoweredSouthClearingRampLighting.begin(),
+                    foundLoweredSouthClearingRampLighting.end(),
+                    [](bool found) { return found; }) ||
+                maximumLoweredSouthClearingRampLightingDifference >
+                    0.001f) {
+                outFail =
+                    "The lowered South Clearing lawn ramp (17,-13) through (21,-13) retained the displaced L2 dark-lawn lighting field instead of rebuilding from its active L1/L2 lawn neighbours (difference=" +
+                    std::to_string(
+                        maximumLoweredSouthClearingRampLightingDifference) +
                     ").";
                 return false;
             }
