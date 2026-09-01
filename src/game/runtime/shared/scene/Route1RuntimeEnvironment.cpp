@@ -2778,6 +2778,91 @@ bool route1TerrainUsesExactSourceSurfaceOverride(
             return false;
         }
     }
+    if (preservesIntactTransitionLedgeAssembly &&
+        hasSourceLedgeBoundary) {
+        // A straight source ledge cap can sit between several regenerated
+        // regional cells even when none of its own four boundaries changed.
+        // Preserving that one square as exact source geometry leaves a
+        // source-coloured island through the dirt ribbon, raised lawn, and
+        // lower contact field. Follow each source-compatible neighbor by one
+        // boundary ring: if that neighbor touches an active/source material
+        // change, both sides of an unchanged ledge belong to the same
+        // regenerated material field. The cliff/fringe carrier remains
+        // source-owned; only material-19's top and foot-contact ground are
+        // regenerated. Isolated compound source corners such as (26,-13)
+        // have no nearby material change and retain their exact cap.
+        const auto neighborTouchesChangedMaterialField =
+            [&](const TerrainTileState& candidate) {
+                const auto* sourceCandidate = findAt(
+                    sourceTiles,
+                    candidate.gridX,
+                    candidate.gridZ);
+                if (!sourceCandidate || candidate.sourceReference ||
+                    candidate.surface != sourceCandidate->surface) {
+                    return true;
+                }
+                for (std::size_t candidateEdge = 0u;
+                     candidateEdge < directions.size();
+                     ++candidateEdge) {
+                    const auto candidateDirection =
+                        directions[candidateEdge];
+                    const auto* activeAdjacent = findAt(
+                        activeTiles,
+                        candidate.gridX + candidateDirection[0],
+                        candidate.gridZ + candidateDirection[1]);
+                    const auto* sourceAdjacent = findAt(
+                        sourceTiles,
+                        candidate.gridX + candidateDirection[0],
+                        candidate.gridZ + candidateDirection[1]);
+                    if (hasSurface(activeAdjacent) !=
+                        hasSurface(sourceAdjacent)) {
+                        return true;
+                    }
+                    if (!hasSurface(activeAdjacent)) {
+                        continue;
+                    }
+                    if (activeAdjacent->sourceReference ||
+                        activeAdjacent->surface !=
+                            sourceAdjacent->surface) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+        for (std::size_t edge = 0u;
+             edge < directions.size();
+             ++edge) {
+            const auto direction = directions[edge];
+            const auto* activeNeighbor = findAt(
+                activeTiles,
+                tile.gridX + direction[0],
+                tile.gridZ + direction[1]);
+            const auto* sourceNeighbor = findAt(
+                sourceTiles,
+                tile.gridX + direction[0],
+                tile.gridZ + direction[1]);
+            if (!hasSurface(activeNeighbor) || !sourceNeighbor ||
+                activeNeighbor->surface != tile.surface ||
+                sourceNeighbor->surface != sourceTile->surface) {
+                continue;
+            }
+            const auto activeProfile =
+                route1TerrainSharedEdgeProfile(
+                    tile, activeNeighbor, edge);
+            const auto sourceProfile =
+                route1TerrainSharedEdgeProfile(
+                    *sourceTile, sourceNeighbor, edge);
+            const bool preservesSourceEdgeProfile =
+                activeProfile.tileLevels == sourceProfile.tileLevels &&
+                activeProfile.neighborLevels ==
+                    sourceProfile.neighborLevels;
+            if (preservesSourceEdgeProfile &&
+                neighborTouchesChangedMaterialField(
+                    *activeNeighbor)) {
+                return false;
+            }
+        }
+    }
     // A V2 transition field normally needs its generated regional material
     // handoff. The exception is an unchanged imported ledge cell whose
     // cliff/fringe cleanup carrier is still authoritative. Its material-19
@@ -10827,17 +10912,20 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             } else if (tile.surface == "light_lawn" &&
                        deformedSourceSampled &&
                        sourceTopologyMatches &&
-                       !tile.rebuildContinuousMaterialFields &&
+                       tile.sourceSurface == tile.surface &&
+                       (!tile.rebuildContinuousMaterialFields ||
+                        usesRegionalMaterialField) &&
                        !tile.cleanSuppressedEncounterGrassTint) {
                 // Color0 carries the source's local lighting/tint field
                 // independently of UV2's lawn/soil selector. Retain it only
                 // whenever the edited tile still occupies the same source
-                // geometry. Color0 is the source lighting/tint carrier, not a
-                // dirt/lawn selector; UV2 owns that material choice. Keeping
-                // the exact source field preserves both the value and the
-                // derivative at the boundary, whereas a nearest-lawn donor
-                // field can agree at the edge yet still expose the whole
-                // replacement metre as a rectangular lighting patch.
+                // geometry and material, including cells whose UV topology is
+                // rebuilt as part of a regional field. Color0 is the source
+                // lighting/tint carrier, not a dirt/lawn selector; UV2 owns
+                // that material choice. Keeping the decoded top-surface field
+                // prevents nearby cliff/understory donors from darkening an
+                // otherwise source-identical ledge cap into metre-wide blocks.
+                // Source material replacements still use the regional field.
                 targetColor = deformedSourceSample.color0;
                 targetColorSampled = true;
             } else if (preserveSourceSurface) {
@@ -17676,6 +17764,65 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             includeConcaveCrown({
                 ledge.ownerCell.first + tangent[0],
                 ledge.ownerCell.second + tangent[1]});
+        }
+    }
+    if (regeneratesMaterialTransitionRing) {
+        // Source ledge walls can remain authoritative while the material-19
+        // ground on their crown is promoted into a regional field. Close that
+        // field across the unchanged ledge contact as one operation. Otherwise
+        // a promoted crown can sit above an exact-source lower lawn tile (or
+        // vice versa), producing the metre-wide rectangular seams seen across
+        // South Clearing's dirt/crown/lower-lawn rows. This is deliberately a
+        // single closure pass over the already generated assembly: it repairs
+        // both sides of touched source ledges without flooding along unrelated
+        // ledges elsewhere in the imported map.
+        const auto generatedBeforeSourceLedgeClosure = nextCells;
+        for (const auto& cell : generatedBeforeSourceLedgeClosure) {
+            const auto* tile = findTerrainTile(cell);
+            const auto* sourceTile = findSourceTerrainTile(cell);
+            if (!tile || !sourceTile || tile->surface == "empty" ||
+                tile->sourceReference) {
+                continue;
+            }
+            for (std::size_t edge = 0u;
+                 edge < directions.size();
+                 ++edge) {
+                const auto& direction = directions[edge];
+                const GridCell neighborCell{
+                    cell.first + direction[0],
+                    cell.second + direction[1]};
+                const auto* neighbor = findTerrainTile(neighborCell);
+                const auto* sourceNeighbor =
+                    findSourceTerrainTile(neighborCell);
+                if (!neighbor || !sourceNeighbor ||
+                    neighbor->surface == "empty" ||
+                    neighbor->sourceReference) {
+                    continue;
+                }
+                const auto activeProfile =
+                    route1TerrainSharedEdgeProfile(
+                        *tile, neighbor, edge);
+                const auto sourceProfile =
+                    route1TerrainSharedEdgeProfile(
+                        *sourceTile, sourceNeighbor, edge);
+                const bool unchangedSourceLedge =
+                    activeProfile.tileLevels ==
+                        sourceProfile.tileLevels &&
+                    activeProfile.neighborLevels ==
+                        sourceProfile.neighborLevels &&
+                    sourceProfile.tileLevels !=
+                        sourceProfile.neighborLevels;
+                if (!unchangedSourceLedge ||
+                    route1TerrainUsesExactSourceSurfaceOverride(
+                        *neighbor,
+                        terrainTiles,
+                        sourceTerrainTiles)) {
+                    continue;
+                }
+                nextCells.emplace(neighborCell);
+                nextBroadOverlayCleanupCells.emplace(neighborCell);
+                nextBroadOverlayCleanupCells.emplace(cell);
+            }
         }
     }
     if (regeneratesMaterialTransitionRing) {

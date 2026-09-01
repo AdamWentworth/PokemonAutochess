@@ -4375,6 +4375,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::array<bool, 4> replacedSouthLedgeCliffs{};
             std::array<bool, 4> replacedSouthLedgeFringes{};
             std::array<bool, 4> retainedSouthLedgeCaps{};
+            std::array<bool, 4> retainedSouthLedgeLowerContacts{};
             bool replacedIntactSourceCorner = false;
             bool retainedIntactSourceCornerCap = false;
             bool foundLightLawnCrownCarrier = false;
@@ -4414,7 +4415,15 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                              "route1:terrain-exact-source-surface:") !=
                              std::string::npos &&
                          batch.geometryCacheKey.find(
-                             std::to_string(21u + cell) + ",-19;") !=
+                              std::to_string(21u + cell) + ",-19;") !=
+                             std::string::npos);
+                    retainedSouthLedgeLowerContacts[cell] =
+                        retainedSouthLedgeLowerContacts[cell] ||
+                        (batch.geometryCacheKey.find(
+                             "route1:terrain-exact-source-surface:") !=
+                             std::string::npos &&
+                         batch.geometryCacheKey.find(
+                             std::to_string(21u + cell) + ",-18;") !=
                              std::string::npos);
                 }
                 const bool lightLawnCrown =
@@ -4464,14 +4473,23 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 replacedSouthLedgeFringes.begin(),
                 replacedSouthLedgeFringes.end(),
                 [](bool replaced) { return replaced; });
+            const bool retainedSouthLedgeCap = std::any_of(
+                retainedSouthLedgeCaps.begin(),
+                retainedSouthLedgeCaps.end(),
+                [](bool retained) { return retained; });
+            const bool retainedSouthLedgeLowerContact = std::any_of(
+                retainedSouthLedgeLowerContacts.begin(),
+                retainedSouthLedgeLowerContacts.end(),
+                [](bool retained) { return retained; });
             if (replacedSouthLedgeCliff ||
                 replacedSouthLedgeFringe ||
-                !retainedSouthLedgeCaps[0] ||
+                retainedSouthLedgeCap ||
+                retainedSouthLedgeLowerContact ||
                 replacedIntactSourceCorner ||
                 !retainedIntactSourceCornerCap ||
                 forcedDarkLightLawnCrownCarrier) {
                 outFail =
-                    "South Clearing must preserve the complete imported ledge assemblies from (21,-19) through (24,-19), preserve the complete imported cap/corner at (26,-13), and let light-lawn crown gaskets inherit the lawn material instead of drawing a dark green line (replacement-cliffs=" +
+                    "South Clearing must preserve the imported ledge wall/fringe from (21,-19) through (24,-19), regenerate its straight top and lower contact row into one regional material field, preserve the complete imported cap/corner at (26,-13), and let light-lawn crown gaskets inherit the lawn material instead of drawing a dark green line (replacement-cliffs=" +
                     std::to_string(replacedSouthLedgeCliffs[0]) + "," +
                     std::to_string(replacedSouthLedgeCliffs[1]) + "," +
                     std::to_string(replacedSouthLedgeCliffs[2]) + "," +
@@ -4486,6 +4504,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::to_string(retainedSouthLedgeCaps[1]) + "," +
                     std::to_string(retainedSouthLedgeCaps[2]) + "," +
                     std::to_string(retainedSouthLedgeCaps[3]) +
+                    ", source-lower-contacts=" +
+                    std::to_string(retainedSouthLedgeLowerContacts[0]) + "," +
+                    std::to_string(retainedSouthLedgeLowerContacts[1]) + "," +
+                    std::to_string(retainedSouthLedgeLowerContacts[2]) + "," +
+                    std::to_string(retainedSouthLedgeLowerContacts[3]) +
                     ", replaced-source-corner=" +
                     std::to_string(replacedIntactSourceCorner) +
                     ", retained-source-cap=" +
@@ -4507,6 +4530,20 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 donorSurfaceProbeCounts{};
             std::array<std::size_t, 3>
                 canonicalSurfaceProbeCounts{};
+            constexpr std::array<std::array<double, 2>, 15>
+                southThreeRowRegionalProbes{{
+                    {2050.0, -1950.0}, {2150.0, -1950.0},
+                    {2250.0, -1950.0}, {2350.0, -1950.0},
+                    {2450.0, -1950.0},
+                    {2050.0, -1850.0}, {2150.0, -1850.0},
+                    {2250.0, -1850.0}, {2350.0, -1850.0},
+                    {2450.0, -1850.0},
+                    {2050.0, -1750.0}, {2150.0, -1750.0},
+                    {2250.0, -1750.0}, {2350.0, -1750.0},
+                    {2450.0, -1750.0},
+                }};
+            std::array<std::size_t, 15>
+                southThreeRowRegionalProbeCounts{};
             for (const auto& batch : variantBatches) {
                 const auto materialIndex = batch.sharedTemplate
                     ? batch.sharedTemplate->sourceMaterialIndex
@@ -4638,6 +4675,16 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         if (!valid) {
                             continue;
                         }
+                        for (std::size_t probe = 0u;
+                             probe < southThreeRowRegionalProbes.size();
+                             ++probe) {
+                            if (containsXZ(
+                                    triangle,
+                                    southThreeRowRegionalProbes[probe][0],
+                                    southThreeRowRegionalProbes[probe][1])) {
+                                ++southThreeRowRegionalProbeCounts[probe];
+                            }
+                        }
                         const double denominator =
                             (triangle[1][2] - triangle[2][2]) *
                                 (triangle[0][0] - triangle[2][0]) +
@@ -4761,6 +4808,26 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         ++field.sampleCount;
                     }
                 }
+            }
+            const bool missingSouthThreeRowRegionalSurface =
+                std::any_of(
+                    southThreeRowRegionalProbeCounts.begin(),
+                    southThreeRowRegionalProbeCounts.end(),
+                    [](std::size_t count) { return count == 0u; });
+            if (missingSouthThreeRowRegionalSurface) {
+                outFail =
+                    "South Clearing's dirt row, straight ledge crown, and lower contact lawn from x=20 through x=24 must all be covered by the generated regional material-19 surface (probe-counts=";
+                for (std::size_t probe = 0u;
+                     probe < southThreeRowRegionalProbeCounts.size();
+                     ++probe) {
+                    if (probe != 0u) {
+                        outFail += ",";
+                    }
+                    outFail += std::to_string(
+                        southThreeRowRegionalProbeCounts[probe]);
+                }
+                outFail += ").";
+                return false;
             }
             const auto pairedPositionCount = std::count_if(
                 boundaryFields.begin(),
