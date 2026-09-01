@@ -10001,19 +10001,32 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 ledgeCrownClipMask != 0u ||
                 ledgeContactOverlapMask != 0u;
             // Authorship also covers render-only controls such as projected
-            // shadow reception. When topology is unchanged, keep the decoded
-            // source surface heights even though the source triangles must be
-            // resubmitted under a different material policy. Flattening every
-            // authored tile to a procedural plane created the visible ruler-
-            // straight seam beside otherwise untouched source ledges.
+            // shadow reception and regional material-field ownership. When
+            // topology is unchanged, keep the decoded source surface heights
+            // even though the source triangles must be resubmitted under a
+            // different material policy. Flattening every authored or V2-
+            // promoted tile to a procedural plane created the visible ruler-
+            // straight seam beside otherwise untouched source lawn/ledges.
             const bool preserveSourceGeometry =
                 sourceSampled && relativeSourceGeometryFits &&
-                !explicitAutoContinuousRebuild &&
                 !ledgeDeformsSurface;
             const bool preserveSourceDirtField =
                 sourceSampled && dirt && sourceTopologyMatches &&
                 tile.sourceSurface == tile.surface &&
                 !tile.rebuildContinuousMaterialFields;
+            // Material 19's decoded lawn albedo branch is stable whenever
+            // the cell still has its original surface and topology. Preserve
+            // UV0 independently even when V2 regenerates the carrier for a
+            // regional lighting/transition field. Replacing this branch with
+            // the generic world fallback makes every promoted source lawn
+            // metre render as a plainly visible square. UV1 remains regional
+            // on rebuilt cells, and UV2 still follows edited dirt boundaries.
+            const bool preserveSourceLawnAlbedoField =
+                sourceSampled && !dirt && sourceTopologyMatches &&
+                tile.surface == "light_lawn" &&
+                tile.sourceSurface == tile.surface &&
+                !tile.cleanSuppressedEncounterGrassTint &&
+                !tile.normalizeSourceTint;
             const bool preserveSourceField =
                 preserveSourceDirtField ||
                 (sourceSampled &&
@@ -10595,7 +10608,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     continuedUv0,
                     continuedUv1,
                     &distanceFromSourceSurfaceCells);
-            glm::vec2 baseUv0 = preserveSourceField
+            glm::vec2 baseUv0 =
+                (preserveSourceField || preserveSourceLawnAlbedoField)
                 ? deformedSourceSample.uv0
                 : (continuedSourceMaterialField
                     ? continuedUv0
@@ -10604,7 +10618,9 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 ? deformedSourceSample.uv1
                 : (continuedSourceMaterialField
                     ? continuedUv1
-                    : baseUv0);
+                    : (preserveSourceLawnAlbedoField
+                        ? worldFallbackUv
+                        : baseUv0));
             if (!preserveSourceField &&
                 sourceMaterialHandoffWeight > 0.0f &&
                 sourceMaterialHandoffSampled) {

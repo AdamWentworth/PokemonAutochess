@@ -3476,7 +3476,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                          ++channel) {
                         maximumWestLawnUv0Difference = std::max(
                             maximumWestLawnUv0Difference,
-                            std::abs(uv0[channel] - field.uv0[channel]));
+                            // Material 19's albedo sampler repeats. Adjacent
+                            // recovered branches that differ by an integer
+                            // are the same exact field, not a seam.
+                            std::abs(
+                                (uv0[channel] - field.uv0[channel]) -
+                                std::round(
+                                    uv0[channel] -
+                                    field.uv0[channel])));
                         maximumWestLawnUv1Difference = std::max(
                             maximumWestLawnUv1Difference,
                             std::abs(uv1[channel] - field.uv1[channel]));
@@ -3504,7 +3511,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         maximumWestLawnUv1Difference > 0.001f ||
         maximumWestLawnColorDifference > 0.001f) {
         outFail =
-            "The generated lawn cells at (16,-12)/(17,-12) did not continue one exact LGPE material field across their shared edge (pairs=" +
+            "The generated lawn cells at (16,-12)/(17,-12) did not continue one repeat-equivalent LGPE albedo field and exact lighting/color field across their shared edge (pairs=" +
             std::to_string(pairedWestLawnPositionCount) +
             ", uv0=" +
             std::to_string(maximumWestLawnUv0Difference) +
@@ -4427,6 +4434,111 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             const auto variantSourceFromWorld =
                 route1::sourceFromWorldMatrix(
                     variantEnvironment.layout());
+            struct SourceLawnAlbedoProbe {
+                std::array<double, 2> sourceXZ{};
+                std::array<float, 2> expectedUv0{};
+            };
+            // Exact decoded material-19 UV0 branches at the centres of the
+            // South Clearing lawn cells that exposed metre-wide squares when
+            // V2 replaced them with its generic world-space fallback.
+            constexpr std::array<SourceLawnAlbedoProbe, 6>
+                sourceLawnAlbedoProbes{{
+                    {{{1750.0, -2150.0}},
+                     {{5.833333f, -6.166667f}}},
+                    {{{2550.0, -1050.0}},
+                     {{8.500000f, -2.500000f}}},
+                    {{{2150.0, -950.0}},
+                     {{7.166667f, -2.166667f}}},
+                    {{{2250.0, -950.0}},
+                     {{7.500000f, -2.166667f}}},
+                    {{{2350.0, -950.0}},
+                     {{7.833333f, -2.166667f}}},
+                    {{{2450.0, -950.0}},
+                     {{8.166667f, -2.166667f}}},
+                }};
+            std::array<bool, sourceLawnAlbedoProbes.size()>
+                foundSourceLawnAlbedoProbe{};
+            for (const auto& batch : variantBatches) {
+                if (batch.geometryCacheKey.find(
+                        "route1:terrain-authored-surface:") ==
+                    std::string::npos) {
+                    continue;
+                }
+                const auto* vertices = batch.sharedVertices
+                    ? batch.sharedVertices
+                    : batch.vertices.data();
+                const auto vertexCount = batch.sharedVertices
+                    ? batch.sharedVertexCount
+                    : batch.vertices.size();
+                for (const auto& instance : batch.instances) {
+                    for (std::size_t vertexIndex = 0u;
+                         vertices && vertexIndex < vertexCount;
+                         ++vertexIndex) {
+                        const auto& vertex = vertices[vertexIndex];
+                        const auto sourcePoint = transformPoint(
+                            variantSourceFromWorld,
+                            transformPoint(
+                                instance.modelMatrix,
+                                {vertex.x, vertex.y, vertex.z}));
+                        for (std::size_t probe = 0u;
+                             probe < sourceLawnAlbedoProbes.size();
+                             ++probe) {
+                            if (std::abs(sourcePoint[0] -
+                                    sourceLawnAlbedoProbes[probe]
+                                        .sourceXZ[0]) >
+                                    0.1 ||
+                                std::abs(sourcePoint[2] -
+                                    sourceLawnAlbedoProbes[probe]
+                                        .sourceXZ[1]) >
+                                    0.1) {
+                                continue;
+                            }
+                            foundSourceLawnAlbedoProbe[probe] =
+                                foundSourceLawnAlbedoProbe[probe] ||
+                                (std::abs(
+                                     vertex.u -
+                                     sourceLawnAlbedoProbes[probe]
+                                         .expectedUv0[0]) <= 0.001f &&
+                                 std::abs(
+                                     vertex.v -
+                                     sourceLawnAlbedoProbes[probe]
+                                         .expectedUv0[1]) <= 0.001f);
+                        }
+                    }
+                }
+            }
+            if (!std::all_of(
+                    foundSourceLawnAlbedoProbe.begin(),
+                    foundSourceLawnAlbedoProbe.end(),
+                    [](bool found) { return found; })) {
+                std::string missing;
+                for (std::size_t probe = 0u;
+                     probe < foundSourceLawnAlbedoProbe.size();
+                     ++probe) {
+                    if (foundSourceLawnAlbedoProbe[probe]) {
+                        continue;
+                    }
+                    if (!missing.empty()) {
+                        missing += ",";
+                    }
+                    missing += "(" + std::to_string(
+                        static_cast<std::int32_t>(
+                            std::floor(
+                                sourceLawnAlbedoProbes[probe]
+                                    .sourceXZ[0] /
+                                100.0))) + "," +
+                        std::to_string(
+                            static_cast<std::int32_t>(
+                                std::floor(
+                                    sourceLawnAlbedoProbes[probe]
+                                        .sourceXZ[1] /
+                                    100.0))) + ")";
+                }
+                outFail =
+                    "South Clearing regenerated source-equivalent light-lawn cells without their decoded LGPE albedo branch (missing=" +
+                    missing + ").";
+                return false;
+            }
             std::array<bool, 4> replacedSouthLedgeCliffs{};
             std::array<bool, 4> replacedSouthLedgeFringes{};
             std::array<bool, 4> retainedSouthLedgeCaps{};
