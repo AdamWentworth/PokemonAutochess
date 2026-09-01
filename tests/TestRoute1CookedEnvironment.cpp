@@ -4460,6 +4460,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 }};
             std::array<bool, sourceLawnAlbedoProbes.size()>
                 foundSourceLawnAlbedoProbe{};
+            struct RampMaterialProbe {
+                std::array<float, 2> lowerUv0{};
+                std::array<float, 2> upperUv0{};
+                bool foundLower = false;
+                bool foundUpper = false;
+            };
+            std::array<RampMaterialProbe, 4>
+                southClearingRampMaterialProbes{};
             for (const auto& batch : variantBatches) {
                 if (batch.geometryCacheKey.find(
                         "route1:terrain-authored-surface:") ==
@@ -4506,6 +4514,27 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                      sourceLawnAlbedoProbes[probe]
                                          .expectedUv0[1]) <= 0.001f);
                         }
+                        for (std::size_t ramp = 0u;
+                             ramp < southClearingRampMaterialProbes.size();
+                             ++ramp) {
+                            const double expectedX =
+                                1650.0 + static_cast<double>(ramp) * 100.0;
+                            if (std::abs(sourcePoint[0] - expectedX) > 0.1) {
+                                continue;
+                            }
+                            auto& materialProbe =
+                                southClearingRampMaterialProbes[ramp];
+                            if (std::abs(sourcePoint[2] + 875.0) <= 0.1) {
+                                materialProbe.lowerUv0 = {
+                                    vertex.u, vertex.v};
+                                materialProbe.foundLower = true;
+                            } else if (
+                                std::abs(sourcePoint[2] + 825.0) <= 0.1) {
+                                materialProbe.upperUv0 = {
+                                    vertex.u, vertex.v};
+                                materialProbe.foundUpper = true;
+                            }
+                        }
                     }
                 }
             }
@@ -4539,6 +4568,45 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 outFail =
                     "South Clearing regenerated source-equivalent light-lawn cells without their decoded LGPE albedo branch (missing=" +
                     missing + ").";
+                return false;
+            }
+            float maximumRampUv0DerivativeDifference = 0.0f;
+            bool foundCompleteRampMaterialField = true;
+            for (std::size_t ramp = 0u;
+                 ramp < southClearingRampMaterialProbes.size();
+                 ++ramp) {
+                const auto& probe =
+                    southClearingRampMaterialProbes[ramp];
+                foundCompleteRampMaterialField =
+                    foundCompleteRampMaterialField &&
+                    probe.foundLower && probe.foundUpper;
+                if (ramp == 0u) {
+                    continue;
+                }
+                const auto& previous =
+                    southClearingRampMaterialProbes[ramp - 1u];
+                for (std::size_t channel = 0u; channel < 2u;
+                     ++channel) {
+                    const float derivative =
+                        probe.upperUv0[channel] -
+                        probe.lowerUv0[channel];
+                    const float previousDerivative =
+                        previous.upperUv0[channel] -
+                        previous.lowerUv0[channel];
+                    maximumRampUv0DerivativeDifference = std::max(
+                        maximumRampUv0DerivativeDifference,
+                        repeatDifference(
+                            derivative, previousDerivative));
+                }
+            }
+            if (!foundCompleteRampMaterialField ||
+                maximumRampUv0DerivativeDifference > 0.001f) {
+                outFail =
+                    "South Clearing grass ramps (16,-9) through (19,-9) did not share one continuous regional albedo derivative (complete=" +
+                    std::to_string(foundCompleteRampMaterialField) +
+                    ", uv0-derivative=" +
+                    std::to_string(
+                        maximumRampUv0DerivativeDifference) + ").";
                 return false;
             }
             std::array<bool, 4> replacedSouthLedgeCliffs{};

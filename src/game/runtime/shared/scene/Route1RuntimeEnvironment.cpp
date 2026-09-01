@@ -9869,13 +9869,17 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     const bool sourceTopologyMatchesTile =
         tile.elevationLevel == tile.sourceElevationLevel &&
         tile.shape == tile.sourceShape;
+    // UV0 is evaluated in the horizontal route grid, so a ramp-direction
+    // edit does not invalidate the regional albedo field. Requiring the old
+    // and new ramp shapes to match sends that one metre back to the generic
+    // derivative and exposes its complete rectangular footprint.
     if (route1UsesRegionalTerrainMaterialField(
             authoredScene.sceneId) &&
         tile.rebuildContinuousMaterialFields &&
         (dirt ||
          (tile.surface == "light_lawn" &&
           tile.sourceSurface != tile.surface)) &&
-        sourceTopologyMatchesTile &&
+        (sourceTopologyMatchesTile || ramp) &&
         !tile.cleanSuppressedEncounterGrassTint &&
         !tile.normalizeSourceTint) {
         regionalAlbedoField.centerGrid = {
