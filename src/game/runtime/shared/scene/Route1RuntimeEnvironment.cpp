@@ -10104,9 +10104,17 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             // different material policy. Flattening every authored or V2-
             // promoted tile to a procedural plane created the visible ruler-
             // straight seam beside otherwise untouched source lawn/ledges.
+            // A rebuilt ramp run is the exception: source grass and dirt ramp
+            // pieces can carry slightly different height/normal profiles that
+            // were hidden by their original material border. Once an edit
+            // removes that border, one procedural slope must own the complete
+            // connected run or the retired footprint remains visible.
             const bool preserveSourceGeometry =
                 sourceSampled && relativeSourceGeometryFits &&
-                !ledgeDeformsSurface;
+                !ledgeDeformsSurface &&
+                !(ramp && tile.rebuildContinuousMaterialFields &&
+                  route1UsesRegionalTerrainMaterialField(
+                      authoredScene.sceneId));
             const bool preserveSourceDirtField =
                 sourceSampled && dirt && sourceTopologyMatches &&
                 tile.sourceSurface == tile.surface &&
@@ -11202,7 +11210,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                        sourceTopologyMatches &&
                        tile.sourceSurface == tile.surface &&
                        (!tile.rebuildContinuousMaterialFields ||
-                        usesRegionalMaterialField) &&
+                        (usesRegionalMaterialField && !ramp)) &&
                        !tile.cleanSuppressedEncounterGrassTint) {
                 // Color0 carries the source's local lighting/tint field
                 // independently of UV2's lawn/soil selector. Retain it only

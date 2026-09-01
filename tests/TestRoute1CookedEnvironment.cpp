@@ -4463,11 +4463,80 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             struct RampMaterialProbe {
                 std::array<float, 2> lowerUv0{};
                 std::array<float, 2> upperUv0{};
+                std::array<float, 2> leftUv0{};
+                std::array<float, 2> rightUv0{};
                 bool foundLower = false;
                 bool foundUpper = false;
+                bool foundLeft = false;
+                bool foundRight = false;
             };
             std::array<RampMaterialProbe, 4>
                 southClearingRampMaterialProbes{};
+            struct RampBoundaryField {
+                std::array<float, 2> uv0{};
+                std::array<float, 2> uv1{};
+                std::array<float, 2> uv2{};
+                std::array<float, 4> color{};
+                std::array<float, 4> geometry{};
+                float maximumDifference = 0.0f;
+                std::size_t sampleCount = 0u;
+            };
+            std::array<RampBoundaryField, 8>
+                southClearingRampBoundaryFields{};
+            // Three internal lateral seams sampled at three slope heights.
+            // This catches geometry or a material field that restarts per
+            // tile even when the flat-lawn handoffs above and below agree.
+            std::array<RampBoundaryField, 9>
+                southClearingRampLateralBoundaryFields{};
+            const auto accumulateRampField = [repeatDifference](
+                    RampBoundaryField& field,
+                    const auto& vertex,
+                    bool compareGeometry) {
+                const std::array<float, 2> uv0{
+                    vertex.u, vertex.v};
+                const std::array<float, 2> uv1{
+                    vertex.sourceUv1U, vertex.sourceUv1V};
+                const std::array<float, 2> uv2{
+                    vertex.sourceUv2U, vertex.sourceUv2V};
+                const std::array<float, 4> color{
+                    vertex.r, vertex.g, vertex.b, vertex.a};
+                const std::array<float, 4> geometry{
+                    vertex.y, vertex.nx, vertex.ny, vertex.nz};
+                if (field.sampleCount == 0u) {
+                    field.uv0 = uv0;
+                    field.uv1 = uv1;
+                    field.uv2 = uv2;
+                    field.color = color;
+                    field.geometry = geometry;
+                } else {
+                    for (std::size_t channel = 0u; channel < 2u;
+                         ++channel) {
+                        field.maximumDifference = std::max({
+                            field.maximumDifference,
+                            repeatDifference(
+                                uv0[channel], field.uv0[channel]),
+                            repeatDifference(
+                                uv1[channel], field.uv1[channel]),
+                            repeatDifference(
+                                uv2[channel], field.uv2[channel])});
+                    }
+                    for (std::size_t channel = 0u; channel < 4u;
+                         ++channel) {
+                        field.maximumDifference = std::max(
+                            field.maximumDifference,
+                            std::abs(
+                                color[channel] - field.color[channel]));
+                        if (compareGeometry) {
+                            field.maximumDifference = std::max(
+                                field.maximumDifference,
+                                std::abs(
+                                    geometry[channel] -
+                                    field.geometry[channel]));
+                        }
+                    }
+                }
+                ++field.sampleCount;
+            };
             for (const auto& batch : variantBatches) {
                 if (batch.geometryCacheKey.find(
                         "route1:terrain-authored-surface:") ==
@@ -4519,20 +4588,83 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                              ++ramp) {
                             const double expectedX =
                                 1650.0 + static_cast<double>(ramp) * 100.0;
-                            if (std::abs(sourcePoint[0] - expectedX) > 0.1) {
-                                continue;
-                            }
                             auto& materialProbe =
                                 southClearingRampMaterialProbes[ramp];
-                            if (std::abs(sourcePoint[2] + 875.0) <= 0.1) {
-                                materialProbe.lowerUv0 = {
-                                    vertex.u, vertex.v};
-                                materialProbe.foundLower = true;
-                            } else if (
-                                std::abs(sourcePoint[2] + 825.0) <= 0.1) {
-                                materialProbe.upperUv0 = {
-                                    vertex.u, vertex.v};
-                                materialProbe.foundUpper = true;
+                            const bool atCenterX =
+                                std::abs(sourcePoint[0] - expectedX) <= 0.1;
+                            if (atCenterX) {
+                                if (std::abs(
+                                        sourcePoint[2] + 875.0) <= 0.1) {
+                                    materialProbe.lowerUv0 = {
+                                        vertex.u, vertex.v};
+                                    materialProbe.foundLower = true;
+                                } else if (std::abs(
+                                               sourcePoint[2] + 825.0) <=
+                                           0.1) {
+                                    materialProbe.upperUv0 = {
+                                        vertex.u, vertex.v};
+                                    materialProbe.foundUpper = true;
+                                }
+                            }
+                            if (std::abs(sourcePoint[2] + 850.0) <= 0.1) {
+                                const double tileLeftX =
+                                    1625.0 +
+                                    static_cast<double>(ramp) * 100.0;
+                                const double tileRightX = tileLeftX + 50.0;
+                                if (std::abs(
+                                        sourcePoint[0] - tileLeftX) <= 0.1) {
+                                    materialProbe.leftUv0 = {
+                                        vertex.u, vertex.v};
+                                    materialProbe.foundLeft = true;
+                                } else if (std::abs(
+                                               sourcePoint[0] - tileRightX) <=
+                                           0.1) {
+                                    materialProbe.rightUv0 = {
+                                        vertex.u, vertex.v};
+                                    materialProbe.foundRight = true;
+                                }
+                            }
+                            if (!atCenterX) {
+                                continue;
+                            }
+                            for (std::size_t side = 0u; side < 2u;
+                                 ++side) {
+                                const double boundaryZ =
+                                    side == 0u ? -900.0 : -800.0;
+                                if (std::abs(
+                                        sourcePoint[2] - boundaryZ) > 0.1) {
+                                    continue;
+                                }
+                                auto& field =
+                                    southClearingRampBoundaryFields[
+                                        ramp * 2u + side];
+                                accumulateRampField(
+                                    field, vertex, false);
+                            }
+                        }
+                        for (std::size_t boundary = 0u;
+                             boundary < 3u;
+                             ++boundary) {
+                            const double boundaryX =
+                                1700.0 +
+                                static_cast<double>(boundary) * 100.0;
+                            if (std::abs(sourcePoint[0] - boundaryX) > 0.1) {
+                                continue;
+                            }
+                            for (std::size_t slopeSample = 0u;
+                                 slopeSample < 3u;
+                                 ++slopeSample) {
+                                const double sampleZ =
+                                    -875.0 +
+                                    static_cast<double>(slopeSample) * 25.0;
+                                if (std::abs(sourcePoint[2] - sampleZ) > 0.1) {
+                                    continue;
+                                }
+                                auto& field =
+                                    southClearingRampLateralBoundaryFields[
+                                        boundary * 3u + slopeSample];
+                                accumulateRampField(
+                                    field, vertex, true);
                             }
                         }
                     }
@@ -4579,7 +4711,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     southClearingRampMaterialProbes[ramp];
                 foundCompleteRampMaterialField =
                     foundCompleteRampMaterialField &&
-                    probe.foundLower && probe.foundUpper;
+                    probe.foundLower && probe.foundUpper &&
+                    probe.foundLeft && probe.foundRight;
                 if (ramp == 0u) {
                     continue;
                 }
@@ -4593,10 +4726,19 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     const float previousDerivative =
                         previous.upperUv0[channel] -
                         previous.lowerUv0[channel];
+                    const float lateralDerivative =
+                        probe.rightUv0[channel] -
+                        probe.leftUv0[channel];
+                    const float previousLateralDerivative =
+                        previous.rightUv0[channel] -
+                        previous.leftUv0[channel];
                     maximumRampUv0DerivativeDifference = std::max(
-                        maximumRampUv0DerivativeDifference,
-                        repeatDifference(
-                            derivative, previousDerivative));
+                        {maximumRampUv0DerivativeDifference,
+                         repeatDifference(
+                             derivative, previousDerivative),
+                         repeatDifference(
+                             lateralDerivative,
+                             previousLateralDerivative)});
                 }
             }
             if (!foundCompleteRampMaterialField ||
@@ -4607,6 +4749,48 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     ", uv0-derivative=" +
                     std::to_string(
                         maximumRampUv0DerivativeDifference) + ").";
+                return false;
+            }
+            float maximumRampBoundaryFieldDifference = 0.0f;
+            bool foundCompleteRampBoundaryField = true;
+            for (const auto& field :
+                 southClearingRampBoundaryFields) {
+                foundCompleteRampBoundaryField =
+                    foundCompleteRampBoundaryField &&
+                    field.sampleCount >= 2u;
+                maximumRampBoundaryFieldDifference = std::max(
+                    maximumRampBoundaryFieldDifference,
+                    field.maximumDifference);
+            }
+            if (!foundCompleteRampBoundaryField ||
+                maximumRampBoundaryFieldDifference > 0.001f) {
+                outFail =
+                    "South Clearing grass ramps (16,-9) through (19,-9) did not hand UV0, UV1, UV2, and Color0 continuously to their high/low lawn neighbors (complete=" +
+                    std::to_string(foundCompleteRampBoundaryField) +
+                    ", field-difference=" +
+                    std::to_string(
+                        maximumRampBoundaryFieldDifference) + ").";
+                return false;
+            }
+            float maximumRampLateralFieldDifference = 0.0f;
+            bool foundCompleteRampLateralField = true;
+            for (const auto& field :
+                 southClearingRampLateralBoundaryFields) {
+                foundCompleteRampLateralField =
+                    foundCompleteRampLateralField &&
+                    field.sampleCount >= 2u;
+                maximumRampLateralFieldDifference = std::max(
+                    maximumRampLateralFieldDifference,
+                    field.maximumDifference);
+            }
+            if (!foundCompleteRampLateralField ||
+                maximumRampLateralFieldDifference > 0.001f) {
+                outFail =
+                    "South Clearing grass ramps (16,-9) through (19,-9) restarted geometry, normals, UV0, UV1, UV2, or Color0 at an internal tile seam (complete=" +
+                    std::to_string(foundCompleteRampLateralField) +
+                    ", field-difference=" +
+                    std::to_string(
+                        maximumRampLateralFieldDifference) + ").";
                 return false;
             }
             std::array<bool, 4> replacedSouthLedgeCliffs{};
