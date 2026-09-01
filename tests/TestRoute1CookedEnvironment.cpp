@@ -4472,6 +4472,30 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             };
             std::array<RampMaterialProbe, 4>
                 southClearingRampMaterialProbes{};
+            constexpr std::array<float, 4>
+                southClearingRampSourceLighting{
+                    0.922168f,
+                    0.847579f,
+                    0.695157f,
+                    0.791179f};
+            bool foundSouthClearingRampSourceLighting = false;
+            float maximumSouthClearingRampSourceLightingDifference =
+                0.0f;
+            struct SourceRampProbe {
+                std::array<double, 2> sourceXZ{};
+                std::array<float, 3> normal{};
+                std::array<float, 4> color{};
+                bool found = false;
+                float maximumDifference = 0.0f;
+            };
+            std::array<SourceRampProbe, 2> untouchedSourceRampProbes{{
+                {{{2250.0, -2150.0}},
+                 {{-0.211011f, 0.968362f, 0.133228f}},
+                 {{0.756863f, 0.905882f, 0.819608f, 0.900000f}}},
+                {{{2350.0, -2050.0}},
+                 {{-0.131047f, 0.970800f, 0.200933f}},
+                 {{0.756863f, 0.905882f, 0.819608f, 0.900000f}}},
+            }};
             struct RampBoundaryField {
                 std::array<float, 2> uv0{};
                 std::array<float, 2> uv1{};
@@ -4642,6 +4666,66 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                     field, vertex, false);
                             }
                         }
+                        if (std::abs(sourcePoint[0] - 1750.0) <= 0.1 &&
+                            std::abs(sourcePoint[2] + 850.0) <= 0.1) {
+                            foundSouthClearingRampSourceLighting = true;
+                            const std::array<float, 4> color{
+                                vertex.r,
+                                vertex.g,
+                                vertex.b,
+                                vertex.a};
+                            for (std::size_t channel = 0u;
+                                 channel < color.size();
+                                 ++channel) {
+                                maximumSouthClearingRampSourceLightingDifference =
+                                    std::max(
+                                        maximumSouthClearingRampSourceLightingDifference,
+                                        std::abs(
+                                            color[channel] -
+                                            southClearingRampSourceLighting[
+                                                channel]));
+                            }
+                        }
+                        for (auto& probe : untouchedSourceRampProbes) {
+                            if (std::abs(
+                                    sourcePoint[0] -
+                                    probe.sourceXZ[0]) > 0.1 ||
+                                std::abs(
+                                    sourcePoint[2] -
+                                    probe.sourceXZ[1]) > 0.1 ||
+                                std::abs(sourcePoint[1] - 150.02) >
+                                    0.01) {
+                                continue;
+                            }
+                            probe.found = true;
+                            const std::array<float, 3> normal{
+                                vertex.nx,
+                                vertex.ny,
+                                vertex.nz};
+                            const std::array<float, 4> color{
+                                vertex.r,
+                                vertex.g,
+                                vertex.b,
+                                vertex.a};
+                            for (std::size_t channel = 0u;
+                                 channel < normal.size();
+                                 ++channel) {
+                                probe.maximumDifference = std::max(
+                                    probe.maximumDifference,
+                                    std::abs(
+                                        normal[channel] -
+                                        probe.normal[channel]));
+                            }
+                            for (std::size_t channel = 0u;
+                                 channel < color.size();
+                                 ++channel) {
+                                probe.maximumDifference = std::max(
+                                    probe.maximumDifference,
+                                    std::abs(
+                                        color[channel] -
+                                        probe.color[channel]));
+                            }
+                        }
                         for (std::size_t boundary = 0u;
                              boundary < 3u;
                              ++boundary) {
@@ -4700,6 +4784,36 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 outFail =
                     "South Clearing regenerated source-equivalent light-lawn cells without their decoded LGPE albedo branch (missing=" +
                     missing + ").";
+                return false;
+            }
+            if (!foundSouthClearingRampSourceLighting ||
+                maximumSouthClearingRampSourceLightingDifference >
+                    0.001f) {
+                outFail =
+                    "The rebuilt South Clearing lawn ramp discarded the imported source lighting field and became a rectangular generated-tint strip (found=" +
+                    std::to_string(
+                        foundSouthClearingRampSourceLighting) +
+                    ", difference=" +
+                    std::to_string(
+                        maximumSouthClearingRampSourceLightingDifference) +
+                    ").";
+                return false;
+            }
+            for (std::size_t probeIndex = 0u;
+                 probeIndex < untouchedSourceRampProbes.size();
+                 ++probeIndex) {
+                const auto& probe =
+                    untouchedSourceRampProbes[probeIndex];
+                if (probe.found &&
+                    probe.maximumDifference <= 0.001f) {
+                    continue;
+                }
+                outFail =
+                    "An untouched imported South Clearing ramp was procedurally rebuilt into a ramp that climbs into no matching terrain (probe=" +
+                    std::to_string(probeIndex) +
+                    ", found=" + std::to_string(probe.found) +
+                    ", difference=" +
+                    std::to_string(probe.maximumDifference) + ").";
                 return false;
             }
             float maximumRampUv0DerivativeDifference = 0.0f;

@@ -9360,6 +9360,59 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             {0, -1},
             {-1, 0},
     }};
+    bool rebuildsEditedRampRun = false;
+    if (ramp && tile.rebuildContinuousMaterialFields &&
+        route1UsesRegionalTerrainMaterialField(authoredScene.sceneId)) {
+        const bool lateralAlongX =
+            tile.shape == "ramp_north" ||
+            tile.shape == "ramp_south";
+        const std::array<std::array<std::int32_t, 2>, 2>
+            lateralDirections = lateralAlongX
+            ? std::array<std::array<std::int32_t, 2>, 2>{
+                  std::array<std::int32_t, 2>{-1, 0},
+                  std::array<std::int32_t, 2>{1, 0}}
+            : std::array<std::array<std::int32_t, 2>, 2>{
+                  std::array<std::int32_t, 2>{0, -1},
+                  std::array<std::int32_t, 2>{0, 1}};
+        std::vector<const TerrainTileState*> pending{&tile};
+        std::set<GridCell> visited;
+        while (!pending.empty()) {
+            const auto* candidate = pending.back();
+            pending.pop_back();
+            if (!candidate ||
+                !visited.emplace(
+                    candidate->gridX, candidate->gridZ).second) {
+                continue;
+            }
+            if (!candidate->sourceOccupied ||
+                candidate->sourceSurface != candidate->surface ||
+                candidate->sourceShape != candidate->shape ||
+                candidate->sourceElevationLevel !=
+                    candidate->elevationLevel) {
+                rebuildsEditedRampRun = true;
+                break;
+            }
+            for (const auto direction : lateralDirections) {
+                const auto neighbor = std::find_if(
+                    terrainTiles.begin(),
+                    terrainTiles.end(),
+                    [&](const TerrainTileState& sample) {
+                        return sample.gridX ==
+                                candidate->gridX + direction[0] &&
+                            sample.gridZ ==
+                                candidate->gridZ + direction[1];
+                    });
+                if (neighbor == terrainTiles.end() ||
+                    neighbor->shape != tile.shape ||
+                    neighbor->surface != tile.surface ||
+                    neighbor->elevationLevel != tile.elevationLevel ||
+                    !neighbor->rebuildContinuousMaterialFields) {
+                    continue;
+                }
+                pending.push_back(&*neighbor);
+            }
+        }
+    }
     if (dirt && tile.sourceSurface == "dirt_path") {
         const auto findAt = [](const auto& tiles,
                                std::int32_t gridX,
@@ -10111,10 +10164,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             // connected run or the retired footprint remains visible.
             const bool preserveSourceGeometry =
                 sourceSampled && relativeSourceGeometryFits &&
-                !ledgeDeformsSurface &&
-                !(ramp && tile.rebuildContinuousMaterialFields &&
-                  route1UsesRegionalTerrainMaterialField(
-                      authoredScene.sceneId));
+                !ledgeDeformsSurface && !rebuildsEditedRampRun;
             const bool preserveSourceDirtField =
                 sourceSampled && dirt && sourceTopologyMatches &&
                 tile.sourceSurface == tile.surface &&
@@ -11194,6 +11244,79 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         outColor = lowColor;
                         return true;
                     }
+                    if (rebuildsEditedRampRun &&
+                        tile.surface == "light_lawn") {
+                        const std::size_t highEdge =
+                            tile.shape == "ramp_north" ? 0u
+                            : tile.shape == "ramp_east" ? 1u
+                            : tile.shape == "ramp_south" ? 2u
+                            : 3u;
+                        const std::size_t lowEdge =
+                            (highEdge + 2u) % 4u;
+                        const auto sampleBoundaryNeighborColor =
+                            [&](std::size_t edge,
+                                glm::vec4& boundaryColor) {
+                                const auto neighbor = std::find_if(
+                                    terrainTiles.begin(),
+                                    terrainTiles.end(),
+                                    [&](const TerrainTileState& sample) {
+                                        return sample.gridX ==
+                                                tile.gridX +
+                                                    rampNeighborDirections[
+                                                        edge][0] &&
+                                            sample.gridZ ==
+                                                tile.gridZ +
+                                                    rampNeighborDirections[
+                                                        edge][1];
+                                    });
+                                if (neighbor == terrainTiles.end() ||
+                                    neighbor->surface != tile.surface) {
+                                    return false;
+                                }
+                                const float neighborLocalX =
+                                    edge == 1u ? 0.0f
+                                    : edge == 3u ? 1.0f
+                                    : localX;
+                                const float neighborLocalZ =
+                                    edge == 0u ? 0.0f
+                                    : edge == 2u ? 1.0f
+                                    : localZ;
+                                const bool preservesSourceColor =
+                                    neighbor->sourceOccupied &&
+                                    neighbor->sourceSurface ==
+                                        neighbor->surface &&
+                                    neighbor->sourceShape ==
+                                        neighbor->shape &&
+                                    neighbor->sourceElevationLevel ==
+                                        neighbor->elevationLevel &&
+                                    !neighbor->cleanSuppressedEncounterGrassTint;
+                                SourceTerrainSurfaceSample sourceBoundary;
+                                if (preservesSourceColor &&
+                                    sampleSourceTerrainSurface(
+                                        *neighbor,
+                                        neighborLocalX,
+                                        neighborLocalZ,
+                                        sourceBoundary)) {
+                                    boundaryColor = sourceBoundary.color0;
+                                    return true;
+                                }
+                                return sampleTargetTerrainColor(
+                                    tile.surface,
+                                    neighbor->elevationLevel,
+                                    materialWorldGridX,
+                                    materialWorldGridZ,
+                                    boundaryColor);
+                            };
+                        glm::vec4 boundaryColor{1.0f};
+                        if (sampleBoundaryNeighborColor(
+                                lowEdge, boundaryColor)) {
+                            lowColor = boundaryColor;
+                        }
+                        if (sampleBoundaryNeighborColor(
+                                highEdge, boundaryColor)) {
+                            highColor = boundaryColor;
+                        }
+                    }
                     const float highWeight = std::clamp(
                         vertex.y / kTerrainElevationStepCm,
                         0.0f,
@@ -11206,11 +11329,24 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 targetColor = normalizedTintColor;
                 targetColorSampled = normalizedTintSampled;
             } else if (tile.surface == "light_lawn" &&
+                       rebuildsEditedRampRun && sourceSampled) {
+                // Replacing a source ramp's material does not retire its
+                // world-lighting field. Color0 is independent from UV2's
+                // dirt/lawn selection, and the imported ramp already carries
+                // the shaped lighting that makes the slope belong to both
+                // adjoining lawns. Reusing it avoids painting the whole
+                // replacement ramp as one bright rectangular strip. The
+                // regional seam reconciliation pass still gives the exact
+                // high/low boundary vertices to their flat-lawn neighbours.
+                targetColor = sourceSample.color0;
+                targetColorSampled = true;
+            } else if (tile.surface == "light_lawn" &&
                        deformedSourceSampled &&
                        sourceTopologyMatches &&
                        tile.sourceSurface == tile.surface &&
                        (!tile.rebuildContinuousMaterialFields ||
-                        (usesRegionalMaterialField && !ramp)) &&
+                        (usesRegionalMaterialField &&
+                         !rebuildsEditedRampRun)) &&
                        !tile.cleanSuppressedEncounterGrassTint) {
                 // Color0 carries the source's local lighting/tint field
                 // independently of UV2's lawn/soil selector. Retain it only
