@@ -4457,7 +4457,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                      {{7.833333f, -2.166667f}}},
                     {{{2450.0, -950.0}},
                      {{8.166667f, -2.166667f}}},
-                }};
+            }};
             std::array<bool, sourceLawnAlbedoProbes.size()>
                 foundSourceLawnAlbedoProbe{};
             struct RampMaterialProbe {
@@ -4624,12 +4624,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                             }
                             foundSourceLawnAlbedoProbe[probe] =
                                 foundSourceLawnAlbedoProbe[probe] ||
-                                (std::abs(
-                                     vertex.u -
+                                (repeatDifference(
+                                     vertex.u,
                                      sourceLawnAlbedoProbes[probe]
                                          .expectedUv0[0]) <= 0.001f &&
-                                 std::abs(
-                                     vertex.v -
+                                 repeatDifference(
+                                     vertex.v,
                                      sourceLawnAlbedoProbes[probe]
                                          .expectedUv0[1]) <= 0.001f);
                         }
@@ -4874,6 +4874,57 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     }
                 }
             }
+            const auto& terrainFieldStats =
+                variantEnvironment.stats();
+            if (terrainFieldStats
+                    .terrainLawnCompatibleBoundarySampleCount == 0u ||
+                terrainFieldStats
+                    .terrainLawnDerivativeBoundarySampleCount == 0u ||
+                terrainFieldStats
+                    .terrainLawnMaximumBoundaryUv01Difference > 0.001f ||
+                terrainFieldStats
+                    .terrainLawnMaximumBoundaryColorDifference > 0.001f ||
+                terrainFieldStats
+                    .terrainLawnMaximumUv01DerivativeRestart > 0.05f ||
+                terrainFieldStats
+                    .terrainLawnMaximumColorDerivativeRestart > 0.10f) {
+                outFail =
+                    "South Clearing's generated material-19 surface is not one repeat-equivalent world field across every rebuilt tile boundary (samples=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnCompatibleBoundarySampleCount) +
+                    ", derivative-boundaries=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnDerivativeBoundarySampleCount) +
+                    ", boundary-uv=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnMaximumBoundaryUv01Difference) +
+                    ", boundary-color=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnMaximumBoundaryColorDifference) +
+                    ", uv-derivative-restart=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnMaximumUv01DerivativeRestart) +
+                    " (uv0=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnMaximumUv0DerivativeRestart) +
+                    ", uv1=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnMaximumUv1DerivativeRestart) +
+                    ")" +
+                    ", color-derivative-restart=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnMaximumColorDerivativeRestart) +
+                    ").";
+                return false;
+            }
             if (!std::all_of(
                     foundSourceLawnAlbedoProbe.begin(),
                     foundSourceLawnAlbedoProbe.end(),
@@ -4902,7 +4953,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                     100.0))) + ")";
                 }
                 outFail =
-                    "South Clearing regenerated source-equivalent light-lawn cells without their decoded LGPE albedo branch (missing=" +
+                    "South Clearing regenerated source-equivalent light-lawn cells outside the repeat-equivalent decoded LGPE albedo branch (missing=" +
                     missing + ").";
                 return false;
             }
