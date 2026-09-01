@@ -9931,7 +9931,8 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
         tile.rebuildContinuousMaterialFields &&
         (dirt ||
          (tile.surface == "light_lawn" &&
-          tile.sourceSurface != tile.surface)) &&
+          (tile.sourceSurface != tile.surface ||
+           rebuildsEditedRampRun))) &&
         (sourceTopologyMatchesTile || ramp) &&
         !tile.cleanSuppressedEncounterGrassTint &&
         !tile.normalizeSourceTint) {
@@ -11300,21 +11301,50 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                                     boundaryColor = sourceBoundary.color0;
                                     return true;
                                 }
+                                const float boundaryWorldGridX =
+                                    edge == 1u
+                                    ? static_cast<float>(tile.gridX + 1)
+                                    : edge == 3u
+                                        ? static_cast<float>(tile.gridX)
+                                        : materialWorldGridX;
+                                const float boundaryWorldGridZ =
+                                    edge == 0u
+                                    ? static_cast<float>(tile.gridZ + 1)
+                                    : edge == 2u
+                                        ? static_cast<float>(tile.gridZ)
+                                        : materialWorldGridZ;
                                 return sampleTargetTerrainColor(
                                     tile.surface,
                                     neighbor->elevationLevel,
-                                    materialWorldGridX,
-                                    materialWorldGridZ,
+                                    boundaryWorldGridX,
+                                    boundaryWorldGridZ,
                                     boundaryColor);
                             };
-                        glm::vec4 boundaryColor{1.0f};
-                        if (sampleBoundaryNeighborColor(
-                                lowEdge, boundaryColor)) {
-                            lowColor = boundaryColor;
+                        glm::vec4 lowBoundaryColor{1.0f};
+                        glm::vec4 highBoundaryColor{1.0f};
+                        const bool sampledLowBoundary =
+                            sampleBoundaryNeighborColor(
+                                lowEdge, lowBoundaryColor);
+                        const bool sampledHighBoundary =
+                            sampleBoundaryNeighborColor(
+                                highEdge, highBoundaryColor);
+                        if (sampledLowBoundary) {
+                            lowColor = lowBoundaryColor;
                         }
-                        if (sampleBoundaryNeighborColor(
-                                highEdge, boundaryColor)) {
-                            highColor = boundaryColor;
+                        if (sampledHighBoundary) {
+                            highColor = highBoundaryColor;
+                        }
+                        if (sampledLowBoundary &&
+                            !sampledHighBoundary) {
+                            // A different material owns the high edge. Do
+                            // not pull an unrelated lawn donor from that
+                            // elevation across the complete slope; continue
+                            // the one real lawn neighbour up to the material
+                            // transition instead.
+                            highColor = lowBoundaryColor;
+                        } else if (!sampledLowBoundary &&
+                                   sampledHighBoundary) {
+                            lowColor = highBoundaryColor;
                         }
                     }
                     const float highWeight = std::clamp(

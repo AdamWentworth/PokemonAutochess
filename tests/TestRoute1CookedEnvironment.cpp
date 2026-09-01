@@ -4483,11 +4483,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 0.0f;
             constexpr std::array<std::array<float, 4>, 5>
                 loweredSouthClearingRampLighting{{
-                    {{0.527040f, 0.720294f, 0.773135f, 1.000000f}},
-                    {{0.543981f, 0.736277f, 0.788921f, 0.999994f}},
-                    {{0.581948f, 0.765840f, 0.809263f, 0.999488f}},
-                    {{0.644630f, 0.804033f, 0.842362f, 0.990271f}},
-                    {{0.730700f, 0.848742f, 0.886474f, 0.970888f}},
+                    {{0.703575f, 0.824040f, 0.877487f, 1.000000f}},
+                    {{0.708874f, 0.834404f, 0.898206f, 1.000000f}},
+                    {{0.712091f, 0.837655f, 0.902950f, 0.999949f}},
+                    {{0.714582f, 0.838804f, 0.903053f, 0.998703f}},
+                    {{0.711784f, 0.839040f, 0.871879f, 0.982043f}},
                 }};
             std::array<bool, loweredSouthClearingRampLighting.size()>
                 foundLoweredSouthClearingRampLighting{};
@@ -4524,6 +4524,20 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             // tile even when the flat-lawn handoffs above and below agree.
             std::array<RampBoundaryField, 9>
                 southClearingRampLateralBoundaryFields{};
+            // Four internal seams plus the join to the intact eastern ramp,
+            // each sampled at three positions across the slope.
+            std::array<RampBoundaryField, 15>
+                loweredRampLateralBoundaryFields{};
+            struct RampTintField {
+                std::array<float, 4> color{};
+                float maximumDifference = 0.0f;
+                std::size_t sampleCount = 0u;
+            };
+            // Cells 17 through 20 have lawn only on their low side. Their
+            // tint must continue that one real lawn field across the slope;
+            // sampling an unrelated high-elevation lawn paints a rectangle.
+            std::array<RampTintField, 4>
+                oneSidedLoweredRampTintFields{};
             const auto accumulateRampField = [repeatDifference](
                     RampBoundaryField& field,
                     const auto& vertex,
@@ -4795,6 +4809,68 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                     field, vertex, true);
                             }
                         }
+                        for (std::size_t boundary = 0u;
+                             boundary < 5u;
+                             ++boundary) {
+                            const double boundaryX =
+                                1800.0 +
+                                static_cast<double>(boundary) * 100.0;
+                            if (std::abs(
+                                    sourcePoint[0] - boundaryX) > 0.1) {
+                                continue;
+                            }
+                            for (std::size_t slopeSample = 0u;
+                                 slopeSample < 3u;
+                                 ++slopeSample) {
+                                const double sampleZ =
+                                    -1275.0 +
+                                    static_cast<double>(slopeSample) *
+                                        25.0;
+                                if (std::abs(
+                                        sourcePoint[2] - sampleZ) > 0.1) {
+                                    continue;
+                                }
+                                auto& field =
+                                    loweredRampLateralBoundaryFields[
+                                        boundary * 3u + slopeSample];
+                                accumulateRampField(
+                                    field, vertex, true);
+                            }
+                        }
+                        for (std::size_t ramp = 0u;
+                             ramp < oneSidedLoweredRampTintFields.size();
+                             ++ramp) {
+                            const double expectedX =
+                                1750.0 +
+                                static_cast<double>(ramp) * 100.0;
+                            if (std::abs(
+                                    sourcePoint[0] - expectedX) > 0.1 ||
+                                sourcePoint[2] < -1275.1 ||
+                                sourcePoint[2] > -1224.9) {
+                                continue;
+                            }
+                            const std::array<float, 4> color{
+                                vertex.r,
+                                vertex.g,
+                                vertex.b,
+                                vertex.a};
+                            auto& field =
+                                oneSidedLoweredRampTintFields[ramp];
+                            if (field.sampleCount == 0u) {
+                                field.color = color;
+                            } else {
+                                for (std::size_t channel = 0u;
+                                     channel < color.size();
+                                     ++channel) {
+                                    field.maximumDifference = std::max(
+                                        field.maximumDifference,
+                                        std::abs(
+                                            color[channel] -
+                                            field.color[channel]));
+                                }
+                            }
+                            ++field.sampleCount;
+                        }
                     }
                 }
             }
@@ -4962,6 +5038,47 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     ", field-difference=" +
                     std::to_string(
                         maximumRampLateralFieldDifference) + ").";
+                return false;
+            }
+            float maximumLoweredRampLateralFieldDifference = 0.0f;
+            bool foundCompleteLoweredRampLateralField = true;
+            for (const auto& field :
+                 loweredRampLateralBoundaryFields) {
+                foundCompleteLoweredRampLateralField =
+                    foundCompleteLoweredRampLateralField &&
+                    field.sampleCount >= 2u;
+                maximumLoweredRampLateralFieldDifference = std::max(
+                    maximumLoweredRampLateralFieldDifference,
+                    field.maximumDifference);
+            }
+            if (!foundCompleteLoweredRampLateralField ||
+                maximumLoweredRampLateralFieldDifference > 0.001f) {
+                outFail =
+                    "The lowered South Clearing lawn ramp (17,-13) through (22,-13) restarted geometry, normals, UV0, UV1, UV2, or Color0 at a lateral tile seam (complete=" +
+                    std::to_string(
+                        foundCompleteLoweredRampLateralField) +
+                    ", field-difference=" +
+                    std::to_string(
+                        maximumLoweredRampLateralFieldDifference) +
+                    ").";
+                return false;
+            }
+            for (std::size_t ramp = 0u;
+                 ramp < oneSidedLoweredRampTintFields.size();
+                 ++ramp) {
+                const auto& field =
+                    oneSidedLoweredRampTintFields[ramp];
+                if (field.sampleCount >= 3u &&
+                    field.maximumDifference <= 0.001f) {
+                    continue;
+                }
+                outFail =
+                    "A one-sided lowered South Clearing lawn ramp borrowed an unrelated high-elevation tint instead of continuing its real lawn neighbour across the slope (ramp=" +
+                    std::to_string(ramp) +
+                    ", samples=" +
+                    std::to_string(field.sampleCount) +
+                    ", difference=" +
+                    std::to_string(field.maximumDifference) + ").";
                 return false;
             }
             std::array<bool, 4> replacedSouthLedgeCliffs{};
