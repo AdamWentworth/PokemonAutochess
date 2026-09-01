@@ -10849,18 +10849,12 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 }
                 if (tile.regionalMaterialHandoffOnly &&
                     deformedSourceSampled) {
-                    const float sourceWeight =
-                        regionalMaterialHandoffSourceWeight(
-                            tile,
-                            materialWorldGridX,
-                            materialWorldGridZ);
-                    glm::vec2 sourceUv2 = deformedSourceSample.uv2;
-                    sourceUv2.x -= std::round(
-                        sourceUv2.x - cleanUv2.x);
-                    sourceUv2.y -= std::round(
-                        sourceUv2.y - cleanUv2.y);
-                    resolvedUv2 = glm::mix(
-                        cleanUv2, sourceUv2, sourceWeight);
+                    // UV2 is an atlas selector, not a continuous lighting or
+                    // detail field. Interpolating it through unrelated atlas
+                    // space creates a thin black post at source ledge corners.
+                    // The decoded light-lawn selector is already compatible
+                    // with the neutral selector used by the repaired field.
+                    resolvedUv2 = deformedSourceSample.uv2;
                 }
                 if (transitionUv.boundaryMask != 0u &&
                     tile.surface.ends_with("lawn")) {
@@ -18057,6 +18051,7 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         const bool sourceTopRebuilt =
             activeTile->sourceReference.has_value() ||
             activeTile->surface != sourceTile->surface ||
+            activeTile->regionalMaterialHandoffOnly ||
             activeTile->rebuildContinuousMaterialFields ||
             activeTile->shape != sourceTile->shape ||
             activeTile->elevationLevel !=
@@ -19121,19 +19116,25 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
         // boundary. Cleaning exactly the collision footprint plus its source
         // tint fringe leaves the next source-identical lawn metre as a bright
         // rectangular island. South Clearing owns a regional material field,
-        // so give that field one additional lawn-only handoff ring. The
+        // so give that field two lawn-only handoff rings. The
         // normalized sampler blends every material channel back to its
         // unmodified neighbor over the full cell; geometry, terrain kind, and
         // authored topology do not spread with it.
-        for (const auto& cell : suppressedEncounterTintCells) {
-            for (const auto& offset : footprintOffsets) {
-                regionalTintHandoffCells.emplace(
-                    cell.first + offset[0],
-                    cell.second + offset[1]);
+        std::set<GridCell> frontier = suppressedEncounterTintCells;
+        for (std::size_t ring = 0u; ring < 2u; ++ring) {
+            std::set<GridCell> nextFrontier;
+            for (const auto& cell : frontier) {
+                for (const auto& offset : footprintOffsets) {
+                    const GridCell candidate{
+                        cell.first + offset[0],
+                        cell.second + offset[1]};
+                    if (!suppressedEncounterTintCells.contains(candidate)) {
+                        regionalTintHandoffCells.emplace(candidate);
+                        nextFrontier.emplace(candidate);
+                    }
+                }
             }
-        }
-        for (const auto& cell : suppressedEncounterTintCells) {
-            regionalTintHandoffCells.erase(cell);
+            frontier = std::move(nextFrontier);
         }
     }
     const auto sourceTileAt = [&](std::int32_t gridX,
@@ -19150,34 +19151,40 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
     constexpr std::array<std::array<std::int32_t, 2>, 4>
         tintHandoffDirections{{
             {0, 1}, {1, 0}, {0, -1}, {-1, 0}}};
-    const auto sourceLedgeAssembly = [&](const TerrainTileState& tile) {
-        const auto* sourceTile = sourceTileAt(tile.gridX, tile.gridZ);
-        if (!sourceTile) {
-            return false;
-        }
-        for (std::size_t edge = 0u;
-             edge < tintHandoffDirections.size();
-             ++edge) {
-            const auto& direction = tintHandoffDirections[edge];
-            const auto* neighbor = sourceTileAt(
-                tile.gridX + direction[0],
-                tile.gridZ + direction[1]);
-            if (!neighbor || neighbor->surface == "empty") {
-                continue;
+    const auto sourceCompoundLedgeCorner =
+        [&](const TerrainTileState& tile) {
+            const auto* sourceTile = sourceTileAt(
+                tile.gridX, tile.gridZ);
+            if (!sourceTile) {
+                return false;
             }
-            const auto profile = route1TerrainSharedEdgeProfile(
-                *sourceTile, neighbor, edge);
-            if (profile.tileLevels != profile.neighborLevels) {
-                return true;
+            std::size_t ledgeBoundaryCount = 0u;
+            for (std::size_t edge = 0u;
+                 edge < tintHandoffDirections.size();
+                 ++edge) {
+                const auto& direction = tintHandoffDirections[edge];
+                const auto* neighbor = sourceTileAt(
+                    tile.gridX + direction[0],
+                    tile.gridZ + direction[1]);
+                if (!neighbor || neighbor->surface == "empty") {
+                    continue;
+                }
+                const auto profile = route1TerrainSharedEdgeProfile(
+                    *sourceTile, neighbor, edge);
+                if (profile.tileLevels != profile.neighborLevels) {
+                    ++ledgeBoundaryCount;
+                }
             }
-        }
-        return false;
-    };
+            // A straight ledge cap can safely join the regional material
+            // handoff. A compound source corner owns a coordinated cap,
+            // wall, fringe, and turn; keep that complete assembly exact.
+            return ledgeBoundaryCount >= 2u;
+        };
     for (auto& tile : terrainTiles) {
         const GridCell cell{tile.gridX, tile.gridZ};
         const bool regionalTintHandoff =
             regionalTintHandoffCells.contains(cell) &&
-            !sourceLedgeAssembly(tile);
+            !sourceCompoundLedgeCorner(tile);
         if (!tile.sourceOccupied ||
             tile.surface != "light_lawn") {
             continue;

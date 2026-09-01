@@ -4336,10 +4336,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     error;
                 return false;
             }
-            constexpr std::array<std::array<std::int32_t, 2>, 4>
+            constexpr std::array<std::array<std::int32_t, 2>, 8>
                 southClearingTintHandoffCells{{
                     {26, -17}, {26, -16},
-                    {26, -15}, {26, -14}}};
+                    {26, -15}, {26, -14},
+                    {27, -17}, {27, -16},
+                    {27, -15}, {27, -14}}};
             const auto& southClearingTiles =
                 variantEnvironment.terrainTiles();
             std::string missingTintHandoffCells;
@@ -4375,13 +4377,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 southClearingTiles.begin(),
                 southClearingTiles.end(),
                 [](const route1::TerrainTileState& tile) {
-                    return tile.gridX == 27 && tile.gridZ == -16;
+                    return tile.gridX == 28 && tile.gridZ == -16;
                 });
             if (!missingTintHandoffCells.empty() ||
                 (outsideTintHandoff != southClearingTiles.end() &&
                  outsideTintHandoff->cleanSuppressedEncounterGrassTint)) {
                 outFail =
-                    "South Clearing must carry removed encounter-grass tint through one bounded light-lawn handoff ring at x=26 without spreading into x=27 (missing=" +
+                    "South Clearing must carry removed encounter-grass tint through two bounded light-lawn handoff rings at x=26/x=27 without spreading into x=28 (missing=" +
                     missingTintHandoffCells + ", outside=" +
                     std::to_string(
                         outsideTintHandoff != southClearingTiles.end() &&
