@@ -9858,6 +9858,99 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     prototype.sourceVertices.reserve(rowWidth * rowWidth * 2u);
     prototype.indices.reserve(
         kGridResolution * kGridResolution * 6u);
+    struct RegionalAlbedoField {
+        glm::vec2 centerGrid{};
+        glm::vec2 centerUv0{};
+        glm::vec2 uv0Dx{};
+        glm::vec2 uv0Dz{};
+        bool valid = false;
+    };
+    RegionalAlbedoField regionalAlbedoField;
+    const bool sourceTopologyMatchesTile =
+        tile.elevationLevel == tile.sourceElevationLevel &&
+        tile.shape == tile.sourceShape;
+    if (route1UsesRegionalTerrainMaterialField(
+            authoredScene.sceneId) &&
+        tile.rebuildContinuousMaterialFields &&
+        (dirt ||
+         (tile.surface == "light_lawn" &&
+          tile.sourceSurface != tile.surface)) &&
+        sourceTopologyMatchesTile &&
+        !tile.cleanSuppressedEncounterGrassTint &&
+        !tile.normalizeSourceTint) {
+        regionalAlbedoField.centerGrid = {
+            static_cast<float>(tile.gridX) + 0.5f,
+            static_cast<float>(tile.gridZ) + 0.5f};
+        constexpr float kFieldDerivativeHalfSpan = 0.25f;
+        glm::vec2 unusedUv1{};
+        glm::vec2 negativeXUv0{};
+        glm::vec2 positiveXUv0{};
+        glm::vec2 negativeZUv0{};
+        glm::vec2 positiveZUv0{};
+        const bool sampledCenter = sampleTargetTerrainUv01(
+            "light_lawn",
+            tile.elevationLevel,
+            regionalAlbedoField.centerGrid.x,
+            regionalAlbedoField.centerGrid.y,
+            regionalAlbedoField.centerUv0,
+            unusedUv1,
+            nullptr);
+        const bool sampledNegativeX = sampleTargetTerrainUv01(
+            "light_lawn",
+            tile.elevationLevel,
+            regionalAlbedoField.centerGrid.x -
+                kFieldDerivativeHalfSpan,
+            regionalAlbedoField.centerGrid.y,
+            negativeXUv0,
+            unusedUv1,
+            nullptr);
+        const bool sampledPositiveX = sampleTargetTerrainUv01(
+            "light_lawn",
+            tile.elevationLevel,
+            regionalAlbedoField.centerGrid.x +
+                kFieldDerivativeHalfSpan,
+            regionalAlbedoField.centerGrid.y,
+            positiveXUv0,
+            unusedUv1,
+            nullptr);
+        const bool sampledNegativeZ = sampleTargetTerrainUv01(
+            "light_lawn",
+            tile.elevationLevel,
+            regionalAlbedoField.centerGrid.x,
+            regionalAlbedoField.centerGrid.y -
+                kFieldDerivativeHalfSpan,
+            negativeZUv0,
+            unusedUv1,
+            nullptr);
+        const bool sampledPositiveZ = sampleTargetTerrainUv01(
+            "light_lawn",
+            tile.elevationLevel,
+            regionalAlbedoField.centerGrid.x,
+            regionalAlbedoField.centerGrid.y +
+                kFieldDerivativeHalfSpan,
+            positiveZUv0,
+            unusedUv1,
+            nullptr);
+        const auto repeatCompatibleDelta = [](
+                glm::vec2 left,
+                const glm::vec2& right) {
+            left.x -= std::round(left.x - right.x);
+            left.y -= std::round(left.y - right.y);
+            return left - right;
+        };
+        if (sampledCenter && sampledNegativeX && sampledPositiveX &&
+            sampledNegativeZ && sampledPositiveZ) {
+            regionalAlbedoField.uv0Dx =
+                repeatCompatibleDelta(
+                    positiveXUv0, negativeXUv0) /
+                (2.0f * kFieldDerivativeHalfSpan);
+            regionalAlbedoField.uv0Dz =
+                repeatCompatibleDelta(
+                    positiveZUv0, negativeZUv0) /
+                (2.0f * kFieldDerivativeHalfSpan);
+            regionalAlbedoField.valid = true;
+        }
+    }
     struct SourceCrownFieldSample {
         glm::vec3 positionCm{};
         glm::vec3 normal{};
@@ -10595,11 +10688,12 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 dirt || tile.sourceSurface != tile.surface ||
                 (!tile.cleanSuppressedEncounterGrassTint &&
                  !tile.normalizeSourceTint);
-            const bool continuedSourceMaterialField =
+            const bool sampledTargetMaterialField =
                 continuesReplacementSurfaceField &&
                 sourceTopologyMatches &&
-                !tile.rebuildContinuousMaterialFields &&
                 !preserveSourceField &&
+                !preserveSourceLawnAlbedoField &&
+                !regionalAlbedoField.valid &&
                 sampleTargetTerrainUv01(
                     tile.surface,
                     tile.elevationLevel,
@@ -10608,17 +10702,39 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     continuedUv0,
                     continuedUv1,
                     &distanceFromSourceSurfaceCells);
-            glm::vec2 baseUv0 =
-                (preserveSourceField || preserveSourceLawnAlbedoField)
+            const bool continuedSourceMaterialField =
+                sampledTargetMaterialField &&
+                !tile.rebuildContinuousMaterialFields;
+            // Material 19 uses UV0 as one shared terrain carrier; UV2, not a
+            // different UV0 branch, selects dirt versus lawn. Continue the
+            // recovered lawn branch through rebuilt regional dirt and lawn
+            // alike so a dirt-to-lawn replacement cannot become a bright
+            // square and the leafy boundary remains exact on both sides.
+            const bool usesRecoveredRegionalAlbedoField =
+                preserveSourceLawnAlbedoField ||
+                regionalAlbedoField.valid;
+            glm::vec2 recoveredRegionalAlbedoUv0 =
+                preserveSourceLawnAlbedoField
                 ? deformedSourceSample.uv0
-                : (continuedSourceMaterialField
-                    ? continuedUv0
+                : regionalAlbedoField.centerUv0 +
+                    regionalAlbedoField.uv0Dx *
+                        (materialWorldGridX -
+                         regionalAlbedoField.centerGrid.x) +
+                    regionalAlbedoField.uv0Dz *
+                        (materialWorldGridZ -
+                         regionalAlbedoField.centerGrid.y);
+            glm::vec2 baseUv0 = preserveSourceField
+                ? deformedSourceSample.uv0
+                : (usesRecoveredRegionalAlbedoField
+                    ? recoveredRegionalAlbedoUv0
+                    : continuedSourceMaterialField
+                        ? continuedUv0
                     : worldFallbackUv);
             glm::vec2 baseUv1 = preserveSourceField
                 ? deformedSourceSample.uv1
                 : (continuedSourceMaterialField
                     ? continuedUv1
-                    : (preserveSourceLawnAlbedoField
+                    : (usesRecoveredRegionalAlbedoField
                         ? worldFallbackUv
                         : baseUv0));
             if (!preserveSourceField &&

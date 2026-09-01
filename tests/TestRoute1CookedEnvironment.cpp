@@ -4441,10 +4441,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             // Exact decoded material-19 UV0 branches at the centres of the
             // South Clearing lawn cells that exposed metre-wide squares when
             // V2 replaced them with its generic world-space fallback.
-            constexpr std::array<SourceLawnAlbedoProbe, 6>
+            constexpr std::array<SourceLawnAlbedoProbe, 7>
                 sourceLawnAlbedoProbes{{
                     {{{1750.0, -2150.0}},
                      {{5.833333f, -6.166667f}}},
+                    {{{1650.0, -1650.0}},
+                     {{5.500000f, -4.500000f}}},
                     {{{2550.0, -1050.0}},
                      {{8.500000f, -2.500000f}}},
                     {{{2150.0, -950.0}},
