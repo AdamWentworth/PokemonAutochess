@@ -4336,6 +4336,59 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     error;
                 return false;
             }
+            constexpr std::array<std::array<std::int32_t, 2>, 4>
+                southClearingTintHandoffCells{{
+                    {26, -17}, {26, -16},
+                    {26, -15}, {26, -14}}};
+            const auto& southClearingTiles =
+                variantEnvironment.terrainTiles();
+            std::string missingTintHandoffCells;
+            for (const auto& cell : southClearingTintHandoffCells) {
+                const auto found = std::find_if(
+                    southClearingTiles.begin(),
+                    southClearingTiles.end(),
+                    [&](const route1::TerrainTileState& tile) {
+                        return tile.gridX == cell[0] &&
+                            tile.gridZ == cell[1];
+                    });
+                const bool missing =
+                    found == southClearingTiles.end() ||
+                    found->surface != "light_lawn" ||
+                    !found->cleanSuppressedEncounterGrassTint ||
+                    !found->regionalMaterialHandoffOnly;
+                if (missing) {
+                    if (!missingTintHandoffCells.empty()) {
+                        missingTintHandoffCells += ",";
+                    }
+                    missingTintHandoffCells += "(" +
+                        std::to_string(cell[0]) + "," +
+                        std::to_string(cell[1]) + ":" +
+                        (found == southClearingTiles.end()
+                            ? "absent"
+                            : found->surface + "/source-" +
+                                std::to_string(found->sourceOccupied) +
+                                "/authored-" +
+                                std::to_string(found->authored)) + ")";
+                }
+            }
+            const auto outsideTintHandoff = std::find_if(
+                southClearingTiles.begin(),
+                southClearingTiles.end(),
+                [](const route1::TerrainTileState& tile) {
+                    return tile.gridX == 27 && tile.gridZ == -16;
+                });
+            if (!missingTintHandoffCells.empty() ||
+                (outsideTintHandoff != southClearingTiles.end() &&
+                 outsideTintHandoff->cleanSuppressedEncounterGrassTint)) {
+                outFail =
+                    "South Clearing must carry removed encounter-grass tint through one bounded light-lawn handoff ring at x=26 without spreading into x=27 (missing=" +
+                    missingTintHandoffCells + ", outside=" +
+                    std::to_string(
+                        outsideTintHandoff != southClearingTiles.end() &&
+                        outsideTintHandoff->cleanSuppressedEncounterGrassTint) +
+                    ").";
+                return false;
+            }
             struct LawnBoundaryField {
                 float y = 0.0f;
                 std::array<float, 2> uv0{};

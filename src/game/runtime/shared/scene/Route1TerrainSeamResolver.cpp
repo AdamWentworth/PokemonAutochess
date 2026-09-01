@@ -27,7 +27,8 @@ bool startsContinuousField(const TerrainTileState& tile) {
     if (!activeSurface(tile) || tile.sourceReference) {
         return false;
     }
-    if (tile.cleanSuppressedEncounterGrassTint ||
+    if ((tile.cleanSuppressedEncounterGrassTint &&
+         !tile.regionalMaterialHandoffOnly) ||
         tile.normalizeSourceTint) {
         return true;
     }

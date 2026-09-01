@@ -142,6 +142,11 @@ struct TerrainTileState {
     bool sourceOccupied = false;
     bool authored = false;
     bool cleanSuppressedEncounterGrassTint = false;
+    // Derived one-cell color/material transition around a cleaned encounter
+    // footprint. It renders through the normalized lawn field but must not
+    // become a new Terrain Patch V2 core seed and chase the cook boundary
+    // outward on every rebuild.
+    bool regionalMaterialHandoffOnly = false;
     // Derived by Route1TerrainSeamResolver on every preview/commit. These do
     // not serialize into the authored scene.
     bool rebuildContinuousMaterialFields = false;

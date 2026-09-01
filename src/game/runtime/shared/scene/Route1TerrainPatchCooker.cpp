@@ -40,7 +40,8 @@ bool startsRegionalCook(const TerrainTileState& tile) {
         tile.shape != tile.sourceShape ||
         tile.sourceReference.has_value();
     return sourceAppearanceChanged ||
-        tile.cleanSuppressedEncounterGrassTint ||
+        (tile.cleanSuppressedEncounterGrassTint &&
+         !tile.regionalMaterialHandoffOnly) ||
         tile.rebuildContinuousMaterialFields;
 }
 

@@ -198,7 +198,8 @@ Resolution resolve(
             const bool ownerBoundaryStyleChanged =
                 !sourceTile || !hasSurface(*sourceTile) ||
                 tile.surface != sourceTile->surface ||
-                tile.cleanSuppressedEncounterGrassTint;
+                (tile.cleanSuppressedEncounterGrassTint &&
+                 !tile.regionalMaterialHandoffOnly);
             // Some source-identical cells become generated only because a
             // derived cleanup field (for example suppressed encounter-grass
             // tint) owns their material stream. Those cells are deliberately

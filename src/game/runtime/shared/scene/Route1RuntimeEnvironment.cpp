@@ -420,6 +420,7 @@ struct TerrainTileTopPrototype {
 struct SourceTerrainTriangle {
     std::uint32_t materialIndex = 19u;
     std::array<glm::vec3, 3> positions{};
+    std::array<glm::vec3, 3> normals{};
     std::array<glm::vec2, 3> uv0{};
     std::array<glm::vec2, 3> uv1{};
     std::array<glm::vec2, 3> uv2{};
@@ -428,6 +429,7 @@ struct SourceTerrainTriangle {
 
 struct SourceTerrainSurfaceSample {
     float y = 0.0f;
+    glm::vec3 normal{0.0f, 1.0f, 0.0f};
     glm::vec2 uv0{};
     glm::vec2 uv1{};
     glm::vec2 uv2{};
@@ -2770,7 +2772,8 @@ bool route1TerrainUsesExactSourceSurfaceOverride(
         hasSourceLedgeBoundary = hasSourceLedgeBoundary ||
             sourceProfile.tileLevels != sourceProfile.neighborLevels;
         if (activeNeighbor->sourceReference ||
-            activeNeighbor->cleanSuppressedEncounterGrassTint ||
+            (activeNeighbor->cleanSuppressedEncounterGrassTint &&
+             !activeNeighbor->regionalMaterialHandoffOnly) ||
             activeNeighbor->surface != sourceNeighbor->surface ||
             activeProfile.tileLevels != sourceProfile.tileLevels ||
             activeProfile.neighborLevels !=
@@ -3753,6 +3756,11 @@ struct RuntimeEnvironment::Impl {
         float localZ,
         glm::vec4& outColor,
         float* outBoundaryWeight = nullptr) const;
+
+    float regionalMaterialHandoffSourceWeight(
+        const TerrainTileState& tile,
+        float worldGridX,
+        float worldGridZ) const;
 
     bool sampleSourceTerrainGroundMaskAlpha(
         const glm::vec2& sourceUv2,
@@ -7704,12 +7712,24 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
             continue;
         }
         const glm::mat4 model = glm::make_mat4(mesh.transform.data());
+        const glm::mat3 normalMatrix = glm::transpose(
+            glm::inverse(glm::mat3(model)));
         const auto position =
             [&](std::uint32_t vertexIndex) {
                 const auto& value = mesh.vertices[vertexIndex].position;
                 return glm::vec3(
                     model * glm::vec4(
                         value[0], value[1], value[2], 1.0f));
+            };
+        const auto normal =
+            [&](std::uint32_t vertexIndex) {
+                const auto& value = mesh.vertices[vertexIndex].normal;
+                const glm::vec3 transformed =
+                    normalMatrix * glm::vec3(
+                        value[0], value[1], value[2]);
+                return glm::length(transformed) > 1.0e-5f
+                    ? glm::normalize(transformed)
+                    : glm::vec3{0.0f, 1.0f, 0.0f};
             };
         for (const auto& group : mesh.polygonGroups) {
             if (group.materialIndex != 12u &&
@@ -7760,6 +7780,10 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
                     SourceTerrainTriangle{
                         .materialIndex = group.materialIndex,
                         .positions = {first, second, third},
+                        .normals = {
+                            normal(firstIndex),
+                            normal(secondIndex),
+                            normal(thirdIndex)},
                         .uv0 = {
                             terrainAttribute(firstIndex, 0u),
                             terrainAttribute(secondIndex, 0u),
@@ -8011,8 +8035,18 @@ bool RuntimeEnvironment::Impl::sampleSourceTerrainSurface(
                     values[1] * secondWeight +
                     values[2] * thirdWeight;
             };
+        const auto interpolateNormal = [&] {
+            const glm::vec3 value =
+                triangle.normals[0] * firstWeight +
+                triangle.normals[1] * secondWeight +
+                triangle.normals[2] * thirdWeight;
+            return glm::length(value) > 1.0e-5f
+                ? glm::normalize(value)
+                : glm::vec3{0.0f, 1.0f, 0.0f};
+        };
         out = SourceTerrainSurfaceSample{
             .y = y,
+            .normal = interpolateNormal(),
             .uv0 = interpolateVec2(triangle.uv0),
             .uv1 = interpolateVec2(triangle.uv1),
             .uv2 = interpolateVec2(triangle.uv2),
@@ -8651,6 +8685,61 @@ bool RuntimeEnvironment::Impl::sampleTargetTerrainUv2(
     return true;
 }
 
+float RuntimeEnvironment::Impl::regionalMaterialHandoffSourceWeight(
+    const TerrainTileState& tile,
+    float worldGridX,
+    float worldGridZ) const {
+    if (!tile.regionalMaterialHandoffOnly) {
+        return 0.0f;
+    }
+    float distanceFromCleanupCells =
+        std::numeric_limits<float>::max();
+    float distanceFromSourceCells =
+        std::numeric_limits<float>::max();
+    for (const auto& candidate : terrainTiles) {
+        if (candidate.surface != "light_lawn" ||
+            candidate.elevationLevel != tile.elevationLevel) {
+            continue;
+        }
+        const float minimumX = static_cast<float>(candidate.gridX);
+        const float maximumX = minimumX + 1.0f;
+        const float minimumZ = static_cast<float>(candidate.gridZ);
+        const float maximumZ = minimumZ + 1.0f;
+        const float deltaX = worldGridX < minimumX
+            ? minimumX - worldGridX
+            : (worldGridX > maximumX
+                ? worldGridX - maximumX
+                : 0.0f);
+        const float deltaZ = worldGridZ < minimumZ
+            ? minimumZ - worldGridZ
+            : (worldGridZ > maximumZ
+                ? worldGridZ - maximumZ
+                : 0.0f);
+        const float distance = std::hypot(deltaX, deltaZ);
+        if (candidate.cleanSuppressedEncounterGrassTint &&
+            !candidate.regionalMaterialHandoffOnly) {
+            distanceFromCleanupCells = std::min(
+                distanceFromCleanupCells, distance);
+        } else if (!candidate.cleanSuppressedEncounterGrassTint) {
+            distanceFromSourceCells = std::min(
+                distanceFromSourceCells, distance);
+        }
+    }
+    if (!std::isfinite(distanceFromCleanupCells) ||
+        !std::isfinite(distanceFromSourceCells)) {
+        return 1.0f;
+    }
+    const float distanceSum =
+        distanceFromCleanupCells + distanceFromSourceCells;
+    if (distanceSum <= 1.0e-5f) {
+        return 0.5f;
+    }
+    return glm::smoothstep(
+        0.0f,
+        1.0f,
+        distanceFromCleanupCells / distanceSum);
+}
+
 bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
     const TerrainTileState& tile,
     float localX,
@@ -8873,6 +8962,25 @@ bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
     }
     if (totalWeight > 0.0f) {
         outColor = weightedColor / totalWeight;
+    }
+    if (tile.regionalMaterialHandoffOnly) {
+        // Resolve the complete handoff as one world-space distance field,
+        // rather than restarting a fade inside each generated tile. The old
+        // per-tile feather was continuous at its vertices but retained a
+        // metre-wide color plateau that still read as a square. The bounded
+        // material ring now solves against both ownership sets: repaired lawn
+        // is weight zero, exact decoded lawn is weight one, and every edge of
+        // a corner handoff reaches the correct neighbor simultaneously.
+        SourceTerrainSurfaceSample sourceSample;
+        if (sampleSourceTerrainSurface(
+                tile, localX, localZ, sourceSample)) {
+            outColor = glm::mix(
+                outColor,
+                sourceSample.color0,
+                regionalMaterialHandoffSourceWeight(
+                    tile, worldGridX, worldGridZ));
+            return true;
+        }
     }
     if (totalBoundaryWeight > 0.0f) {
         outColor = glm::mix(
@@ -9951,6 +10059,12 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 vertex.nx = rampNormalSide;
                 vertex.ny = rampNormalY;
             }
+            if (preserveSourceGeometry && sourceSampled &&
+                tile.surface == "light_lawn") {
+                vertex.nx = sourceSample.normal.x;
+                vertex.ny = sourceSample.normal.y;
+                vertex.nz = sourceSample.normal.z;
+            }
             if (normalizedBoundaryWeight > 0.0f && sourceSampled) {
                 const float sourceRelativeY =
                     sourceSample.y -
@@ -10516,6 +10630,35 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     sourceUv1,
                     sourceMaterialHandoffWeight);
             }
+            if (tile.regionalMaterialHandoffOnly &&
+                deformedSourceSampled) {
+                const float sourceWeight =
+                    regionalMaterialHandoffSourceWeight(
+                        tile,
+                        materialWorldGridX,
+                        materialWorldGridZ);
+                const auto unwrapNear = [](float value, float reference) {
+                    return value - std::round(value - reference);
+                };
+                const glm::vec2 sourceUv0{
+                    unwrapNear(
+                        deformedSourceSample.uv0.x,
+                        worldFallbackUv.x),
+                    unwrapNear(
+                        deformedSourceSample.uv0.y,
+                        worldFallbackUv.y)};
+                const glm::vec2 sourceUv1{
+                    unwrapNear(
+                        deformedSourceSample.uv1.x,
+                        worldFallbackUv.x),
+                    unwrapNear(
+                        deformedSourceSample.uv1.y,
+                        worldFallbackUv.y)};
+                baseUv0 = glm::mix(
+                    worldFallbackUv, sourceUv0, sourceWeight);
+                baseUv1 = glm::mix(
+                    worldFallbackUv, sourceUv1, sourceWeight);
+            }
             vertex.u = baseUv0.x;
             vertex.v = baseUv0.y;
             vertex.sourceUv1U = baseUv1.x;
@@ -10703,6 +10846,21 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         materialWorldGridX,
                         materialWorldGridZ,
                         resolvedUv2);
+                }
+                if (tile.regionalMaterialHandoffOnly &&
+                    deformedSourceSampled) {
+                    const float sourceWeight =
+                        regionalMaterialHandoffSourceWeight(
+                            tile,
+                            materialWorldGridX,
+                            materialWorldGridZ);
+                    glm::vec2 sourceUv2 = deformedSourceSample.uv2;
+                    sourceUv2.x -= std::round(
+                        sourceUv2.x - cleanUv2.x);
+                    sourceUv2.y -= std::round(
+                        sourceUv2.y - cleanUv2.y);
+                    resolvedUv2 = glm::mix(
+                        cleanUv2, sourceUv2, sourceWeight);
                 }
                 if (transitionUv.boundaryMask != 0u &&
                     tile.surface.ends_with("lawn")) {
@@ -17311,6 +17469,19 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
     const bool regeneratesMaterialTransitionRing =
         route1UsesRegionalTerrainMaterialField(
             authoredScene.sceneId);
+    if (regeneratesMaterialTransitionRing) {
+        // A tint handoff is generated material ownership, but not regional
+        // topology ownership. Promote it only after the V2 plan has been
+        // cooked so the one-cell fade does not recursively become a new core
+        // and push the visible transition rectangle one metre outward.
+        for (const auto& tile : terrainTiles) {
+            if (tile.regionalMaterialHandoffOnly &&
+                tile.surface != "empty" &&
+                !tile.sourceReference) {
+                nextCells.emplace(tile.gridX, tile.gridZ);
+            }
+        }
+    }
     if (terrainPatchV2PreviewEnabled &&
         terrainPatchV2Plan.validation.valid) {
         for (const auto& region : terrainPatchV2Plan.regions) {
@@ -18937,14 +19108,89 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
             }
         }
     }
+    for (const auto& tile : layout.authoredTerrainTiles) {
+        if (tile.normalizeSourceTint) {
+            suppressedEncounterTintCells.emplace(
+                tile.gridX, tile.gridZ);
+        }
+    }
+    std::set<GridCell> regionalTintHandoffCells;
+    if (route1UsesRegionalTerrainMaterialField(
+            authoredScene.sceneId)) {
+        // The decoded encounter paint does not end at a useful material
+        // boundary. Cleaning exactly the collision footprint plus its source
+        // tint fringe leaves the next source-identical lawn metre as a bright
+        // rectangular island. South Clearing owns a regional material field,
+        // so give that field one additional lawn-only handoff ring. The
+        // normalized sampler blends every material channel back to its
+        // unmodified neighbor over the full cell; geometry, terrain kind, and
+        // authored topology do not spread with it.
+        for (const auto& cell : suppressedEncounterTintCells) {
+            for (const auto& offset : footprintOffsets) {
+                regionalTintHandoffCells.emplace(
+                    cell.first + offset[0],
+                    cell.second + offset[1]);
+            }
+        }
+        for (const auto& cell : suppressedEncounterTintCells) {
+            regionalTintHandoffCells.erase(cell);
+        }
+    }
+    const auto sourceTileAt = [&](std::int32_t gridX,
+                                  std::int32_t gridZ) {
+        const auto found = std::find_if(
+            sourceTerrainTiles.begin(),
+            sourceTerrainTiles.end(),
+            [&](const TerrainTileState& candidate) {
+                return candidate.gridX == gridX &&
+                    candidate.gridZ == gridZ;
+            });
+        return found == sourceTerrainTiles.end() ? nullptr : &*found;
+    };
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        tintHandoffDirections{{
+            {0, 1}, {1, 0}, {0, -1}, {-1, 0}}};
+    const auto sourceLedgeAssembly = [&](const TerrainTileState& tile) {
+        const auto* sourceTile = sourceTileAt(tile.gridX, tile.gridZ);
+        if (!sourceTile) {
+            return false;
+        }
+        for (std::size_t edge = 0u;
+             edge < tintHandoffDirections.size();
+             ++edge) {
+            const auto& direction = tintHandoffDirections[edge];
+            const auto* neighbor = sourceTileAt(
+                tile.gridX + direction[0],
+                tile.gridZ + direction[1]);
+            if (!neighbor || neighbor->surface == "empty") {
+                continue;
+            }
+            const auto profile = route1TerrainSharedEdgeProfile(
+                *sourceTile, neighbor, edge);
+            if (profile.tileLevels != profile.neighborLevels) {
+                return true;
+            }
+        }
+        return false;
+    };
     for (auto& tile : terrainTiles) {
-        if (tile.sourceOccupied &&
-            tile.surface == "light_lawn" &&
-            (tile.normalizeSourceTint ||
-             (!tile.authored &&
-              suppressedEncounterTintCells.contains(
-                  {tile.gridX, tile.gridZ})))) {
+        const GridCell cell{tile.gridX, tile.gridZ};
+        const bool regionalTintHandoff =
+            regionalTintHandoffCells.contains(cell) &&
+            !sourceLedgeAssembly(tile);
+        if (!tile.sourceOccupied ||
+            tile.surface != "light_lawn") {
+            continue;
+        }
+        const bool primaryTintCleanup =
+            tile.normalizeSourceTint ||
+            (!tile.authored &&
+             suppressedEncounterTintCells.contains(cell));
+        if (primaryTintCleanup) {
             tile.cleanSuppressedEncounterGrassTint = true;
+        } else if (!tile.authored && regionalTintHandoff) {
+            tile.cleanSuppressedEncounterGrassTint = true;
+            tile.regionalMaterialHandoffOnly = true;
         }
     }
     terrainSeamResolution =
