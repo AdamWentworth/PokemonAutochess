@@ -15084,6 +15084,8 @@ std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
 RuntimeEnvironment::Impl::ensureTerrainExactSourceSurfaceObjects(
     const std::set<GridCell>& sourceCells,
     bool receivesProjectedShadow) {
+    constexpr glm::vec2 kOpaqueLightLawnUv2{
+        -0.101646f, -1.071291f};
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle> out;
     if (sourceCells.empty()) {
         return out;
@@ -15408,6 +15410,14 @@ RuntimeEnvironment::Impl::ensureTerrainExactSourceSurfaceObjects(
                     vertex.x = positions[corner].x;
                     vertex.y = positions[corner].y;
                     vertex.z = positions[corner].z;
+                    if (regionalMaterialTile) {
+                        // The imported ledge apron sits 0.30 cm above its
+                        // nominal cap. Restore it to cap height so the
+                        // continuous lawn remains the sole visible top while
+                        // this source-shaped surface still backs its fringe.
+                        constexpr float kSourceCapToUnderlayCm = 0.30f;
+                        vertex.y -= kSourceCapToUnderlayCm;
+                    }
                     const glm::vec3 normal = transformDirection(
                         vertex.nx, vertex.ny, vertex.nz);
                     vertex.nx = normal.x;
@@ -15493,6 +15503,16 @@ RuntimeEnvironment::Impl::ensureTerrainExactSourceSurfaceObjects(
                             vertex.b = regionalColor.b;
                             vertex.a = regionalColor.a;
                         }
+                        vertex.sourceUv2U = kOpaqueLightLawnUv2.x;
+                        vertex.sourceUv2V = kOpaqueLightLawnUv2.y;
+                        vertex.tx =
+                            terrainTilePrototypes.groundVertexTemplate.tx;
+                        vertex.ty =
+                            terrainTilePrototypes.groundVertexTemplate.ty;
+                        vertex.tz =
+                            terrainTilePrototypes.groundVertexTemplate.tz;
+                        vertex.tw =
+                            terrainTilePrototypes.groundVertexTemplate.tw;
                     }
                     prototype.vertices.push_back(vertex);
                     if (!mask.originalSourceVertices.empty() &&
@@ -15536,6 +15556,17 @@ RuntimeEnvironment::Impl::ensureTerrainExactSourceSurfaceObjects(
                                 regionalColor.g,
                                 regionalColor.b,
                                 regionalColor.a};
+                        }
+                        if (regionalMaterialTile) {
+                            authoredVertex.texcoords[2] = {
+                                kOpaqueLightLawnUv2.x,
+                                kOpaqueLightLawnUv2.y};
+                            authoredVertex.normalW =
+                                terrainTilePrototypes
+                                    .groundSourceVertexTemplate.normalW;
+                            authoredVertex.bitangent =
+                                terrainTilePrototypes
+                                    .groundSourceVertexTemplate.bitangent;
                         }
                         prototype.sourceVertices.push_back(
                             authoredVertex);
@@ -18949,6 +18980,7 @@ RuntimeEnvironment::Impl::ensureTerrainRegionalCrownContourUnderlayObject(
     std::int32_t elevationLevel = 0;
     bool receivesProjectedShadow = true;
     bool foundEdge = false;
+    bool allRegionalExactSourceLawnCaps = true;
     for (const auto& resolved : terrainLedgeResolution.edges) {
         if (resolved.contourIndex != contourIndex) {
             continue;
@@ -18974,6 +19006,13 @@ RuntimeEnvironment::Impl::ensureTerrainRegionalCrownContourUnderlayObject(
             // flatten one of those profiles merely to close a render strip.
             return {};
         }
+        allRegionalExactSourceLawnCaps =
+            allRegionalExactSourceLawnCaps &&
+            route1TerrainUsesRegionalExactSourceLawnMaterial(
+                authoredScene.sceneId,
+                *tile,
+                terrainTiles,
+                sourceTerrainTiles);
         if (!foundEdge) {
             foundEdge = true;
             firstOwner = &*tile;
@@ -18989,6 +19028,13 @@ RuntimeEnvironment::Impl::ensureTerrainRegionalCrownContourUnderlayObject(
         }
     }
     if (!foundEdge || !firstOwner) {
+        return {};
+    }
+    if (allRegionalExactSourceLawnCaps) {
+        // Their clipped generated tops already share the regional lattice,
+        // while the shallow source-shaped caps close the imported fringe.
+        // Adding this second contour strip creates a dark visible wedge at
+        // the crown instead of providing coverage.
         return {};
     }
 

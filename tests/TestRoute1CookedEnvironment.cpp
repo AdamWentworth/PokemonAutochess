@@ -5193,6 +5193,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 regionalizedIntactSourceCornerCaps{};
             std::array<bool, 2>
                 generatedIntactSourceCornerCapInteriors{};
+            std::size_t regionalCornerCapUnderlayVertexCount = 0u;
+            bool invalidRegionalCornerCapUnderlayDepth = false;
+            bool invalidRegionalCornerCapUnderlaySelector = false;
+            constexpr std::array<float, 2> opaqueLightLawnUv2{
+                -0.101646f, -1.071291f};
             bool foundLightLawnCrownCarrier = false;
             bool forcedDarkLightLawnCrownCarrier = false;
             constexpr std::array<float, 3> raisedLawnTint{
@@ -5222,6 +5227,57 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                          batch.geometryCacheKey.find(
                              std::to_string(26u + cap) + ",-13;") !=
                              std::string::npos);
+                }
+                const bool regionalCornerCapUnderlay =
+                    batch.geometryCacheKey.find(
+                        "route1:terrain-exact-source-surface:") !=
+                        std::string::npos &&
+                    batch.geometryCacheKey.find(
+                        "regional-lawn:") != std::string::npos &&
+                    batch.geometryCacheKey.find("26,-13;") !=
+                        std::string::npos &&
+                    batch.geometryCacheKey.find("27,-13;") !=
+                        std::string::npos;
+                if (regionalCornerCapUnderlay) {
+                    const auto* vertices = batch.sharedVertices
+                        ? batch.sharedVertices
+                        : batch.vertices.data();
+                    const auto vertexCount = batch.sharedVertices
+                        ? batch.sharedVertexCount
+                        : batch.vertices.size();
+                    for (const auto& instance : batch.instances) {
+                        for (std::size_t vertexIndex = 0u;
+                             vertices && vertexIndex < vertexCount;
+                             ++vertexIndex) {
+                            const auto sourcePoint = transformPoint(
+                                variantSourceFromWorld,
+                                transformPoint(
+                                    instance.modelMatrix,
+                                    {vertices[vertexIndex].x,
+                                     vertices[vertexIndex].y,
+                                     vertices[vertexIndex].z}));
+                            if (sourcePoint[0] < 2600.0 ||
+                                sourcePoint[0] > 2801.0 ||
+                                sourcePoint[2] < -1301.0 ||
+                                sourcePoint[2] > -1200.0 ||
+                                sourcePoint[1] < 90.0 ||
+                                sourcePoint[1] > 110.0) {
+                                continue;
+                            }
+                            ++regionalCornerCapUnderlayVertexCount;
+                            invalidRegionalCornerCapUnderlayDepth =
+                                invalidRegionalCornerCapUnderlayDepth ||
+                                sourcePoint[1] > 99.75;
+                            invalidRegionalCornerCapUnderlaySelector =
+                                invalidRegionalCornerCapUnderlaySelector ||
+                                std::abs(
+                                    vertices[vertexIndex].sourceUv2U -
+                                    opaqueLightLawnUv2[0]) > 0.001f ||
+                                std::abs(
+                                    vertices[vertexIndex].sourceUv2V -
+                                    opaqueLightLawnUv2[1]) > 0.001f;
+                        }
+                    }
                 }
                 if (batch.geometryCacheKey.find(
                         "route1:terrain-authored-surface:") !=
@@ -5364,6 +5420,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     generatedIntactSourceCornerCapInteriors.begin(),
                     generatedIntactSourceCornerCapInteriors.end(),
                     [](bool generated) { return !generated; }) ||
+                regionalCornerCapUnderlayVertexCount == 0u ||
+                invalidRegionalCornerCapUnderlayDepth ||
+                invalidRegionalCornerCapUnderlaySelector ||
                 forcedDarkLightLawnCrownCarrier) {
                 outFail =
                     "South Clearing must preserve the imported ledge wall/fringe from (21,-19) through (24,-19), regenerate its straight top and lower contact row into one regional material field, preserve the imported cap/corner silhouette at (26,-13) while the continuous generated lawn owns its flat interior, and let light-lawn crown gaskets inherit the lawn material instead of drawing a dark green line (replacement-cliffs=" +
@@ -5400,6 +5459,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         generatedIntactSourceCornerCapInteriors[0]) +
                     "," + std::to_string(
                         generatedIntactSourceCornerCapInteriors[1]) +
+                    ", source-cap-underlay=" +
+                    std::to_string(
+                        regionalCornerCapUnderlayVertexCount) + "/" +
+                    std::to_string(
+                        invalidRegionalCornerCapUnderlayDepth) + "/" +
+                    std::to_string(
+                        invalidRegionalCornerCapUnderlaySelector) +
                     ", light-crown=" +
                     std::to_string(foundLightLawnCrownCarrier) +
                     ", forced-dark=" +
