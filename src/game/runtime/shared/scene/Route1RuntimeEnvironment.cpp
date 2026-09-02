@@ -19602,10 +19602,19 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
             terrainAssembly && materialIndex == 19u;
         const bool groundOverlay =
             geometry.sourceMeshIndex <= 9u;
+        // FieldRockShader's mesh carries the rock and its authored grass
+        // socket as one inseparable object. It lives in the same historical
+        // mesh-index range as broad foliage, but clipping it as cleanup tears
+        // the grass border and rock skirt across adjacent cells. Structural
+        // field rocks remain source-owned while the terrain below them may be
+        // rebuilt independently.
+        const bool structuralFieldRock =
+            geometry.sourceMeshIndex == 26u && materialIndex == 16u;
         const bool flattenedGroundCleanup =
-            (geometry.sourceMeshIndex >= 16u &&
-             geometry.sourceMeshIndex <= 28u) ||
-            (terrainAssembly && materialIndex != 19u);
+            !structuralFieldRock &&
+            ((geometry.sourceMeshIndex >= 16u &&
+              geometry.sourceMeshIndex <= 28u) ||
+             (terrainAssembly && materialIndex != 19u));
         if (!sourceGround && !groundOverlay &&
             !flattenedGroundCleanup) {
             continue;
@@ -20096,6 +20105,26 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                         nextCells.emplace(neighborCell);
                     }
                 }
+            }
+        }
+    }
+    if (regeneratesMaterialTransitionRing) {
+        // A regenerated dark-lawn ramp already supplies its complete sloped
+        // top and any side contours. Retaining the imported terrain-assembly
+        // cleanup sheet in the same metre leaves that old carrier several
+        // centimetres above the new slope, where it reads as a detached dark
+        // rectangle. Transfer cleanup ownership together with the ramp rather
+        // than allowing source and generated assemblies to overlap.
+        for (const auto& cell : nextCells) {
+            const auto* tile = findTerrainTile(cell);
+            const auto* sourceTile = findSourceTerrainTile(cell);
+            if (tile && sourceTile && !tile->sourceReference &&
+                tile->surface == "dark_lawn" &&
+                tile->shape.starts_with("ramp_") &&
+                tile->surface == sourceTile->surface &&
+                tile->shape == sourceTile->shape &&
+                tile->elevationLevel == sourceTile->elevationLevel) {
+                nextCleanupCells.emplace(cell);
             }
         }
     }

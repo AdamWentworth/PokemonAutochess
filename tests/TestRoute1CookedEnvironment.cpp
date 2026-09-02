@@ -4443,6 +4443,109 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             const auto variantSourceFromWorld =
                 route1::sourceFromWorldMatrix(
                     variantEnvironment.layout());
+            bool foundSouthClearingFieldRock = false;
+            bool maskedSouthClearingFieldRock = false;
+            bool foundGeneratedWestDarkRamp = false;
+            std::size_t staleWestDarkRampCleanupTriangles = 0u;
+            for (const auto& batch : variantBatches) {
+                const auto& material =
+                    game::runtime::shared_world_batches::
+                        resolvedMaterialBatch(batch);
+                if (material.sourceMaterialIndex == 16u) {
+                    foundSouthClearingFieldRock = true;
+                    maskedSouthClearingFieldRock =
+                        maskedSouthClearingFieldRock ||
+                        batch.geometryCacheKey.find(":terrain-mask:") !=
+                            std::string::npos;
+                }
+                const bool generatedDarkRampCandidate =
+                    material.sourceMaterialIndex == 19u &&
+                    batch.geometryCacheKey.find(
+                        "route1:terrain-authored-surface:") !=
+                        std::string::npos;
+                const bool staleCleanupCandidate =
+                    material.sourceMaterialIndex != 19u &&
+                    batch.geometryCacheKey.find(":mesh:34:") !=
+                        std::string::npos &&
+                    batch.geometryCacheKey.find(":terrain-assembly:") !=
+                        std::string::npos;
+                if (!generatedDarkRampCandidate &&
+                    !staleCleanupCandidate) {
+                    continue;
+                }
+                const auto* vertices = batch.sharedVertices
+                    ? batch.sharedVertices
+                    : batch.vertices.data();
+                const auto vertexCount = batch.sharedVertices
+                    ? batch.sharedVertexCount
+                    : batch.vertices.size();
+                const auto* indices = batch.sharedIndices
+                    ? batch.sharedIndices
+                    : batch.indices.data();
+                const auto indexCount = batch.sharedIndices
+                    ? batch.sharedIndexCount
+                    : batch.indices.size();
+                const auto inspectInstance = [&](const auto& matrix) {
+                    for (std::size_t index = 0u;
+                         vertices && indices && index + 2u < indexCount;
+                         index += 3u) {
+                        std::array<std::array<double, 3>, 3> triangle{};
+                        bool valid = true;
+                        for (std::size_t corner = 0u;
+                             corner < triangle.size();
+                             ++corner) {
+                            const auto vertexIndex =
+                                indices[index + corner];
+                            if (vertexIndex >= vertexCount) {
+                                valid = false;
+                                break;
+                            }
+                            const auto& vertex = vertices[vertexIndex];
+                            triangle[corner] = transformPoint(
+                                variantSourceFromWorld,
+                                transformPoint(
+                                    matrix,
+                                    {vertex.x, vertex.y, vertex.z}));
+                        }
+                        if (!valid ||
+                            !containsXZ(
+                                triangle, 1350.0, -1250.0)) {
+                            continue;
+                        }
+                        foundGeneratedWestDarkRamp =
+                            foundGeneratedWestDarkRamp ||
+                            generatedDarkRampCandidate;
+                        if (staleCleanupCandidate) {
+                            ++staleWestDarkRampCleanupTriangles;
+                        }
+                    }
+                };
+                if (batch.instances.empty()) {
+                    inspectInstance(batch.modelMatrix);
+                } else {
+                    for (const auto& instance : batch.instances) {
+                        inspectInstance(instance.modelMatrix);
+                    }
+                }
+            }
+            if (!foundSouthClearingFieldRock ||
+                maskedSouthClearingFieldRock) {
+                outFail =
+                    "South Clearing must preserve FieldRock's combined rock/grass socket as one unmasked structural mesh (found=" +
+                    std::to_string(foundSouthClearingFieldRock) +
+                    ", masked=" +
+                    std::to_string(maskedSouthClearingFieldRock) + ").";
+                return false;
+            }
+            if (!foundGeneratedWestDarkRamp ||
+                staleWestDarkRampCleanupTriangles != 0u) {
+                outFail =
+                    "South Clearing dark ramp (13,-13) must be owned by its generated slope without a detached imported terrain-assembly sheet (generated=" +
+                    std::to_string(foundGeneratedWestDarkRamp) +
+                    ", stale=" +
+                    std::to_string(staleWestDarkRampCleanupTriangles) + ").";
+                return false;
+            }
             struct SourceLawnAlbedoProbe {
                 std::array<double, 2> sourceXZ{};
                 std::array<float, 2> expectedUv0{};
