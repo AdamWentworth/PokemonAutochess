@@ -13803,15 +13803,19 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
             // its shared edge rows. C0/C1 edge repair alone can leave two
             // smooth but visibly different one-metre plateaus on opposite
             // sides of a join. A screened harmonic solve diffuses decoded
-            // UV1/Color0 detail across the 5 cm logical lattice while fixed
+            // UV0/UV1/Color0 detail across the 5 cm logical lattice while fixed
             // outer nodes preserve dirt, ledge, and retained-source
-            // boundaries. UV0 retains the canonical or nearest compatible
-            // lawn carrier; UV2 remains the discrete lawn/soil selector.
+            // boundaries. UV2 remains the discrete lawn/soil selector. UV0
+            // must participate in this regional solve: leaving it tile-owned
+            // preserves the source's one-metre carrier plateaus even after
+            // every secondary appearance channel has been reconciled.
             struct LawnFieldNode {
                 std::int32_t x = 0;
                 std::int32_t z = 0;
                 float y = 0.0f;
                 std::vector<std::uint32_t> vertices;
+                std::array<float, 2> referenceUv0{};
+                std::array<float, 2> uv0{};
                 std::array<float, 2> referenceUv1{};
                 std::array<float, 2> uv1{};
                 std::array<float, 4> referenceColor{};
@@ -13861,6 +13865,19 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                             .z = worldZ,
                             .y = y,
                             .vertices = {vertexIndex},
+                            // Material 19's decoded source carrier is one
+                            // affine Route 1 field: U=x/3m, V=z/3m+1.
+                            // Reconstruct it from the shared lattice instead
+                            // of retaining whichever one-metre source tile
+                            // happened to author this vertex.
+                            .referenceUv0 = {
+                                static_cast<float>(worldX) / 60.0f,
+                                static_cast<float>(worldZ) / 60.0f +
+                                    1.0f},
+                            .uv0 = {
+                                static_cast<float>(worldX) / 60.0f,
+                                static_cast<float>(worldZ) / 60.0f +
+                                    1.0f},
                             .referenceUv1 = {
                                 vertex.sourceUv1U,
                                 vertex.sourceUv1V},
@@ -13927,6 +13944,8 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
             }
             constexpr std::size_t lawnFieldIterationCount = 160u;
             constexpr float lawnFieldReferenceWeight = 0.005f;
+            std::vector<std::array<float, 2>> nextUv0(
+                lawnFieldNodes.size());
             std::vector<std::array<float, 2>> nextUv1(
                 lawnFieldNodes.size());
             std::vector<std::array<float, 4>> nextColor(
@@ -13939,16 +13958,24 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                      ++nodeIndex) {
                     const auto& node = lawnFieldNodes[nodeIndex];
                     if (node.fixed) {
+                        nextUv0[nodeIndex] = node.uv0;
                         nextUv1[nodeIndex] = node.uv1;
                         nextColor[nodeIndex] = node.color;
                         continue;
                     }
+                    std::array<float, 2> uv0Sum{};
                     std::array<float, 2> uv1Sum{};
                     std::array<float, 4> colorSum{};
                     float weight = lawnFieldReferenceWeight;
                     for (std::size_t channel = 0u;
                          channel < 2u;
                          ++channel) {
+                        const float referenceUv0 =
+                            node.referenceUv0[channel] - std::round(
+                                node.referenceUv0[channel] -
+                                node.uv0[channel]);
+                        uv0Sum[channel] =
+                            referenceUv0 * lawnFieldReferenceWeight;
                         const float reference =
                             node.referenceUv1[channel] - std::round(
                                 node.referenceUv1[channel] -
@@ -13972,6 +13999,10 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                         for (std::size_t channel = 0u;
                              channel < 2u;
                              ++channel) {
+                            uv0Sum[channel] +=
+                                neighbor.uv0[channel] - std::round(
+                                    neighbor.uv0[channel] -
+                                    node.uv0[channel]);
                             uv1Sum[channel] +=
                                 neighbor.uv1[channel] - std::round(
                                     neighbor.uv1[channel] -
@@ -13987,6 +14018,8 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                     for (std::size_t channel = 0u;
                          channel < 2u;
                          ++channel) {
+                        nextUv0[nodeIndex][channel] =
+                            uv0Sum[channel] / weight;
                         nextUv1[nodeIndex][channel] =
                             uv1Sum[channel] / weight;
                     }
@@ -14002,6 +14035,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 for (std::size_t nodeIndex = 0u;
                      nodeIndex < lawnFieldNodes.size();
                      ++nodeIndex) {
+                    lawnFieldNodes[nodeIndex].uv0 = nextUv0[nodeIndex];
                     lawnFieldNodes[nodeIndex].uv1 = nextUv1[nodeIndex];
                     lawnFieldNodes[nodeIndex].color = nextColor[nodeIndex];
                 }
@@ -14010,8 +14044,8 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 for (const auto vertexIndex : node.vertices) {
                     auto& vertex = prototype.vertices[vertexIndex];
                     const std::array<float, 4> uv01{
-                        vertex.u,
-                        vertex.v,
+                        node.uv0[0],
+                        node.uv0[1],
                         node.uv1[0],
                         node.uv1[1]};
                     writeMaterialField(
@@ -15106,158 +15140,20 @@ RuntimeEnvironment::Impl::ensureTerrainExactSourceSurfaceObjects(
             tile.cleanSuppressedEncounterGrassTint ||
             terrainMaskCells.contains(cell);
     };
+    // Continue the same decoded source carrier through every retained cap.
+    // The previous per-cap neighbor extrapolation chose a different field
+    // authority at different ledges and reproduced metre-square boundaries.
     const auto sampleRegionalExactCapUv0 = [&] (
-            const TerrainTileState& tile,
+            const TerrainTileState&,
             float worldGridX,
             float worldGridZ,
             glm::vec2& outUv0) {
-        constexpr float derivativeStep = 0.05f;
-        const float localX = std::clamp(
-            worldGridX - static_cast<float>(tile.gridX),
-            0.0f,
-            1.0f);
-        const float localZ = std::clamp(
-            worldGridZ - static_cast<float>(tile.gridZ),
-            0.0f,
-            1.0f);
-        glm::vec2 weightedUv0{};
-        glm::vec2 referenceUv0{};
-        float totalWeight = 0.0f;
-        bool hasReference = false;
-        const auto compatibleDelta = [](glm::vec2 value,
-                                        const glm::vec2& reference) {
-            value.x -= std::round(value.x - reference.x);
-            value.y -= std::round(value.y - reference.y);
-            return value - reference;
-        };
-        const auto sampleNeighborUv0 = [&] (
-                const TerrainTileState& neighbor,
-                float neighborLocalX,
-                float neighborLocalZ,
-                glm::vec2& sampledUv0) {
-            const float latticeX =
-                (static_cast<float>(neighbor.gridX) +
-                 neighborLocalX) *
-                static_cast<float>(kTerrainLedgeContourSegments);
-            const float latticeZ =
-                (static_cast<float>(neighbor.gridZ) +
-                 neighborLocalZ) *
-                static_cast<float>(kTerrainLedgeContourSegments);
-            const std::int32_t lowerX =
-                static_cast<std::int32_t>(std::floor(latticeX));
-            const std::int32_t upperX =
-                static_cast<std::int32_t>(std::ceil(latticeX));
-            const std::int32_t lowerZ =
-                static_cast<std::int32_t>(std::floor(latticeZ));
-            const std::int32_t upperZ =
-                static_cast<std::int32_t>(std::ceil(latticeZ));
-            const float phaseX = latticeX -
-                static_cast<float>(lowerX);
-            const float phaseZ = latticeZ -
-                static_cast<float>(lowerZ);
-            const auto sampleAt = [&](std::int32_t x,
-                                      std::int32_t z) {
-                return generatedRegionalLawnMaterialSamples.find(
-                    {neighbor.elevationLevel, x, z});
-            };
-            const auto lowerLower = sampleAt(lowerX, lowerZ);
-            const auto upperLower = sampleAt(upperX, lowerZ);
-            const auto lowerUpper = sampleAt(lowerX, upperZ);
-            const auto upperUpper = sampleAt(upperX, upperZ);
-            if (lowerLower ==
-                    generatedRegionalLawnMaterialSamples.end() ||
-                upperLower ==
-                    generatedRegionalLawnMaterialSamples.end() ||
-                lowerUpper ==
-                    generatedRegionalLawnMaterialSamples.end() ||
-                upperUpper ==
-                    generatedRegionalLawnMaterialSamples.end()) {
-                return false;
-            }
-            const auto unwrapNear = [](glm::vec2 value,
-                                       const glm::vec2& reference) {
-                value.x -= std::round(value.x - reference.x);
-                value.y -= std::round(value.y - reference.y);
-                return value;
-            };
-            const glm::vec2 reference = lowerLower->second.uv0;
-            const glm::vec2 lower = glm::mix(
-                reference,
-                unwrapNear(upperLower->second.uv0, reference),
-                phaseX);
-            const glm::vec2 upper = glm::mix(
-                unwrapNear(lowerUpper->second.uv0, reference),
-                unwrapNear(upperUpper->second.uv0, reference),
-                phaseX);
-            sampledUv0 = glm::mix(lower, upper, phaseZ);
-            return true;
-        };
-        for (std::size_t edge = 0u;
-             edge < exactCapDirections.size();
-             ++edge) {
-            const auto direction = exactCapDirections[edge];
-            const auto* neighbor = activeTileAt({
-                tile.gridX + direction[0],
-                tile.gridZ + direction[1]});
-            if (!neighbor || neighbor->surface != tile.surface ||
-                !generatedRegionalSurface(*neighbor)) {
-                continue;
-            }
-            const auto profile = route1TerrainSharedEdgeProfile(
-                tile, neighbor, edge);
-            if (profile.tileLevels != profile.neighborLevels) {
-                continue;
-            }
-            float boundaryX = localX;
-            float boundaryZ = localZ;
-            float interiorX = localX;
-            float interiorZ = localZ;
-            float distanceCells = 0.0f;
-            if (edge == 0u) {
-                boundaryZ = 0.0f;
-                interiorZ = derivativeStep;
-                distanceCells = 1.0f - localZ;
-            } else if (edge == 1u) {
-                boundaryX = 0.0f;
-                interiorX = derivativeStep;
-                distanceCells = 1.0f - localX;
-            } else if (edge == 2u) {
-                boundaryZ = 1.0f;
-                interiorZ = 1.0f - derivativeStep;
-                distanceCells = localZ;
-            } else {
-                boundaryX = 1.0f;
-                interiorX = 1.0f - derivativeStep;
-                distanceCells = localX;
-            }
-            glm::vec2 boundaryUv0{};
-            glm::vec2 interiorUv0{};
-            if (!sampleNeighborUv0(
-                    *neighbor, boundaryX, boundaryZ, boundaryUv0) ||
-                !sampleNeighborUv0(
-                    *neighbor, interiorX, interiorZ, interiorUv0)) {
-                continue;
-            }
-            glm::vec2 extrapolated = boundaryUv0 -
-                compatibleDelta(interiorUv0, boundaryUv0) *
-                    (distanceCells / derivativeStep);
-            if (!hasReference) {
-                referenceUv0 = extrapolated;
-                hasReference = true;
-            } else {
-                extrapolated = referenceUv0 +
-                    compatibleDelta(extrapolated, referenceUv0);
-            }
-            const float weight = 1.0f /
-                ((distanceCells + 0.1f) *
-                 (distanceCells + 0.1f));
-            weightedUv0 += extrapolated * weight;
-            totalWeight += weight;
-        }
-        if (totalWeight <= 0.0f) {
-            return false;
-        }
-        outUv0 = weightedUv0 / totalWeight;
+        // Material 19 uses one decoded affine albedo carrier throughout
+        // Route 1. Sampling that field directly is both exact at retained
+        // source probes and identical to the generated regional lattice.
+        outUv0 = {
+            worldGridX / 3.0f,
+            worldGridZ / 3.0f + 1.0f};
         return true;
     };
     const auto sampleRegionalExactCapAppearance = [&] (
