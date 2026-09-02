@@ -13468,13 +13468,16 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                     color[0], color[1], color[2], color[3]};
             };
 
-            // Solve every generated-to-retained-source lawn handoff as a
-            // one-metre world-space field. The decoded source supplies both the
-            // boundary value and its inward derivative; a quintic fade
-            // returns to the generated regional field without moving the
-            // ruler-straight discontinuity half a tile inward.
+            // Continue UV0 through the complete source-backed metre so the
+            // decoded lawn texture branch never restarts. Lighting, tint,
+            // and normals only need a narrow join: stretching those fields
+            // across the whole cell creates a ruler-straight shaded strip in
+            // front of retained ledges. Keep their first interior sample
+            // exact for C1, then fade them back to the regional field.
             constexpr std::uint32_t sourceHandoffDepthSamples =
                 kTerrainLedgeContourSegments;
+            constexpr std::uint32_t sourceAppearanceHandoffDepthSamples =
+                5u;
             constexpr float sourceDerivativeStep = 0.05f;
             const auto applyRetainedSourceHandoffs = [&] {
               for (const auto& surfaceTile : surfaceTiles) {
@@ -13579,13 +13582,33 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                                 static_cast<float>(depth) /
                                 static_cast<float>(
                                     sourceHandoffDepthSamples);
+                            const float appearanceNormalizedDistance =
+                                depth <= 1u
+                                ? 0.0f
+                                : depth >=
+                                      sourceAppearanceHandoffDepthSamples
+                                ? 1.0f
+                                : static_cast<float>(depth - 1u) /
+                                    static_cast<float>(
+                                        sourceAppearanceHandoffDepthSamples -
+                                        1u);
                             const float smoothDistance =
                                 normalizedDistance * normalizedDistance *
                                 normalizedDistance *
                                 (normalizedDistance *
                                      (normalizedDistance * 6.0f - 15.0f) +
                                  10.0f);
-                            const float weight = 1.0f - smoothDistance;
+                            const float appearanceSmoothDistance =
+                                appearanceNormalizedDistance *
+                                appearanceNormalizedDistance *
+                                appearanceNormalizedDistance *
+                                (appearanceNormalizedDistance *
+                                     (appearanceNormalizedDistance * 6.0f -
+                                      15.0f) +
+                                 10.0f);
+                            const float uv0Weight = 1.0f - smoothDistance;
+                            const float appearanceWeight =
+                                1.0f - appearanceSmoothDistance;
                             std::array<float, 4> resolvedUv01{
                                 generated->u,
                                 generated->v,
@@ -13622,7 +13645,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                             resolvedNormal = glm::normalize(glm::mix(
                                 resolvedNormal,
                                 extrapolatedSourceNormal,
-                                weight));
+                                appearanceWeight));
                             for (std::size_t channel = 0u;
                                  channel < 4u;
                                  ++channel) {
@@ -13639,7 +13662,9 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                                 resolvedUv01[channel] = std::lerp(
                                     resolvedUv01[channel],
                                     extrapolatedSource,
-                                    weight);
+                                    channel < 2u
+                                        ? uv0Weight
+                                        : appearanceWeight);
                                 const auto glmChannel =
                                     static_cast<glm::length_t>(channel);
                                 const float sourceColorDerivative =
@@ -13654,7 +13679,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                                 resolvedColor[channel] = std::lerp(
                                     resolvedColor[channel],
                                     extrapolatedColor,
-                                    weight);
+                                    appearanceWeight);
                             }
                             writeMaterialField(
                                 *generated,
