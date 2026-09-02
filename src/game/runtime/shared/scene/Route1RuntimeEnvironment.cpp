@@ -2704,6 +2704,18 @@ void inheritAuthoredSceneMeshPatches(
     }
 }
 
+bool route1TerrainPinsSourceSurface(
+    const TerrainTileState& tile) noexcept {
+    return tile.reason == "terrain_source_restore" &&
+        tile.authored && tile.sourceOccupied &&
+        !tile.sourceReference &&
+        tile.elevationLevel == tile.sourceElevationLevel &&
+        tile.shape == tile.sourceShape &&
+        tile.surface == tile.sourceSurface &&
+        tile.visualVariant == "auto" &&
+        !tile.normalizeSourceTint;
+}
+
 bool route1TerrainUsesExactSourceSurfaceOverride(
     const TerrainTileState& tile,
     const std::vector<TerrainTileState>& activeTiles,
@@ -2740,6 +2752,9 @@ bool route1TerrainUsesExactSourceSurfaceOverride(
         sourceTiles, tile.gridX, tile.gridZ);
     if (!sourceTile) {
         return false;
+    }
+    if (route1TerrainPinsSourceSurface(tile)) {
+        return true;
     }
     const auto sourceLedgeBoundaryCount =
         [&](const TerrainTileState& sourceCandidate) {
@@ -20020,6 +20035,7 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                     dirtTile->gridX + direction[0],
                     dirtTile->gridZ + direction[1]);
                 if (!neighbor || neighbor->sourceReference ||
+                    route1TerrainPinsSourceSurface(*neighbor) ||
                     !neighbor->surface.ends_with("lawn") ||
                     (!neighbor->sourceOccupied && !neighbor->authored)) {
                     continue;
@@ -20191,6 +20207,9 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             if (!neighbor || neighbor->surface == "empty") {
                 continue;
             }
+            if (route1TerrainPinsSourceSurface(*neighbor)) {
+                continue;
+            }
             if (route1TerrainSourcePatchNeedsBoundarySpill(
                     *tile, neighbor, edge)) {
                 donorOwnedSpillBoundaries.emplace_back(
@@ -20267,6 +20286,54 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             }
         }
     }
+    const auto pinnedSourceCell = [&](const GridCell& cell) {
+        const auto* tile = findTerrainTile(cell);
+        return tile && route1TerrainPinsSourceSurface(*tile);
+    };
+    const auto preservePinnedSourceOwnership = [&] {
+        for (const auto& tile : terrainTiles) {
+            if (!route1TerrainPinsSourceSurface(tile)) {
+                continue;
+            }
+            const GridCell cell{tile.gridX, tile.gridZ};
+            nextCells.erase(cell);
+            nextMaterialOverlayCells.erase(cell);
+            nextCleanupCells.erase(cell);
+            nextBroadOverlayCleanupCells.erase(cell);
+            nextSourceReferenceCells.erase(cell);
+        }
+        for (auto boundary =
+                 nextInvalidatedSourceCleanupBoundaries.begin();
+             boundary != nextInvalidatedSourceCleanupBoundaries.end();) {
+            if (pinnedSourceCell(boundary->first) ||
+                pinnedSourceCell(boundary->second)) {
+                boundary = nextInvalidatedSourceCleanupBoundaries.erase(
+                    boundary);
+            } else {
+                ++boundary;
+            }
+        }
+        const auto touchesPinnedSource = [&](const auto& boundary) {
+            return pinnedSourceCell(boundary.first) ||
+                pinnedSourceCell(boundary.second);
+        };
+        planeClippedCleanupBoundaries.erase(
+            std::remove_if(
+                planeClippedCleanupBoundaries.begin(),
+                planeClippedCleanupBoundaries.end(),
+                touchesPinnedSource),
+            planeClippedCleanupBoundaries.end());
+        donorOwnedSpillBoundaries.erase(
+            std::remove_if(
+                donorOwnedSpillBoundaries.begin(),
+                donorOwnedSpillBoundaries.end(),
+                touchesPinnedSource),
+            donorOwnedSpillBoundaries.end());
+    };
+    // A source-restore marker is an explicit ownership barrier. Regional
+    // terrain reconstruction may surround it, but the imported source cap,
+    // crown, cliff, and cleanup carriers remain authoritative in that metre.
+    preservePinnedSourceOwnership();
     // Ledge ownership depends on current/source endpoint profiles, not on
     // whether the set of masked cells changed. Resolve it before the mask
     // cache early-out so repeated live edits at the same cells still rebuild
@@ -20444,7 +20511,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         for (const auto& cell : nextCells) {
             const auto* tile = findTerrainTile(cell);
             if (tile && tile->surface.ends_with("lawn") &&
-                !tile->sourceReference) {
+                !tile->sourceReference &&
+                !route1TerrainPinsSourceSurface(*tile)) {
                 materialOverlayFrontier.emplace(cell);
             }
         }
@@ -20453,7 +20521,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             for (const auto& cell : materialOverlayFrontier) {
                 const auto* tile = findTerrainTile(cell);
                 if (!tile || !tile->surface.ends_with("lawn") ||
-                    tile->sourceReference) {
+                    tile->sourceReference ||
+                    route1TerrainPinsSourceSurface(*tile)) {
                     continue;
                 }
                 for (std::size_t edge = 0u;
@@ -20475,6 +20544,7 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                     if (!neighbor || !sourceNeighbor ||
                         !neighbor->sourceOccupied ||
                         neighbor->sourceReference ||
+                        route1TerrainPinsSourceSurface(*neighbor) ||
                         route1TerrainUsesRegionalExactSourceLawnMaterial(
                             authoredScene.sceneId,
                             *neighbor,
@@ -20522,7 +20592,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 });
             if (activeTile != terrainTiles.end() &&
                 activeTile->surface != "empty" &&
-                !activeTile->sourceReference) {
+                !activeTile->sourceReference &&
+                !route1TerrainPinsSourceSurface(*activeTile)) {
                 activeTile->rebuildContinuousMaterialFields = true;
             }
         }
@@ -20536,7 +20607,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 });
             if (activeTile != terrainTiles.end() &&
                 activeTile->surface != "empty" &&
-                !activeTile->sourceReference) {
+                !activeTile->sourceReference &&
+                !route1TerrainPinsSourceSurface(*activeTile)) {
                 activeTile->rebuildContinuousMaterialFields = true;
             }
         }
@@ -20564,6 +20636,9 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             nextMaterialOverlayCells.emplace(cell);
         }
     }
+    // Later ledge/material closure can discover these cells again through an
+    // adjacent edit. Reassert the source barrier before publishing ownership.
+    preservePinnedSourceOwnership();
     if (nextCells == terrainMaskCells &&
         nextMaterialOverlayCells == terrainMaterialOverlayCells &&
         nextCleanupCells == terrainCleanupCells &&
@@ -21783,8 +21858,10 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
                 continue;
             }
             tile->terrainPatchV2RegionId = region.id;
-            tile->terrainPatchV2Core = patchCell.role ==
-                route1_terrain_patch_v2::CellRole::Core;
+            tile->terrainPatchV2Core =
+                !route1TerrainPinsSourceSurface(*tile) &&
+                patchCell.role ==
+                    route1_terrain_patch_v2::CellRole::Core;
             const bool regeneratesMaterialTransitionRing =
                 route1UsesRegionalTerrainMaterialField(
                     authoredScene.sceneId);
@@ -21798,7 +21875,8 @@ void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
                  (regeneratesMaterialTransitionRing &&
                   patchCell.role ==
                       route1_terrain_patch_v2::CellRole::SourceTransition)) &&
-                !terrainReplacementCells.contains(patchCell.cell)) {
+                !terrainReplacementCells.contains(patchCell.cell) &&
+                !route1TerrainPinsSourceSurface(*tile)) {
                 tile->rebuildContinuousMaterialFields = true;
             }
         }
@@ -21951,6 +22029,10 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
                     targetTile->gridX + direction[0],
                     targetTile->gridZ + direction[1]);
                 if (!targetNeighbor || !hasSurface(*targetNeighbor)) {
+                    continue;
+                }
+                if (route1TerrainPinsSourceSurface(*targetNeighbor)) {
+                    blockedSpillCells.emplace(sourceNeighbor);
                     continue;
                 }
                 if (!route1TerrainSourcePatchNeedsBoundarySpill(
