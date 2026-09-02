@@ -5189,7 +5189,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::array<bool, 4> retainedSouthLedgeLowerContacts{};
             bool replacedIntactSourceCorner = false;
             bool retainedIntactSourceCornerCap = false;
-            bool regionalizedIntactSourceCornerCap = false;
+            std::array<bool, 2>
+                regionalizedIntactSourceCornerCaps{};
             std::array<bool, 2>
                 generatedIntactSourceCornerCapInteriors{};
             bool foundLightLawnCrownCarrier = false;
@@ -5208,15 +5209,20 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                          std::string::npos &&
                      batch.geometryCacheKey.find("26,-13;") !=
                          std::string::npos);
-                regionalizedIntactSourceCornerCap =
-                    regionalizedIntactSourceCornerCap ||
-                    (batch.geometryCacheKey.find(
-                         "route1:terrain-exact-source-surface:") !=
-                         std::string::npos &&
-                     batch.geometryCacheKey.find(
-                         "regional-lawn:") != std::string::npos &&
-                     batch.geometryCacheKey.find("26,-13;") !=
-                         std::string::npos);
+                for (std::size_t cap = 0u;
+                     cap < regionalizedIntactSourceCornerCaps.size();
+                     ++cap) {
+                    regionalizedIntactSourceCornerCaps[cap] =
+                        regionalizedIntactSourceCornerCaps[cap] ||
+                        (batch.geometryCacheKey.find(
+                             "route1:terrain-exact-source-surface:") !=
+                             std::string::npos &&
+                         batch.geometryCacheKey.find(
+                             "regional-lawn:") != std::string::npos &&
+                         batch.geometryCacheKey.find(
+                             std::to_string(26u + cap) + ",-13;") !=
+                             std::string::npos);
+                }
                 if (batch.geometryCacheKey.find(
                         "route1:terrain-authored-surface:") !=
                     std::string::npos) {
@@ -5348,8 +5354,16 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 retainedSouthLedgeLowerContact ||
                 replacedIntactSourceCorner ||
                 !retainedIntactSourceCornerCap ||
-                !regionalizedIntactSourceCornerCap ||
-                generatedIntactSourceCornerCapInteriors[0] ||
+                std::any_of(
+                    regionalizedIntactSourceCornerCaps.begin(),
+                    regionalizedIntactSourceCornerCaps.end(),
+                    [](bool regionalized) {
+                        return !regionalized;
+                    }) ||
+                std::any_of(
+                    generatedIntactSourceCornerCapInteriors.begin(),
+                    generatedIntactSourceCornerCapInteriors.end(),
+                    [](bool generated) { return generated; }) ||
                 forcedDarkLightLawnCrownCarrier) {
                 outFail =
                     "South Clearing must preserve the imported ledge wall/fringe from (21,-19) through (24,-19), regenerate its straight top and lower contact row into one regional material field, preserve the complete imported cap/corner at (26,-13), and let light-lawn crown gaskets inherit the lawn material instead of drawing a dark green line (replacement-cliffs=" +
@@ -5376,9 +5390,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::to_string(replacedIntactSourceCorner) +
                     ", retained-source-cap=" +
                     std::to_string(retainedIntactSourceCornerCap) +
-                    ", regional-source-cap=" +
+                    ", regional-source-caps=" +
                     std::to_string(
-                        regionalizedIntactSourceCornerCap) +
+                        regionalizedIntactSourceCornerCaps[0]) + "," +
+                    std::to_string(
+                        regionalizedIntactSourceCornerCaps[1]) +
                     ", generated-source-cap-interiors=" +
                     std::to_string(
                         generatedIntactSourceCornerCapInteriors[0]) +

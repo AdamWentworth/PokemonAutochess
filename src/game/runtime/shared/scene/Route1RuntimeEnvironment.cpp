@@ -2713,29 +2713,6 @@ bool route1TerrainUsesExactSourceSurfaceOverride(
     // and, when necessary, resubmit them under the requested shadow policy.
     // Encounter-grass edits are excluded because their source Color0 field is
     // deliberately normalized after the grass carrier is removed/restored.
-    const bool preservesAuthoredSourceSurface =
-        tile.authored && !tile.rebuildContinuousMaterialFields;
-    const bool preservesIntactTransitionLedgeAssembly =
-        !tile.authored &&
-        tile.terrainPatchV2RegionId != 0u &&
-        !tile.terrainPatchV2Core &&
-        tile.rebuildContinuousMaterialFields &&
-        !tile.sourceLedgeCarrierDisplaced;
-    const bool sourceEquivalent =
-        (preservesAuthoredSourceSurface ||
-         preservesIntactTransitionLedgeAssembly) &&
-        tile.sourceOccupied &&
-        !tile.sourceReference &&
-        tile.elevationLevel == tile.sourceElevationLevel &&
-        tile.shape == tile.sourceShape &&
-        tile.surface == tile.sourceSurface &&
-        tile.visualVariant == "auto" &&
-        !tile.normalizeSourceTint &&
-        !tile.cleanSuppressedEncounterGrassTint &&
-        !tile.reason.starts_with("terrain_encounter_grass_");
-    if (!sourceEquivalent) {
-        return false;
-    }
     constexpr std::array<std::array<std::int32_t, 2>, 4>
         directions{{
             {0, 1},
@@ -2764,7 +2741,92 @@ bool route1TerrainUsesExactSourceSurfaceOverride(
     if (!sourceTile) {
         return false;
     }
-    bool hasSourceLedgeBoundary = false;
+    const auto sourceLedgeBoundaryCount =
+        [&](const TerrainTileState& sourceCandidate) {
+            std::size_t boundaryCount = 0u;
+            for (std::size_t edge = 0u;
+                 edge < directions.size();
+                 ++edge) {
+                const auto direction = directions[edge];
+                const auto* sourceNeighbor = findAt(
+                    sourceTiles,
+                    sourceCandidate.gridX + direction[0],
+                    sourceCandidate.gridZ + direction[1]);
+                if (!hasSurface(sourceNeighbor)) {
+                    continue;
+                }
+                const auto sourceProfile =
+                    route1TerrainSharedEdgeProfile(
+                        sourceCandidate, sourceNeighbor, edge);
+                if (sourceProfile.tileLevels !=
+                    sourceProfile.neighborLevels) {
+                    ++boundaryCount;
+                }
+            }
+            return boundaryCount;
+        };
+    const auto sourceBoundaryCount =
+        sourceLedgeBoundaryCount(*sourceTile);
+    const bool hasSourceLedgeBoundary = sourceBoundaryCount != 0u;
+    const bool preservesAuthoredSourceSurface =
+        tile.authored && !tile.rebuildContinuousMaterialFields;
+    // Source corner assemblies can cross the V2 region boundary by one cell.
+    // Extend exact ownership only between adjacent flat cells that both carry
+    // a two-sided source ledge; ordinary flat lawn, ramps, and straight ledge
+    // runs remain on their existing regional generation path.
+    const bool adjoinsIntactTransitionLedgeAssembly =
+        tile.shape == "flat" &&
+        sourceBoundaryCount >= 2u &&
+        std::any_of(
+            activeTiles.begin(),
+            activeTiles.end(),
+            [&](const TerrainTileState& candidate) {
+                const auto* sourceCandidate = findAt(
+                    sourceTiles,
+                    candidate.gridX,
+                    candidate.gridZ);
+                return std::abs(candidate.gridX - tile.gridX) +
+                        std::abs(candidate.gridZ - tile.gridZ) == 1 &&
+                    !candidate.authored &&
+                    candidate.terrainPatchV2RegionId != 0u &&
+                    !candidate.terrainPatchV2Core &&
+                    candidate.rebuildContinuousMaterialFields &&
+                    !candidate.sourceLedgeCarrierDisplaced &&
+                    candidate.sourceOccupied &&
+                    !candidate.sourceReference &&
+                    candidate.elevationLevel ==
+                        candidate.sourceElevationLevel &&
+                    candidate.shape == candidate.sourceShape &&
+                    candidate.surface == candidate.sourceSurface &&
+                    candidate.surface == tile.surface &&
+                    sourceCandidate &&
+                    sourceLedgeBoundaryCount(*sourceCandidate) >= 2u;
+            });
+    const bool extendsIntactTransitionLedgeAssembly =
+        tile.terrainPatchV2RegionId == 0u &&
+        adjoinsIntactTransitionLedgeAssembly;
+    const bool preservesIntactTransitionLedgeAssembly =
+        !tile.authored &&
+        (tile.terrainPatchV2RegionId != 0u ||
+         extendsIntactTransitionLedgeAssembly) &&
+        !tile.terrainPatchV2Core &&
+        tile.rebuildContinuousMaterialFields &&
+        !tile.sourceLedgeCarrierDisplaced;
+    const bool sourceEquivalent =
+        (preservesAuthoredSourceSurface ||
+         preservesIntactTransitionLedgeAssembly) &&
+        tile.sourceOccupied &&
+        !tile.sourceReference &&
+        tile.elevationLevel == tile.sourceElevationLevel &&
+        tile.shape == tile.sourceShape &&
+        tile.surface == tile.sourceSurface &&
+        tile.visualVariant == "auto" &&
+        !tile.normalizeSourceTint &&
+        !tile.cleanSuppressedEncounterGrassTint &&
+        !tile.reason.starts_with("terrain_encounter_grass_");
+    if (!sourceEquivalent) {
+        return false;
+    }
     for (std::size_t edge = 0u;
          edge < directions.size();
          ++edge) {
@@ -2777,30 +2839,72 @@ bool route1TerrainUsesExactSourceSurfaceOverride(
             sourceTiles,
             tile.gridX + direction[0],
             tile.gridZ + direction[1]);
-        if (hasSurface(activeNeighbor) != hasSurface(sourceNeighbor)) {
+        if (hasSurface(activeNeighbor) != hasSurface(sourceNeighbor) &&
+            !extendsIntactTransitionLedgeAssembly) {
             return false;
         }
-        if (!hasSurface(activeNeighbor)) {
+        if (!hasSurface(activeNeighbor) || !sourceNeighbor) {
             continue;
         }
         const auto activeProfile = route1TerrainSharedEdgeProfile(
             tile, activeNeighbor, edge);
         const auto sourceProfile = route1TerrainSharedEdgeProfile(
             *sourceTile, sourceNeighbor, edge);
-        hasSourceLedgeBoundary = hasSourceLedgeBoundary ||
-            sourceProfile.tileLevels != sourceProfile.neighborLevels;
-        if (activeNeighbor->sourceReference ||
+        const bool changesSourceMaterialOnly =
             (activeNeighbor->cleanSuppressedEncounterGrassTint &&
              !activeNeighbor->regionalMaterialHandoffOnly) ||
-            activeNeighbor->surface != sourceNeighbor->surface ||
-            activeProfile.tileLevels != sourceProfile.tileLevels ||
-            activeProfile.neighborLevels !=
-                sourceProfile.neighborLevels) {
+            activeNeighbor->surface != sourceNeighbor->surface;
+        if (activeNeighbor->sourceReference ||
+            (!extendsIntactTransitionLedgeAssembly &&
+             (changesSourceMaterialOnly ||
+              activeProfile.tileLevels !=
+                  sourceProfile.tileLevels ||
+              activeProfile.neighborLevels !=
+                  sourceProfile.neighborLevels))) {
             return false;
         }
     }
+    const auto neighborTouchesChangedMaterialField =
+        [&](const TerrainTileState& candidate) {
+            const auto* sourceCandidate = findAt(
+                sourceTiles,
+                candidate.gridX,
+                candidate.gridZ);
+            if (!sourceCandidate || candidate.sourceReference ||
+                candidate.surface != sourceCandidate->surface) {
+                return true;
+            }
+            for (std::size_t candidateEdge = 0u;
+                 candidateEdge < directions.size();
+                 ++candidateEdge) {
+                const auto candidateDirection =
+                    directions[candidateEdge];
+                const auto* activeAdjacent = findAt(
+                    activeTiles,
+                    candidate.gridX + candidateDirection[0],
+                    candidate.gridZ + candidateDirection[1]);
+                const auto* sourceAdjacent = findAt(
+                    sourceTiles,
+                    candidate.gridX + candidateDirection[0],
+                    candidate.gridZ + candidateDirection[1]);
+                if (hasSurface(activeAdjacent) !=
+                    hasSurface(sourceAdjacent)) {
+                    return true;
+                }
+                if (!hasSurface(activeAdjacent)) {
+                    continue;
+                }
+                if (activeAdjacent->sourceReference ||
+                    activeAdjacent->surface !=
+                        sourceAdjacent->surface) {
+                    return true;
+                }
+            }
+            return false;
+        };
     if (preservesIntactTransitionLedgeAssembly &&
-        hasSourceLedgeBoundary) {
+        hasSourceLedgeBoundary &&
+        !extendsIntactTransitionLedgeAssembly) {
         // A straight source ledge cap can sit between several regenerated
         // regional cells even when none of its own four boundaries changed.
         // Preserving that one square as exact source geometry leaves a
@@ -2812,44 +2916,6 @@ bool route1TerrainUsesExactSourceSurfaceOverride(
         // source-owned; only material-19's top and foot-contact ground are
         // regenerated. Isolated compound source corners such as (26,-13)
         // have no nearby material change and retain their exact cap.
-        const auto neighborTouchesChangedMaterialField =
-            [&](const TerrainTileState& candidate) {
-                const auto* sourceCandidate = findAt(
-                    sourceTiles,
-                    candidate.gridX,
-                    candidate.gridZ);
-                if (!sourceCandidate || candidate.sourceReference ||
-                    candidate.surface != sourceCandidate->surface) {
-                    return true;
-                }
-                for (std::size_t candidateEdge = 0u;
-                     candidateEdge < directions.size();
-                     ++candidateEdge) {
-                    const auto candidateDirection =
-                        directions[candidateEdge];
-                    const auto* activeAdjacent = findAt(
-                        activeTiles,
-                        candidate.gridX + candidateDirection[0],
-                        candidate.gridZ + candidateDirection[1]);
-                    const auto* sourceAdjacent = findAt(
-                        sourceTiles,
-                        candidate.gridX + candidateDirection[0],
-                        candidate.gridZ + candidateDirection[1]);
-                    if (hasSurface(activeAdjacent) !=
-                        hasSurface(sourceAdjacent)) {
-                        return true;
-                    }
-                    if (!hasSurface(activeAdjacent)) {
-                        continue;
-                    }
-                    if (activeAdjacent->sourceReference ||
-                        activeAdjacent->surface !=
-                            sourceAdjacent->surface) {
-                        return true;
-                    }
-                }
-                return false;
-            };
         for (std::size_t edge = 0u;
              edge < directions.size();
              ++edge) {
@@ -2909,7 +2975,6 @@ bool route1TerrainUsesRegionalExactSourceLawnMaterial(
     // from the final neighboring regional field.
     return route1UsesRegionalTerrainMaterialField(sceneId) &&
         tile.surface == "light_lawn" &&
-        tile.terrainPatchV2RegionId != 0u &&
         !tile.terrainPatchV2Core &&
         tile.rebuildContinuousMaterialFields &&
         route1TerrainUsesExactSourceSurfaceOverride(
@@ -20352,6 +20417,26 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 !activeTile->sourceReference) {
                 activeTile->rebuildContinuousMaterialFields = true;
             }
+        }
+        // An exact imported ledge cap and a generated regional overlay cannot
+        // share the same metre: the overlay remains a visible square even
+        // when both fields agree at their boundary. Regional exact caps use
+        // one ownership path instead. Mask material-19 in the affected cell,
+        // retain the complete imported cap/crown/ledge geometry, and resubmit
+        // it with the regional lawn material assembled later. This also closes
+        // compound source corners whose adjoining cap falls one cell outside
+        // the V2 transition ring.
+        for (const auto& tile : terrainTiles) {
+            if (!route1TerrainUsesRegionalExactSourceLawnMaterial(
+                    authoredScene.sceneId,
+                    tile,
+                    terrainTiles,
+                    sourceTerrainTiles)) {
+                continue;
+            }
+            const GridCell cell{tile.gridX, tile.gridZ};
+            nextCells.emplace(cell);
+            nextMaterialOverlayCells.erase(cell);
         }
     }
     if (nextCells == terrainMaskCells &&
