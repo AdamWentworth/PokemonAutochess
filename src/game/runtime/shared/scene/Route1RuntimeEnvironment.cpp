@@ -15307,12 +15307,28 @@ RuntimeEnvironment::Impl::ensureTerrainExactSourceSurfaceObjects(
         }
         return true;
     };
+    using ExactSourceCarrierIdentity = std::tuple<
+        std::uint32_t,
+        std::uint32_t,
+        std::uint32_t,
+        std::array<float, 16>>;
+    std::set<ExactSourceCarrierIdentity> submittedExactSourceCarriers;
     for (const auto& mask : terrainMaskGeometries) {
         if (!mask.sourceGround ||
             mask.geometryHandle.id == 0u ||
             mask.geometryHandle.id > scene.registry.geometries.size() ||
             mask.originalVertices.empty() ||
             mask.originalIndices.size() < 3u) {
+            continue;
+        }
+        // Published and terrain-assembly views can expose the same canonical
+        // carrier. Recover it once so coincident source-cap triangles are not
+        // submitted twice above retained ledges.
+        if (!submittedExactSourceCarriers.emplace(
+                mask.sourceMeshIndex,
+                mask.sourcePolygonGroupIndex,
+                mask.sourceMaterialIndex,
+                mask.sourceModelMatrix).second) {
             continue;
         }
         const auto& sourceGeometry = scene.registry.geometries[
@@ -20205,12 +20221,11 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         // Source Route 1 sometimes hides metre-scale ground carriers beneath
         // foliage or broad lawn decoration. Once an edit exposes one of those
         // carriers, a mathematically exact edge handoff can still reveal the
-        // different field over the rest of the retained source metre. Extend
-        // only the generated lawn material across a bounded ring of flat,
-        // source-identical lawn. The canonical ground and all of its cleanup
-        // decoration remain present underneath; unlike terrainMaskCells this
-        // set therefore cannot cut holes in ledges or retire source fringes.
-        constexpr std::size_t kMaterialOverlayDepthCells = 2u;
+        // different field over the rest of the retained source metre. A
+        // bounded ring merely moves that delimiter. Extend only the generated
+        // lawn material through the complete connected component of flat,
+        // source-identical lawn. Natural topology and material boundaries stop
+        // the flood; canonical ground and cleanup decoration remain underneath.
         std::set<GridCell> materialOverlayFrontier;
         for (const auto& cell : nextCells) {
             const auto* tile = findTerrainTile(cell);
@@ -20219,10 +20234,7 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 materialOverlayFrontier.emplace(cell);
             }
         }
-        for (std::size_t depth = 0u;
-             depth < kMaterialOverlayDepthCells &&
-                 !materialOverlayFrontier.empty();
-             ++depth) {
+        while (!materialOverlayFrontier.empty()) {
             std::set<GridCell> nextFrontier;
             for (const auto& cell : materialOverlayFrontier) {
                 const auto* tile = findTerrainTile(cell);
@@ -20332,7 +20344,10 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             }
             const GridCell cell{tile.gridX, tile.gridZ};
             nextCells.emplace(cell);
-            nextMaterialOverlayCells.erase(cell);
+            // The generated surface owns the flat square and shares one
+            // lattice with its lawn neighbours. The exact source assembly
+            // remains beneath it so the curved crown and overhang survive.
+            nextMaterialOverlayCells.emplace(cell);
         }
     }
     if (nextCells == terrainMaskCells &&

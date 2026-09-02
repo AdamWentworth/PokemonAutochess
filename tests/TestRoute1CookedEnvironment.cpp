@@ -5363,10 +5363,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 std::any_of(
                     generatedIntactSourceCornerCapInteriors.begin(),
                     generatedIntactSourceCornerCapInteriors.end(),
-                    [](bool generated) { return generated; }) ||
+                    [](bool generated) { return !generated; }) ||
                 forcedDarkLightLawnCrownCarrier) {
                 outFail =
-                    "South Clearing must preserve the imported ledge wall/fringe from (21,-19) through (24,-19), regenerate its straight top and lower contact row into one regional material field, preserve the complete imported cap/corner at (26,-13), and let light-lawn crown gaskets inherit the lawn material instead of drawing a dark green line (replacement-cliffs=" +
+                    "South Clearing must preserve the imported ledge wall/fringe from (21,-19) through (24,-19), regenerate its straight top and lower contact row into one regional material field, preserve the imported cap/corner silhouette at (26,-13) while the continuous generated lawn owns its flat interior, and let light-lawn crown gaskets inherit the lawn material instead of drawing a dark green line (replacement-cliffs=" +
                     std::to_string(replacedSouthLedgeCliffs[0]) + "," +
                     std::to_string(replacedSouthLedgeCliffs[1]) + "," +
                     std::to_string(replacedSouthLedgeCliffs[2]) + "," +
