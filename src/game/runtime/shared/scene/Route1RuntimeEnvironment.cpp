@@ -446,6 +446,14 @@ struct RegionalTerrainUv01Anchor {
     glm::vec2 uv1{};
 };
 
+struct RegionalLawnMaterialSample {
+    glm::vec2 uv0{};
+    glm::vec2 uv1{};
+    glm::vec2 uv2{};
+    glm::vec4 color{1.0f};
+    glm::vec3 normal{0.0f, 1.0f, 0.0f};
+};
+
 struct DirtTransitionUvField {
     std::array<float, 4> edgeStartU{};
     std::array<float, 4> edgeUPerCm{
@@ -2887,6 +2895,27 @@ bool route1TerrainUsesExactSourceSurfaceOverride(
         hasSourceLedgeBoundary;
 }
 
+bool route1TerrainUsesRegionalExactSourceLawnMaterial(
+    std::string_view sceneId,
+    const TerrainTileState& tile,
+    const std::vector<TerrainTileState>& activeTiles,
+    const std::vector<TerrainTileState>& sourceTiles) noexcept {
+    // An unchanged transition-ring ledge must retain its complete imported
+    // geometry assembly. Its material-19 lawn cap is independent, however:
+    // leaving that cap on the original per-cell UV1/Color0 field makes the
+    // upper part of the source tile visible as a straight rectangle beside
+    // regenerated lawn. Keep the imported geometry, wall, and fringe exact,
+    // but let the cap's complete lawn material and shading basis continue
+    // from the final neighboring regional field.
+    return route1UsesRegionalTerrainMaterialField(sceneId) &&
+        tile.surface == "light_lawn" &&
+        tile.terrainPatchV2RegionId != 0u &&
+        !tile.terrainPatchV2Core &&
+        tile.rebuildContinuousMaterialFields &&
+        route1TerrainUsesExactSourceSurfaceOverride(
+            tile, activeTiles, sourceTiles);
+}
+
 bool route1TerrainCanPreserveRelativeSourceGeometry(
     const TerrainTileState& tile,
     const std::vector<TerrainTileState>& activeTiles,
@@ -3346,6 +3375,10 @@ struct RuntimeEnvironment::Impl {
     mutable std::set<
         std::tuple<bool, std::int32_t, std::int32_t, std::int32_t>>
         missingRegionalTerrainUv01Anchors;
+    std::map<
+        std::tuple<std::int32_t, std::int32_t, std::int32_t>,
+        RegionalLawnMaterialSample>
+        generatedRegionalLawnMaterialSamples;
     route1_terrain_ledges::Resolution terrainLedgeResolution;
     route1_terrain_contours::Assembly terrainContourAssembly;
     route1_terrain_patch_v2::Plan terrainPatchV2Plan;
@@ -7449,6 +7482,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
     missingRegionalTerrainColorAnchors.clear();
     regionalTerrainUv01Anchors.clear();
     missingRegionalTerrainUv01Anchors.clear();
+    generatedRegionalLawnMaterialSamples.clear();
     terrainLawnCompatibleBoundarySampleCount = 0u;
     terrainLawnDerivativeBoundarySampleCount = 0u;
     terrainLawnSourceBoundarySampleCount = 0u;
@@ -13437,6 +13471,11 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                     neighbor->surface != tile.surface ||
                     !neighbor->sourceOccupied ||
                     neighbor->sourceReference ||
+                    route1TerrainUsesRegionalExactSourceLawnMaterial(
+                        authoredScene.sceneId,
+                        *neighbor,
+                        terrainTiles,
+                        sourceTerrainTiles) ||
                     generatedSurfaceCells.contains(
                         {neighbor->gridX, neighbor->gridZ})) {
                     return nullptr;
@@ -14272,6 +14311,45 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 }
             }
 
+            // Exact source ledge caps are submitted after this generated
+            // surface. Preserve their imported triangles, but give that
+            // later pass access to the final, post-harmonic material field
+            // on every adjoining 5 cm lawn sample. Sampling the preliminary
+            // regional spline instead would miss the reconciliation above
+            // and leave the retained cap visible as a one-metre square.
+            for (const auto& [logicalKey, vertexIndex] :
+                 logicalSampleVertices) {
+                const auto tileX = std::get<0>(logicalKey);
+                const auto tileZ = std::get<1>(logicalKey);
+                const auto* owner = findTile(tileX, tileZ);
+                if (!owner || owner->surface != "light_lawn" ||
+                    vertexIndex >= prototype.vertices.size()) {
+                    continue;
+                }
+                const auto& vertex = prototype.vertices[vertexIndex];
+                const std::int32_t worldX =
+                    tileX * static_cast<std::int32_t>(
+                        kTerrainLedgeContourSegments) +
+                    static_cast<std::int32_t>(std::get<2>(logicalKey));
+                const std::int32_t worldZ =
+                    tileZ * static_cast<std::int32_t>(
+                        kTerrainLedgeContourSegments) +
+                    static_cast<std::int32_t>(std::get<3>(logicalKey));
+                generatedRegionalLawnMaterialSamples[
+                    {owner->elevationLevel, worldX, worldZ}] = {
+                        .uv0 = {vertex.u, vertex.v},
+                        .uv1 = {
+                            vertex.sourceUv1U,
+                            vertex.sourceUv1V},
+                        .uv2 = {
+                            vertex.sourceUv2U,
+                            vertex.sourceUv2V},
+                        .color = {
+                            vertex.r, vertex.g, vertex.b, vertex.a},
+                        .normal = {
+                            vertex.nx, vertex.ny, vertex.nz}};
+            }
+
             // The outer edge of the generated field is just as important as
             // its internal joins. Measure every compatible generated-to-
             // retained-source lawn boundary directly against the decoded
@@ -14919,6 +14997,355 @@ RuntimeEnvironment::Impl::ensureTerrainExactSourceSurfaceObjects(
         patchKey += std::to_string(gridX) + "," +
             std::to_string(gridZ) + ";";
     }
+    std::set<GridCell> regionalLawnMaterialCells;
+    for (const auto& tile : terrainTiles) {
+        const GridCell cell{tile.gridX, tile.gridZ};
+        if (sourceCells.contains(cell) &&
+            route1TerrainUsesRegionalExactSourceLawnMaterial(
+                authoredScene.sceneId,
+                tile,
+                terrainTiles,
+                sourceTerrainTiles)) {
+            regionalLawnMaterialCells.emplace(cell);
+        }
+    }
+    patchKey += "regional-lawn:";
+    for (const auto& [gridX, gridZ] : regionalLawnMaterialCells) {
+        patchKey += std::to_string(gridX) + "," +
+            std::to_string(gridZ) + ";";
+    }
+    const auto activeTileAt = [&](const GridCell& cell)
+        -> const TerrainTileState* {
+        const auto found = std::find_if(
+            terrainTiles.begin(),
+            terrainTiles.end(),
+            [&](const TerrainTileState& tile) {
+                return tile.gridX == cell.first &&
+                    tile.gridZ == cell.second;
+            });
+        return found == terrainTiles.end() ? nullptr : &*found;
+    };
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        exactCapDirections{{
+            {0, 1}, {1, 0}, {0, -1}, {-1, 0}}};
+    const auto generatedRegionalSurface = [&](
+            const TerrainTileState& tile) {
+        const GridCell cell{tile.gridX, tile.gridZ};
+        if (tile.surface == "empty" || tile.sourceReference ||
+            route1TerrainUsesExactSourceSurfaceOverride(
+                tile, terrainTiles, sourceTerrainTiles)) {
+            return false;
+        }
+        return terrainMaterialOverlayCells.contains(cell) ||
+            tile.authored ||
+            tile.cleanSuppressedEncounterGrassTint ||
+            terrainMaskCells.contains(cell);
+    };
+    const auto sampleRegionalExactCapUv0 = [&] (
+            const TerrainTileState& tile,
+            float worldGridX,
+            float worldGridZ,
+            glm::vec2& outUv0) {
+        constexpr float derivativeStep = 0.05f;
+        const float localX = std::clamp(
+            worldGridX - static_cast<float>(tile.gridX),
+            0.0f,
+            1.0f);
+        const float localZ = std::clamp(
+            worldGridZ - static_cast<float>(tile.gridZ),
+            0.0f,
+            1.0f);
+        glm::vec2 weightedUv0{};
+        glm::vec2 referenceUv0{};
+        float totalWeight = 0.0f;
+        bool hasReference = false;
+        const auto compatibleDelta = [](glm::vec2 value,
+                                        const glm::vec2& reference) {
+            value.x -= std::round(value.x - reference.x);
+            value.y -= std::round(value.y - reference.y);
+            return value - reference;
+        };
+        const auto sampleNeighborUv0 = [&] (
+                const TerrainTileState& neighbor,
+                float neighborLocalX,
+                float neighborLocalZ,
+                glm::vec2& sampledUv0) {
+            const float latticeX =
+                (static_cast<float>(neighbor.gridX) +
+                 neighborLocalX) *
+                static_cast<float>(kTerrainLedgeContourSegments);
+            const float latticeZ =
+                (static_cast<float>(neighbor.gridZ) +
+                 neighborLocalZ) *
+                static_cast<float>(kTerrainLedgeContourSegments);
+            const std::int32_t lowerX =
+                static_cast<std::int32_t>(std::floor(latticeX));
+            const std::int32_t upperX =
+                static_cast<std::int32_t>(std::ceil(latticeX));
+            const std::int32_t lowerZ =
+                static_cast<std::int32_t>(std::floor(latticeZ));
+            const std::int32_t upperZ =
+                static_cast<std::int32_t>(std::ceil(latticeZ));
+            const float phaseX = latticeX -
+                static_cast<float>(lowerX);
+            const float phaseZ = latticeZ -
+                static_cast<float>(lowerZ);
+            const auto sampleAt = [&](std::int32_t x,
+                                      std::int32_t z) {
+                return generatedRegionalLawnMaterialSamples.find(
+                    {neighbor.elevationLevel, x, z});
+            };
+            const auto lowerLower = sampleAt(lowerX, lowerZ);
+            const auto upperLower = sampleAt(upperX, lowerZ);
+            const auto lowerUpper = sampleAt(lowerX, upperZ);
+            const auto upperUpper = sampleAt(upperX, upperZ);
+            if (lowerLower ==
+                    generatedRegionalLawnMaterialSamples.end() ||
+                upperLower ==
+                    generatedRegionalLawnMaterialSamples.end() ||
+                lowerUpper ==
+                    generatedRegionalLawnMaterialSamples.end() ||
+                upperUpper ==
+                    generatedRegionalLawnMaterialSamples.end()) {
+                return false;
+            }
+            const auto unwrapNear = [](glm::vec2 value,
+                                       const glm::vec2& reference) {
+                value.x -= std::round(value.x - reference.x);
+                value.y -= std::round(value.y - reference.y);
+                return value;
+            };
+            const glm::vec2 reference = lowerLower->second.uv0;
+            const glm::vec2 lower = glm::mix(
+                reference,
+                unwrapNear(upperLower->second.uv0, reference),
+                phaseX);
+            const glm::vec2 upper = glm::mix(
+                unwrapNear(lowerUpper->second.uv0, reference),
+                unwrapNear(upperUpper->second.uv0, reference),
+                phaseX);
+            sampledUv0 = glm::mix(lower, upper, phaseZ);
+            return true;
+        };
+        for (std::size_t edge = 0u;
+             edge < exactCapDirections.size();
+             ++edge) {
+            const auto direction = exactCapDirections[edge];
+            const auto* neighbor = activeTileAt({
+                tile.gridX + direction[0],
+                tile.gridZ + direction[1]});
+            if (!neighbor || neighbor->surface != tile.surface ||
+                !generatedRegionalSurface(*neighbor)) {
+                continue;
+            }
+            const auto profile = route1TerrainSharedEdgeProfile(
+                tile, neighbor, edge);
+            if (profile.tileLevels != profile.neighborLevels) {
+                continue;
+            }
+            float boundaryX = localX;
+            float boundaryZ = localZ;
+            float interiorX = localX;
+            float interiorZ = localZ;
+            float distanceCells = 0.0f;
+            if (edge == 0u) {
+                boundaryZ = 0.0f;
+                interiorZ = derivativeStep;
+                distanceCells = 1.0f - localZ;
+            } else if (edge == 1u) {
+                boundaryX = 0.0f;
+                interiorX = derivativeStep;
+                distanceCells = 1.0f - localX;
+            } else if (edge == 2u) {
+                boundaryZ = 1.0f;
+                interiorZ = 1.0f - derivativeStep;
+                distanceCells = localZ;
+            } else {
+                boundaryX = 1.0f;
+                interiorX = 1.0f - derivativeStep;
+                distanceCells = localX;
+            }
+            glm::vec2 boundaryUv0{};
+            glm::vec2 interiorUv0{};
+            if (!sampleNeighborUv0(
+                    *neighbor, boundaryX, boundaryZ, boundaryUv0) ||
+                !sampleNeighborUv0(
+                    *neighbor, interiorX, interiorZ, interiorUv0)) {
+                continue;
+            }
+            glm::vec2 extrapolated = boundaryUv0 -
+                compatibleDelta(interiorUv0, boundaryUv0) *
+                    (distanceCells / derivativeStep);
+            if (!hasReference) {
+                referenceUv0 = extrapolated;
+                hasReference = true;
+            } else {
+                extrapolated = referenceUv0 +
+                    compatibleDelta(extrapolated, referenceUv0);
+            }
+            const float weight = 1.0f /
+                ((distanceCells + 0.1f) *
+                 (distanceCells + 0.1f));
+            weightedUv0 += extrapolated * weight;
+            totalWeight += weight;
+        }
+        if (totalWeight <= 0.0f) {
+            return false;
+        }
+        outUv0 = weightedUv0 / totalWeight;
+        return true;
+    };
+    const auto sampleRegionalExactCapAppearance = [&] (
+            const TerrainTileState& tile,
+            float worldGridX,
+            float worldGridZ,
+            RegionalLawnMaterialSample& outSample) {
+        const float localX = std::clamp(
+            worldGridX - static_cast<float>(tile.gridX),
+            0.0f,
+            1.0f);
+        const float localZ = std::clamp(
+            worldGridZ - static_cast<float>(tile.gridZ),
+            0.0f,
+            1.0f);
+        constexpr float samplesPerCell =
+            static_cast<float>(kTerrainLedgeContourSegments);
+        float totalWeight = 0.0f;
+        bool hasReference = false;
+        RegionalLawnMaterialSample reference{};
+        RegionalLawnMaterialSample weighted{};
+        weighted.color = glm::vec4{0.0f};
+        weighted.normal = glm::vec3{0.0f};
+        const auto repeatDelta = [](glm::vec2 value,
+                                    const glm::vec2& referenceValue) {
+            value.x -= std::round(value.x - referenceValue.x);
+            value.y -= std::round(value.y - referenceValue.y);
+            return value - referenceValue;
+        };
+        for (std::size_t edge = 0u;
+             edge < exactCapDirections.size();
+             ++edge) {
+            const auto direction = exactCapDirections[edge];
+            const auto* neighbor = activeTileAt({
+                tile.gridX + direction[0],
+                tile.gridZ + direction[1]});
+            if (!neighbor || neighbor->surface != tile.surface ||
+                !generatedRegionalSurface(*neighbor)) {
+                continue;
+            }
+            const auto profile = route1TerrainSharedEdgeProfile(
+                tile, neighbor, edge);
+            if (profile.tileLevels != profile.neighborLevels) {
+                continue;
+            }
+            std::int32_t boundaryX = static_cast<std::int32_t>(
+                std::lround(worldGridX * samplesPerCell));
+            std::int32_t boundaryZ = static_cast<std::int32_t>(
+                std::lround(worldGridZ * samplesPerCell));
+            float distanceCells = 0.0f;
+            if (edge == 0u) {
+                boundaryZ = (tile.gridZ + 1) *
+                    static_cast<std::int32_t>(
+                        kTerrainLedgeContourSegments);
+                distanceCells = 1.0f - localZ;
+            } else if (edge == 1u) {
+                boundaryX = (tile.gridX + 1) *
+                    static_cast<std::int32_t>(
+                        kTerrainLedgeContourSegments);
+                distanceCells = 1.0f - localX;
+            } else if (edge == 2u) {
+                boundaryZ = tile.gridZ *
+                    static_cast<std::int32_t>(
+                        kTerrainLedgeContourSegments);
+                distanceCells = localZ;
+            } else {
+                boundaryX = tile.gridX *
+                    static_cast<std::int32_t>(
+                        kTerrainLedgeContourSegments);
+                distanceCells = localX;
+            }
+            const std::int32_t interiorX =
+                boundaryX + direction[0];
+            const std::int32_t interiorZ =
+                boundaryZ + direction[1];
+            const auto boundary =
+                generatedRegionalLawnMaterialSamples.find({
+                    neighbor->elevationLevel,
+                    boundaryX,
+                    boundaryZ});
+            const auto interior =
+                generatedRegionalLawnMaterialSamples.find({
+                    neighbor->elevationLevel,
+                    interiorX,
+                    interiorZ});
+            if (boundary ==
+                    generatedRegionalLawnMaterialSamples.end() ||
+                interior ==
+                    generatedRegionalLawnMaterialSamples.end()) {
+                continue;
+            }
+            const float distanceSamples =
+                distanceCells * samplesPerCell;
+            RegionalLawnMaterialSample extrapolated = boundary->second;
+            extrapolated.uv0 = boundary->second.uv0 -
+                repeatDelta(
+                    interior->second.uv0,
+                    boundary->second.uv0) * distanceSamples;
+            extrapolated.uv1 = boundary->second.uv1 -
+                repeatDelta(
+                    interior->second.uv1,
+                    boundary->second.uv1) * distanceSamples;
+            extrapolated.uv2 = boundary->second.uv2 -
+                repeatDelta(
+                    interior->second.uv2,
+                    boundary->second.uv2) * distanceSamples;
+            extrapolated.color = glm::clamp(
+                boundary->second.color -
+                    (interior->second.color -
+                     boundary->second.color) * distanceSamples,
+                glm::vec4{0.0f},
+                glm::vec4{1.0f});
+            extrapolated.normal = boundary->second.normal -
+                (interior->second.normal -
+                 boundary->second.normal) * distanceSamples;
+            if (glm::length(extrapolated.normal) > 1.0e-5f) {
+                extrapolated.normal = glm::normalize(
+                    extrapolated.normal);
+            }
+            if (!hasReference) {
+                reference = extrapolated;
+                hasReference = true;
+            } else {
+                extrapolated.uv0 = reference.uv0 +
+                    repeatDelta(extrapolated.uv0, reference.uv0);
+                extrapolated.uv1 = reference.uv1 +
+                    repeatDelta(extrapolated.uv1, reference.uv1);
+                extrapolated.uv2 = reference.uv2 +
+                    repeatDelta(extrapolated.uv2, reference.uv2);
+            }
+            const float weight = 1.0f /
+                ((distanceCells + 0.1f) *
+                 (distanceCells + 0.1f));
+            weighted.uv0 += extrapolated.uv0 * weight;
+            weighted.uv1 += extrapolated.uv1 * weight;
+            weighted.uv2 += extrapolated.uv2 * weight;
+            weighted.color += extrapolated.color * weight;
+            weighted.normal += extrapolated.normal * weight;
+            totalWeight += weight;
+        }
+        if (totalWeight <= 0.0f) {
+            return false;
+        }
+        outSample.uv0 = weighted.uv0 / totalWeight;
+        outSample.uv1 = weighted.uv1 / totalWeight;
+        outSample.uv2 = weighted.uv2 / totalWeight;
+        outSample.color = weighted.color / totalWeight;
+        outSample.normal = weighted.normal / totalWeight;
+        if (glm::length(outSample.normal) > 1.0e-5f) {
+            outSample.normal = glm::normalize(outSample.normal);
+        }
+        return true;
+    };
     for (const auto& mask : terrainMaskGeometries) {
         if (!mask.sourceGround ||
             mask.geometryHandle.id == 0u ||
@@ -14990,6 +15417,10 @@ RuntimeEnvironment::Impl::ensureTerrainExactSourceSurfaceObjects(
                 if (!sourceCells.contains(centroidCell)) {
                     continue;
                 }
+                const auto* regionalMaterialTile =
+                    regionalLawnMaterialCells.contains(centroidCell)
+                    ? activeTileAt(centroidCell)
+                    : nullptr;
                 for (std::size_t corner = 0u;
                      corner < triangle.size();
                      ++corner) {
@@ -15010,6 +15441,82 @@ RuntimeEnvironment::Impl::ensureTerrainExactSourceSurfaceObjects(
                     vertex.tx = tangent.x;
                     vertex.ty = tangent.y;
                     vertex.tz = tangent.z;
+                    glm::vec2 regionalUv0{};
+                    glm::vec2 regionalUv1{};
+                    glm::vec2 continuedUv0{};
+                    glm::vec4 regionalColor{};
+                    RegionalLawnMaterialSample continuedAppearance{};
+                    bool sampledRegionalUv1 = false;
+                    bool sampledContinuedUv0 = false;
+                    bool sampledRegionalColor = false;
+                    bool sampledContinuedAppearance = false;
+                    if (regionalMaterialTile) {
+                        const float worldGridX =
+                            positions[corner].x / kTerrainTileSizeCm;
+                        const float worldGridZ =
+                            positions[corner].z / kTerrainTileSizeCm;
+                        sampledRegionalUv1 = sampleRegionalTerrainUv01(
+                            false,
+                            regionalMaterialTile->elevationLevel,
+                            worldGridX,
+                            worldGridZ,
+                            regionalUv0,
+                            regionalUv1);
+                        sampledRegionalColor = sampleTargetTerrainColor(
+                            regionalMaterialTile->surface,
+                            regionalMaterialTile->elevationLevel,
+                            worldGridX,
+                            worldGridZ,
+                            regionalColor);
+                        sampledContinuedUv0 =
+                            sampleRegionalExactCapUv0(
+                                *regionalMaterialTile,
+                                worldGridX,
+                                worldGridZ,
+                                continuedUv0);
+                        sampledContinuedAppearance =
+                            sampleRegionalExactCapAppearance(
+                                *regionalMaterialTile,
+                                worldGridX,
+                                worldGridZ,
+                                continuedAppearance);
+                        if (!sampledContinuedUv0 &&
+                            sampledRegionalUv1) {
+                            continuedUv0 = regionalUv0;
+                            sampledContinuedUv0 = true;
+                        }
+                        if (sampledContinuedUv0) {
+                            vertex.u = continuedUv0.x;
+                            vertex.v = continuedUv0.y;
+                        }
+                        if (sampledContinuedAppearance) {
+                            vertex.sourceUv1U =
+                                continuedAppearance.uv1.x;
+                            vertex.sourceUv1V =
+                                continuedAppearance.uv1.y;
+                            vertex.sourceUv2U =
+                                continuedAppearance.uv2.x;
+                            vertex.sourceUv2V =
+                                continuedAppearance.uv2.y;
+                            vertex.r = continuedAppearance.color.r;
+                            vertex.g = continuedAppearance.color.g;
+                            vertex.b = continuedAppearance.color.b;
+                            vertex.a = continuedAppearance.color.a;
+                            vertex.nx = continuedAppearance.normal.x;
+                            vertex.ny = continuedAppearance.normal.y;
+                            vertex.nz = continuedAppearance.normal.z;
+                        } else if (sampledRegionalUv1) {
+                            vertex.sourceUv1U = regionalUv1.x;
+                            vertex.sourceUv1V = regionalUv1.y;
+                        }
+                        if (!sampledContinuedAppearance &&
+                            sampledRegionalColor) {
+                            vertex.r = regionalColor.r;
+                            vertex.g = regionalColor.g;
+                            vertex.b = regionalColor.b;
+                            vertex.a = regionalColor.a;
+                        }
+                    }
                     prototype.vertices.push_back(vertex);
                     if (!mask.originalSourceVertices.empty() &&
                         sourceVertexIndex <
@@ -15025,6 +15532,34 @@ RuntimeEnvironment::Impl::ensureTerrainExactSourceSurfaceObjects(
                         authoredVertex.bitangent[0] = bitangent.x;
                         authoredVertex.bitangent[1] = bitangent.y;
                         authoredVertex.bitangent[2] = bitangent.z;
+                        if (sampledContinuedUv0) {
+                            authoredVertex.texcoords[0] = {
+                                continuedUv0.x, continuedUv0.y};
+                        }
+                        if (sampledContinuedAppearance) {
+                            authoredVertex.texcoords[1] = {
+                                continuedAppearance.uv1.x,
+                                continuedAppearance.uv1.y};
+                            authoredVertex.texcoords[2] = {
+                                continuedAppearance.uv2.x,
+                                continuedAppearance.uv2.y};
+                            authoredVertex.colors[0] = {
+                                continuedAppearance.color.r,
+                                continuedAppearance.color.g,
+                                continuedAppearance.color.b,
+                                continuedAppearance.color.a};
+                        } else if (sampledRegionalUv1) {
+                            authoredVertex.texcoords[1] = {
+                                regionalUv1.x, regionalUv1.y};
+                        }
+                        if (!sampledContinuedAppearance &&
+                            sampledRegionalColor) {
+                            authoredVertex.colors[0] = {
+                                regionalColor.r,
+                                regionalColor.g,
+                                regionalColor.b,
+                                regionalColor.a};
+                        }
                         prototype.sourceVertices.push_back(
                             authoredVertex);
                     }
@@ -19753,6 +20288,11 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                     if (!neighbor || !sourceNeighbor ||
                         !neighbor->sourceOccupied ||
                         neighbor->sourceReference ||
+                        route1TerrainUsesRegionalExactSourceLawnMaterial(
+                            authoredScene.sceneId,
+                            *neighbor,
+                            terrainTiles,
+                            sourceTerrainTiles) ||
                         neighbor->surface != tile->surface ||
                         !neighbor->surface.ends_with("lawn") ||
                         neighbor->shape != "flat" ||

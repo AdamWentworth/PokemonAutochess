@@ -5189,6 +5189,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::array<bool, 4> retainedSouthLedgeLowerContacts{};
             bool replacedIntactSourceCorner = false;
             bool retainedIntactSourceCornerCap = false;
+            bool regionalizedIntactSourceCornerCap = false;
+            std::array<bool, 2>
+                generatedIntactSourceCornerCapInteriors{};
             bool foundLightLawnCrownCarrier = false;
             bool forcedDarkLightLawnCrownCarrier = false;
             constexpr std::array<float, 3> raisedLawnTint{
@@ -5205,6 +5208,53 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                          std::string::npos &&
                      batch.geometryCacheKey.find("26,-13;") !=
                          std::string::npos);
+                regionalizedIntactSourceCornerCap =
+                    regionalizedIntactSourceCornerCap ||
+                    (batch.geometryCacheKey.find(
+                         "route1:terrain-exact-source-surface:") !=
+                         std::string::npos &&
+                     batch.geometryCacheKey.find(
+                         "regional-lawn:") != std::string::npos &&
+                     batch.geometryCacheKey.find("26,-13;") !=
+                         std::string::npos);
+                if (batch.geometryCacheKey.find(
+                        "route1:terrain-authored-surface:") !=
+                    std::string::npos) {
+                    const auto* vertices = batch.sharedVertices
+                        ? batch.sharedVertices
+                        : batch.vertices.data();
+                    const auto vertexCount = batch.sharedVertices
+                        ? batch.sharedVertexCount
+                        : batch.vertices.size();
+                    for (const auto& instance : batch.instances) {
+                        for (std::size_t vertexIndex = 0u;
+                             vertices && vertexIndex < vertexCount;
+                             ++vertexIndex) {
+                            const auto sourcePoint = transformPoint(
+                                variantSourceFromWorld,
+                                transformPoint(
+                                    instance.modelMatrix,
+                                    {vertices[vertexIndex].x,
+                                     vertices[vertexIndex].y,
+                                     vertices[vertexIndex].z}));
+                            for (std::size_t cap = 0u;
+                                 cap <
+                                     generatedIntactSourceCornerCapInteriors
+                                         .size();
+                                 ++cap) {
+                                generatedIntactSourceCornerCapInteriors[cap] =
+                                    generatedIntactSourceCornerCapInteriors[cap] ||
+                                    (std::abs(
+                                         sourcePoint[0] -
+                                         (2650.0 +
+                                          static_cast<double>(cap) *
+                                              100.0)) <= 0.1 &&
+                                     std::abs(
+                                         sourcePoint[2] + 1250.0) <= 0.1);
+                            }
+                        }
+                    }
+                }
                 for (std::size_t cell = 0u;
                      cell < replacedSouthLedgeCliffs.size();
                      ++cell) {
@@ -5298,6 +5348,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 retainedSouthLedgeLowerContact ||
                 replacedIntactSourceCorner ||
                 !retainedIntactSourceCornerCap ||
+                !regionalizedIntactSourceCornerCap ||
+                generatedIntactSourceCornerCapInteriors[0] ||
                 forcedDarkLightLawnCrownCarrier) {
                 outFail =
                     "South Clearing must preserve the imported ledge wall/fringe from (21,-19) through (24,-19), regenerate its straight top and lower contact row into one regional material field, preserve the complete imported cap/corner at (26,-13), and let light-lawn crown gaskets inherit the lawn material instead of drawing a dark green line (replacement-cliffs=" +
@@ -5324,6 +5376,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::to_string(replacedIntactSourceCorner) +
                     ", retained-source-cap=" +
                     std::to_string(retainedIntactSourceCornerCap) +
+                    ", regional-source-cap=" +
+                    std::to_string(
+                        regionalizedIntactSourceCornerCap) +
+                    ", generated-source-cap-interiors=" +
+                    std::to_string(
+                        generatedIntactSourceCornerCapInteriors[0]) +
+                    "," + std::to_string(
+                        generatedIntactSourceCornerCapInteriors[1]) +
                     ", light-crown=" +
                     std::to_string(foundLightLawnCrownCarrier) +
                     ", forced-dark=" +
