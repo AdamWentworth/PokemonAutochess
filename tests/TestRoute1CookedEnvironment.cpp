@@ -4360,6 +4360,41 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     {27, -15}, {27, -14}}};
             const auto& southClearingTiles =
                 variantEnvironment.terrainTiles();
+            std::string invalidWestLawnCorridorCells;
+            for (std::int32_t gridZ = -14; gridZ <= -9; ++gridZ) {
+                const auto found = std::find_if(
+                    southClearingTiles.begin(),
+                    southClearingTiles.end(),
+                    [&](const auto& tile) {
+                        return tile.gridX == 13 &&
+                            tile.gridZ == gridZ;
+                    });
+                const bool donorSocket = gridZ == -13;
+                if (found != southClearingTiles.end() &&
+                    found->normalizeSourceTint &&
+                    found->surface.ends_with("lawn") &&
+                    (donorSocket
+                         ? found->authored &&
+                               found->sourceReference.has_value()
+                         : !found->authored &&
+                               !found->sourceReference.has_value() &&
+                               !found->terrainPatchV2Core &&
+                               found->regionalMaterialHandoffOnly &&
+                               found->rebuildContinuousMaterialFields)) {
+                    continue;
+                }
+                if (!invalidWestLawnCorridorCells.empty()) {
+                    invalidWestLawnCorridorCells += ",";
+                }
+                invalidWestLawnCorridorCells +=
+                    "(13," + std::to_string(gridZ) + ")";
+            }
+            if (!invalidWestLawnCorridorCells.empty()) {
+                outFail =
+                    "South Clearing lawn cells (13,-9) through (13,-14) must share one appearance-only regional corridor without expanding the authored V2 core (invalid=" +
+                    invalidWestLawnCorridorCells + ").";
+                return false;
+            }
             std::string missingTintHandoffCells;
             for (const auto& cell : southClearingTintHandoffCells) {
                 const auto found = std::find_if(
@@ -4446,7 +4481,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             bool foundSouthClearingFieldRock = false;
             bool maskedSouthClearingFieldRock = false;
             bool foundGeneratedWestDarkRamp = false;
-            std::size_t staleWestDarkRampCleanupTriangles = 0u;
+            std::size_t transplantedWestDarkRampGroundTriangles = 0u;
+            std::size_t transplantedWestDarkRampGrassTriangles = 0u;
+            std::size_t transplantedWestDarkRampCliffTriangles = 0u;
             for (const auto& batch : variantBatches) {
                 const auto& material =
                     game::runtime::shared_world_batches::
@@ -4463,14 +4500,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     batch.geometryCacheKey.find(
                         "route1:terrain-authored-surface:") !=
                         std::string::npos;
-                const bool staleCleanupCandidate =
-                    material.sourceMaterialIndex != 19u &&
-                    batch.geometryCacheKey.find(":mesh:34:") !=
-                        std::string::npos &&
-                    batch.geometryCacheKey.find(":terrain-assembly:") !=
+                const bool sourceReferenceCandidate =
+                    batch.geometryCacheKey.find(
+                        "route1:terrain-source-reference-patch:") !=
                         std::string::npos;
                 if (!generatedDarkRampCandidate &&
-                    !staleCleanupCandidate) {
+                    !sourceReferenceCandidate) {
                     continue;
                 }
                 const auto* vertices = batch.sharedVertices
@@ -4507,16 +4542,37 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                     matrix,
                                     {vertex.x, vertex.y, vertex.z}));
                         }
-                        if (!valid ||
-                            !containsXZ(
-                                triangle, 1350.0, -1250.0)) {
+                        if (!valid) {
                             continue;
                         }
-                        foundGeneratedWestDarkRamp =
-                            foundGeneratedWestDarkRamp ||
-                            generatedDarkRampCandidate;
-                        if (staleCleanupCandidate) {
-                            ++staleWestDarkRampCleanupTriangles;
+                        if (generatedDarkRampCandidate &&
+                            containsXZ(
+                                triangle, 1350.0, -1250.0)) {
+                            foundGeneratedWestDarkRamp = true;
+                        }
+                        if (!sourceReferenceCandidate) {
+                            continue;
+                        }
+                        const double centroidX =
+                            (triangle[0][0] + triangle[1][0] +
+                             triangle[2][0]) /
+                            3.0;
+                        const double centroidZ =
+                            (triangle[0][2] + triangle[1][2] +
+                             triangle[2][2]) /
+                            3.0;
+                        if (static_cast<std::int32_t>(std::floor(
+                                centroidX / 100.0)) != 13 ||
+                            static_cast<std::int32_t>(std::floor(
+                                centroidZ / 100.0)) != -13) {
+                            continue;
+                        }
+                        if (material.sourceMaterialIndex == 19u) {
+                            ++transplantedWestDarkRampGroundTriangles;
+                        } else if (material.sourceMaterialIndex == 13u) {
+                            ++transplantedWestDarkRampGrassTriangles;
+                        } else if (material.sourceMaterialIndex == 18u) {
+                            ++transplantedWestDarkRampCliffTriangles;
                         }
                     }
                 };
@@ -4538,12 +4594,18 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 return false;
             }
             if (!foundGeneratedWestDarkRamp ||
-                staleWestDarkRampCleanupTriangles != 0u) {
+                transplantedWestDarkRampGroundTriangles != 0u ||
+                transplantedWestDarkRampGrassTriangles == 0u ||
+                transplantedWestDarkRampCliffTriangles == 0u) {
                 outFail =
-                    "South Clearing dark ramp (13,-13) must be owned by its generated slope without a detached imported terrain-assembly sheet (generated=" +
+                    "South Clearing dark ramp (13,-13) must use one generated regional top while retaining the donor grass crown and cliff carrier (generated=" +
                     std::to_string(foundGeneratedWestDarkRamp) +
-                    ", stale=" +
-                    std::to_string(staleWestDarkRampCleanupTriangles) + ").";
+                    ", donor ground=" +
+                    std::to_string(transplantedWestDarkRampGroundTriangles) +
+                    ", donor grass=" +
+                    std::to_string(transplantedWestDarkRampGrassTriangles) +
+                    ", donor cliff=" +
+                    std::to_string(transplantedWestDarkRampCliffTriangles) + ").";
                 return false;
             }
             struct SourceLawnAlbedoProbe {

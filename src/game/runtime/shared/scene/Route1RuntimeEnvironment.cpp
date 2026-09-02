@@ -3707,7 +3707,8 @@ struct RuntimeEnvironment::Impl {
         const std::set<GridCell>& sourceCells,
         const std::set<GridCell>& blockedSpillCells,
         const std::vector<std::pair<GridCell, GridCell>>&
-            requiredSpillBoundaries);
+            requiredSpillBoundaries,
+        GridCell targetTranslation);
 
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
     ensureTerrainExactSourceSurfaceObjects(
@@ -8324,7 +8325,8 @@ bool RuntimeEnvironment::Impl::sampleWorldTerrainHeight(
     float sourceY = route1TerrainProfileHeightCm(
         *found, localX, localZ);
     bool sampledRecoveredSurface = false;
-    if (!found->authored || found->sourceReference) {
+    if (!found->authored ||
+        (found->sourceReference && !found->normalizeSourceTint)) {
         const TerrainTileState* sampleTile = &*found;
         if (found->sourceReference) {
             const auto donor = std::find_if(
@@ -8353,7 +8355,8 @@ bool RuntimeEnvironment::Impl::sampleWorldTerrainHeight(
     // depth safety margin used by their render geometry. Exact canonical and
     // exact source-reference surfaces retain the recovered source height.
     const bool generatedTop =
-        (found->authored && !found->sourceReference) ||
+        (found->authored &&
+         (!found->sourceReference || found->normalizeSourceTint)) ||
         affectedSourceDirt ||
         found->cleanSuppressedEncounterGrassTint;
     if (generatedTop) {
@@ -12495,10 +12498,12 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
         if (sourceTile.surface == "empty") {
             continue;
         }
-        // A source-reference cell is rendered from the canonical donor's
-        // clipped source triangles below. Generating a second flat/ramp top
-        // would destroy the donor's irregular multi-level profile.
-        if (sourceTile.sourceReference) {
+        // Most source-reference cells render the canonical donor's complete
+        // clipped surface. A normalized lawn reference deliberately rebuilds
+        // only the top from the regional material field; its donor still
+        // supplies the irregular crown and cliff profile below.
+        if (sourceTile.sourceReference &&
+            !sourceTile.normalizeSourceTint) {
             continue;
         }
         if (route1TerrainUsesExactSourceSurfaceOverride(
@@ -13535,7 +13540,9 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 if (!neighbor ||
                     neighbor->surface != tile.surface ||
                     !neighbor->sourceOccupied ||
-                    neighbor->sourceReference ||
+                    (neighbor->sourceReference &&
+                     !(tile.sourceReference &&
+                       tile.normalizeSourceTint)) ||
                     route1TerrainUsesRegionalExactSourceLawnMaterial(
                         authoredScene.sceneId,
                         *neighbor,
@@ -13643,15 +13650,31 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                                     sourceDerivativeStep,
                             0.0f,
                             1.0f);
+                        const TerrainTileState* sourceSampleTile = neighbor;
+                        if (neighbor->sourceReference) {
+                            const auto donor = std::find_if(
+                                sourceTerrainTiles.begin(),
+                                sourceTerrainTiles.end(),
+                                [&](const TerrainTileState& candidate) {
+                                    return candidate.gridX ==
+                                            (*neighbor->sourceReference)[0] &&
+                                        candidate.gridZ ==
+                                            (*neighbor->sourceReference)[1];
+                                });
+                            if (donor == sourceTerrainTiles.end()) {
+                                continue;
+                            }
+                            sourceSampleTile = &*donor;
+                        }
                         SourceTerrainSurfaceSample sourceBoundary;
                         SourceTerrainSurfaceSample sourceInterior;
                         if (!sampleSourceTerrainSurface(
-                                *neighbor,
+                                *sourceSampleTile,
                                 sourceBoundaryLocalX,
                                 sourceBoundaryLocalZ,
                                 sourceBoundary) ||
                             !sampleSourceTerrainSurface(
-                                *neighbor,
+                                *sourceSampleTile,
                                 sourceInteriorLocalX,
                                 sourceInteriorLocalZ,
                                 sourceInterior)) {
@@ -14794,7 +14817,8 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
     const std::set<GridCell>& sourceCells,
     const std::set<GridCell>& blockedSpillCells,
     const std::vector<std::pair<GridCell, GridCell>>&
-        requiredSpillBoundaries) {
+        requiredSpillBoundaries,
+    GridCell targetTranslation) {
     std::vector<IRenderBackend::WorldSceneRenderObjectHandle> out;
     if (sourceCells.empty()) {
         return out;
@@ -14804,6 +14828,9 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
         sourcePatchKey += std::to_string(sourceGridX) + "," +
             std::to_string(sourceGridZ) + ";";
     }
+    sourcePatchKey += "target:" +
+        std::to_string(targetTranslation.first) + "," +
+        std::to_string(targetTranslation.second) + ";";
     sourcePatchKey += "blocked:";
     for (const auto& [sourceGridX, sourceGridZ] : blockedSpillCells) {
         sourcePatchKey += std::to_string(sourceGridX) + "," +
@@ -14833,10 +14860,38 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
         std::uint32_t,
         std::uint32_t,
         std::array<float, 16>>;
+    const bool normalizedLawnPatch = std::any_of(
+        sourceCells.begin(),
+        sourceCells.end(),
+        [&](const GridCell& sourceCell) {
+            const GridCell targetCell{
+                sourceCell.first + targetTranslation.first,
+                sourceCell.second + targetTranslation.second};
+            const auto targetTile = std::find_if(
+                terrainTiles.begin(),
+                terrainTiles.end(),
+                [&](const TerrainTileState& tile) {
+                    return tile.gridX == targetCell.first &&
+                        tile.gridZ == targetCell.second;
+                });
+            return targetTile != terrainTiles.end() &&
+                targetTile->normalizeSourceTint &&
+                targetTile->surface.ends_with("lawn");
+        });
     std::set<SourceCarrierIdentity> submittedSourceCarriers;
     for (const auto& mask : terrainMaskGeometries) {
+        // Meshes 16-28 are broad world-space foliage and cleanup cards, not
+        // tile-local terrain structure. Transplanting them with a donor patch
+        // duplicates metre-wide grass sheets at the destination; the regional
+        // ground plus terrain assemblies 29-36 already carry the intended
+        // cap, crown, and cliff silhouette.
+        const bool broadBakedCleanupCarrier =
+            normalizedLawnPatch &&
+            mask.sourceMeshIndex >= 16u &&
+            mask.sourceMeshIndex <= 28u;
         if (mask.geometryHandle.id == 0u ||
-            mask.geometryHandle.id > scene.registry.geometries.size()) {
+            mask.geometryHandle.id > scene.registry.geometries.size() ||
+            broadBakedCleanupCarrier) {
             continue;
         }
         // The registry exposes both the published source draw and its
@@ -14935,6 +14990,16 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                             centroid.x / kTerrainTileSizeCm)),
                         static_cast<std::int32_t>(std::floor(
                             centroid.z / kTerrainTileSizeCm))};
+                const GridCell targetCell{
+                    centroidCell.first + targetTranslation.first,
+                    centroidCell.second + targetTranslation.second};
+                const auto targetTile = std::find_if(
+                    terrainTiles.begin(),
+                    terrainTiles.end(),
+                    [&](const TerrainTileState& tile) {
+                        return tile.gridX == targetCell.first &&
+                            tile.gridZ == targetCell.second;
+                    });
                 if (blockedSpillCells.contains(centroidCell)) {
                     continue;
                 }
@@ -14971,6 +15036,17 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
                         belongsToRequiredSpillBand
                     : sourceCells.contains(centroidCell);
                 if (!belongsToSourcePatch) {
+                    continue;
+                }
+                // A normalized lawn reference gets its top from the generated
+                // regional field, so copying the donor ground here would put
+                // an independently shaded square directly over that surface.
+                // Non-ground donor carriers remain responsible for the grass
+                // crown and cliff wall that define the ledge silhouette.
+                if (mask.sourceGround &&
+                    targetTile != terrainTiles.end() &&
+                    targetTile->normalizeSourceTint &&
+                    targetTile->surface.ends_with("lawn")) {
                     continue;
                 }
                 if (mask.cleanupOnly) {
@@ -19689,6 +19765,71 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         nextSourceReferenceCells;
     std::set<std::pair<GridCell, GridCell>>
         nextInvalidatedSourceCleanupBoundaries;
+    const auto mutableTerrainTileAt = [&] (
+            const GridCell& cell) -> TerrainTileState* {
+        const auto found = std::find_if(
+            terrainTiles.begin(),
+            terrainTiles.end(),
+            [&](const TerrainTileState& tile) {
+                return tile.gridX == cell.first &&
+                    tile.gridZ == cell.second;
+            });
+        return found == terrainTiles.end() ? nullptr : &*found;
+    };
+    constexpr std::array<std::array<std::int32_t, 2>, 4>
+        materialCorridorDirections{{
+            {0, 1}, {1, 0}, {0, -1}, {-1, 0}}};
+    // A normalized donor ramp is only one structural socket inside a longer
+    // source-authored lawn corridor. Join the compatible cells along its
+    // slope axis to the same regional material field after V2 has planned
+    // its topology. Doing this here avoids turning those appearance-only
+    // cells into new V2 core and transition terrain.
+    std::vector<GridCell> normalizedDonorRamps;
+    for (const auto& tile : terrainTiles) {
+        if (tile.sourceReference && tile.normalizeSourceTint &&
+            tile.surface.ends_with("lawn") &&
+            tile.shape.starts_with("ramp_")) {
+            normalizedDonorRamps.emplace_back(tile.gridX, tile.gridZ);
+        }
+    }
+    for (const auto& seedCell : normalizedDonorRamps) {
+        auto* seed = mutableTerrainTileAt(seedCell);
+        if (!seed) {
+            continue;
+        }
+        const bool followsZ =
+            seed->shape == "ramp_north" ||
+            seed->shape == "ramp_south";
+        const std::array<std::size_t, 2> corridorEdges = followsZ
+            ? std::array<std::size_t, 2>{0u, 2u}
+            : std::array<std::size_t, 2>{1u, 3u};
+        for (const std::size_t edge : corridorEdges) {
+            GridCell currentCell = seedCell;
+            while (true) {
+                const auto direction =
+                    materialCorridorDirections[edge];
+                const GridCell nextCell{
+                    currentCell.first + direction[0],
+                    currentCell.second + direction[1]};
+                auto* current = mutableTerrainTileAt(currentCell);
+                auto* next = mutableTerrainTileAt(nextCell);
+                if (!current || !next || next->authored ||
+                    next->sourceReference ||
+                    !next->surface.ends_with("lawn")) {
+                    break;
+                }
+                const auto profile = route1TerrainSharedEdgeProfile(
+                    *current, next, edge);
+                if (profile.tileLevels != profile.neighborLevels) {
+                    break;
+                }
+                next->normalizeSourceTint = true;
+                next->regionalMaterialHandoffOnly = true;
+                next->rebuildContinuousMaterialFields = true;
+                currentCell = nextCell;
+            }
+        }
+    }
     for (const auto& tile : layout.authoredTerrainTiles) {
         const auto cell = std::pair{tile.gridX, tile.gridZ};
         const auto sourceTile = std::find_if(
@@ -19735,6 +19876,24 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         if (explicitCleanup || geometryChanged ||
             surfaceMaterialChanged) {
             nextCleanupCells.emplace(cell);
+        }
+    }
+    for (const auto& tile : terrainTiles) {
+        if (!tile.normalizeSourceTint ||
+            !tile.surface.ends_with("lawn")) {
+            continue;
+        }
+        const GridCell cell{tile.gridX, tile.gridZ};
+        // A normalized lawn top omits broad source foliage cards. Retire the
+        // canonical cards that cross the cell and its immediate neighbours;
+        // otherwise an old card remains as a dark one-metre square above the
+        // repaired terrain. Structural crowns and cliffs do not use this
+        // broad-card overlap set and retain their normal ownership.
+        nextBroadOverlayCleanupCells.emplace(cell);
+        for (const auto& direction : materialCorridorDirections) {
+            nextBroadOverlayCleanupCells.emplace(
+                tile.gridX + direction[0],
+                tile.gridZ + direction[1]);
         }
     }
     // The approved South Entrance keeps its exact imported transition ring.
@@ -20108,26 +20267,6 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             }
         }
     }
-    if (regeneratesMaterialTransitionRing) {
-        // A regenerated dark-lawn ramp already supplies its complete sloped
-        // top and any side contours. Retaining the imported terrain-assembly
-        // cleanup sheet in the same metre leaves that old carrier several
-        // centimetres above the new slope, where it reads as a detached dark
-        // rectangle. Transfer cleanup ownership together with the ramp rather
-        // than allowing source and generated assemblies to overlap.
-        for (const auto& cell : nextCells) {
-            const auto* tile = findTerrainTile(cell);
-            const auto* sourceTile = findSourceTerrainTile(cell);
-            if (tile && sourceTile && !tile->sourceReference &&
-                tile->surface == "dark_lawn" &&
-                tile->shape.starts_with("ramp_") &&
-                tile->surface == sourceTile->surface &&
-                tile->shape == sourceTile->shape &&
-                tile->elevationLevel == sourceTile->elevationLevel) {
-                nextCleanupCells.emplace(cell);
-            }
-        }
-    }
     // Ledge ownership depends on current/source endpoint profiles, not on
     // whether the set of masked cells changed. Resolve it before the mask
     // cache early-out so repeated live edits at the same cells still rebuild
@@ -20468,6 +20607,7 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
             activeTile->surface != sourceTile->surface ||
             activeTile->regionalMaterialHandoffOnly ||
             activeTile->rebuildContinuousMaterialFields ||
+            activeTile->normalizeSourceTint ||
             activeTile->shape != sourceTile->shape ||
             activeTile->elevationLevel !=
                 sourceTile->elevationLevel ||
@@ -21830,7 +21970,8 @@ void RuntimeEnvironment::Impl::appendAuthoredTerrainTiles(
              ensureTerrainSourceReferenceObjects(
                  sourceCells,
                  blockedSpillCells,
-                 requiredSpillBoundaries)) {
+                 requiredSpillBoundaries,
+                 translation)) {
             append(
                 object,
                 sourcePlacementMatrix(

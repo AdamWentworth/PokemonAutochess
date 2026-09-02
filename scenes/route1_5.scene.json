@@ -868,6 +868,32 @@
       "components": {
         "terrain_tile": {
           "elevation_level": 2,
+          "grid_x": 13,
+          "grid_z": -13,
+          "normalize_source_tint": true,
+          "receives_projected_shadow": true,
+          "shape": "ramp_south",
+          "source_reference": {
+            "grid_x": 19,
+            "grid_z": -13
+          },
+          "suppress_overlapping_vegetation": false,
+          "surface": "dark_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (13, -13)",
+      "enabled": true,
+      "id": "terrain-tile/x-p13/z-n13",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_source_patch_reconstruction",
+      "sibling_order": 138
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 2,
           "grid_x": 14,
           "grid_z": -13,
           "normalize_source_tint": false,
