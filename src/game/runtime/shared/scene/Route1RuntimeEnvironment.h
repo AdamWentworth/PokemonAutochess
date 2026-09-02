@@ -212,12 +212,19 @@ struct RuntimeStats {
     std::uint32_t terrainPatchV2InvalidBoundaryCount = 0u;
     std::uint32_t terrainLawnCompatibleBoundarySampleCount = 0u;
     std::uint32_t terrainLawnDerivativeBoundarySampleCount = 0u;
+    std::uint32_t terrainLawnMaterialOverlayCellCount = 0u;
+    std::uint32_t terrainLawnSourceBoundarySampleCount = 0u;
+    std::uint32_t terrainLawnSourceDerivativeBoundarySampleCount = 0u;
     float terrainLawnMaximumBoundaryUv01Difference = 0.0f;
     float terrainLawnMaximumBoundaryColorDifference = 0.0f;
+    float terrainLawnMaximumSourceBoundaryUv01Difference = 0.0f;
+    float terrainLawnMaximumSourceBoundaryColorDifference = 0.0f;
     float terrainLawnMaximumUv0DerivativeRestart = 0.0f;
     float terrainLawnMaximumUv1DerivativeRestart = 0.0f;
     float terrainLawnMaximumUv01DerivativeRestart = 0.0f;
     float terrainLawnMaximumColorDerivativeRestart = 0.0f;
+    float terrainLawnMaximumSourceUv01DerivativeRestart = 0.0f;
+    float terrainLawnMaximumSourceColorDerivativeRestart = 0.0f;
 };
 
 struct EnvironmentSourceIdentity {

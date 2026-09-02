@@ -2343,9 +2343,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             for (std::size_t attribute = 0u;
                  attribute < boundary.attributeMinimum.size();
                  ++attribute) {
-                if (boundary.attributeMaximum[attribute] -
-                        boundary.attributeMinimum[attribute] >
-                    0.001f) {
+                float difference =
+                    boundary.attributeMaximum[attribute] -
+                    boundary.attributeMinimum[attribute];
+                if (attribute > 0u) {
+                    difference = std::abs(
+                        difference - std::round(difference));
+                }
+                if (difference > 0.001f) {
                     return false;
                 }
             }
@@ -3486,7 +3491,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                     field.uv0[channel])));
                         maximumWestLawnUv1Difference = std::max(
                             maximumWestLawnUv1Difference,
-                            std::abs(uv1[channel] - field.uv1[channel]));
+                            std::abs(
+                                (uv1[channel] - field.uv1[channel]) -
+                                std::round(
+                                    uv1[channel] -
+                                    field.uv1[channel])));
                     }
                     for (std::size_t channel = 0u; channel < 4u;
                          ++channel) {
@@ -4881,13 +4890,27 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 terrainFieldStats
                     .terrainLawnDerivativeBoundarySampleCount == 0u ||
                 terrainFieldStats
+                    .terrainLawnMaterialOverlayCellCount == 0u ||
+                terrainFieldStats
                     .terrainLawnMaximumBoundaryUv01Difference > 0.001f ||
                 terrainFieldStats
                     .terrainLawnMaximumBoundaryColorDifference > 0.001f ||
                 terrainFieldStats
+                    .terrainLawnMaximumSourceBoundaryUv01Difference >
+                        0.001f ||
+                terrainFieldStats
+                    .terrainLawnMaximumSourceBoundaryColorDifference >
+                        0.001f ||
+                terrainFieldStats
                     .terrainLawnMaximumUv01DerivativeRestart > 0.05f ||
                 terrainFieldStats
-                    .terrainLawnMaximumColorDerivativeRestart > 0.10f) {
+                    .terrainLawnMaximumColorDerivativeRestart > 0.10f ||
+                terrainFieldStats
+                    .terrainLawnMaximumSourceUv01DerivativeRestart >
+                        0.05f ||
+                terrainFieldStats
+                    .terrainLawnMaximumSourceColorDerivativeRestart >
+                        0.10f) {
                 outFail =
                     "South Clearing's generated material-19 surface is not one repeat-equivalent world field across every rebuilt tile boundary (samples=" +
                     std::to_string(
@@ -4897,6 +4920,18 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::to_string(
                         terrainFieldStats
                             .terrainLawnDerivativeBoundarySampleCount) +
+                    ", material-overlay-cells=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnMaterialOverlayCellCount) +
+                    ", source-boundaries=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnSourceBoundarySampleCount) +
+                    ", source-derivative-boundaries=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnSourceDerivativeBoundarySampleCount) +
                     ", boundary-uv=" +
                     std::to_string(
                         terrainFieldStats
@@ -4905,6 +4940,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::to_string(
                         terrainFieldStats
                             .terrainLawnMaximumBoundaryColorDifference) +
+                    ", source-boundary-uv=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnMaximumSourceBoundaryUv01Difference) +
+                    ", source-boundary-color=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnMaximumSourceBoundaryColorDifference) +
                     ", uv-derivative-restart=" +
                     std::to_string(
                         terrainFieldStats
@@ -4922,6 +4965,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::to_string(
                         terrainFieldStats
                             .terrainLawnMaximumColorDerivativeRestart) +
+                    ", source-uv-derivative-restart=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnMaximumSourceUv01DerivativeRestart) +
+                    ", source-color-derivative-restart=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnMaximumSourceColorDerivativeRestart) +
                     ").";
                 return false;
             }

@@ -3353,12 +3353,18 @@ struct RuntimeEnvironment::Impl {
     bool terrainPatchV2PreviewEnabled = false;
     std::uint32_t terrainLawnCompatibleBoundarySampleCount = 0u;
     std::uint32_t terrainLawnDerivativeBoundarySampleCount = 0u;
+    std::uint32_t terrainLawnSourceBoundarySampleCount = 0u;
+    std::uint32_t terrainLawnSourceDerivativeBoundarySampleCount = 0u;
     float terrainLawnMaximumBoundaryUv01Difference = 0.0f;
     float terrainLawnMaximumBoundaryColorDifference = 0.0f;
+    float terrainLawnMaximumSourceBoundaryUv01Difference = 0.0f;
+    float terrainLawnMaximumSourceBoundaryColorDifference = 0.0f;
     float terrainLawnMaximumUv0DerivativeRestart = 0.0f;
     float terrainLawnMaximumUv1DerivativeRestart = 0.0f;
     float terrainLawnMaximumUv01DerivativeRestart = 0.0f;
     float terrainLawnMaximumColorDerivativeRestart = 0.0f;
+    float terrainLawnMaximumSourceUv01DerivativeRestart = 0.0f;
+    float terrainLawnMaximumSourceColorDerivativeRestart = 0.0f;
     std::vector<SourceTerrainTriangle> sourceTerrainTriangles;
     std::map<
         std::pair<std::int32_t, std::int32_t>,
@@ -3373,6 +3379,8 @@ struct RuntimeEnvironment::Impl {
     std::vector<TerrainMaskGeometry> terrainMaskGeometries;
     std::set<std::pair<std::int32_t, std::int32_t>>
         terrainMaskCells;
+    std::set<std::pair<std::int32_t, std::int32_t>>
+        terrainMaterialOverlayCells;
     std::set<std::pair<std::int32_t, std::int32_t>>
         terrainCleanupCells;
     std::set<std::pair<std::int32_t, std::int32_t>>
@@ -3789,11 +3797,6 @@ struct RuntimeEnvironment::Impl {
         float localZ,
         glm::vec4& outColor,
         float* outBoundaryWeight = nullptr) const;
-
-    float regionalMaterialHandoffSourceWeight(
-        const TerrainTileState& tile,
-        float worldGridX,
-        float worldGridZ) const;
 
     bool sampleSourceTerrainGroundMaskAlpha(
         const glm::vec2& sourceUv2,
@@ -6268,10 +6271,21 @@ struct RuntimeEnvironment::Impl {
             terrainLawnCompatibleBoundarySampleCount;
         stats.terrainLawnDerivativeBoundarySampleCount =
             terrainLawnDerivativeBoundarySampleCount;
+        stats.terrainLawnMaterialOverlayCellCount =
+            static_cast<std::uint32_t>(
+                terrainMaterialOverlayCells.size());
+        stats.terrainLawnSourceBoundarySampleCount =
+            terrainLawnSourceBoundarySampleCount;
+        stats.terrainLawnSourceDerivativeBoundarySampleCount =
+            terrainLawnSourceDerivativeBoundarySampleCount;
         stats.terrainLawnMaximumBoundaryUv01Difference =
             terrainLawnMaximumBoundaryUv01Difference;
         stats.terrainLawnMaximumBoundaryColorDifference =
             terrainLawnMaximumBoundaryColorDifference;
+        stats.terrainLawnMaximumSourceBoundaryUv01Difference =
+            terrainLawnMaximumSourceBoundaryUv01Difference;
+        stats.terrainLawnMaximumSourceBoundaryColorDifference =
+            terrainLawnMaximumSourceBoundaryColorDifference;
         stats.terrainLawnMaximumUv0DerivativeRestart =
             terrainLawnMaximumUv0DerivativeRestart;
         stats.terrainLawnMaximumUv1DerivativeRestart =
@@ -6280,6 +6294,10 @@ struct RuntimeEnvironment::Impl {
             terrainLawnMaximumUv01DerivativeRestart;
         stats.terrainLawnMaximumColorDerivativeRestart =
             terrainLawnMaximumColorDerivativeRestart;
+        stats.terrainLawnMaximumSourceUv01DerivativeRestart =
+            terrainLawnMaximumSourceUv01DerivativeRestart;
+        stats.terrainLawnMaximumSourceColorDerivativeRestart =
+            terrainLawnMaximumSourceColorDerivativeRestart;
     }
 
     bool rebuildLayoutDependentState(
@@ -7433,12 +7451,18 @@ bool RuntimeEnvironment::Impl::initializeTerrainTiles(
     missingRegionalTerrainUv01Anchors.clear();
     terrainLawnCompatibleBoundarySampleCount = 0u;
     terrainLawnDerivativeBoundarySampleCount = 0u;
+    terrainLawnSourceBoundarySampleCount = 0u;
+    terrainLawnSourceDerivativeBoundarySampleCount = 0u;
     terrainLawnMaximumBoundaryUv01Difference = 0.0f;
     terrainLawnMaximumBoundaryColorDifference = 0.0f;
+    terrainLawnMaximumSourceBoundaryUv01Difference = 0.0f;
+    terrainLawnMaximumSourceBoundaryColorDifference = 0.0f;
     terrainLawnMaximumUv0DerivativeRestart = 0.0f;
     terrainLawnMaximumUv1DerivativeRestart = 0.0f;
     terrainLawnMaximumUv01DerivativeRestart = 0.0f;
     terrainLawnMaximumColorDerivativeRestart = 0.0f;
+    terrainLawnMaximumSourceUv01DerivativeRestart = 0.0f;
+    terrainLawnMaximumSourceColorDerivativeRestart = 0.0f;
     terrainTilePrototypes.groundVertexTemplate = lightTemplate;
     terrainTilePrototypes.groundSourceVertexTemplate =
         lightSourceTemplate;
@@ -8943,61 +8967,6 @@ bool RuntimeEnvironment::Impl::sampleTargetTerrainUv2(
     return true;
 }
 
-float RuntimeEnvironment::Impl::regionalMaterialHandoffSourceWeight(
-    const TerrainTileState& tile,
-    float worldGridX,
-    float worldGridZ) const {
-    if (!tile.regionalMaterialHandoffOnly) {
-        return 0.0f;
-    }
-    float distanceFromCleanupCells =
-        std::numeric_limits<float>::max();
-    float distanceFromSourceCells =
-        std::numeric_limits<float>::max();
-    for (const auto& candidate : terrainTiles) {
-        if (candidate.surface != "light_lawn" ||
-            candidate.elevationLevel != tile.elevationLevel) {
-            continue;
-        }
-        const float minimumX = static_cast<float>(candidate.gridX);
-        const float maximumX = minimumX + 1.0f;
-        const float minimumZ = static_cast<float>(candidate.gridZ);
-        const float maximumZ = minimumZ + 1.0f;
-        const float deltaX = worldGridX < minimumX
-            ? minimumX - worldGridX
-            : (worldGridX > maximumX
-                ? worldGridX - maximumX
-                : 0.0f);
-        const float deltaZ = worldGridZ < minimumZ
-            ? minimumZ - worldGridZ
-            : (worldGridZ > maximumZ
-                ? worldGridZ - maximumZ
-                : 0.0f);
-        const float distance = std::hypot(deltaX, deltaZ);
-        if (candidate.cleanSuppressedEncounterGrassTint &&
-            !candidate.regionalMaterialHandoffOnly) {
-            distanceFromCleanupCells = std::min(
-                distanceFromCleanupCells, distance);
-        } else if (!candidate.cleanSuppressedEncounterGrassTint) {
-            distanceFromSourceCells = std::min(
-                distanceFromSourceCells, distance);
-        }
-    }
-    if (!std::isfinite(distanceFromCleanupCells) ||
-        !std::isfinite(distanceFromSourceCells)) {
-        return 1.0f;
-    }
-    const float distanceSum =
-        distanceFromCleanupCells + distanceFromSourceCells;
-    if (distanceSum <= 1.0e-5f) {
-        return 0.5f;
-    }
-    return glm::smoothstep(
-        0.0f,
-        1.0f,
-        distanceFromCleanupCells / distanceSum);
-}
-
 bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
     const TerrainTileState& tile,
     float localX,
@@ -9220,25 +9189,6 @@ bool RuntimeEnvironment::Impl::sampleNormalizedSourceTintColor(
     }
     if (totalWeight > 0.0f) {
         outColor = weightedColor / totalWeight;
-    }
-    if (tile.regionalMaterialHandoffOnly) {
-        // Resolve the complete handoff as one world-space distance field,
-        // rather than restarting a fade inside each generated tile. The old
-        // per-tile feather was continuous at its vertices but retained a
-        // metre-wide color plateau that still read as a square. The bounded
-        // material ring now solves against both ownership sets: repaired lawn
-        // is weight zero, exact decoded lawn is weight one, and every edge of
-        // a corner handoff reaches the correct neighbor simultaneously.
-        SourceTerrainSurfaceSample sourceSample;
-        if (sampleSourceTerrainSurface(
-                tile, localX, localZ, sourceSample)) {
-            outColor = glm::mix(
-                outColor,
-                sourceSample.color0,
-                regionalMaterialHandoffSourceWeight(
-                    tile, worldGridX, worldGridZ));
-            return true;
-        }
     }
     if (totalBoundaryWeight > 0.0f) {
         outColor = glm::mix(
@@ -9802,7 +9752,14 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     }
 
     const auto usesGeneratedSurface = [&](const TerrainTileState& candidate) {
-        if (candidate.surface == "empty" || candidate.sourceReference ||
+        if (candidate.surface == "empty" || candidate.sourceReference) {
+            return false;
+        }
+        if (terrainMaterialOverlayCells.contains(
+                {candidate.gridX, candidate.gridZ})) {
+            return true;
+        }
+        if (
             route1TerrainUsesExactSourceSurfaceOverride(
                 candidate, terrainTiles, sourceTerrainTiles)) {
             return false;
@@ -10190,10 +10147,15 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
     // remained visible as a square. This flag is intentionally independent
     // of source topology and cleanup reason: ownership of a connected field
     // cannot change merely because one cell was a ramp or tint repair.
+    const bool overlaysRetainedSourceMaterial =
+        terrainMaterialOverlayCells.contains(
+            {tile.gridX, tile.gridZ});
     const bool usesRegionalContinuousUv01Field =
         route1UsesRegionalTerrainMaterialField(
             authoredScene.sceneId) &&
-        tile.terrainPatchV2RegionId != 0u &&
+        (tile.terrainPatchV2RegionId != 0u ||
+         tile.cleanSuppressedEncounterGrassTint ||
+         overlaysRetainedSourceMaterial) &&
         (dirt || tile.surface.ends_with("lawn"));
     struct SourceCrownFieldSample {
         glm::vec3 positionCm{};
@@ -10366,9 +10328,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             const bool preserveSourceLawnAlbedoField =
                 sourceSampled && !dirt && sourceTopologyMatches &&
                 tile.surface == "light_lawn" &&
-                tile.sourceSurface == tile.surface &&
-                !tile.cleanSuppressedEncounterGrassTint &&
-                !tile.normalizeSourceTint;
+                tile.sourceSurface == tile.surface;
             const bool preserveSourceField =
                 preserveSourceDirtField ||
                 (sourceSampled &&
@@ -10829,6 +10789,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             // vertices; an edge-only correction leaves the rest of the metre
             // as a plainly visible rectangular patch.
             constexpr float kSourceMaterialHandoffWidthCm = 50.0f;
+            constexpr float kSourceMaterialDerivativeStep = 0.05f;
             const std::array<float, 4> sourceEdgeDistancesCm{
                 (1.0f - localZ) * kTerrainTileSizeCm,
                 (1.0f - localX) * kTerrainTileSizeCm,
@@ -10854,10 +10815,23 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     if ((sourceSeamOverlapMask & (1u << edge)) == 0u) {
                         continue;
                     }
-                    const float edgeWeight = 1.0f - glm::smoothstep(
+                    const float normalizedDistance = std::clamp(
+                        sourceEdgeDistancesCm[edge] /
+                            kSourceMaterialHandoffWidthCm,
                         0.0f,
-                        kSourceMaterialHandoffWidthCm,
-                        sourceEdgeDistancesCm[edge]);
+                        1.0f);
+                    // Quintic fade has zero first and second derivatives at
+                    // both ends. The source-side derivative is supplied by
+                    // the extrapolated sample below; the regional field
+                    // resumes without creating a second straight line at
+                    // the inner edge of this handoff.
+                    const float smoothDistance =
+                        normalizedDistance * normalizedDistance *
+                        normalizedDistance *
+                        (normalizedDistance *
+                             (normalizedDistance * 6.0f - 15.0f) +
+                         10.0f);
+                    const float edgeWeight = 1.0f - smoothDistance;
                     sourceMaterialHandoffWeight = std::max(
                         sourceMaterialHandoffWeight, edgeWeight);
                     if (edgeWeight <= 0.0f) {
@@ -10878,37 +10852,108 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         continue;
                     }
                     SourceTerrainSurfaceSample neighborSample;
+                    float neighborLocalX = std::clamp(
+                        materialWorldGridX -
+                            static_cast<float>(sourceNeighbor->gridX),
+                        0.0f,
+                        1.0f);
+                    float neighborLocalZ = std::clamp(
+                        materialWorldGridZ -
+                            static_cast<float>(sourceNeighbor->gridZ),
+                        0.0f,
+                        1.0f);
+                    if (edge == 0u) {
+                        neighborLocalZ = 0.0f;
+                    } else if (edge == 1u) {
+                        neighborLocalX = 0.0f;
+                    } else if (edge == 2u) {
+                        neighborLocalZ = 1.0f;
+                    } else {
+                        neighborLocalX = 1.0f;
+                    }
                     if (!sampleSourceTerrainSurface(
                             *sourceNeighbor,
-                            std::clamp(
-                                materialWorldGridX -
-                                    static_cast<float>(
-                                        sourceNeighbor->gridX),
-                                0.0f,
-                                1.0f),
-                            std::clamp(
-                                materialWorldGridZ -
-                                    static_cast<float>(
-                                        sourceNeighbor->gridZ),
-                                0.0f,
-                                1.0f),
+                            neighborLocalX,
+                            neighborLocalZ,
                             neighborSample)) {
                         continue;
                     }
-                    handoffColor += neighborSample.color0 * edgeWeight;
+                    float interiorLocalX = neighborLocalX;
+                    float interiorLocalZ = neighborLocalZ;
+                    if (edge == 0u) {
+                        interiorLocalZ = kSourceMaterialDerivativeStep;
+                    } else if (edge == 1u) {
+                        interiorLocalX = kSourceMaterialDerivativeStep;
+                    } else if (edge == 2u) {
+                        interiorLocalZ =
+                            1.0f - kSourceMaterialDerivativeStep;
+                    } else {
+                        interiorLocalX =
+                            1.0f - kSourceMaterialDerivativeStep;
+                    }
+                    SourceTerrainSurfaceSample neighborInteriorSample;
+                    const bool sampledNeighborInterior =
+                        sampleSourceTerrainSurface(
+                            *sourceNeighbor,
+                            interiorLocalX,
+                            interiorLocalZ,
+                            neighborInteriorSample);
+                    const float derivativeScale = sampledNeighborInterior
+                        ? sourceEdgeDistancesCm[edge] /
+                            (kTerrainTileSizeCm *
+                             kSourceMaterialDerivativeStep)
+                        : 0.0f;
+                    const glm::vec4 extrapolatedColor = glm::clamp(
+                        neighborSample.color0 -
+                            (neighborInteriorSample.color0 -
+                             neighborSample.color0) * derivativeScale,
+                        glm::vec4{0.0f},
+                        glm::vec4{1.0f});
+                    handoffColor += extrapolatedColor * edgeWeight;
+                    const auto extrapolateRepeat = [&] (
+                            float boundary,
+                            float interior) {
+                        const float compatibleInterior = unwrapNear(
+                            interior, boundary);
+                        return boundary -
+                            (compatibleInterior - boundary) *
+                                derivativeScale;
+                    };
+                    const glm::vec2 extrapolatedUv0{
+                        extrapolateRepeat(
+                            neighborSample.uv0.x,
+                            sampledNeighborInterior
+                                ? neighborInteriorSample.uv0.x
+                                : neighborSample.uv0.x),
+                        extrapolateRepeat(
+                            neighborSample.uv0.y,
+                            sampledNeighborInterior
+                                ? neighborInteriorSample.uv0.y
+                                : neighborSample.uv0.y)};
+                    const glm::vec2 extrapolatedUv1{
+                        extrapolateRepeat(
+                            neighborSample.uv1.x,
+                            sampledNeighborInterior
+                                ? neighborInteriorSample.uv1.x
+                                : neighborSample.uv1.x),
+                        extrapolateRepeat(
+                            neighborSample.uv1.y,
+                            sampledNeighborInterior
+                                ? neighborInteriorSample.uv1.y
+                                : neighborSample.uv1.y)};
                     handoffUv0 += glm::vec2{
                         unwrapNear(
-                            neighborSample.uv0.x,
+                            extrapolatedUv0.x,
                             deformedSourceSample.uv0.x),
                         unwrapNear(
-                            neighborSample.uv0.y,
+                            extrapolatedUv0.y,
                             deformedSourceSample.uv0.y)} * edgeWeight;
                     handoffUv1 += glm::vec2{
                         unwrapNear(
-                            neighborSample.uv1.x,
+                            extrapolatedUv1.x,
                             deformedSourceSample.uv1.x),
                         unwrapNear(
-                            neighborSample.uv1.y,
+                            extrapolatedUv1.y,
                             deformedSourceSample.uv1.y)} * edgeWeight;
                     handoffSampleWeight += edgeWeight;
                 }
@@ -10954,10 +10999,12 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                  !tile.normalizeSourceTint);
             const bool sampledTargetMaterialField =
                 continuesReplacementSurfaceField &&
-                sourceTopologyMatches &&
+                (sourceTopologyMatches ||
+                 (tile.sourceSurface != tile.surface &&
+                  tile.shape.starts_with("ramp_") &&
+                  tile.sourceShape.starts_with("ramp_"))) &&
                 !preserveSourceField &&
                 !preserveSourceLawnAlbedoField &&
-                !sampledRegionalUv01Field &&
                 sampleTargetTerrainUv01(
                     tile.surface,
                     tile.elevationLevel,
@@ -10974,14 +11021,16 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             // recovered lawn branch through rebuilt regional dirt and lawn
             // alike so a dirt-to-lawn replacement cannot become a bright
             // square and the leafy boundary remains exact on both sides.
-            glm::vec2 baseUv0 = sampledRegionalUv01Field
+            glm::vec2 baseUv0 = preserveSourceLawnAlbedoField
+                ? deformedSourceSample.uv0
+                : sampledTargetMaterialField
+                ? continuedUv0
+                : sampledRegionalUv01Field
                 ? regionalUv0
                 : preserveSourceField
                 ? deformedSourceSample.uv0
-                : (preserveSourceLawnAlbedoField
-                    ? deformedSourceSample.uv0
-                    : continuedSourceMaterialField
-                        ? continuedUv0
+                : (continuedSourceMaterialField
+                    ? continuedUv0
                     : worldFallbackUv);
             glm::vec2 baseUv1 = sampledRegionalUv01Field
                 ? regionalUv1
@@ -11016,35 +11065,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                     baseUv1,
                     sourceUv1,
                     sourceMaterialHandoffWeight);
-            }
-            if (tile.regionalMaterialHandoffOnly &&
-                deformedSourceSampled) {
-                const float sourceWeight =
-                    regionalMaterialHandoffSourceWeight(
-                        tile,
-                        materialWorldGridX,
-                        materialWorldGridZ);
-                const auto unwrapNear = [](float value, float reference) {
-                    return value - std::round(value - reference);
-                };
-                const glm::vec2 sourceUv0{
-                    unwrapNear(
-                        deformedSourceSample.uv0.x,
-                        baseUv0.x),
-                    unwrapNear(
-                        deformedSourceSample.uv0.y,
-                        baseUv0.y)};
-                const glm::vec2 sourceUv1{
-                    unwrapNear(
-                        deformedSourceSample.uv1.x,
-                        baseUv1.x),
-                    unwrapNear(
-                        deformedSourceSample.uv1.y,
-                        baseUv1.y)};
-                baseUv0 = glm::mix(
-                    baseUv0, sourceUv0, sourceWeight);
-                baseUv1 = glm::mix(
-                    baseUv1, sourceUv1, sourceWeight);
             }
             vertex.u = baseUv0.x;
             vertex.v = baseUv0.y;
@@ -11233,15 +11253,6 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                         materialWorldGridX,
                         materialWorldGridZ,
                         resolvedUv2);
-                }
-                if (tile.regionalMaterialHandoffOnly &&
-                    deformedSourceSampled) {
-                    // UV2 is an atlas selector, not a continuous lighting or
-                    // detail field. Interpolating it through unrelated atlas
-                    // space creates a thin black post at source ledge corners.
-                    // The decoded light-lawn selector is already compatible
-                    // with the neutral selector used by the repaired field.
-                    resolvedUv2 = deformedSourceSample.uv2;
                 }
                 if (transitionUv.boundaryMask != 0u &&
                     tile.surface.ends_with("lawn")) {
@@ -11559,6 +11570,18 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
             if (tile.cleanSuppressedEncounterGrassTint) {
                 targetColor = normalizedTintColor;
                 targetColorSampled = normalizedTintSampled;
+            } else if (tile.surface == "light_lawn" &&
+                       usesRegionalMaterialField &&
+                       !ramp) {
+                // Flat lawn in an editable Route 1 variant belongs to one
+                // source-derived regional lighting field. Restoring each
+                // promoted source cell's decoded Color0 independently here
+                // produced broad one-metre plateaus even after their shared
+                // vertices and first derivatives agreed. Ramps retain their
+                // shaped source lighting below; flat cells use the cubic
+                // regional sampler and the outer source handoff post-pass.
+                targetColorSampled =
+                    sampleTargetColorAtSurfaceHeight(targetColor);
             } else if (tile.surface == "light_lawn" &&
                        rebuildsEditedRampRun && sourceSampled &&
                        tile.sourceElevationLevel ==
@@ -12260,16 +12283,20 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
         mixByte(0xffu);
     };
     for (const auto& tile : terrainTiles) {
+        const GridCell tileCell{tile.gridX, tile.gridZ};
+        const bool materialOverlay =
+            terrainMaterialOverlayCells.contains(tileCell);
         if (route1TerrainUsesExactSourceSurfaceOverride(
-                tile, terrainTiles, sourceTerrainTiles)) {
+                tile, terrainTiles, sourceTerrainTiles) &&
+            !materialOverlay) {
             continue;
         }
-        const bool rebuildsMaskedSourceSurface =
-            terrainMaskCells.contains({tile.gridX, tile.gridZ}) &&
+        const bool rebuildsGeneratedSurface =
+            (terrainMaskCells.contains(tileCell) || materialOverlay) &&
             !tile.sourceReference;
         if (!tile.authored &&
             !tile.cleanSuppressedEncounterGrassTint &&
-            !rebuildsMaskedSourceSurface) {
+            !rebuildsGeneratedSurface) {
             continue;
         }
         mixInteger(tile.gridX);
@@ -12362,6 +12389,10 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
         surfaceVertexLogicalSamples;
     surfaceTiles.reserve(terrainTiles.size());
     for (const auto& sourceTile : terrainTiles) {
+        const GridCell sourceTileCell{
+            sourceTile.gridX, sourceTile.gridZ};
+        const bool materialOverlay =
+            terrainMaterialOverlayCells.contains(sourceTileCell);
         if (sourceTile.surface == "empty") {
             continue;
         }
@@ -12372,7 +12403,8 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
             continue;
         }
         if (route1TerrainUsesExactSourceSurfaceOverride(
-                sourceTile, terrainTiles, sourceTerrainTiles)) {
+                sourceTile, terrainTiles, sourceTerrainTiles) &&
+            !materialOverlay) {
             continue;
         }
         // Dirt owns the glassmask01 leafy boundary. When an edited neighbor
@@ -12428,7 +12460,8 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 });
         const bool affectedSourceLawn =
             sourceTile.cleanSuppressedEncounterGrassTint ||
-            affectedSourceLawnBoundary;
+            affectedSourceLawnBoundary ||
+            materialOverlay;
         // Lowering an adjacent cell invalidates the canonical ledge profile,
         // including the high cell's material-19 cap. Rebuild that cap with
         // the generated crown contour; otherwise the untouched rectangular
@@ -12445,7 +12478,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
         }
         TerrainTileState tile = sourceTile;
         if (affectedSourceDirt || affectedSourceLedgeTop ||
-            affectedSourceLawnBoundary) {
+            affectedSourceLawnBoundary || materialOverlay) {
             // A masked canonical top is now generated geometry even when its
             // authored values are unchanged. Sampling the retired source
             // surface along the new rounded boundary can hit the old cliff
@@ -12573,7 +12606,6 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 .lawnOwnedDirtBoundaryMask =
                     lawnOwnedDirtBoundaryMask});
     }
-
     // Build the missing-side edges into deterministic clockwise contours.
     // Source Route 1 uses one paired UV2 ribbon around a whole dirt region;
     // it does not restart or rotate one generic fade independently per cell.
@@ -13332,11 +13364,15 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
 
             // Validate the actual connected field rather than a curated list
             // of troublesome coordinates. Every generated lawn/lawn edge in
-            // the V2 region is sampled at the complete 5 cm source grid. C0
+            // an editable Route 1 scene is sampled at the complete 5 cm
+            // source grid, including joins between V2 regions and bounded
+            // tint-handoff cells. C0
             // must agree for UV0, UV1, and Color0. When both cells use the
-            // same shape, their first inward derivatives must agree too;
-            // that is the invariant that prevents a mathematically joined
-            // edge from still reading as a one-metre square.
+            // same or different terrain shapes, their material derivatives
+            // must agree too; geometry normals may legitimately turn at a
+            // ramp, but UV0, UV1, and Color0 may not restart there. That is
+            // the invariant that prevents a mathematically joined edge from
+            // still reading as a one-metre square.
             using LogicalSampleKey = std::tuple<
                 std::int32_t,
                 std::int32_t,
@@ -13383,6 +13419,480 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 const float delta = value - reference;
                 return delta - std::round(delta);
             };
+            std::set<GridCell> generatedSurfaceCells;
+            for (const auto& surfaceTile : surfaceTiles) {
+                generatedSurfaceCells.emplace(
+                    surfaceTile.tile.gridX,
+                    surfaceTile.tile.gridZ);
+            }
+            const auto retainedCompatibleSourceNeighbor = [&] (
+                    const TerrainTileState& tile,
+                    std::size_t edge)
+                    -> const TerrainTileState* {
+                const auto direction = directions[edge];
+                const auto* neighbor = findTile(
+                    tile.gridX + direction[0],
+                    tile.gridZ + direction[1]);
+                if (!neighbor ||
+                    neighbor->surface != tile.surface ||
+                    !neighbor->sourceOccupied ||
+                    neighbor->sourceReference ||
+                    generatedSurfaceCells.contains(
+                        {neighbor->gridX, neighbor->gridZ})) {
+                    return nullptr;
+                }
+                const auto profile = route1TerrainSharedEdgeProfile(
+                    tile, neighbor, edge);
+                return profile.tileLevels == profile.neighborLevels
+                    ? neighbor
+                    : nullptr;
+            };
+            const auto writeMaterialField = [&] (
+                    IRenderBackend::WorldMeshVertex& vertex,
+                    const std::array<float, 4>& uv01,
+                    const std::array<float, 4>& color) {
+                const auto index = static_cast<std::uint32_t>(
+                    &vertex - prototype.vertices.data());
+                vertex.u = uv01[0];
+                vertex.v = uv01[1];
+                vertex.sourceUv1U = uv01[2];
+                vertex.sourceUv1V = uv01[3];
+                vertex.r = color[0];
+                vertex.g = color[1];
+                vertex.b = color[2];
+                vertex.a = color[3];
+                auto& sourceVertex = prototype.sourceVertices[index];
+                sourceVertex.texcoords[0] = {uv01[0], uv01[1]};
+                sourceVertex.texcoords[1] = {uv01[2], uv01[3]};
+                sourceVertex.colors[0] = {
+                    color[0], color[1], color[2], color[3]};
+            };
+
+            // Solve every generated-to-retained-source lawn handoff as a
+            // one-metre world-space field. The decoded source supplies both the
+            // boundary value and its inward derivative; a quintic fade
+            // returns to the generated regional field without moving the
+            // ruler-straight discontinuity half a tile inward.
+            constexpr std::uint32_t sourceHandoffDepthSamples =
+                kTerrainLedgeContourSegments;
+            constexpr float sourceDerivativeStep = 0.05f;
+            const auto applyRetainedSourceHandoffs = [&] {
+              for (const auto& surfaceTile : surfaceTiles) {
+                const auto& tile = surfaceTile.tile;
+                if (!tile.surface.ends_with("lawn")) {
+                    continue;
+                }
+                for (std::size_t edge = 0u;
+                     edge < directions.size();
+                     ++edge) {
+                    const auto* neighbor =
+                        retainedCompatibleSourceNeighbor(tile, edge);
+                    if (!neighbor) {
+                        continue;
+                    }
+                    const auto direction = directions[edge];
+                    for (std::uint32_t sample = 0u;
+                         sample <= kTerrainLedgeContourSegments;
+                         ++sample) {
+                        const std::uint32_t boundaryX =
+                            edge == 1u
+                            ? kTerrainLedgeContourSegments
+                            : edge == 3u ? 0u : sample;
+                        const std::uint32_t boundaryZ =
+                            edge == 0u
+                            ? kTerrainLedgeContourSegments
+                            : edge == 2u ? 0u : sample;
+                        const float localX =
+                            static_cast<float>(boundaryX) /
+                            static_cast<float>(
+                                kTerrainLedgeContourSegments);
+                        const float localZ =
+                            static_cast<float>(boundaryZ) /
+                            static_cast<float>(
+                                kTerrainLedgeContourSegments);
+                        const float worldGridX =
+                            static_cast<float>(tile.gridX) + localX;
+                        const float worldGridZ =
+                            static_cast<float>(tile.gridZ) + localZ;
+                        const float sourceBoundaryLocalX = std::clamp(
+                            worldGridX -
+                                static_cast<float>(neighbor->gridX),
+                            0.0f,
+                            1.0f);
+                        const float sourceBoundaryLocalZ = std::clamp(
+                            worldGridZ -
+                                static_cast<float>(neighbor->gridZ),
+                            0.0f,
+                            1.0f);
+                        const float sourceInteriorLocalX = std::clamp(
+                            sourceBoundaryLocalX +
+                                static_cast<float>(direction[0]) *
+                                    sourceDerivativeStep,
+                            0.0f,
+                            1.0f);
+                        const float sourceInteriorLocalZ = std::clamp(
+                            sourceBoundaryLocalZ +
+                                static_cast<float>(direction[1]) *
+                                    sourceDerivativeStep,
+                            0.0f,
+                            1.0f);
+                        SourceTerrainSurfaceSample sourceBoundary;
+                        SourceTerrainSurfaceSample sourceInterior;
+                        if (!sampleSourceTerrainSurface(
+                                *neighbor,
+                                sourceBoundaryLocalX,
+                                sourceBoundaryLocalZ,
+                                sourceBoundary) ||
+                            !sampleSourceTerrainSurface(
+                                *neighbor,
+                                sourceInteriorLocalX,
+                                sourceInteriorLocalZ,
+                                sourceInterior)) {
+                            continue;
+                        }
+                        const std::array<float, 4> sourceBoundaryUv01{
+                            sourceBoundary.uv0.x,
+                            sourceBoundary.uv0.y,
+                            sourceBoundary.uv1.x,
+                            sourceBoundary.uv1.y};
+                        const std::array<float, 4> sourceInteriorUv01{
+                            sourceInterior.uv0.x,
+                            sourceInterior.uv0.y,
+                            sourceInterior.uv1.x,
+                            sourceInterior.uv1.y};
+                        for (std::uint32_t depth = 0u;
+                             depth <= sourceHandoffDepthSamples;
+                             ++depth) {
+                            const std::uint32_t x =
+                                edge == 1u
+                                ? kTerrainLedgeContourSegments - depth
+                                : edge == 3u ? depth : sample;
+                            const std::uint32_t z =
+                                edge == 0u
+                                ? kTerrainLedgeContourSegments - depth
+                                : edge == 2u ? depth : sample;
+                            auto* generated = logicalVertex(tile, x, z);
+                            if (!generated) {
+                                continue;
+                            }
+                            const float normalizedDistance =
+                                static_cast<float>(depth) /
+                                static_cast<float>(
+                                    sourceHandoffDepthSamples);
+                            const float smoothDistance =
+                                normalizedDistance * normalizedDistance *
+                                normalizedDistance *
+                                (normalizedDistance *
+                                     (normalizedDistance * 6.0f - 15.0f) +
+                                 10.0f);
+                            const float weight = 1.0f - smoothDistance;
+                            std::array<float, 4> resolvedUv01{
+                                generated->u,
+                                generated->v,
+                                generated->sourceUv1U,
+                                generated->sourceUv1V};
+                            std::array<float, 4> resolvedColor{
+                                generated->r,
+                                generated->g,
+                                generated->b,
+                                generated->a};
+                            glm::vec3 resolvedNormal{
+                                generated->nx,
+                                generated->ny,
+                                generated->nz};
+                            const glm::vec3 sourceNormalDerivative =
+                                sourceInterior.normal -
+                                sourceBoundary.normal;
+                            glm::vec3 extrapolatedSourceNormal =
+                                sourceBoundary.normal -
+                                sourceNormalDerivative *
+                                    static_cast<float>(depth);
+                            if (glm::length(extrapolatedSourceNormal) >
+                                1.0e-5f) {
+                                extrapolatedSourceNormal = glm::normalize(
+                                    extrapolatedSourceNormal);
+                            } else {
+                                extrapolatedSourceNormal =
+                                    sourceBoundary.normal;
+                            }
+                            if (glm::length(resolvedNormal) <= 1.0e-5f) {
+                                resolvedNormal =
+                                    extrapolatedSourceNormal;
+                            }
+                            resolvedNormal = glm::normalize(glm::mix(
+                                resolvedNormal,
+                                extrapolatedSourceNormal,
+                                weight));
+                            for (std::size_t channel = 0u;
+                                 channel < 4u;
+                                 ++channel) {
+                                const float sourceDerivative = repeatDelta(
+                                    sourceInteriorUv01[channel],
+                                    sourceBoundaryUv01[channel]);
+                                float extrapolatedSource =
+                                    sourceBoundaryUv01[channel] -
+                                    sourceDerivative *
+                                        static_cast<float>(depth);
+                                extrapolatedSource -= std::round(
+                                    extrapolatedSource -
+                                    resolvedUv01[channel]);
+                                resolvedUv01[channel] = std::lerp(
+                                    resolvedUv01[channel],
+                                    extrapolatedSource,
+                                    weight);
+                                const auto glmChannel =
+                                    static_cast<glm::length_t>(channel);
+                                const float sourceColorDerivative =
+                                    sourceInterior.color0[glmChannel] -
+                                    sourceBoundary.color0[glmChannel];
+                                const float extrapolatedColor = std::clamp(
+                                    sourceBoundary.color0[glmChannel] -
+                                        sourceColorDerivative *
+                                            static_cast<float>(depth),
+                                    0.0f,
+                                    1.0f);
+                                resolvedColor[channel] = std::lerp(
+                                    resolvedColor[channel],
+                                    extrapolatedColor,
+                                    weight);
+                            }
+                            writeMaterialField(
+                                *generated,
+                                resolvedUv01,
+                                resolvedColor);
+                            generated->nx = resolvedNormal.x;
+                            generated->ny = resolvedNormal.y;
+                            generated->nz = resolvedNormal.z;
+                        }
+                    }
+                }
+              }
+            };
+            applyRetainedSourceHandoffs();
+
+            // Reconcile the complete generated light-lawn region, not only
+            // its shared edge rows. C0/C1 edge repair alone can leave two
+            // smooth but visibly different one-metre plateaus on opposite
+            // sides of a join. A screened harmonic solve diffuses decoded
+            // UV1/Color0 detail across the 5 cm logical lattice while fixed
+            // outer nodes preserve dirt, ledge, and retained-source
+            // boundaries. UV0 retains the canonical or nearest compatible
+            // lawn carrier; UV2 remains the discrete lawn/soil selector.
+            struct LawnFieldNode {
+                std::int32_t x = 0;
+                std::int32_t z = 0;
+                float y = 0.0f;
+                std::vector<std::uint32_t> vertices;
+                std::array<float, 2> referenceUv1{};
+                std::array<float, 2> uv1{};
+                std::array<float, 4> referenceColor{};
+                std::array<float, 4> color{};
+                std::array<std::int32_t, 4> neighbors{
+                    -1, -1, -1, -1};
+                bool fixed = false;
+                bool preserveSourceColor = false;
+            };
+            std::vector<LawnFieldNode> lawnFieldNodes;
+            std::map<GridCell, std::vector<std::size_t>>
+                lawnFieldNodesByPosition;
+            for (const auto& [logicalKey, vertexIndex] :
+                 logicalSampleVertices) {
+                const auto tileX = std::get<0>(logicalKey);
+                const auto tileZ = std::get<1>(logicalKey);
+                const auto* owner = findTile(tileX, tileZ);
+                if (!owner || owner->surface != "light_lawn") {
+                    continue;
+                }
+                const auto logicalX = std::get<2>(logicalKey);
+                const auto logicalZ = std::get<3>(logicalKey);
+                const std::int32_t worldX =
+                    tileX * static_cast<std::int32_t>(
+                        kTerrainLedgeContourSegments) +
+                    static_cast<std::int32_t>(logicalX);
+                const std::int32_t worldZ =
+                    tileZ * static_cast<std::int32_t>(
+                        kTerrainLedgeContourSegments) +
+                    static_cast<std::int32_t>(logicalZ);
+                const float y = prototype.vertices[vertexIndex].y;
+                auto& candidates = lawnFieldNodesByPosition[
+                    {worldX, worldZ}];
+                auto foundNode = std::find_if(
+                    candidates.begin(),
+                    candidates.end(),
+                    [&](std::size_t candidate) {
+                        return std::abs(
+                            lawnFieldNodes[candidate].y - y) <= 0.01f;
+                    });
+                if (foundNode == candidates.end()) {
+                    const auto& vertex = prototype.vertices[vertexIndex];
+                    const std::size_t nodeIndex = lawnFieldNodes.size();
+                    lawnFieldNodes.push_back(
+                        LawnFieldNode{
+                            .x = worldX,
+                            .z = worldZ,
+                            .y = y,
+                            .vertices = {vertexIndex},
+                            .referenceUv1 = {
+                                vertex.sourceUv1U,
+                                vertex.sourceUv1V},
+                            .uv1 = {
+                                vertex.sourceUv1U,
+                                vertex.sourceUv1V},
+                            .referenceColor = {
+                                vertex.r,
+                                vertex.g,
+                                vertex.b,
+                                vertex.a},
+                            .color = {
+                                vertex.r,
+                                vertex.g,
+                                vertex.b,
+                                vertex.a},
+                            .preserveSourceColor =
+                                owner->shape.starts_with("ramp_")});
+                    candidates.push_back(nodeIndex);
+                } else {
+                    lawnFieldNodes[*foundNode].vertices.push_back(
+                        vertexIndex);
+                    lawnFieldNodes[*foundNode].preserveSourceColor =
+                        lawnFieldNodes[*foundNode].preserveSourceColor ||
+                        owner->shape.starts_with("ramp_");
+                }
+            }
+            constexpr std::array<GridCell, 4> latticeDirections{{
+                {0, 1}, {1, 0}, {0, -1}, {-1, 0}}};
+            constexpr float maximumLawnLatticeStepCm = 3.0f;
+            for (std::size_t nodeIndex = 0u;
+                 nodeIndex < lawnFieldNodes.size();
+                 ++nodeIndex) {
+                auto& node = lawnFieldNodes[nodeIndex];
+                for (std::size_t edge = 0u;
+                     edge < latticeDirections.size();
+                     ++edge) {
+                    const auto direction = latticeDirections[edge];
+                    const auto foundPosition =
+                        lawnFieldNodesByPosition.find(
+                        {node.x + direction.first,
+                         node.z + direction.second});
+                    if (foundPosition == lawnFieldNodesByPosition.end()) {
+                        node.fixed = true;
+                        continue;
+                    }
+                    float nearestDifference =
+                        maximumLawnLatticeStepCm + 0.001f;
+                    std::int32_t nearest = -1;
+                    for (const auto candidate : foundPosition->second) {
+                        const float difference = std::abs(
+                            lawnFieldNodes[candidate].y - node.y);
+                        if (difference < nearestDifference) {
+                            nearestDifference = difference;
+                            nearest = static_cast<std::int32_t>(candidate);
+                        }
+                    }
+                    if (nearest < 0) {
+                        node.fixed = true;
+                    } else {
+                        node.neighbors[edge] = nearest;
+                    }
+                }
+            }
+            constexpr std::size_t lawnFieldIterationCount = 160u;
+            constexpr float lawnFieldReferenceWeight = 0.005f;
+            std::vector<std::array<float, 2>> nextUv1(
+                lawnFieldNodes.size());
+            std::vector<std::array<float, 4>> nextColor(
+                lawnFieldNodes.size());
+            for (std::size_t iteration = 0u;
+                 iteration < lawnFieldIterationCount;
+                 ++iteration) {
+                for (std::size_t nodeIndex = 0u;
+                     nodeIndex < lawnFieldNodes.size();
+                     ++nodeIndex) {
+                    const auto& node = lawnFieldNodes[nodeIndex];
+                    if (node.fixed) {
+                        nextUv1[nodeIndex] = node.uv1;
+                        nextColor[nodeIndex] = node.color;
+                        continue;
+                    }
+                    std::array<float, 2> uv1Sum{};
+                    std::array<float, 4> colorSum{};
+                    float weight = lawnFieldReferenceWeight;
+                    for (std::size_t channel = 0u;
+                         channel < 2u;
+                         ++channel) {
+                        const float reference =
+                            node.referenceUv1[channel] - std::round(
+                                node.referenceUv1[channel] -
+                                node.uv1[channel]);
+                        uv1Sum[channel] =
+                            reference * lawnFieldReferenceWeight;
+                    }
+                    for (std::size_t channel = 0u;
+                         channel < 4u;
+                         ++channel) {
+                        colorSum[channel] =
+                            node.referenceColor[channel] *
+                            lawnFieldReferenceWeight;
+                    }
+                    for (const auto neighborIndex : node.neighbors) {
+                        if (neighborIndex < 0) {
+                            continue;
+                        }
+                        const auto& neighbor = lawnFieldNodes[
+                            static_cast<std::size_t>(neighborIndex)];
+                        for (std::size_t channel = 0u;
+                             channel < 2u;
+                             ++channel) {
+                            uv1Sum[channel] +=
+                                neighbor.uv1[channel] - std::round(
+                                    neighbor.uv1[channel] -
+                                    node.uv1[channel]);
+                        }
+                        for (std::size_t channel = 0u;
+                             channel < 4u;
+                             ++channel) {
+                            colorSum[channel] += neighbor.color[channel];
+                        }
+                        weight += 1.0f;
+                    }
+                    for (std::size_t channel = 0u;
+                         channel < 2u;
+                         ++channel) {
+                        nextUv1[nodeIndex][channel] =
+                            uv1Sum[channel] / weight;
+                    }
+                    for (std::size_t channel = 0u;
+                         channel < 4u;
+                         ++channel) {
+                        nextColor[nodeIndex][channel] =
+                            node.preserveSourceColor
+                            ? node.color[channel]
+                            : colorSum[channel] / weight;
+                    }
+                }
+                for (std::size_t nodeIndex = 0u;
+                     nodeIndex < lawnFieldNodes.size();
+                     ++nodeIndex) {
+                    lawnFieldNodes[nodeIndex].uv1 = nextUv1[nodeIndex];
+                    lawnFieldNodes[nodeIndex].color = nextColor[nodeIndex];
+                }
+            }
+            for (const auto& node : lawnFieldNodes) {
+                for (const auto vertexIndex : node.vertices) {
+                    auto& vertex = prototype.vertices[vertexIndex];
+                    const std::array<float, 4> uv01{
+                        vertex.u,
+                        vertex.v,
+                        node.uv1[0],
+                        node.uv1[1]};
+                    writeMaterialField(
+                        vertex, uv01, node.color);
+                }
+            }
+            // The component solve removes metre-scale plateaus. Reapply the
+            // exact retained-source boundary condition afterward so the
+            // smoothing pass cannot soften its C0/C1 source match.
+            applyRetainedSourceHandoffs();
             constexpr std::array<std::array<std::int32_t, 2>, 2>
                 forwardDirections{{
                     {0, 1},
@@ -13390,8 +13900,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 }};
             for (const auto& surfaceTile : surfaceTiles) {
                 const auto& tile = surfaceTile.tile;
-                if (!tile.surface.ends_with("lawn") ||
-                    tile.terrainPatchV2RegionId == 0u) {
+                if (!tile.surface.ends_with("lawn")) {
                     continue;
                 }
                 for (std::size_t directionIndex = 0u;
@@ -13409,9 +13918,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                                     tile.gridZ + direction[1];
                         });
                     if (neighbor == surfaceTiles.end() ||
-                        neighbor->tile.surface != tile.surface ||
-                        neighbor->tile.terrainPatchV2RegionId !=
-                            tile.terrainPatchV2RegionId) {
+                        neighbor->tile.surface != tile.surface) {
                         continue;
                     }
                     const std::size_t edge =
@@ -13423,7 +13930,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                         profile.neighborLevels) {
                         continue;
                     }
-                    const bool compareDerivatives =
+                    const bool copyShadingBasis =
                         tile.shape == neighbor->tile.shape;
                     for (std::uint32_t sample = 0u;
                          sample <= kTerrainLedgeContourSegments;
@@ -13460,7 +13967,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                         copyCompatibleSurfaceField(
                             target,
                             authority,
-                            compareDerivatives);
+                            copyShadingBasis);
                         // Logical lawn/lawn edges own one physical carrier
                         // even when a crown/contact deformation moved the two
                         // independently generated copies far enough that the
@@ -13512,7 +14019,7 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                         // real convex/concave turn, should not). C0 is still
                         // required above; C1 is measured on the nineteen
                         // interior samples of each actual edge.
-                        if (!compareDerivatives || sample == 0u ||
+                        if (sample == 0u ||
                             sample == kTerrainLedgeContourSegments) {
                             continue;
                         }
@@ -13646,9 +14153,29 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                             const float neighborColorDerivative =
                                 neighborInteriorColor[channel] -
                                 neighborColor[channel];
-                            const float sharedColorDerivative =
+                            // The same signed slope must remain representable
+                            // on both sides of the boundary. Clamping the two
+                            // resolved colors independently changes only one
+                            // derivative at saturated source controls (most
+                            // visibly the white ramp/lawn joins), recreating
+                            // the thin line this pass is meant to remove.
+                            const float minimumSharedDerivative = std::max(
+                                tileColor[channel] - 1.0f,
+                                -neighborColor[channel]);
+                            const float maximumSharedDerivative = std::min(
+                                tileColor[channel],
+                                1.0f - neighborColor[channel]);
+                            const float requestedSharedDerivative =
                                 (tileColorDerivative +
                                  neighborColorDerivative) * 0.5f;
+                            const float sharedColorDerivative =
+                                minimumSharedDerivative <=
+                                        maximumSharedDerivative
+                                ? std::clamp(
+                                      requestedSharedDerivative,
+                                      minimumSharedDerivative,
+                                      maximumSharedDerivative)
+                                : 0.0f;
                             tileInteriorColor[channel] = std::clamp(
                                 tileColor[channel] -
                                     sharedColorDerivative,
@@ -13719,14 +14246,221 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                     }
                 }
             }
+
+            // The outer edge of the generated field is just as important as
+            // its internal joins. Measure every compatible generated-to-
+            // retained-source lawn boundary directly against the decoded
+            // neighbor at the same 5 cm cadence. This is deliberately based
+            // on final submitted generated vertices, so a later post-pass
+            // cannot make the contract pass by comparing values that it
+            // already copied from itself.
+            for (const auto& surfaceTile : surfaceTiles) {
+                const auto& tile = surfaceTile.tile;
+                if (!tile.surface.ends_with("lawn")) {
+                    continue;
+                }
+                for (std::size_t edge = 0u;
+                     edge < directions.size();
+                     ++edge) {
+                    const auto* neighbor =
+                        retainedCompatibleSourceNeighbor(tile, edge);
+                    if (!neighbor) {
+                        continue;
+                    }
+                    const auto direction = directions[edge];
+                    for (std::uint32_t sample = 0u;
+                         sample <= kTerrainLedgeContourSegments;
+                         ++sample) {
+                        const std::uint32_t boundaryX =
+                            edge == 1u
+                            ? kTerrainLedgeContourSegments
+                            : edge == 3u ? 0u : sample;
+                        const std::uint32_t boundaryZ =
+                            edge == 0u
+                            ? kTerrainLedgeContourSegments
+                            : edge == 2u ? 0u : sample;
+                        const std::uint32_t interiorX =
+                            edge == 1u
+                            ? kTerrainLedgeContourSegments - 1u
+                            : edge == 3u ? 1u : sample;
+                        const std::uint32_t interiorZ =
+                            edge == 0u
+                            ? kTerrainLedgeContourSegments - 1u
+                            : edge == 2u ? 1u : sample;
+                        const auto* generatedBoundary = logicalVertex(
+                            tile, boundaryX, boundaryZ);
+                        const auto* generatedInterior = logicalVertex(
+                            tile, interiorX, interiorZ);
+                        if (!generatedBoundary || !generatedInterior) {
+                            continue;
+                        }
+                        const float localX =
+                            static_cast<float>(boundaryX) /
+                            static_cast<float>(
+                                kTerrainLedgeContourSegments);
+                        const float localZ =
+                            static_cast<float>(boundaryZ) /
+                            static_cast<float>(
+                                kTerrainLedgeContourSegments);
+                        const float worldGridX =
+                            static_cast<float>(tile.gridX) + localX;
+                        const float worldGridZ =
+                            static_cast<float>(tile.gridZ) + localZ;
+                        const float sourceBoundaryLocalX = std::clamp(
+                            worldGridX -
+                                static_cast<float>(neighbor->gridX),
+                            0.0f,
+                            1.0f);
+                        const float sourceBoundaryLocalZ = std::clamp(
+                            worldGridZ -
+                                static_cast<float>(neighbor->gridZ),
+                            0.0f,
+                            1.0f);
+                        const float sourceInteriorLocalX = std::clamp(
+                            sourceBoundaryLocalX +
+                                static_cast<float>(direction[0]) *
+                                    sourceDerivativeStep,
+                            0.0f,
+                            1.0f);
+                        const float sourceInteriorLocalZ = std::clamp(
+                            sourceBoundaryLocalZ +
+                                static_cast<float>(direction[1]) *
+                                    sourceDerivativeStep,
+                            0.0f,
+                            1.0f);
+                        SourceTerrainSurfaceSample sourceBoundary;
+                        SourceTerrainSurfaceSample sourceInterior;
+                        if (!sampleSourceTerrainSurface(
+                                *neighbor,
+                                sourceBoundaryLocalX,
+                                sourceBoundaryLocalZ,
+                                sourceBoundary) ||
+                            !sampleSourceTerrainSurface(
+                                *neighbor,
+                                sourceInteriorLocalX,
+                                sourceInteriorLocalZ,
+                                sourceInterior)) {
+                            continue;
+                        }
+                        // Within half a tile of a source/source corner, two
+                        // orthogonal retained fields deliberately blend into
+                        // one 2D handoff and cannot each be equal to their
+                        // independent 1D extrapolation. Validate the central
+                        // unambiguous span of every outer edge; corner quality
+                        // is covered by the generated/generated field solve
+                        // after both constraints have been composed.
+                        if (sample < sourceHandoffDepthSamples ||
+                            sample >
+                                kTerrainLedgeContourSegments -
+                                    sourceHandoffDepthSamples) {
+                            continue;
+                        }
+                        const std::array<float, 4> generatedUv01{
+                            generatedBoundary->u,
+                            generatedBoundary->v,
+                            generatedBoundary->sourceUv1U,
+                            generatedBoundary->sourceUv1V};
+                        const std::array<float, 4> generatedInteriorUv01{
+                            generatedInterior->u,
+                            generatedInterior->v,
+                            generatedInterior->sourceUv1U,
+                            generatedInterior->sourceUv1V};
+                        const std::array<float, 4> sourceBoundaryUv01{
+                            sourceBoundary.uv0.x,
+                            sourceBoundary.uv0.y,
+                            sourceBoundary.uv1.x,
+                            sourceBoundary.uv1.y};
+                        const std::array<float, 4> sourceInteriorUv01{
+                            sourceInterior.uv0.x,
+                            sourceInterior.uv0.y,
+                            sourceInterior.uv1.x,
+                            sourceInterior.uv1.y};
+                        const std::array<float, 4> generatedColor{
+                            generatedBoundary->r,
+                            generatedBoundary->g,
+                            generatedBoundary->b,
+                            generatedBoundary->a};
+                        const std::array<float, 4> generatedInteriorColor{
+                            generatedInterior->r,
+                            generatedInterior->g,
+                            generatedInterior->b,
+                            generatedInterior->a};
+                        for (std::size_t channel = 0u;
+                             channel < 4u;
+                             ++channel) {
+                            terrainLawnMaximumSourceBoundaryUv01Difference =
+                                std::max(
+                                    terrainLawnMaximumSourceBoundaryUv01Difference,
+                                    std::abs(repeatDelta(
+                                        generatedUv01[channel],
+                                        sourceBoundaryUv01[channel])));
+                            terrainLawnMaximumSourceBoundaryColorDifference =
+                                std::max(
+                                    terrainLawnMaximumSourceBoundaryColorDifference,
+                                    std::abs(
+                                        generatedColor[channel] -
+                                        sourceBoundary.color0[
+                                            static_cast<glm::length_t>(
+                                                channel)]));
+                        }
+                        ++terrainLawnSourceBoundarySampleCount;
+                        if (sample == 0u ||
+                            sample == kTerrainLedgeContourSegments) {
+                            continue;
+                        }
+                        for (std::size_t channel = 0u;
+                             channel < 4u;
+                             ++channel) {
+                            const float generatedDerivative = repeatDelta(
+                                generatedUv01[channel],
+                                generatedInteriorUv01[channel]);
+                            const float sourceDerivative = repeatDelta(
+                                sourceInteriorUv01[channel],
+                                sourceBoundaryUv01[channel]);
+                            terrainLawnMaximumSourceUv01DerivativeRestart =
+                                std::max(
+                                    terrainLawnMaximumSourceUv01DerivativeRestart,
+                                    std::abs(
+                                        generatedDerivative -
+                                        sourceDerivative));
+                            const float generatedColorDerivative =
+                                generatedColor[channel] -
+                                generatedInteriorColor[channel];
+                            const float sourceColorDerivative =
+                                sourceInterior.color0[
+                                    static_cast<glm::length_t>(channel)] -
+                                sourceBoundary.color0[
+                                    static_cast<glm::length_t>(channel)];
+                            terrainLawnMaximumSourceColorDerivativeRestart =
+                                std::max(
+                                    terrainLawnMaximumSourceColorDerivativeRestart,
+                                    std::abs(
+                                        generatedColorDerivative -
+                                        sourceColorDerivative));
+                        }
+                        ++terrainLawnSourceDerivativeBoundarySampleCount;
+                    }
+                }
+            }
             stats.terrainLawnCompatibleBoundarySampleCount =
                 terrainLawnCompatibleBoundarySampleCount;
             stats.terrainLawnDerivativeBoundarySampleCount =
                 terrainLawnDerivativeBoundarySampleCount;
+            stats.terrainLawnMaterialOverlayCellCount =
+                static_cast<std::uint32_t>(
+                    terrainMaterialOverlayCells.size());
+            stats.terrainLawnSourceBoundarySampleCount =
+                terrainLawnSourceBoundarySampleCount;
+            stats.terrainLawnSourceDerivativeBoundarySampleCount =
+                terrainLawnSourceDerivativeBoundarySampleCount;
             stats.terrainLawnMaximumBoundaryUv01Difference =
                 terrainLawnMaximumBoundaryUv01Difference;
             stats.terrainLawnMaximumBoundaryColorDifference =
                 terrainLawnMaximumBoundaryColorDifference;
+            stats.terrainLawnMaximumSourceBoundaryUv01Difference =
+                terrainLawnMaximumSourceBoundaryUv01Difference;
+            stats.terrainLawnMaximumSourceBoundaryColorDifference =
+                terrainLawnMaximumSourceBoundaryColorDifference;
             stats.terrainLawnMaximumUv0DerivativeRestart =
                 terrainLawnMaximumUv0DerivativeRestart;
             stats.terrainLawnMaximumUv1DerivativeRestart =
@@ -13735,6 +14469,10 @@ RuntimeEnvironment::Impl::ensureAuthoredTerrainSurfaceObject(
                 terrainLawnMaximumUv01DerivativeRestart;
             stats.terrainLawnMaximumColorDerivativeRestart =
                 terrainLawnMaximumColorDerivativeRestart;
+            stats.terrainLawnMaximumSourceUv01DerivativeRestart =
+                terrainLawnMaximumSourceUv01DerivativeRestart;
+            stats.terrainLawnMaximumSourceColorDerivativeRestart =
+                terrainLawnMaximumSourceColorDerivativeRestart;
         }
     }
     // Independently generated material vertices can come from different
@@ -18234,6 +18972,7 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
     std::string* outError) {
     terrainMaskGeometries.clear();
     terrainMaskCells.clear();
+    terrainMaterialOverlayCells.clear();
     terrainCleanupCells.clear();
     terrainBroadOverlayCleanupCells.clear();
     terrainSourceReferenceCells.clear();
@@ -18349,6 +19088,8 @@ bool RuntimeEnvironment::Impl::initializeTerrainMask(
 
 void RuntimeEnvironment::Impl::applyTerrainMask() {
     std::set<std::pair<std::int32_t, std::int32_t>> nextCells;
+    std::set<std::pair<std::int32_t, std::int32_t>>
+        nextMaterialOverlayCells;
     std::set<std::pair<std::int32_t, std::int32_t>> nextCleanupCells;
     std::set<std::pair<std::int32_t, std::int32_t>>
         nextBroadOverlayCleanupCells;
@@ -18940,6 +19681,78 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         }
     }
     if (regeneratesMaterialTransitionRing) {
+        // Source Route 1 sometimes hides metre-scale ground carriers beneath
+        // foliage or broad lawn decoration. Once an edit exposes one of those
+        // carriers, a mathematically exact edge handoff can still reveal the
+        // different field over the rest of the retained source metre. Extend
+        // only the generated lawn material across a bounded ring of flat,
+        // source-identical lawn. The canonical ground and all of its cleanup
+        // decoration remain present underneath; unlike terrainMaskCells this
+        // set therefore cannot cut holes in ledges or retire source fringes.
+        constexpr std::size_t kMaterialOverlayDepthCells = 2u;
+        std::set<GridCell> materialOverlayFrontier;
+        for (const auto& cell : nextCells) {
+            const auto* tile = findTerrainTile(cell);
+            if (tile && tile->surface.ends_with("lawn") &&
+                !tile->sourceReference) {
+                materialOverlayFrontier.emplace(cell);
+            }
+        }
+        for (std::size_t depth = 0u;
+             depth < kMaterialOverlayDepthCells &&
+                 !materialOverlayFrontier.empty();
+             ++depth) {
+            std::set<GridCell> nextFrontier;
+            for (const auto& cell : materialOverlayFrontier) {
+                const auto* tile = findTerrainTile(cell);
+                if (!tile || !tile->surface.ends_with("lawn") ||
+                    tile->sourceReference) {
+                    continue;
+                }
+                for (std::size_t edge = 0u;
+                     edge < directions.size();
+                     ++edge) {
+                    const auto& direction = directions[edge];
+                    const GridCell neighborCell{
+                        cell.first + direction[0],
+                        cell.second + direction[1]};
+                    if (nextCells.contains(neighborCell) ||
+                        nextMaterialOverlayCells.contains(
+                            neighborCell)) {
+                        continue;
+                    }
+                    const auto* neighbor =
+                        findTerrainTile(neighborCell);
+                    const auto* sourceNeighbor =
+                        findSourceTerrainTile(neighborCell);
+                    if (!neighbor || !sourceNeighbor ||
+                        !neighbor->sourceOccupied ||
+                        neighbor->sourceReference ||
+                        neighbor->surface != tile->surface ||
+                        !neighbor->surface.ends_with("lawn") ||
+                        neighbor->shape != "flat" ||
+                        neighbor->surface != sourceNeighbor->surface ||
+                        neighbor->shape != sourceNeighbor->shape ||
+                        neighbor->elevationLevel !=
+                            sourceNeighbor->elevationLevel ||
+                        neighbor->receivesProjectedShadow !=
+                            tile->receivesProjectedShadow) {
+                        continue;
+                    }
+                    const auto profile =
+                        route1TerrainSharedEdgeProfile(
+                            *tile, neighbor, edge);
+                    if (profile.tileLevels !=
+                        profile.neighborLevels) {
+                        continue;
+                    }
+                    nextMaterialOverlayCells.emplace(neighborCell);
+                    nextFrontier.emplace(neighborCell);
+                }
+            }
+            materialOverlayFrontier = std::move(nextFrontier);
+        }
+
         // `nextCells` is the complete generated terrain assembly, including
         // cells promoted indirectly for ledge crowns, material sockets, and
         // corner contacts. Every one of those carriers must use the same
@@ -18961,8 +19774,23 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
                 activeTile->rebuildContinuousMaterialFields = true;
             }
         }
+        for (const auto& cell : nextMaterialOverlayCells) {
+            const auto activeTile = std::find_if(
+                terrainTiles.begin(),
+                terrainTiles.end(),
+                [&](const TerrainTileState& candidate) {
+                    return candidate.gridX == cell.first &&
+                        candidate.gridZ == cell.second;
+                });
+            if (activeTile != terrainTiles.end() &&
+                activeTile->surface != "empty" &&
+                !activeTile->sourceReference) {
+                activeTile->rebuildContinuousMaterialFields = true;
+            }
+        }
     }
     if (nextCells == terrainMaskCells &&
+        nextMaterialOverlayCells == terrainMaterialOverlayCells &&
         nextCleanupCells == terrainCleanupCells &&
         nextBroadOverlayCleanupCells ==
             terrainBroadOverlayCleanupCells &&
@@ -18973,6 +19801,8 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
         return;
     }
     terrainMaskCells = std::move(nextCells);
+    terrainMaterialOverlayCells =
+        std::move(nextMaterialOverlayCells);
     terrainCleanupCells = std::move(nextCleanupCells);
     terrainBroadOverlayCleanupCells =
         std::move(nextBroadOverlayCleanupCells);
