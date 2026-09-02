@@ -4367,13 +4367,15 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 std::string_view shape;
                 std::int32_t elevationLevel = 0;
             };
-            constexpr std::array<SourceRestoreProbe, 5>
+            constexpr std::array<SourceRestoreProbe, 7>
                 sourceRestoreProbes{{
                     {12, -11, "light_lawn", "flat", 3},
                     {13, -11, "light_lawn", "flat", 2},
                     {13, -12, "light_lawn", "flat", 2},
                     {13, -13, "dark_lawn", "ramp_south", 2},
                     {13, -14, "light_lawn", "flat", 3},
+                    {14, -9, "light_lawn", "flat", 1},
+                    {15, -9, "light_lawn", "flat", 1},
                 }};
             std::string invalidSourceRestoreCells;
             for (const auto& probe : sourceRestoreProbes) {

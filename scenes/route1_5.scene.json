@@ -977,6 +977,50 @@
     {
       "components": {
         "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 14,
+          "grid_z": -9,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (14, -9) — Source",
+      "enabled": true,
+      "id": "terrain-tile/x-p14/z-n9",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_source_restore",
+      "sibling_order": 143
+    },
+    {
+      "components": {
+        "terrain_tile": {
+          "elevation_level": 1,
+          "grid_x": 15,
+          "grid_z": -9,
+          "normalize_source_tint": false,
+          "receives_projected_shadow": true,
+          "shape": "flat",
+          "suppress_overlapping_vegetation": false,
+          "surface": "light_lawn",
+          "tile_set_asset_id": "route1/terrain_tileset",
+          "visual_variant": "auto"
+        }
+      },
+      "display_name": "Terrain Tile (15, -9) — Source",
+      "enabled": true,
+      "id": "terrain-tile/x-p15/z-n9",
+      "parent_id": "folder/environment/terrain/tiles",
+      "reason": "terrain_source_restore",
+      "sibling_order": 144
+    },
+    {
+      "components": {
+        "terrain_tile": {
           "elevation_level": 2,
           "grid_x": 14,
           "grid_z": -13,
