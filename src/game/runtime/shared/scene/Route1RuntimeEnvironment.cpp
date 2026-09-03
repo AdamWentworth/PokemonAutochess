@@ -2906,6 +2906,56 @@ bool route1TerrainBelongsToUnchangedSourceLedgeAssembly(
             return true;
         }
     }
+
+    // A turn in an otherwise untouched ledge has two ledge edges, so the
+    // straight-run rule above intentionally cannot classify the turn cell.
+    // Leaving just that cap/contact pair in generated ownership still cuts a
+    // square into both adjoining imported runs. Admit the turn when this edge
+    // is attached to at least one clean straight source segment. We inspect
+    // the complete attached segment so a nearby authored material change
+    // continues to keep the whole affected run on the generated path.
+    for (std::size_t edge = 0u; edge < directions.size(); ++edge) {
+        const auto* initialNeighbor =
+            unchangedLedgeNeighbor(tile, edge);
+        if (!initialNeighbor ||
+            touchesChangedSourceMaterial(tile) ||
+            touchesChangedSourceMaterial(*initialNeighbor)) {
+            continue;
+        }
+        bool foundStraightContinuation = false;
+        bool cleanStraightContinuation = true;
+        for (const std::int32_t sign : {-1, 1}) {
+            const TerrainTileState* runTile = findAt(
+                activeTiles,
+                tile.gridX + tangents[edge][0] * sign,
+                tile.gridZ + tangents[edge][1] * sign);
+            while (runTile) {
+                const auto* runNeighbor =
+                    unchangedLedgeNeighbor(*runTile, edge);
+                if (!runNeighbor ||
+                    unchangedLedgeEdgeCount(*runTile) != 1u ||
+                    unchangedLedgeEdgeCount(*runNeighbor) != 1u) {
+                    break;
+                }
+                foundStraightContinuation = true;
+                if (touchesChangedSourceMaterial(*runTile) ||
+                    touchesChangedSourceMaterial(*runNeighbor)) {
+                    cleanStraightContinuation = false;
+                    break;
+                }
+                runTile = findAt(
+                    activeTiles,
+                    runTile->gridX + tangents[edge][0] * sign,
+                    runTile->gridZ + tangents[edge][1] * sign);
+            }
+            if (!cleanStraightContinuation) {
+                break;
+            }
+        }
+        if (foundStraightContinuation && cleanStraightContinuation) {
+            return true;
+        }
+    }
     return false;
 }
 

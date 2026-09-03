@@ -4416,13 +4416,35 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     invalidSourceRestoreCells + ").";
                 return false;
             }
+            struct UnchangedSourceLedgeProbe {
+                std::int32_t highX = 0;
+                std::int32_t highZ = 0;
+                std::int32_t lowX = 0;
+                std::int32_t lowZ = 0;
+                std::int32_t highLevel = 0;
+                std::int32_t lowLevel = 0;
+            };
+            constexpr std::array<UnchangedSourceLedgeProbe, 14>
+                unchangedSourceLedgeProbes{{
+                    {14, -9, 14, -8, 1, 0},
+                    {15, -9, 15, -8, 1, 0},
+                    {20, -9, 20, -8, 1, 0},
+                    {21, -9, 21, -8, 1, 0},
+                    {22, -9, 22, -8, 1, 0},
+                    {23, -9, 23, -8, 1, 0},
+                    {24, -9, 24, -8, 1, 0},
+                    {25, -9, 25, -8, 1, 0},
+                    {26, -9, 26, -8, 1, 0},
+                    {27, -9, 27, -8, 1, 0},
+                    {18, -4, 18, -5, 1, 0},
+                    {18, -4, 19, -4, 1, 0},
+                    {22, -4, 22, -5, 1, 0},
+                    {22, -4, 21, -4, 1, 0},
+                }};
             std::string rebuiltUnchangedSourceLedgeCells;
-            constexpr std::array<std::int32_t, 10>
-                unchangedSourceLedgeXs{{
-                    14, 15,
-                    20, 21, 22, 23, 24, 25, 26, 27}};
-            for (const auto gridX : unchangedSourceLedgeXs) {
-                const auto findCell = [&](std::int32_t gridZ) {
+            for (const auto& probe : unchangedSourceLedgeProbes) {
+                const auto findCell = [&](std::int32_t gridX,
+                                          std::int32_t gridZ) {
                     const auto found = std::find_if(
                         southClearingTiles.begin(),
                         southClearingTiles.end(),
@@ -4434,8 +4456,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         ? nullptr
                         : &*found;
                 };
-                const auto* crown = findCell(-9);
-                const auto* contact = findCell(-8);
+                const auto* crown = findCell(probe.highX, probe.highZ);
+                const auto* contact = findCell(probe.lowX, probe.lowZ);
                 const auto sourceEquivalent = [](const auto* tile) {
                     return tile && !tile->authored &&
                         tile->reason.empty() && tile->sourceOccupied &&
@@ -4453,14 +4475,22 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         !tile->sourceLedgeCarrierDisplaced &&
                         !tile->terrainPatchV2Core;
                 };
+                std::size_t ledgeEdge = 0u;
+                if (probe.lowX > probe.highX) {
+                    ledgeEdge = 1u;
+                } else if (probe.lowZ < probe.highZ) {
+                    ledgeEdge = 2u;
+                } else if (probe.lowX < probe.highX) {
+                    ledgeEdge = 3u;
+                }
                 const auto profile = crown && contact
                     ? route1::route1TerrainSharedEdgeProfile(
-                          *crown, contact, 0u)
+                          *crown, contact, ledgeEdge)
                     : route1::TerrainSharedEdgeProfile{};
                 if (sourceEquivalent(crown) &&
                     sourceEquivalent(contact) &&
-                    crown->elevationLevel == 1 &&
-                    contact->elevationLevel == 0 &&
+                    crown->elevationLevel == probe.highLevel &&
+                    contact->elevationLevel == probe.lowLevel &&
                     profile.tileLevels != profile.neighborLevels) {
                     continue;
                 }
@@ -4468,7 +4498,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     rebuiltUnchangedSourceLedgeCells += ",";
                 }
                 rebuiltUnchangedSourceLedgeCells += "(" +
-                    std::to_string(gridX) + ",-9/-8)";
+                    std::to_string(probe.highX) + "," +
+                    std::to_string(probe.highZ) + "->" +
+                    std::to_string(probe.lowX) + "," +
+                    std::to_string(probe.lowZ) + ")";
             }
             if (!rebuiltUnchangedSourceLedgeCells.empty()) {
                 outFail =
