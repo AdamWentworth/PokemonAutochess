@@ -4367,7 +4367,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 std::string_view shape;
                 std::int32_t elevationLevel = 0;
             };
-            constexpr std::array<SourceRestoreProbe, 9>
+            constexpr std::array<SourceRestoreProbe, 17>
                 sourceRestoreProbes{{
                     {12, -11, "light_lawn", "flat", 3},
                     {13, -11, "light_lawn", "flat", 2},
@@ -4378,6 +4378,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     {15, -9, "light_lawn", "flat", 1},
                     {14, -8, "light_lawn", "flat", 0},
                     {15, -8, "light_lawn", "flat", 0},
+                    {20, -8, "light_lawn", "flat", 0},
+                    {21, -8, "light_lawn", "flat", 0},
+                    {22, -8, "light_lawn", "flat", 0},
+                    {23, -8, "light_lawn", "flat", 0},
+                    {24, -8, "light_lawn", "flat", 0},
+                    {25, -8, "light_lawn", "flat", 0},
+                    {26, -8, "light_lawn", "flat", 0},
+                    {27, -8, "light_lawn", "flat", 0},
                 }};
             std::string invalidSourceRestoreCells;
             for (const auto& probe : sourceRestoreProbes) {
