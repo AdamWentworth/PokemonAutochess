@@ -5123,6 +5123,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 terrainFieldStats
                     .terrainLawnDerivativeBoundarySampleCount == 0u ||
                 terrainFieldStats
+                    .terrainLawnSourceAppearanceAnchorSampleCount == 0u ||
+                terrainFieldStats
                     .terrainLawnMaterialOverlayCellCount == 0u ||
                 terrainFieldStats
                     .terrainLawnMaximumBoundaryUv01Difference > 0.001f ||
@@ -5139,6 +5141,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 terrainFieldStats
                     .terrainLawnMaximumColorDerivativeRestart > 0.10f ||
                 terrainFieldStats
+                    .terrainLawnMaximumNormalDerivativeRestart > 0.04f ||
+                terrainFieldStats
+                    .terrainLawnMaximumSourceAppearanceAnchorUv1Difference >
+                        0.001f ||
+                terrainFieldStats
+                    .terrainLawnMaximumSourceAppearanceAnchorColorDifference >
+                        0.001f ||
+                terrainFieldStats
                     .terrainLawnMaximumSourceUv01DerivativeRestart >
                         0.05f ||
                 terrainFieldStats
@@ -5153,6 +5163,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::to_string(
                         terrainFieldStats
                             .terrainLawnDerivativeBoundarySampleCount) +
+                    ", source-appearance-anchors=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnSourceAppearanceAnchorSampleCount) +
                     ", material-overlay-cells=" +
                     std::to_string(
                         terrainFieldStats
@@ -5198,6 +5212,18 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::to_string(
                         terrainFieldStats
                             .terrainLawnMaximumColorDerivativeRestart) +
+                    ", normal-derivative-restart=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnMaximumNormalDerivativeRestart) +
+                    ", source-anchor-uv1=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnMaximumSourceAppearanceAnchorUv1Difference) +
+                    ", source-anchor-color=" +
+                    std::to_string(
+                        terrainFieldStats
+                            .terrainLawnMaximumSourceAppearanceAnchorColorDifference) +
                     ", source-uv-derivative-restart=" +
                     std::to_string(
                         terrainFieldStats
