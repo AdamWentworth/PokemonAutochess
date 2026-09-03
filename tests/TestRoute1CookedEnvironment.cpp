@@ -4367,25 +4367,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 std::string_view shape;
                 std::int32_t elevationLevel = 0;
             };
-            constexpr std::array<SourceRestoreProbe, 17>
+            constexpr std::array<SourceRestoreProbe, 5>
                 sourceRestoreProbes{{
                     {12, -11, "light_lawn", "flat", 3},
                     {13, -11, "light_lawn", "flat", 2},
                     {13, -12, "light_lawn", "flat", 2},
                     {13, -13, "dark_lawn", "ramp_south", 2},
                     {13, -14, "light_lawn", "flat", 3},
-                    {14, -9, "light_lawn", "flat", 1},
-                    {15, -9, "light_lawn", "flat", 1},
-                    {14, -8, "light_lawn", "flat", 0},
-                    {15, -8, "light_lawn", "flat", 0},
-                    {20, -8, "light_lawn", "flat", 0},
-                    {21, -8, "light_lawn", "flat", 0},
-                    {22, -8, "light_lawn", "flat", 0},
-                    {23, -8, "light_lawn", "flat", 0},
-                    {24, -8, "light_lawn", "flat", 0},
-                    {25, -8, "light_lawn", "flat", 0},
-                    {26, -8, "light_lawn", "flat", 0},
-                    {27, -8, "light_lawn", "flat", 0},
                 }};
             std::string invalidSourceRestoreCells;
             for (const auto& probe : sourceRestoreProbes) {
@@ -4426,6 +4414,66 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 outFail =
                     "South Clearing cells (12,-11) and (13,-11) through (13,-14) must remain exact imported source terrain outside generated regional ownership (invalid=" +
                     invalidSourceRestoreCells + ").";
+                return false;
+            }
+            std::string rebuiltUnchangedSourceLedgeCells;
+            constexpr std::array<std::int32_t, 10>
+                unchangedSourceLedgeXs{{
+                    14, 15,
+                    20, 21, 22, 23, 24, 25, 26, 27}};
+            for (const auto gridX : unchangedSourceLedgeXs) {
+                const auto findCell = [&](std::int32_t gridZ) {
+                    const auto found = std::find_if(
+                        southClearingTiles.begin(),
+                        southClearingTiles.end(),
+                        [&](const route1::TerrainTileState& tile) {
+                            return tile.gridX == gridX &&
+                                tile.gridZ == gridZ;
+                        });
+                    return found == southClearingTiles.end()
+                        ? nullptr
+                        : &*found;
+                };
+                const auto* crown = findCell(-9);
+                const auto* contact = findCell(-8);
+                const auto sourceEquivalent = [](const auto* tile) {
+                    return tile && !tile->authored &&
+                        tile->reason.empty() && tile->sourceOccupied &&
+                        !tile->sourceReference &&
+                        tile->surface == "light_lawn" &&
+                        tile->surface == tile->sourceSurface &&
+                        tile->shape == "flat" &&
+                        tile->shape == tile->sourceShape &&
+                        tile->elevationLevel ==
+                            tile->sourceElevationLevel &&
+                        !tile->normalizeSourceTint &&
+                        !tile->cleanSuppressedEncounterGrassTint &&
+                        !tile->regionalMaterialHandoffOnly &&
+                        !tile->rebuildContinuousMaterialFields &&
+                        !tile->sourceLedgeCarrierDisplaced &&
+                        !tile->terrainPatchV2Core;
+                };
+                const auto profile = crown && contact
+                    ? route1::route1TerrainSharedEdgeProfile(
+                          *crown, contact, 0u)
+                    : route1::TerrainSharedEdgeProfile{};
+                if (sourceEquivalent(crown) &&
+                    sourceEquivalent(contact) &&
+                    crown->elevationLevel == 1 &&
+                    contact->elevationLevel == 0 &&
+                    profile.tileLevels != profile.neighborLevels) {
+                    continue;
+                }
+                if (!rebuiltUnchangedSourceLedgeCells.empty()) {
+                    rebuiltUnchangedSourceLedgeCells += ",";
+                }
+                rebuiltUnchangedSourceLedgeCells += "(" +
+                    std::to_string(gridX) + ",-9/-8)";
+            }
+            if (!rebuiltUnchangedSourceLedgeCells.empty()) {
+                outFail =
+                    "South Clearing rebuilt an unchanged imported lawn ledge instead of retaining its crown-to-contact source assembly (invalid=" +
+                    rebuiltUnchangedSourceLedgeCells + ").";
                 return false;
             }
             std::string missingTintHandoffCells;
@@ -4540,7 +4588,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             };
             // Exact decoded material-19 UV0 branches at the centres of the
             // South Clearing lawn cells that exposed metre-wide squares when
-            // V2 replaced them with its generic world-space fallback.
+            // V2 replaced them with its generic world-space fallback. An
+            // unchanged source ledge may now retain its complete imported
+            // assembly instead of entering this generated batch.
             constexpr std::array<SourceLawnAlbedoProbe, 7>
                 sourceLawnAlbedoProbes{{
                     {{{1750.0, -2150.0}},
@@ -4560,6 +4610,65 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             }};
             std::array<bool, sourceLawnAlbedoProbes.size()>
                 foundSourceLawnAlbedoProbe{};
+            constexpr std::array<std::array<std::int32_t, 2>, 4>
+                sourceLedgeDirections{{
+                    {0, 1}, {1, 0}, {0, -1}, {-1, 0}}};
+            for (std::size_t probe = 0u;
+                 probe < sourceLawnAlbedoProbes.size();
+                 ++probe) {
+                const auto gridX = static_cast<std::int32_t>(
+                    std::floor(
+                        sourceLawnAlbedoProbes[probe].sourceXZ[0] /
+                        100.0));
+                const auto gridZ = static_cast<std::int32_t>(
+                    std::floor(
+                        sourceLawnAlbedoProbes[probe].sourceXZ[1] /
+                        100.0));
+                const auto tile = std::find_if(
+                    southClearingTiles.begin(),
+                    southClearingTiles.end(),
+                    [&](const route1::TerrainTileState& candidate) {
+                        return candidate.gridX == gridX &&
+                            candidate.gridZ == gridZ;
+                    });
+                if (tile == southClearingTiles.end() ||
+                    tile->authored || !tile->sourceOccupied ||
+                    tile->sourceReference ||
+                    tile->surface != tile->sourceSurface ||
+                    tile->shape != tile->sourceShape ||
+                    tile->elevationLevel !=
+                        tile->sourceElevationLevel ||
+                    tile->rebuildContinuousMaterialFields ||
+                    tile->sourceLedgeCarrierDisplaced) {
+                    continue;
+                }
+                for (std::size_t edge = 0u;
+                     edge < sourceLedgeDirections.size();
+                     ++edge) {
+                    const auto& direction =
+                        sourceLedgeDirections[edge];
+                    const auto neighbor = std::find_if(
+                        southClearingTiles.begin(),
+                        southClearingTiles.end(),
+                        [&](const route1::TerrainTileState& candidate) {
+                            return candidate.gridX ==
+                                    gridX + direction[0] &&
+                                candidate.gridZ ==
+                                    gridZ + direction[1];
+                        });
+                    if (neighbor == southClearingTiles.end()) {
+                        continue;
+                    }
+                    const auto profile =
+                        route1::route1TerrainSharedEdgeProfile(
+                            *tile, &*neighbor, edge);
+                    if (profile.tileLevels !=
+                        profile.neighborLevels) {
+                        foundSourceLawnAlbedoProbe[probe] = true;
+                        break;
+                    }
+                }
+            }
             struct RampMaterialProbe {
                 std::array<float, 2> lowerUv0{};
                 std::array<float, 2> upperUv0{};
@@ -5095,7 +5204,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                     100.0))) + ")";
                 }
                 outFail =
-                    "South Clearing regenerated source-equivalent light-lawn cells outside the repeat-equivalent decoded LGPE albedo branch (missing=" +
+                    "South Clearing neither retained source-equivalent lawn ledges nor regenerated the remaining lawn cells inside the repeat-equivalent decoded LGPE albedo branch (missing=" +
                     missing + ").";
                 return false;
             }
