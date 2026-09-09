@@ -27,10 +27,34 @@ bool CombatMapView::canStep(Cell from, Cell to, TraversalCapabilities capabiliti
     };
     if (from.x == to.x || from.z == to.z) return cardinal(from, to);
     const Cell flankX{to.x, from.z}, flankZ{from.x, to.z};
+    const auto walk = [&](Cell a, Cell b) {
+        return !rules || rules->cardinalStep(a, b, capabilities) == StepKind::Walk;
+    };
     // A diagonal must satisfy both directed cardinal routes around its corner.
     return !blocked[index(flankX)] && !blocked[index(flankZ)] &&
-           cardinal(from, flankX) && cardinal(flankX, to) &&
-           cardinal(from, flankZ) && cardinal(flankZ, to);
+           walk(from, flankX) && walk(flankX, to) &&
+           walk(from, flankZ) && walk(flankZ, to);
+}
+
+bool canReachMelee(CombatMapView map, Actor mover, const Actor &target) {
+    if (!map.contains(mover.cell) || !map.contains(target.cell) || !map.canPerceive(mover, target)) return false;
+    if (!map.rules) return true;
+    if (map.cols <= 0 || map.rows <= 0 || map.cols > 256 || map.rows > 256) return false;
+    std::vector<std::uint8_t> blocked(map.cols * map.rows), visited(map.cols * map.rows);
+    blocked[map.index(target.cell)] = 1;
+    std::vector<Cell> queue{mover.cell};
+    visited[map.index(mover.cell)] = 1;
+    for (std::size_t i = 0; i < queue.size(); ++i) {
+        mover.cell = queue[i];
+        if (map.canEngageMelee(mover, target)) return true;
+        for (const auto &direction : kDirections) {
+            const Cell next{mover.cell.x + direction[0], mover.cell.z + direction[1]};
+            if (!map.contains(next) || visited[map.index(next)] || !map.canStep(mover.cell, next, mover.traversal, blocked)) continue;
+            visited[map.index(next)] = 1;
+            queue.push_back(next);
+        }
+    }
+    return false;
 }
 
 void reserveStep(CombatMapView map, Cell from, Cell to, std::span<std::uint8_t> blocked) {

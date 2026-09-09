@@ -32,14 +32,19 @@ bool GameWorld::buildDebugStateSnapshot(DebugStateSnapshot& out) const {
         snap.level = unit.level;
         snap.hp = unit.hp;
         snap.energy = unit.energy;
-        const auto cell = worldToGrid(unit.position);
+        // Editor reloads resume at a safe endpoint rather than restoring an
+        // unreserved airborne position halfway through a cliff.
+        const glm::vec3 savedPosition = unit.ledgeJump.active()
+                                            ? (unit.ledgeJump.phase == LedgeJumpPhase::Landing ? unit.moveTo : unit.moveFrom)
+                                            : unit.position;
+        const auto cell = worldToGrid(savedPosition);
         snap.col = cell.x;
         snap.row = cell.y;
         snap.benchSlot = -1;
         snap.hasPosition = true;
-        snap.posX = unit.position.x;
-        snap.posY = unit.position.y;
-        snap.posZ = unit.position.z;
+        snap.posX = savedPosition.x;
+        snap.posY = savedPosition.y;
+        snap.posZ = savedPosition.z;
         snap.hasRotation = true;
         snap.rotX = unit.rotation.x;
         snap.rotY = unit.rotation.y;

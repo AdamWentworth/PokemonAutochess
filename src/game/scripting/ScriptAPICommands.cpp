@@ -25,6 +25,7 @@ bool isCombatActive(const PokemonInstance& u) {
 }
 
 bool setFacingToTarget(PokemonInstance& unit, const glm::vec3& targetPos) {
+    if (unit.ledgeJump.active()) return false;
     const glm::vec3 delta = targetPos - unit.position;
     const float lenSq = glm::dot(delta, delta);
     if (lenSq <= 1e-8f) return false;
@@ -33,6 +34,23 @@ bool setFacingToTarget(PokemonInstance& unit, const glm::vec3& targetPos) {
     constexpr float kRadToDeg = 57.29577951308232f;
     unit.rotation.y = std::atan2(lookDir.x, lookDir.z) * kRadToDeg;
     return true;
+}
+
+bool canCommitStep(GameWorld &world, const PokemonInstance &unit, int x, int z) {
+    if (unit.committedDest.x >= 0 || unit.ledgeJump.active() || unit.attackTimerSec > 0.0f || unit.movementSpeed <= 0.0f) return false;
+    const auto map = world.combatMap();
+    std::vector<std::uint8_t> blocked(map.cols * map.rows);
+    for (const auto &other : world.getPokemons()) {
+        if (other.id == unit.id || (!isCombatActive(other) && !other.captureInProgress &&
+                                    !(other.fainting && world.getConfig().faintBlockTiles))) continue;
+        const auto cell = world.worldToGrid(other.position);
+        if (map.contains({cell.x, cell.y})) blocked[map.index({cell.x, cell.y})] = 1;
+        if (other.committedDest.x >= 0) {
+            const auto from = world.worldToGrid(other.moveFrom);
+            game::arena::reserveStep(map, {from.x, from.y}, {other.committedDest.x, other.committedDest.y}, blocked);
+        }
+    }
+    return map.canStep(world.combatActor(unit).cell, {x, z}, unit.traversalCapabilities, blocked);
 }
 
 }  // namespace
@@ -145,6 +163,7 @@ void ScriptAPI::flush() {
                     auto* u = found->second;
                     if (u && isCombatActive(*u)) {
                         u->position = world_->gridToWorld(c->col, c->row);
+                        u->ledgeJump = {};
                         u->isMoving = false;
                         u->moveT = 1.0f;
                         u->committedDest = {-1, -1};
@@ -162,6 +181,7 @@ void ScriptAPI::flush() {
                     auto* u = found->second;
                     if (u && isCombatActive(*u)) {
                         const std::uint32_t targetKey = cellKey(c->col, c->row);
+                        if (!canCommitStep(*world_, *u, c->col, c->row)) continue;
                         const auto occupiedIt = lookup.occupiedByCell.find(targetKey);
                         if (occupiedIt != lookup.occupiedByCell.end() && occupiedIt->second != u->id) {
                             continue;
@@ -454,6 +474,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
         auto* u = world_->findUnitById(c.unitId);
         if (!u || !isCombatActive(*u)) return;
         u->position = world_->gridToWorld(c.col, c.row);
+        u->ledgeJump = {};
         u->isMoving = false;
         u->moveT = 1.0f;
         u->committedDest = {-1, -1};
@@ -466,6 +487,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
         auto* u = world_->findUnitById(c.unitId);
         if (!u || !isCombatActive(*u)) return;
         const glm::ivec2 target{c.col, c.row};
+        if (!canCommitStep(*world_, *u, c.col, c.row)) return;
         for (const auto& other : world_->getPokemons()) {
             if (!other.alive && !other.captureInProgress && !(other.fainting && config().faintBlockTiles)) continue;
             if (other.id == u->id) continue;

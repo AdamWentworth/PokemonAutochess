@@ -2,6 +2,7 @@
 #pragma once
 
 #include "game/arena/CombatMap.h"
+#include "game/animation/LedgeJump.h"
 #include <string>
 #include <memory>
 #include <unordered_map>
@@ -101,6 +102,13 @@ struct PokemonInstance {
     glm::vec3 moveTo{0.0f};
     float moveT = 1.0f;
     glm::ivec2 committedDest{-1, -1};
+    LedgeJumpState ledgeJump;
+    int animJumpStartIndex = -1;
+    int animJumpLoopIndex = -1;
+    int animJumpLandIndex = -1;
+    float jumpStartDurationSec = 0.0f;
+    float jumpLoopDurationSec = 0.0f;
+    float jumpLandDurationSec = 0.0f;
 
     // per-instance animation time (seconds)
     float animTimeSec = 0.0f;
@@ -177,7 +185,7 @@ struct PokemonInstance {
 
 
     // --- Flight visuals (optional; visual-only) ---
-    // Enabled when an animset provides takeoff+landing clips, or meta movementMode="airborne".
+    // Enabled by explicit airborne metadata or configured flyer species.
     bool usesAirLocomotion = false;
 
     // Optional animation indices for flight presentation.

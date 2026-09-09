@@ -25,6 +25,9 @@ struct BackendAnimRoleEntry {
     int landBIndex = -1;
     int landCIndex = -1;
     int faintIndex = -1;
+    int jumpStartIndex = -1;
+    int jumpLoopIndex = -1;
+    int jumpLandIndex = -1;
     float animFps = 24.0f;
     float attackDurationSec = 0.0f;
     float faintDurationSec = 0.0f;

@@ -180,6 +180,9 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
         return;
     }
     if (!unit.alive) return;
+    // Movement owns jump clip time and the airborne trajectory, including the
+    // full landing recovery. Ordinary locomotion must not overwrite that pose.
+    if (unit.ledgeJump.active()) return;
 
     unit.fastChainTimerSec = std::max(0.0f, unit.fastChainTimerSec - dt);
     const bool traceAnim = shouldTraceAnim(engineServices, unit);

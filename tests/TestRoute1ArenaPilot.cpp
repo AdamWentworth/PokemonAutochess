@@ -9,6 +9,8 @@
 #include <cmath>
 #include <limits>
 #include <string>
+#include "game/GameConfig.h"
+#include "game/GameWorld.h"
 
 bool test_route1_arena_pilot_contract(std::string& outFail) {
     namespace env = game::runtime::route1_environment;
@@ -23,6 +25,15 @@ bool test_route1_arena_pilot_contract(std::string& outFail) {
         !env::loadBoardLayoutTransform(arena.store, arena.boardPath, board, &outFail) ||
         !game::runtime::arena_scene_activation::apply(store, variants::kRoute1Pilot, environment, false, true, &outFail)) return false;
     auto scene = arena.scene;
+    GameConfigData config;
+    GameWorld gameplay(config);
+    if (!game::runtime::arena_scene_activation::applyGameplay(store, variants::kRoute1Pilot, gameplay, &outFail)) return false;
+    if (gameplay.combatMap().stepKind({5, 1}, {5, 2}, {}) != game::arena::StepKind::LedgeDrop ||
+        gameplay.combatMap().stepKind({5, 2}, {5, 1}, {}) != game::arena::StepKind::Blocked ||
+        std::abs(gameplay.gridToWorld(5, 1).y - gameplay.gridToWorld(5, 2).y - 0.5f) > 0.001f) {
+        outFail = "Published arena did not activate its directed ledges and floor before rendering.";
+        return false;
+    }
     if (!environment.terrainTiles().empty() || environment.stats().visibleTriangleCount == 0) {
         outFail = "Mesh-authored arena must render without regenerated source terrain, including Terrain Patch V2 preview.";
         return false;

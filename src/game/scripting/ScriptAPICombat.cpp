@@ -53,6 +53,7 @@ int ScriptAPI::applyDamage(int attackerId,
 
     if (attackerIt == units.end() || targetIt == units.end()) return -1;
     if (!isCombatActive(*attackerIt)) return targetIt->hp;
+    if (attackerIt->ledgeJump.active()) return targetIt->hp;
     if (targetIt->captureInProgress) return targetIt->hp;
 
     const auto contextStart = traceScratch ? Clock::now() : Clock::time_point{};

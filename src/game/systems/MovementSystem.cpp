@@ -234,7 +234,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         if (!inside(cfg, item.col, item.row)) continue;
         const int idx = cellIndex(cfg, item.col, item.row);
         blocked[idx] = 1u;
-        if (unit.isMoving && hasCommittedMove(unit)) {
+        if (hasCommittedMove(unit)) {
             const auto origin = gameWorld->worldToGrid(unit.moveFrom);
             game::arena::reserveStep(map, {origin.x, origin.y}, {unit.committedDest.x, unit.committedDest.y}, blocked);
         }
@@ -257,6 +257,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
             if (i == j) continue;
             if (!cached[j].active || cached[j].side == cached[i].side) continue;
             if (!map.canPerceive(gameWorld->combatActor(boardUnits[i]), gameWorld->combatActor(boardUnits[j]))) continue;
+            if (!game::arena::canReachMelee(map, gameWorld->combatActor(boardUnits[i]), gameWorld->combatActor(boardUnits[j]))) continue;
 
             const int dx = std::abs(entry.col - cached[j].col);
             const int dy = std::abs(entry.row - cached[j].row);
@@ -290,6 +291,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     for (const PlannerUnit& entry : units) {
         PokemonInstance& unit = *entry.unit;
         if (unit.isMoving && hasCommittedMove(unit)) continue;
+        if (unit.attackTimerSec > 0.0f) continue;
         if (entry.adjacentToEnemy || entry.enemyCol == -1 || unit.movementSpeed <= 0.0f) {
             unit.isMoving = false;
             unit.committedDest = {-1, -1};
@@ -309,6 +311,9 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         unit.moveTo = gameWorld->gridToWorld(wantCol, wantRow);
         unit.moveT = 0.0f;
         unit.isMoving = true;
+        if (map.stepKind({entry.col, entry.row}, {wantCol, wantRow}, unit.traversalCapabilities) == game::arena::StepKind::LedgeDrop) {
+            LedgeJump::begin(unit, gameWorld->getBoardCellSize());
+        }
         if (shouldTraceAnim(services.engineServices, unit)) {
             std::ostringstream trace;
             trace << std::fixed << std::setprecision(3)
@@ -331,6 +336,10 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     }
 
     for (const PlannerUnit& unit : units) {
+        if (unit.unit->ledgeJump.active()) {
+            setFacingToTarget(*unit.unit, unit.unit->moveTo);
+            continue;
+        }
         if (unit.enemyCol != -1 && unit.enemyRow != -1) {
             setFacingToTarget(*unit.unit, gameWorld->gridToWorld(unit.enemyCol, unit.enemyRow));
         }
@@ -351,6 +360,28 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         const bool traceAnim = shouldTraceAnim(services.engineServices, unit);
         const glm::vec3 beforePos = unit.position;
         const float beforeMoveT = unit.moveT;
+
+        // Scripted commits use the same transition classifier as native plans.
+        if (!unit.ledgeJump.active() && unit.moveT == 0.0f && unit.attackTimerSec <= 0.0f) {
+            const auto from = gameWorld->worldToGrid(unit.moveFrom);
+            if (map.stepKind({from.x, from.y}, {unit.committedDest.x, unit.committedDest.y}, unit.traversalCapabilities) == game::arena::StepKind::LedgeDrop)
+                LedgeJump::begin(unit, gameWorld->getBoardCellSize());
+        }
+        if (unit.ledgeJump.active()) {
+            const auto previousPhase = unit.ledgeJump.phase;
+            if (LedgeJump::advance(unit, deltaTime)) {
+                unit.committedDest = {-1, -1};
+                unit.isMoving = shouldHoldLocomotionAfterArrival(*gameWorld, worldUnits, unit);
+            }
+            if (traceAnim && previousPhase != unit.ledgeJump.phase) {
+                std::ostringstream trace;
+                trace << "phase=" << static_cast<int>(previousPhase) << "->" << static_cast<int>(unit.ledgeJump.phase)
+                      << " pos=" << vecString(unit.position) << " clip='" << animationName(unit, unit.activeAnimIndex)
+                      << "' index=" << unit.activeAnimIndex << " time=" << unit.animTimeSec;
+                emitAnimTrace(&services.log, "LedgeJump", unit, trace.str());
+            }
+            continue;
+        }
 
         // Flyers with a real ground-to-air role first complete that authored
         // takeoff chain in place. Continuously airborne species must not be

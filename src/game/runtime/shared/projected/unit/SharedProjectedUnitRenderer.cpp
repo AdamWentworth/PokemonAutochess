@@ -310,11 +310,12 @@ struct CachedScenePoseKey {
     const game::runtime::render_model::MeshData* mesh = nullptr;
     int animIndex = -1;
     std::uint32_t animSampleKey = 0u;
+    bool ledgeJump = false;
 
     bool operator==(const CachedScenePoseKey& other) const {
         return mesh == other.mesh &&
                animIndex == other.animIndex &&
-               animSampleKey == other.animSampleKey;
+               animSampleKey == other.animSampleKey && ledgeJump == other.ledgeJump;
     }
 };
 
@@ -324,7 +325,7 @@ struct CachedScenePoseKeyHash {
             std::hash<const game::runtime::render_model::MeshData*>{}(key.mesh);
         const std::size_t h1 = std::hash<int>{}(key.animIndex);
         const std::size_t h2 = std::hash<std::uint32_t>{}(key.animSampleKey);
-        return (h0 * 1315423911u) ^ (h1 + 0x9e3779b9u + (h2 << 6u) + (h2 >> 2u));
+        return (h0 * 1315423911u) ^ (h1 + 0x9e3779b9u + (h2 << 6u) + (h2 >> 2u)) ^ std::hash<bool>{}(key.ledgeJump);
     }
 };
 
@@ -521,6 +522,9 @@ for (const auto& unit : units) {
     if (meshForUnit) {
         const int animIndex = resolveSceneAnimIndexForUnit(*meshForUnit, unit);
         const bool loopingClip = shouldLoopSceneAnimForUnit(unit, animIndex);
+        const auto rootPolicy = unit.ledgeJump.active()
+                                    ? game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceAll
+                                    : game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal;
         const detail::CanonicalScenePoseSample canonicalAnimSample =
             canonicalSceneAnimTimeForKey(
                 *meshForUnit,
@@ -532,7 +536,7 @@ for (const auto& unit : units) {
         const CachedScenePoseKey key{
             meshForUnit,
             animIndex,
-            canonicalAnimSample.cacheKey};
+            canonicalAnimSample.cacheKey, unit.ledgeJump.active()};
         auto it = g_cachedScenePoseBySignature.find(key);
         if (it == g_cachedScenePoseBySignature.end()) {
             CachedScenePoseEntry inserted;
@@ -540,7 +544,7 @@ for (const auto& unit : units) {
                 *meshForUnit,
                 animIndex,
                 canonicalAnimSample.animTimeSec,
-                game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
+                rootPolicy,
                 loopingClip,
                 inserted.pose);
             inserted.lastUsedFrame = poseCacheFrame;
@@ -563,7 +567,7 @@ for (const auto& unit : units) {
                 const CachedScenePoseKey nextKey{
                     meshForUnit,
                     animIndex,
-                    nextAnimSample.cacheKey};
+                    nextAnimSample.cacheKey, unit.ledgeJump.active()};
                 if (g_cachedScenePoseBySignature.find(nextKey) ==
                     g_cachedScenePoseBySignature.end()) {
                     CachedScenePoseEntry nextInserted;
@@ -571,7 +575,7 @@ for (const auto& unit : units) {
                         *meshForUnit,
                         animIndex,
                         nextAnimSample.animTimeSec,
-                        game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
+                        rootPolicy,
                         loopingClip,
                         nextInserted.pose);
                     nextInserted.lastUsedFrame = poseCacheFrame;
@@ -705,54 +709,56 @@ for (const auto& unit : units) {
         const auto modelResult =
             runtime::shared_projected_body_presentation::buildProjectedBodyPresentation(
                 runtime::shared_projected_unit_models::Args{
-                .renderer = args.renderer,
-                .dataDb = &dataDb,
-                .unit = &unit,
-                .pose = &pose,
-                .meshForUnit = meshForUnit,
-                .scenePose = scenePose,
-                .backendId = args.rendererBackendId,
-                .scenePoseReady = scenePoseReady,
-                .enableClipSkinning = unitClipSkinningEnabled,
-                .enableGpuClipSkinning = enableGpuClipSkinning,
-                .tint = &tint,
-                .worldCellSize = worldCellSize,
-                .boardSurfaceY = boardSurfaceY,
-                .unitSize = unitSize,
-                .animPitch = animPitch,
-                .animYaw = animYaw,
-                .animRoll = animRoll,
-                .attackPulse = attackPulse,
-                .materialTimeSec = args.gameWorld ? args.gameWorld->getSharedLoopAnimTimeSec() : unit.animTimeSec,
-                .materialAnimationIndex = resolvedSceneAnimIndex,
-                .materialAnimationTimeSec = resolvedSceneAnimTimeSec,
-                .renderVisualScale = renderVisualScale,
-                .renderCaptureScale = renderCaptureScale,
-                .captureVisualTintStrength = captureVisualTintStrength,
-                .modelFadeAlpha = modelFadeAlpha,
-                .captureTintColor = captureTintColor,
-                .proxyCenter = proxyCenter,
-                .cameraWorldPos = cameraWorldPos,
-                .supportsWorldTriangles3D = supportsWorldTriangles3D,
-                .supportsWorldIndexedMeshes = supportsWorldIndexedMeshes,
-                .characterInkingEnabled = characterInkingEnabled,
-                .graphicsQuality = args.graphicsQuality,
-                .projectedDebug = &projectedDebug,
-                .projectedRenderItems = args.projectedRenderItems,
-                .worldSceneRegistry = args.worldSceneRegistry,
-                .worldSceneFrame = args.worldSceneFrame,
-                .worldIndexedBatches = &worldIndexedBatches,
-                .backendTextureByPath = args.backendTextureByPath,
-                .modelDepthTris = &modelDepthTris,
-                .modelDepthWorldTris = &modelDepthWorldTris,
-                .remainingModelTrianglesBudget = &remainingModelTrianglesBudget,
-                .world3DTriangles = &world3DTriangles,
-                .ensureBackendTextureLoaded = args.ensureBackendTextureLoaded,
-                .backendModelTriangleLimit = backendModelTriangleLimit,
-                .backendModelFullMeshEnabled = backendModelFullMeshEnabled,
-                .backendModelFastTexturedPathEnabled = backendModelFastTexturedPathEnabled,
-                .backendModelBackfaceCullingEnabled = backendModelBackfaceCullingEnabled,
-                .perfBreakdown = &modelPerf});
+                    .renderer = args.renderer,
+                    .dataDb = &dataDb,
+                    .unit = &unit,
+                    .pose = &pose,
+                    .meshForUnit = meshForUnit,
+                    .scenePose = scenePose,
+                    .backendId = args.rendererBackendId,
+                    .scenePoseReady = scenePoseReady,
+                    .enableClipSkinning = unitClipSkinningEnabled,
+                    // Prebaked GPU clips preserve vertical root travel. Jumps use
+                    // the evaluated in-place palette so the simulation owns height.
+                    .enableGpuClipSkinning = enableGpuClipSkinning && !unit.ledgeJump.active(),
+                    .tint = &tint,
+                    .worldCellSize = worldCellSize,
+                    .boardSurfaceY = boardSurfaceY,
+                    .unitSize = unitSize,
+                    .animPitch = animPitch,
+                    .animYaw = animYaw,
+                    .animRoll = animRoll,
+                    .attackPulse = attackPulse,
+                    .materialTimeSec = args.gameWorld ? args.gameWorld->getSharedLoopAnimTimeSec() : unit.animTimeSec,
+                    .materialAnimationIndex = resolvedSceneAnimIndex,
+                    .materialAnimationTimeSec = resolvedSceneAnimTimeSec,
+                    .renderVisualScale = renderVisualScale,
+                    .renderCaptureScale = renderCaptureScale,
+                    .captureVisualTintStrength = captureVisualTintStrength,
+                    .modelFadeAlpha = modelFadeAlpha,
+                    .captureTintColor = captureTintColor,
+                    .proxyCenter = proxyCenter,
+                    .cameraWorldPos = cameraWorldPos,
+                    .supportsWorldTriangles3D = supportsWorldTriangles3D,
+                    .supportsWorldIndexedMeshes = supportsWorldIndexedMeshes,
+                    .characterInkingEnabled = characterInkingEnabled,
+                    .graphicsQuality = args.graphicsQuality,
+                    .projectedDebug = &projectedDebug,
+                    .projectedRenderItems = args.projectedRenderItems,
+                    .worldSceneRegistry = args.worldSceneRegistry,
+                    .worldSceneFrame = args.worldSceneFrame,
+                    .worldIndexedBatches = &worldIndexedBatches,
+                    .backendTextureByPath = args.backendTextureByPath,
+                    .modelDepthTris = &modelDepthTris,
+                    .modelDepthWorldTris = &modelDepthWorldTris,
+                    .remainingModelTrianglesBudget = &remainingModelTrianglesBudget,
+                    .world3DTriangles = &world3DTriangles,
+                    .ensureBackendTextureLoaded = args.ensureBackendTextureLoaded,
+                    .backendModelTriangleLimit = backendModelTriangleLimit,
+                    .backendModelFullMeshEnabled = backendModelFullMeshEnabled,
+                    .backendModelFastTexturedPathEnabled = backendModelFastTexturedPathEnabled,
+                    .backendModelBackfaceCullingEnabled = backendModelBackfaceCullingEnabled,
+                    .perfBreakdown = &modelPerf});
         modelRenderMsAcc += std::chrono::duration<double, std::milli>(Clock::now() - modelStart).count();
         modelPrepMsAcc += modelPerf.prepMs;
         modelGeometryMsAcc += modelPerf.geometryMs;

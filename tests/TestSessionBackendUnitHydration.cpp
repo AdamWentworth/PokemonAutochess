@@ -6,6 +6,9 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <set>
+#include <iostream>
+#include "engine/core/Paths.h"
 
 #include "game/config/AnimSetLoader.h"
 #include "game/config/GameDataDb.h"
@@ -64,6 +67,75 @@ engine::render::model_types::AnimationClip makeClip(const std::string& name, flo
 }
 
 } // namespace
+
+bool test_ledge_jump_asset_roles(std::string &outFail) {
+    GameDataDb db;
+    if (!db.pokemon.loadConfig(engine::paths::data("config/pokemon_config.json"), nullptr) ||
+        !db.flyers.loadConfig(engine::paths::data("config/flyers_config.json"), nullptr)) {
+        outFail = "Could not load roster for jump asset qualification.";
+        return false;
+    }
+    using namespace game::runtime::session_backend_unit_hydration;
+    BackendAnimRoleCache cache;
+    std::size_t checked = 0;
+    for (const auto &[species, stats] : db.pokemon.all()) {
+        std::set<std::string> models{stats.model};
+        for (const auto &[variant, path] : stats.modelVariants) {
+            (void)variant;
+            models.insert(path);
+        }
+        for (const auto &model : models) {
+            const std::string path = "assets/models/" + model;
+            game::runtime::render_model::MeshData mesh;
+            if (!game::runtime::render_model::loadMeshFromCache(path, mesh, &outFail)) return false;
+            auto &roles = ensureBackendAnimRoles(path, &mesh, cache);
+            PokemonInstance unit;
+            unit.name = species;
+            AnimSet::applyAnimSetOverrides(unit, path, &db.flyers);
+            const bool flyer = db.flyers.isFlyer(species) || roles.usesAirLocomotion;
+            if (flyer) continue;
+            if (unit.usesAirLocomotion || unit.traversalCapabilities.ignoresTerrain ||
+                roles.jumpStartIndex < 0 || roles.jumpLoopIndex < 0 || roles.jumpLandIndex < 0) {
+                outFail = "Ground model lacks jump roles or was incorrectly classified as flying: " + model;
+                return false;
+            }
+            if (roles.faintIndex == roles.jumpStartIndex || roles.faintIndex == roles.jumpLoopIndex) {
+                outFail = "Faint resolver confused jumpdown with down: " + model;
+                return false;
+            }
+            const auto durationMatches = [&](int index, float seconds) {
+                return seconds > 0 && static_cast<std::size_t>(index) < mesh.animations.size() &&
+                       std::abs(mesh.animations[index].durationSec - seconds) <= 1.0f / unit.animFps + 0.002f;
+            };
+            if (!durationMatches(roles.jumpStartIndex, unit.jumpStartDurationSec) ||
+                !durationMatches(roles.jumpLoopIndex, unit.jumpLoopDurationSec) ||
+                !durationMatches(roles.jumpLandIndex, unit.jumpLandDurationSec)) {
+                outFail = "Jump manifest timing differs by more than one source frame from cooked animation: " + model +
+                          " start=" + std::to_string(unit.jumpStartDurationSec) + "/" + std::to_string(mesh.animations[roles.jumpStartIndex].durationSec) +
+                          " loop=" + std::to_string(unit.jumpLoopDurationSec) + "/" + std::to_string(mesh.animations[roles.jumpLoopIndex].durationSec) +
+                          " land=" + std::to_string(unit.jumpLandDurationSec) + "/" + std::to_string(mesh.animations[roles.jumpLandIndex].durationSec);
+                return false;
+            }
+            // Manifests count source frames; cooked clips may end on the last
+            // key's timestamp. Gameplay uses the same manifest clock in both.
+            PokemonInstance rendered = unit;
+            rendered.animJumpStartIndex = roles.jumpStartIndex;
+            rendered.animJumpLoopIndex = roles.jumpLoopIndex;
+            rendered.animJumpLandIndex = roles.jumpLandIndex;
+            for (const auto &clip : mesh.animations)
+                rendered.backendAnimDurationsSec.push_back(clip.durationSec);
+            LedgeJump::begin(unit, 1.0f);
+            LedgeJump::begin(rendered, 1.0f);
+            if (unit.ledgeJump.startSec != rendered.ledgeJump.startSec || unit.ledgeJump.landingSec != rendered.ledgeJump.landingSec) {
+                outFail = "Rendering changed simulation jump timing: " + model;
+                return false;
+            }
+            ++checked;
+        }
+    }
+    std::cout << "Qualified jump start/loop/land and headless timing on " << checked << " configured ground model variants.\n";
+    return checked > 0;
+}
 
 bool test_session_backend_unit_hydration_contract(std::string& outFail) {
     const std::filesystem::path tempDir = createTempDir("session_backend_unit_hydration", outFail);

@@ -375,6 +375,7 @@ endif()
 add_library(PAC_ArenaLogic STATIC
     src/game/arena/CombatMap.cpp
     src/game/arena/ArenaMapData.cpp
+    src/game/arena/AuthoredCombatMap.cpp
     src/game/runtime/shared/scene/AuthoredGroundSurface.cpp)
 target_include_directories(PAC_ArenaLogic PUBLIC "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(PAC_ArenaLogic PUBLIC nlohmann_json::nlohmann_json glm::glm)
@@ -573,6 +574,7 @@ add_library(PAC_GameObjects STATIC
 
     # Game Animations
     src/game/animation/FlightLocomotion.cpp
+    src/game/animation/LedgeJump.cpp
 
     # Game Logging
     src/game/logging/LogBus.cpp
@@ -1143,6 +1145,7 @@ if (BUILD_TESTING)
     endforeach()
 
     set(PAC_PRIVATE_ASSET_TEST_NAMES
+        ledge_jump_asset_roles
         ui_image_path_contract
         native_charmander_family_fire_contract
         route1_cooked_environment_contract

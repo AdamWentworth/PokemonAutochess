@@ -123,11 +123,13 @@ void GameWorld::clearGroundHeightResolver() {
         position.y = 0.0f;
     };
     for (auto& unit : pokemons) {
+        unit.ledgeJump = {};
         flatten(unit.position);
         flatten(unit.moveFrom);
         flatten(unit.moveTo);
     }
     for (auto& unit : benchPokemons) {
+        unit.ledgeJump = {};
         flatten(unit.position);
         flatten(unit.moveFrom);
         flatten(unit.moveTo);
@@ -161,7 +163,8 @@ void GameWorld::conformPokemonToGround() {
     if (!groundHeightResolver) {
         return;
     }
-    const auto conformUnit = [&](PokemonInstance& unit) {
+    const auto conformUnit = [&](PokemonInstance &unit) {
+        if (unit.ledgeJump.active()) return;
         unit.position = conformPositionToGround(unit.position);
         unit.moveFrom = conformPositionToGround(unit.moveFrom);
         unit.moveTo = conformPositionToGround(unit.moveTo);
@@ -410,6 +413,7 @@ bool GameWorld::setEditorPreviewUnitTransform(
     }
 
     unit->position = resolvedPosition;
+    unit->ledgeJump = {};
     unit->rotation = rotationDegrees;
     unit->isMoving = false;
     unit->moveFrom = resolvedPosition;

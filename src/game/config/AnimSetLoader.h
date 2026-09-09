@@ -18,6 +18,11 @@ struct RolePick {
     bool valid = false;
 };
 
+struct LedgeJumpRoles {
+    RolePick start, loop, land;
+};
+LedgeJumpRoles resolveLedgeJumpRoles(const nlohmann::json &j);
+
 // Same folder as model, same stem, extension replaced with ".animset.json"
 std::string animSetPathFromModelPath(const std::string& modelPath);
 

@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('planning','battle')][string]$Phase = 'planning',
+    [ValidateSet('planning','battle','ledges')][string]$Phase = 'planning',
     [ValidateSet('opengl','d3d12','vulkan')][string]$Backend = 'opengl',
     [string]$OutputDirectory = '',
     [switch]$Capture

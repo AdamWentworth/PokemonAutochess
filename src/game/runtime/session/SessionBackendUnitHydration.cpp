@@ -89,6 +89,9 @@ void hydrateUnit(PokemonInstance& unit,
     assignRoleIndex(unit.animLandAIndex, roles.landAIndex);
     assignRoleIndex(unit.animLandBIndex, roles.landBIndex);
     assignRoleIndex(unit.animLandCIndex, roles.landCIndex);
+    assignRoleIndex(unit.animJumpStartIndex, roles.jumpStartIndex);
+    assignRoleIndex(unit.animJumpLoopIndex, roles.jumpLoopIndex);
+    assignRoleIndex(unit.animJumpLandIndex, roles.jumpLandIndex);
 
     if (roles.animFps > 0.0f) {
         unit.animFps = roles.animFps;
@@ -101,9 +104,8 @@ void hydrateUnit(PokemonInstance& unit,
     }
 
     const bool speciesListedFlyer = dataDb.flyers.isFlyer(unit.name);
-    if ((roles.usesAirLocomotion || speciesListedFlyer) && !unit.usesAirLocomotion) {
-        unit.usesAirLocomotion = true;
-    }
+    unit.usesAirLocomotion = roles.usesAirLocomotion || speciesListedFlyer;
+    unit.traversalCapabilities.ignoresTerrain = roles.usesAirLocomotion || speciesListedFlyer;
     if (unit.usesAirLocomotion) {
         if (unit.airLiftY <= 0.0f && roles.airLiftY > 0.0f) unit.airLiftY = roles.airLiftY;
         if (unit.takeoffSec <= 0.0f && roles.takeoffSec > 0.0f) unit.takeoffSec = roles.takeoffSec;
@@ -194,10 +196,10 @@ BackendAnimRoleEntry& ensureBackendAnimRoles(const std::string& modelPath,
         }
 
         auto faintPick = AnimSet::resolveRoleClip(
-            animSetJson, "faint", "status", {"down01_start", "down_start", "down01", "down"}, true);
+            animSetJson, "faint", "status", {"_down01_start", "_down_start", "_down01", "_down", "down01_start", "down_start", "down01", "down"}, true);
         if (!faintPick.valid || faintPick.clipName.empty()) {
             faintPick = AnimSet::resolveRoleClip(
-                animSetJson, "down", "status", {"down01_start", "down_start", "down01", "down"}, true);
+                animSetJson, "down", "status", {"_down01_start", "_down_start", "_down01", "_down", "down01_start", "down_start", "down01", "down"}, true);
         }
 
         const auto groundIdlePick = AnimSet::resolveRoleClip(
@@ -250,6 +252,10 @@ BackendAnimRoleEntry& ensureBackendAnimRoles(const std::string& modelPath,
         entry.landAIndex = resolvePick(landAPick);
         entry.landBIndex = resolvePick(landBPick);
         entry.landCIndex = resolvePick(landCPick);
+        const auto jump = AnimSet::resolveLedgeJumpRoles(animSetJson);
+        entry.jumpStartIndex = resolvePick(jump.start);
+        entry.jumpLoopIndex = resolvePick(jump.loop);
+        entry.jumpLandIndex = resolvePick(jump.land);
 
         if (animSetJson.contains("meta") && animSetJson["meta"].is_object()) {
             const auto& meta = animSetJson["meta"];
@@ -296,15 +302,6 @@ BackendAnimRoleEntry& ensureBackendAnimRoles(const std::string& modelPath,
         entry.faintIndex >= 0 &&
         static_cast<std::size_t>(entry.faintIndex) < mesh->animations.size()) {
         entry.faintDurationSec = mesh->animations[static_cast<std::size_t>(entry.faintIndex)].durationSec;
-    }
-
-    const bool hasTakeoff = entry.takeoffIndex >= 0;
-    const bool hasSeqLanding = (entry.landCIndex >= 0) && (entry.landAIndex >= 0 || entry.landBIndex >= 0);
-    const bool hasSingleLanding = entry.landIndex >= 0;
-    const bool hasDistinctLand =
-        hasSeqLanding || (hasTakeoff && hasSingleLanding && entry.takeoffIndex != entry.landIndex);
-    if (hasTakeoff && hasDistinctLand) {
-        entry.usesAirLocomotion = true;
     }
 
     return entry;

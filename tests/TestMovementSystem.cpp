@@ -19,6 +19,8 @@
 #include "game/PhaseState.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/animation/FlightLocomotion.h"
+#include "game/arena/AuthoredCombatMap.h"
+#include "game/config/AnimSetLoader.h"
 #include "game/config/GameDataDb.h"
 #include "game/logging/LogBus.h"
 #include "game/scripting/ScriptEventBus.h"
@@ -55,6 +57,191 @@ int64_t cellKey(int col, int row) {
     return (static_cast<int64_t>(row) << 32) | static_cast<uint32_t>(col);
 }
 } // namespace
+
+bool test_ledge_jump_movement(std::string &outFail) {
+    GameConfigData cfg;
+    GameDataDb db;
+    LogBus::Logger log;
+    log.setEchoToStdout(false);
+    ScriptEventBus events;
+    game::assets::DevAssetStore assets(engine::paths::dataRoot());
+    engine::XorShift32 rng(1u);
+    engine::ManualTimeSource time;
+    GameServices services(cfg, db, log, events, assets, rng, time);
+    engine::CoreServices core;
+    core.rng = &rng;
+    core.time = &time;
+    engine::ecs::World ecs(&core);
+    const auto combat = ecs.create();
+    ecs.add<game::CombatActive>(combat, game::CombatActive{true});
+    game::arena::ArenaMapData data;
+    for (int z = 0; z < cfg.rows; ++z)
+        for (int x = 0; x < cfg.cols; ++x) {
+            data.tiles[{x, z}] = {x, z, z <= 1 ? 1 : 0, 0, 0};
+            data.playableCells.insert({x, z});
+        }
+    const auto rules = std::make_shared<game::arena::AuthoredCombatMap>(data, game::arena::Cell{0, 0});
+    for (float dt : {1.0f / 120, 1.0f / 30, 0.2f}) {
+        GameWorld world(cfg);
+        world.setCombatMapRules(rules);
+        world.bindGroundHeightResolver(rules.get(), [&](float, float z, float &y) {
+            y = world.worldToGrid({0, 0, z}).y <= 1 ? 0.5f : 0.0f;
+            return true;
+        });
+        auto &units = world.getPokemons();
+        units.push_back(makeUnit(cfg, "jumper", PokemonSide::Player, 5, 1, 2.0f));
+        units.push_back(makeUnit(cfg, "follower", PokemonSide::Player, 5, 0, 3.0f));
+        units.push_back(makeUnit(cfg, "target", PokemonSide::Enemy, 5, 4, 0.0f));
+        world.conformPokemonToGround();
+        auto &jumper = units[0];
+        jumper.animIdleIndex = 0;
+        jumper.animJumpStartIndex = 1;
+        jumper.animJumpLoopIndex = 2;
+        jumper.animJumpLandIndex = 3;
+        jumper.backendAnimDurationsSec = {1.0f, 0.25f, 0.20f, 0.30f};
+        GameWorld reversed(cfg);
+        reversed.setCombatMapRules(rules);
+        reversed.bindGroundHeightResolver(rules.get(), [&](float, float z, float &y) {
+            y = reversed.worldToGrid({0, 0, z}).y <= 1 ? 0.5f : 0.0f;
+            return true;
+        });
+        reversed.getPokemons() = units;
+        std::reverse(reversed.getPokemons().begin(), reversed.getPokemons().end());
+        MovementSystem reverseMovement(&reversed, services, combat);
+        MovementSystem movement(&world, services, combat);
+        ScriptAPI api(&world, nullptr, services);
+        bool start = false, airborne = false, landing = false, completed = false;
+        for (int tick = 0; tick < 500; ++tick) {
+            movement.update(ecs, dt);
+            reverseMovement.update(ecs, dt);
+            for (const auto &unit : units) {
+                const auto *other = reversed.findUnitById(unit.id);
+                if (!other || glm::distance(unit.position, other->position) > 0.00001f ||
+                    unit.committedDest != other->committedDest || unit.ledgeJump.phase != other->ledgeJump.phase) {
+                    outFail = "Ledge reservations or trajectories depend on unit storage order.";
+                    return false;
+                }
+            }
+            const auto phase = jumper.ledgeJump.phase;
+            if (phase != LedgeJumpPhase::None) {
+                if (jumper.committedDest != glm::ivec2(5, 2) || api.canAttack(jumper.id)) {
+                    outFail = "Jump lost its landing reservation or allowed an attack before recovery.";
+                    return false;
+                }
+                const float y = jumper.position.y;
+                const int clip = jumper.activeAnimIndex;
+                const float clipTime = jumper.animTimeSec;
+                GameWorld::DebugStateSnapshot snapshot;
+                world.buildDebugStateSnapshot(snapshot);
+                const auto saved = snapshot.boardUnits.front();
+                const auto safePosition = phase == LedgeJumpPhase::Landing ? jumper.moveTo : jumper.moveFrom;
+                if (glm::vec3(saved.posX, saved.posY, saved.posZ) != safePosition) {
+                    outFail = "Editor reload saved an airborne position without a reservation.";
+                    return false;
+                }
+                world.update(dt);
+                world.conformPokemonToGround();
+                if (jumper.position.y != y || jumper.activeAnimIndex != clip || jumper.animTimeSec != clipTime) {
+                    outFail = "Ground conformance or locomotion overwrote jump trajectory/animation.";
+                    return false;
+                }
+                if (phase == LedgeJumpPhase::Start) {
+                    start = true;
+                    if (jumper.position != jumper.moveFrom || clip != 1) {
+                        outFail = "Jump start translated before launch.";
+                        return false;
+                    }
+                } else if (phase == LedgeJumpPhase::Airborne) {
+                    airborne = true;
+                    if (clip != 2 || clipTime >= 0.2f) {
+                        outFail = "Airborne clip did not loop independently.";
+                        return false;
+                    }
+                    if (jumper.moveT < 0.5f && y < jumper.moveFrom.y) {
+                        outFail = "Jump penetrated upper shelf.";
+                        return false;
+                    }
+                } else {
+                    landing = true;
+                    if (jumper.position != jumper.moveTo || clip != 3) {
+                        outFail = "Landing did not hold destination/clip.";
+                        return false;
+                    }
+                }
+                if (units[1].committedDest == glm::ivec2(5, 1) || units[1].committedDest == glm::ivec2(5, 2)) {
+                    outFail = "Follower entered a reserved jump corridor.";
+                    return false;
+                }
+            } else if (start) {
+                completed = true;
+                if (jumper.committedDest != glm::ivec2(-1) || jumper.position != jumper.moveTo || !api.canAttack(jumper.id)) {
+                    outFail = "Landing did not release the reservation and attack lock.";
+                    return false;
+                }
+                break;
+            }
+        }
+        if (!start || !airborne || !landing || !completed) {
+            outFail = "Jump sequence stalled or skipped a required phase.";
+            return false;
+        }
+    }
+    // Scripted movement cannot bypass the uphill wall, jump diagonally, steal a
+    // landing, or replace a committed jump. Legal commits enter the same chain.
+    {
+        GameWorld world(cfg);
+        world.setCombatMapRules(rules);
+        auto &units = world.getPokemons();
+        units.push_back(makeUnit(cfg, "scripted", PokemonSide::Player, 5, 2));
+        ScriptAPI api(&world, nullptr, services);
+        api.commitMove(units[0].id, 5, 1);
+        api.flush();
+        if (units[0].committedDest.x >= 0) {
+            outFail = "Scripted commit climbed uphill.";
+            return false;
+        }
+        units[0].position = gridToWorld(cfg, 5, 1);
+        api.commitMove(units[0].id, 6, 2);
+        api.flush();
+        if (units[0].committedDest.x >= 0) {
+            outFail = "Scripted commit bypassed cardinal ledge drop.";
+            return false;
+        }
+        api.commitMove(units[0].id, 5, 2);
+        api.flush();
+        MovementSystem movement(&world, services, combat);
+        movement.update(ecs, 0.01f);
+        if (!units[0].ledgeJump.active()) {
+            outFail = "Scripted drop skipped jump animations.";
+            return false;
+        }
+        api.commitMove(units[0].id, 4, 1);
+        api.flush();
+        if (units[0].committedDest != glm::ivec2(5, 2)) {
+            outFail = "Script replaced an active jump reservation.";
+            return false;
+        }
+    }
+    // Missing clips cannot deadlock, and a long fixed tick consumes all phases.
+    PokemonInstance fallback;
+    fallback.moveFrom = {0, 0.5f, 0};
+    fallback.moveTo = {0, 0, 1};
+    LedgeJump::begin(fallback, 1.0f);
+    if (!LedgeJump::advance(fallback, 10.0f) || fallback.ledgeJump.active() || fallback.position != fallback.moveTo) {
+        outFail = "Missing animation fallback failed to finish a drop.";
+        return false;
+    }
+    const nlohmann::json modern = {{"clips", {{{"gltf_name", "jumpdown01_start"}, {"category", "status"}, {"duration_seconds", .4}}, {{"gltf_name", "jumpdown01_loop"}, {"category", "status"}}, {{"gltf_name", "land02"}, {"category", "misc"}}}}};
+    const auto modernRoles = AnimSet::resolveLedgeJumpRoles(modern);
+    const nlohmann::json legacy = {{"clips", {{{"gltf_name", "pm_landA01"}, {"category", "misc"}}, {{"gltf_name", "pm_landB01"}, {"category", "misc"}}, {{"gltf_name", "pm_landC01"}, {"category", "misc"}}}}};
+    const auto legacyRoles = AnimSet::resolveLedgeJumpRoles(legacy);
+    if (!modernRoles.start.valid || !modernRoles.loop.valid || !modernRoles.land.valid ||
+        !legacyRoles.start.valid || !legacyRoles.loop.valid || !legacyRoles.land.valid) {
+        outFail = "Modern and LGPE ledge animation families must both resolve.";
+        return false;
+    }
+    return true;
+}
 
 bool test_movement_collision_regressions(std::string& outFail) {
     GameConfigData cfg;

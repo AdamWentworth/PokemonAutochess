@@ -120,5 +120,5 @@ game::arena::CombatMapView GameWorld::combatMap() const {
 
 game::arena::Actor GameWorld::combatActor(const PokemonInstance &unit) const {
     const auto cell = worldToGrid(unit.position);
-    return {unit.id, static_cast<int>(unit.side), {cell.x, cell.y}, unit.traversalCapabilities};
+    return {unit.id, static_cast<int>(unit.side), {cell.x, cell.y}, unit.traversalCapabilities, unit.ledgeJump.active()};
 }

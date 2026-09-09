@@ -29,10 +29,6 @@ void restoreStateStack(const SessionSnapshotMetadata& session,
     if (!stateManager || !gameWorld || !services) return;
 
     if (preferCombatState || session.stateKind == "combat") {
-        if (dynamic_cast<CombatState*>(stateManager->getCurrentState())) {
-            return;
-        }
-
         std::string combatScript = session.stateScriptPath;
         if (combatScript.empty()) {
             game::log::warn(
@@ -41,6 +37,9 @@ void restoreStateStack(const SessionSnapshotMetadata& session,
             return;
         }
 
+        // A snapshot is a new simulation checkpoint. Re-enter even when a
+        // combat state is already open: its map revision, route script and
+        // planning/battle flags may belong to the previous editor preview.
         stateManager->clearAndPushState(std::make_unique<CombatState>(
             stateManager,
             gameWorld,

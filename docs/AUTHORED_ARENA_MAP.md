@@ -40,11 +40,14 @@ later query these regions consistently for sight, targeting, and camouflage.
 
 ## Runtime boundary
 
-This schema describes the map; it does not enable new movement or visibility
-rules. In particular, a negative height difference is not yet permission to jump,
-and a positive difference is not yet an uphill block. MovementSystem retains its
-current occupancy/reservation behavior. The next mechanic must decide allowed
-transitions for ground units and flyers and test both directions explicitly.
+The schema describes geometry independently of movement policy.
+`AuthoredCombatMap` now enables ground walking across equal shared-edge heights,
+including connected ramps, and cardinal jumps across full, level south-facing
+drops. Other discontinuities are walls. A negative height delta alone does not
+permit jumping in other directions or across an uneven ramp side. Configured
+flyers bypass height restrictions while respecting occupancy. See
+`COMBAT_MOVEMENT.md` for animation and targeting behavior. Concealment remains
+unimplemented.
 
 Rendered standing height comes from `AuthoredGroundSurface`, which samples the
 actual authored floor, including rounded caps and ramps. Logical adjacency comes
@@ -86,7 +89,8 @@ local activation. Publication without a configured depot is local-only.
 
 The shared gameplay boundary is `game::arena::CombatMapRules`, carried by
 `GameWorld::combatMap()`. Planning, perception and melee queries consume it.
-Null rules preserve today's flat traversal and full visibility. Diagonals must
-satisfy both directed cardinal routes and the two occupancy checks. Flight
-animation (`usesAirLocomotion`) is separate from `TraversalCapabilities`.
-Directional drops and camouflage remain deliberately unimplemented.
+Null rules preserve flat traversal and full visibility for other scenes.
+Diagonals must satisfy both directed cardinal walking routes and the two
+occupancy checks; ledge drops require a cardinal step. Flight animation
+(`usesAirLocomotion`) is separate from `TraversalCapabilities`. The bundled
+arena's policy is activated before simulation, independently of the renderer.

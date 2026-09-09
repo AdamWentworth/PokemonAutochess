@@ -3,6 +3,8 @@
 #include "game/GameStateManager.h"
 #include "game/GameWorld.h"
 #include "game/GameServices.h"
+#include "game/runtime/shared/scene/ArenaSceneActivation.h"
+#include <stdexcept>
 #include "game/logging/FlowTrace.h"
 #include "game/logging/LoggerUtil.h"
 #include "game/runtime/ui/CardRenderer.h"
@@ -646,6 +648,12 @@ bool CombatState::tryFinishNativeRouteFlow() {
 }
 
 void CombatState::onEnter() {
+    if (gameWorld) {
+        std::string error;
+        if (!game::runtime::arena_scene_activation::applyGameplay(services.assets,
+                                                                  game::runtime::route1_scene_variants::fromStateScriptPath(loadedScriptPath), *gameWorld, &error))
+            throw std::runtime_error("Cannot activate arena gameplay: " + error);
+    }
     const double tEnterStart = game::logging::flow::nowMs();
     combatStarted = false;
     postCombatHoldActive = false;

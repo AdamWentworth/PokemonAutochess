@@ -272,6 +272,18 @@ RolePick resolveRoleClip(const nlohmann::json& j,
     return out;
 }
 
+LedgeJumpRoles resolveLedgeJumpRoles(const nlohmann::json &j) {
+    const auto pick = [&](const char *role, const char *legacyRole, const std::vector<std::string> &names) {
+        auto result = resolveRoleClip(j, role, "status", names, false);
+        if (!result.valid) result = resolveRoleClip(j, role, "misc", names, false);
+        if (!result.valid) result = resolveRoleClip(j, legacyRole, "misc", names, false);
+        return result;
+    };
+    return {pick("jump_start", "land_a", {"jumpdown01_start", "landa"}),
+            pick("jump_loop", "land_b", {"jumpdown01_loop", "landb"}),
+            pick("jump_land", "land_c", {"land02", "landc", "land01"})};
+}
+
 static void debugPrintResolved(const PokemonInstance& inst,
                                const std::string& role,
                                const std::string& clip,
@@ -307,7 +319,11 @@ void applyAnimSetOverrides(PokemonInstance& inst,
     inst.backendAnimDurationsSec.clear();
     inst.backendAnimDurationsSourceModelPath.clear();
 
-    inst.usesAirLocomotion = false;
+    inst.usesAirLocomotion = flyers && flyers->isFlyer(inst.name);
+    inst.traversalCapabilities.ignoresTerrain = inst.usesAirLocomotion;
+    inst.animJumpStartIndex = inst.animJumpLoopIndex = inst.animJumpLandIndex = -1;
+    inst.jumpStartDurationSec = inst.jumpLoopDurationSec = inst.jumpLandDurationSec = 0.0f;
+    inst.ledgeJump = {};
     inst.animGroundIdleIndex = inst.animIdleIndex;
     inst.animAirIdleIndex    = inst.animIdleIndex;
     inst.animTakeoffIndex    = -1;
@@ -342,11 +358,14 @@ void applyAnimSetOverrides(PokemonInstance& inst,
         if (inst.animFps <= 0.0f) inst.animFps = 24.0f;
     }
 
+    const auto jump = resolveLedgeJumpRoles(j);
+    inst.jumpStartDurationSec = jump.start.durationSec;
+    inst.jumpLoopDurationSec = jump.loop.durationSec;
+    inst.jumpLandDurationSec = jump.land.durationSec;
+
     // Source timing metadata is gameplay data, not a legacy Model concern.
     // Backend-only/native PHLO units still need the authored FPS so hit-frame
     // markers, damage, projectiles, and VFX stay synchronized with their clips.
-    if (!inst.model) return;
-
     bool metaAirborne = false;
     bool metaAirLiftSpecified = false;
     bool metaDebugSpecified = false;
@@ -377,6 +396,13 @@ void applyAnimSetOverrides(PokemonInstance& inst,
             metaDebugSpecified = true;
         }
     }
+    inst.usesAirLocomotion = metaAirborne || (flyers && flyers->isFlyer(inst.name));
+    inst.traversalCapabilities.ignoresTerrain = inst.usesAirLocomotion;
+    if (!inst.model) return;
+    inst.animJumpStartIndex = resolveAnimIndex(inst.model.get(), jump.start.clipName);
+    inst.animJumpLoopIndex = resolveAnimIndex(inst.model.get(), jump.loop.clipName);
+    inst.animJumpLandIndex = resolveAnimIndex(inst.model.get(), jump.land.clipName);
+
     const RolePick idlePick = resolveRoleClip(
         j,
         "idle",
@@ -401,9 +427,9 @@ void applyAnimSetOverrides(PokemonInstance& inst,
 
     const RolePick landPick       = resolveRoleClip(j, "land",   "misc", {"land"}, false);
 
-    RolePick faintPick = resolveRoleClip(j, "faint", "status", {"down01_start", "down_start", "down01", "down"}, true);
+    RolePick faintPick = resolveRoleClip(j, "faint", "status", {"_down01_start", "_down_start", "_down01", "_down", "down01_start", "down_start", "down01", "down"}, true);
     if (!faintPick.valid) {
-        faintPick = resolveRoleClip(j, "down", "status", {"down01_start", "down_start", "down01", "down"}, true);
+        faintPick = resolveRoleClip(j, "down", "status", {"_down01_start", "_down_start", "_down01", "_down", "down01_start", "down_start", "down01", "down"}, true);
     }
 
     if (idlePick.valid && !idlePick.clipName.empty()) {
@@ -473,21 +499,11 @@ void applyAnimSetOverrides(PokemonInstance& inst,
         }
     }
 
-    const bool hasTakeoff = (inst.animTakeoffIndex >= 0);
-    const bool hasSeqLanding = (inst.animLandCIndex >= 0) && (inst.animLandAIndex >= 0 || inst.animLandBIndex >= 0);
-    const bool hasSingleLanding = (inst.animLandIndex >= 0);
-
-    const bool hasDistinctLand = hasSeqLanding ||
-        (hasTakeoff && hasSingleLanding && inst.animTakeoffIndex != inst.animLandIndex);
-
-    // Enable visual-only flight when:
-    //  - animset meta explicitly declares airborne, OR
-    //  - this species is listed as a flyer, OR
-    //  - the animset provides takeoff + a distinct landing sequence.
+    // Jump/landing clips are shared by ground species and cannot grant flight.
     const bool allowFlight =
         metaAirborne ||
-        (flyers && flyers->isFlyer(inst.name)) ||
-        (hasTakeoff && hasDistinctLand);
+        (flyers && flyers->isFlyer(inst.name));
+    inst.traversalCapabilities.ignoresTerrain = allowFlight;
     if (allowFlight) {
         inst.usesAirLocomotion = true;
     } else {

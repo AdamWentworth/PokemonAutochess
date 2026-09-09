@@ -1,4 +1,5 @@
 #include "game/arena/ArenaMapData.h"
+#include "game/arena/AuthoredCombatMap.h"
 #include "game/runtime/shared/scene/AuthoredGroundSurface.h"
 #include <nlohmann/json.hpp>
 #include <fstream>
@@ -101,12 +102,49 @@ void authoredData() {
     check(!ground.add({glm::vec3{0, 0, 0}, {std::numeric_limits<float>::infinity(), 0, 0}, {0, 0, 1}}), "Non-finite floor accepted.");
     check(!ground.add({glm::vec3{0, 0, 0}, {1.0e7f, 0, 0}, {0, 0, 1.0e7f}}), "Unbounded spatial index accepted.");
 }
+
+void authoredTraversal() {
+    ArenaMapData data;
+    std::ifstream stream(PAC_ARENA_MAP_FIXTURE);
+    nlohmann::json document;
+    stream >> document;
+    std::string error;
+    check(data.load(document.dump(), &error), "Traversal fixture failed to load.");
+    AuthoredCombatMap rules(data, {17, -10});
+    CombatMapView map{8, 8, &rules};
+    std::vector<std::uint8_t> blocked(64);
+    for (int x = 3; x < 8; ++x) {
+        check(rules.cardinalStep({x, 1}, {x, 2}, {}) == StepKind::LedgeDrop, "South shelf must be a ledge drop.");
+        check(!map.canStep({x, 2}, {x, 1}, {}, blocked), "Ground unit climbed a ledge.");
+        check(map.canStep({x, 2}, {x, 1}, {true}, blocked), "Flyer was blocked by ledge height.");
+        check(!map.canEngageMelee({1, 0, {x, 1}}, {2, 1, {x, 2}}), "Ground melee reached through cliff.");
+    }
+    for (int x = 0; x < 3; ++x) {
+        check(map.canStep({x, 0}, {x, 1}, {}, blocked) && map.canStep({x, 1}, {x, 0}, {}, blocked), "Upper ramp connection blocked.");
+        check(map.canStep({x, 1}, {x, 2}, {}, blocked) && map.canStep({x, 2}, {x, 1}, {}, blocked), "Lower ramp connection blocked.");
+    }
+    check(!map.canStep({5, 1}, {6, 2}, {}, blocked), "Diagonal shortcut bypassed jump sequence.");
+    check(!map.canStep({2, 1}, {3, 1}, {}, blocked), "A ramp side wall was traversable.");
+    blocked[map.index({5, 2})] = 1;
+    check(!map.canStep({5, 1}, {5, 2}, {}, blocked), "Jump entered occupied landing.");
+    check(!map.canStep({5, 1}, {5, 2}, {true}, blocked), "Flyer bypassed landing occupancy.");
+    check(canReachMelee(map, {1, 0, {6, 4}}, {2, 1, {6, 0}}), "Planner failed to find uphill ramp detour.");
+    // Remove ramps to distinguish reachable enemies from a closer enemy sealed
+    // above an uphill wall. A* approach fallback must not masquerade as a route.
+    for (int x = 17; x < 20; ++x)
+        data.tiles.at({x, -9}) = Tile{x, -9, 1, 0, 0};
+    AuthoredCombatMap isolated(data, {17, -10});
+    map.rules = &isolated;
+    check(!canReachMelee(map, {1, 0, {6, 3}}, {2, 1, {6, 1}}), "An unreachable upper target was accepted.");
+    check(canReachMelee(map, {1, 0, {6, 3}}, {3, 1, {0, 6}}), "Reachable lower target was discarded.");
+}
 } // namespace
 
 int main() {
     try {
         navigation();
         authoredData();
+        authoredTraversal();
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';
         return 1;

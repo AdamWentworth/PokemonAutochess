@@ -1124,6 +1124,7 @@ int resolveSceneAnimIndex(const render_model::MeshData& mesh, const PokemonInsta
 bool isSceneLoopingClipForUnit(const PokemonInstance& unit, int animIndex) {
     if (animIndex < 0) return false;
     if (unit.attackTimerSec > 0.0f) return false;
+    if (unit.ledgeJump.active()) return unit.ledgeJump.phase == LedgeJumpPhase::Airborne && animIndex == unit.animJumpLoopIndex;
     if (animIndex == unit.animFaintIndex) return false;
     if (animIndex == unit.animTakeoffIndex ||
         animIndex == unit.animLandIndex ||
@@ -1219,7 +1220,7 @@ void evaluateScenePose(const render_model::MeshData& mesh,
         mesh,
         animIndex,
         unit.animTimeSec,
-        RootMotionPolicy::InPlaceHorizontal,
+        unit.ledgeJump.active() ? RootMotionPolicy::InPlaceAll : RootMotionPolicy::InPlaceHorizontal,
         isSceneLoopingClipForUnit(unit, animIndex),
         outPose);
 }
