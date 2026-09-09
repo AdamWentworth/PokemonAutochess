@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-08-20
+Last updated: 2026-09-08
 
 CI is correctness-first and Windows-first.
 
@@ -11,6 +11,8 @@ CI is correctness-first and Windows-first.
   - Configure the standalone game/tool/test graph with the vcpkg toolchain;
     editor integration stays in the local paired-build gate because the
     first-party `PhlosionPackages` workspace is not a public CI dependency.
+  - Build `PAC_ArenaLogicTests` and run the `fast` CTest label before the full build.
+    This target links no renderer; Python map/publication failure tests need no private assets.
   - Build Debug.
   - Run CTest.
     Each C++ contract has a two-minute process timeout so a Windows crash or
@@ -47,13 +49,18 @@ APIs while clean-clone CI still fetches stale dependency pins.
 The private model and cooked runtime corpus are intentionally not stored in
 GitHub. Source-game research and extraction qualification now live in the
 private companion workspace documented in `docs/EXTERNAL_ASSET_RESEARCH.md`.
-CMake labels the remaining 21 game-package qualification checks
-`private-assets` and registers them only when representative source, mesh,
-shader, and cooked-scene markers are present. Clean hosted checkouts therefore
-run all 222 asset-independent contracts instead of failing tests they cannot
-satisfy; complete development workspaces retain the full 243-test gate. Run
-`ctest --test-dir build -C Debug -L private-assets` to select the local corpus
-qualification partition explicitly.
+CMake labels corpus-dependent checks `private-assets` and registers them only
+when representative source, mesh, shader, and cooked-scene markers are present.
+Use `ctest --test-dir build -N` for the actual registered count rather than a stale
+fixed total. Clean hosted checkouts exercise asset-independent contracts, including
+synthetic arena archive corruption and semantic-mismatch fixtures.
+
+The local south-entrance qualification lane is explicit:
+`tools/environment/check_south_entrance.ps1 -IncludeBlender -Capture` builds the
+editor/plugin pair, requires private arena/source assets, runs focused gameplay
+checks, proves Blender round-trip equivalence and captures the real renderer.
+Missing inputs fail that lane with restore instructions. A hosted green build
+alone does not establish private-asset or editor/GPU qualification.
 
 Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - `PAC_RuntimeSmoke.opengl`

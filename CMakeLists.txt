@@ -537,6 +537,8 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/scene/Route1TerrainSeamResolver.cpp
     src/game/runtime/shared/scene/Route1RuntimeEnvironment.cpp
     src/game/runtime/shared/scene/AuthoredEnvironmentPatch.cpp
+    src/game/runtime/shared/scene/AuthoredArenaBundle.cpp
+    src/game/runtime/shared/scene/ArenaSceneActivation.cpp
     src/game/runtime/shared/scene/BoardLayoutDocument.cpp
     src/game/runtime/shared/scene/legacy/Route1SourceTerrainRules.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.cpp
@@ -906,6 +908,7 @@ if (BUILD_TESTING)
         tests/TestRoute1CookedEnvironment.cpp
         tests/TestRoute1ArenaPilot.cpp
         tests/TestAuthoredGroundSurface.cpp
+        tests/TestAuthoredArenaBundle.cpp
         tests/TestRenderPrepWorldProjection.cpp
         tests/TestRenderPrepWorldProxyGeometry.cpp
         tests/TestRenderPrepUnitVisuals.cpp
@@ -1103,7 +1106,10 @@ if (BUILD_TESTING)
     find_program(PAC_TEST_PYTHON NAMES python python3 REQUIRED)
     add_test(NAME PAC_Tools.arena_map_contract
         COMMAND "${PAC_TEST_PYTHON}" "${CMAKE_SOURCE_DIR}/tools/environment/test_arena_map.py")
-    set_tests_properties(PAC_Tools.arena_map_contract PROPERTIES TIMEOUT 30 LABELS "fast;arena")
+    add_test(NAME PAC_Tools.arena_publication_contract
+        COMMAND "${PAC_TEST_PYTHON}" "${CMAKE_SOURCE_DIR}/tools/environment/test_arena_publication.py")
+    set_tests_properties(PAC_Tools.arena_map_contract PAC_Tools.arena_publication_contract
+        PROPERTIES TIMEOUT 30 LABELS "fast;arena")
 
     file(READ "${PAC_TEST_MAIN_FILE}" PAC_TEST_MAIN_CONTENTS)
     string(REGEX MATCHALL "\\{\"[A-Za-z0-9_]+\",[ \t]*&test_[A-Za-z0-9_]+\\}" PAC_TEST_CASE_ROWS "${PAC_TEST_MAIN_CONTENTS}")

@@ -12,19 +12,16 @@ import math
 from pathlib import Path
 
 KIND = 'pokemon_autochess_arena_map'
-FIELDS = ('x', 'z', 'height', 'surface', 'ramp')
+from arena_coordinates import FIELDS, height_cm
 
 
 def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 
 
-def height_cm(cell, x, z):
-    u, v = x - cell['x'], z - cell['z']
-    return 50 * (cell['height'] + (0, 1-v, u, v, 1-u)[cell['ramp']])
-
-
 def normalized_cells(rows):
+    if not isinstance(rows, list) or not 0 < len(rows) <= 65536:
+        raise ValueError('The tile blueprint must contain 1 to 65536 cells')
     cells = []
     occupied = set()
     for row in rows:
@@ -34,6 +31,7 @@ def normalized_cells(rows):
         if not (0 <= cell['height'] <= 8 and 0 <= cell['surface'] <= 2 and 0 <= cell['ramp'] <= 4):
             raise ValueError('Tile attributes are outside the authoring range')
         key = cell['x'], cell['z']
+        if any(abs(value) > 100000 for value in key): raise ValueError('Tile coordinates exceed the supported range')
         if key in occupied: raise ValueError(f'Duplicate tile {key}')
         occupied.add(key)
         cells.append(cell)
@@ -49,14 +47,22 @@ def build_map(rows, scene, board, composition):
         raise ValueError('The arena authoring contract uses 100 cm tiles')
     ox, oz = registration['terrain_grid_origin']
     cols, rows = registration['board_cells']
+    slots, gap = registration['bench_slots'], registration['bench_gap_cells']
+    limits = ((ox,-100000,100000),(oz,-100000,100000),(cols,1,256),(rows,1,256),(slots,1,256),(gap,0,64))
+    if any(type(v) is not int or not low <= v <= high for v,low,high in limits):
+        raise ValueError('Board registration exceeds the supported range')
+    if (cols+slots) % 2: raise ValueError('The reserve row must align to whole terrain cells')
     playable = [(x, z) for z in range(oz, oz+rows) for x in range(ox, ox+cols)]
     reserve = []
-    slots, gap = registration['bench_slots'], registration['bench_gap_cells']
     bx = ox + (cols-slots)//2
+    sides = registration['bench_sides']
+    if not sides or len(sides) != len(set(sides)): raise ValueError('Reserve sides must be present and unique')
     for side in registration['bench_sides']:
         if side not in ('north', 'south'): raise ValueError(f'Unknown bench side {side}')
-        z = oz-1-gap if side == 'north' else oz+rows+gap
+        # Matches northBenchTerrainGridOrigin/southBenchTerrainGridOrigin.
+        z = oz+rows+gap if side == 'north' else oz-1-gap
         reserve.extend((x, z) for x in range(bx, bx+slots))
+    reserve.sort(key=lambda p: (p[1], p[0]))
     if any(cell not in lookup for cell in playable+reserve):
         raise ValueError('The tile blueprint does not cover every board and reserve cell')
 
@@ -81,7 +87,7 @@ def build_map(rows, scene, board, composition):
         if node['id'] in ids: raise ValueError('Scene node IDs must be unique')
         ids.add(node['id'])
         prefab = node.get('components', {}).get('prefab_instance')
-        if not node['enabled'] or not prefab or not prefab['prefab_asset_id'].startswith('route1/encounter_grass_'):
+        if not node['enabled'] or not prefab or not prefab['prototype_node_id'].startswith('encounter-grass/'):
             continue
         record = records.get(prefab['prototype_node_id'])
         if not record: raise ValueError(f"Missing encounter footprint for {node['id']}")

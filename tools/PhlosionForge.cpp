@@ -14,6 +14,7 @@
 #include "PhlosionForgeManifest.h"
 #include "PhlosionNativeModelIr.h"
 #include "Route1AuthoringKit.h"
+#include "game/runtime/shared/scene/AuthoredArenaBundle.h"
 
 #include <nlohmann/json.hpp>
 
@@ -2774,6 +2775,8 @@ void usage() {
         << "       PhlosionForge inspect-route1-source-tile <x> <z>\n"
         << "       PhlosionForge inspect-route1-source-junction <x> <z> <output.json>\n"
         << "       PhlosionForge compile-environment-patch <source.patch.json> <output.phpatch>\n"
+        << "       PhlosionForge cook-arena-bundle <stage-root> <recipe-path> <output.phscene>\n"
+        << "       PhlosionForge validate-arena-bundle <arena.phscene>\n"
         << "       PhlosionForge export-route1-authoring-kit <output.json>\n"
         << "       PhlosionForge validate-authored-environment <scene.json>\n"
         << "       PhlosionForge refresh-route1-manifest\n"
@@ -2783,6 +2786,28 @@ void usage() {
 } // namespace
 
 int main(int argc, char** argv) {
+    if (argc == 5 && std::string_view(argv[1]) == "cook-arena-bundle") {
+        game::assets::DevAssetStore stage(argv[2]);
+        std::string error;
+        std::vector<std::uint8_t> bytes;
+        const bool passed = game::runtime::authored_arena::encode(stage, argv[3], bytes, &error) && writeFile(argv[4], bytes, error);
+        if (!passed) std::cerr << error << '\n';
+        return passed ? 0 : 1;
+    }
+    if (argc == 3 && std::string_view(argv[1]) == "validate-arena-bundle") {
+        game::assets::DevAssetStore store(".");
+        game::runtime::authored_arena::Bundle arena;
+        game::runtime::route1_environment::RuntimeEnvironment environment;
+        game::runtime::route1_environment::BoardLayoutTransform board;
+        std::string error;
+        const bool passed = arena.load(store, argv[2], &error) &&
+                            game::runtime::route1_environment::loadCookedEnvironment(store, environment, nullptr, &error) &&
+                            game::runtime::route1_environment::loadBoardLayoutTransform(arena.store, arena.boardPath, board, &error) &&
+                            environment.previewBoardLayout(board, &error) && environment.applyAuthoredScene(arena.scene, arena.store, &error);
+        if (!passed) std::cerr << error << '\n';
+        else std::cout << "Arena bundle and rendered/logical terrain passed: " << arena.scene.sceneId << '\n';
+        return passed ? 0 : 1;
+    }
     if (argc == 3 && (std::string_view(argv[1]) == "export-route1-authoring-kit" ||
                       std::string_view(argv[1]) == "validate-authored-environment")) {
         std::string error;

@@ -14,6 +14,8 @@ import bpy
 
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path: sys.path.insert(0, str(ROOT))
+from arena_recipe import DEFAULT_RECIPE, load_recipe, export_name
+from arena_coordinates import source_translation
 
 def module(name, file):
     spec = importlib.util.spec_from_file_location(name, ROOT / file)
@@ -58,8 +60,11 @@ def compact_patch(path):
     return sum(len(m['vertices']) for m in document['meshes'])
 
 
-def export(output):
+def export(output, recipe_path=None, save_source=False):
     scene=bpy.context.scene
+    game_root = ROOT.parents[2]
+    recipe_path = recipe_path or scene.get('pilot_authoring_recipe', DEFAULT_RECIPE)
+    recipe = load_recipe(game_root, recipe_path)
     if scene.get('pilot_schema')!=1: raise RuntimeError('Not an arena authoring scene')
     config=json.loads(scene['pilot_blueprint'])
     if config.get('terrain_style') != 'tile_blueprint':
@@ -71,8 +76,8 @@ def export(output):
     patch_path=output/'terrain.patch.json'
     module('pilot_patch_exporter','export_environment_patch.py').export_patch(patch_path)
     exported_vertices=compact_patch(patch_path)
-    base={'kind':'phlosion_authored_scene','schema_version':8,'scene_id':config['scene_id'],
-          'coordinate_system':kit['source']['coordinate_system'],'base_environment_asset_id':'environments/route1','nodes':[]}
+    base={'kind':'phlosion_authored_scene','schema_version':8,'scene_id':recipe['scene_id'],
+          'coordinate_system':kit['source']['coordinate_system'],'base_environment_asset_id':recipe['base_environment_asset_id'],'nodes':[]}
     nodes=base['nodes']
     def folder(id,name,parent=''):
         nodes.append({'id':id,'display_name':name,'parent_id':parent,'sibling_order':len(nodes),'enabled':True,'components':{}})
@@ -102,29 +107,35 @@ def export(output):
         angles=rot.to_euler('XYZ')
         if abs(angles.x)>1e-5 or abs(angles.y)>1e-5:
             raise RuntimeError(f'Pilot prefab {obj.name}: use upright rotation about Z')
-        transform={'translation':[loc.x*100,loc.z*100,-loc.y*100],
+        transform={'translation':source_translation(loc),
             'rotation_degrees':[0,math.degrees(angles.z),0],'scale':[scale.x,scale.z,scale.y]}
         nodes.append({'id':id,'display_name':obj.name,'parent_id':'folder/environment/props','sibling_order':len(nodes),
             'enabled':not obj.hide_render,'components':{'transform':transform,'prefab_instance':{
                 'prototype_node_id':proto['id'],'prefab_asset_id':proto['prefab_asset_id'],
                 'creation_transform':proto['transform']}}})
-    nodes.append({'id':'mesh-patch/arena-pilot/terrain','display_name':config.get('name','Garden Clearing')+' Terrain',
+    nodes.append({'id':recipe['terrain_node_id'],'display_name':config.get('name','Garden Clearing')+' Terrain',
         'parent_id':'folder/environment/terrain','sibling_order':0,'enabled':True,
         'components':{'transform':{'translation':[0,0,0],'rotation_degrees':[0,0,0],'scale':[1,1,1]},
-            'mesh_patch':{'asset_path':'content/phlosion/environment/arena-pilot/terrain.phpatch'}}})
-    scene_path=output/'route1_pilot.scene.json'
+            'mesh_patch':{'asset_path':recipe['terrain_path']}}})
+    scene_path=output/export_name(recipe, 'scene_path')
     scene_path.write_text(json.dumps(base,indent=2)+'\n')
-    game_root = ROOT.parents[2]
-    recipe = json.loads((game_root/'config/environment/route1_south_entrance.authoring.json').read_text())
     arena_map = module('arena_map', 'arena_map.py')
     gameplay = arena_map.build_map(tiles, base,
         json.loads((game_root/recipe['board_path']).read_text()),
         json.loads((game_root/recipe['composition_path']).read_text()))
     (output/'arena-map.json').write_text(json.dumps(gameplay,indent=2)+'\n')
-    report={'kind':'arena_pilot_export','scene_id':config['scene_id'],'prefab_count':len(ids),
+    report={'kind':'arena_pilot_export','scene_id':recipe['scene_id'],'prefab_count':len(ids),
         'source_visible_count':0,'terrain_vertices':sum(len(o.data.vertices) for o in collection('PAC_EDIT_PATCH').objects),
         'exported_vertices':exported_vertices,
         'source_blend':bpy.data.filepath,'scene_output':str(scene_path),'patch_output':str(patch_path)}
+    import hashlib
+    if save_source:
+        # Includes durable IDs assigned to newly duplicated props above.
+        bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
+    report['source_blend_sha256'] = hashlib.sha256(Path(bpy.data.filepath).read_bytes()).hexdigest()
+    report['authoring_recipe_sha256'] = arena_map.digest(recipe)
+    report['export_files_sha256'] = {name: hashlib.sha256((output/name).read_bytes()).hexdigest() for name in
+        (scene_path.name, 'arena-map.json', 'terrain.patch.json', 'tile-layout.json')}
     (output/'export-report.json').write_text(json.dumps(report,indent=2)+'\n')
     print('ARENA_PILOT_EXPORT_PASS '+json.dumps(report))
 
@@ -135,12 +146,11 @@ class PAC_OT_ExportArena(bpy.types.Operator):
     def execute(self,context):
         try:
             context.scene.pac_export_directory=str(Path(bpy.data.filepath).parent/'export')
-            export(Path(context.scene.pac_export_directory))
-            bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
+            export(Path(context.scene.pac_export_directory), save_source=True)
             import subprocess
             game_root=Path(context.scene['pilot_game_root'])
             result=subprocess.run(['powershell.exe','-NoProfile','-File',str(game_root/'tools/environment/export_route1_pilot.ps1'),
-                '-BlendFile',bpy.data.filepath,'-UseExistingExport'],capture_output=True,text=True,
+                '-BlendFile',bpy.data.filepath,'-Recipe',context.scene.get('pilot_authoring_recipe', DEFAULT_RECIPE),'-UseExistingExport'],capture_output=True,text=True,
                 creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
             (Path(context.scene.pac_export_directory)/'install.log').write_text(result.stdout+'\n'+result.stderr)
             if result.returncode: raise RuntimeError('Game install failed; inspect export/install.log')
@@ -165,7 +175,7 @@ def rebuild_terrain(config=None):
     bpy.context.scene['pilot_blueprint'] = json.dumps(config)
 
 class PAC_PT_Arena(bpy.types.Panel):
-    bl_label = 'South Entrance'
+    bl_label = 'Arena Authoring'
     bl_idname = 'PAC_PT_arena'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -195,7 +205,11 @@ def register():
     module('arena_tiles', 'arena_tiles.py').register()
     bpy.context.scene.pac_export_directory = str(Path(bpy.data.filepath).parent / 'export')
     config = json.loads(bpy.context.scene['pilot_blueprint'])
-    cx, cy = config['board_center_blender_m']
+    recipe = load_recipe(ROOT.parents[2], bpy.context.scene.get('pilot_authoring_recipe', DEFAULT_RECIPE))
+    board = json.loads((ROOT.parents[2]/recipe['board_path']).read_text())['board_registration']
+    ox, oz = board['terrain_grid_origin']
+    cols, rows = board['board_cells']
+    cx, cy = ox+cols/2, -(oz+rows/2)
     if bpy.context.screen:
         for area in bpy.context.screen.areas:
             if area.type != 'VIEW_3D': continue
@@ -211,14 +225,14 @@ def main():
     parser.add_argument('mode', choices=['export', 'ui'])
     parser.add_argument('--output', type=Path)
     parser.add_argument('--game-root', type=Path)
+    parser.add_argument('--recipe', default=DEFAULT_RECIPE)
     args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:])
+    bpy.context.scene['pilot_authoring_recipe'] = args.recipe
     if args.mode == 'ui':
         if args.game_root: bpy.context.scene['pilot_game_root'] = str(args.game_root)
         register()
         return
     if not args.output: raise RuntimeError('--output required')
-    export(args.output)
-    # Persist new IDs only when exporting new duplicate objects assigned IDs.
-    bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
+    export(args.output, save_source=True)
 
 if __name__ == '__main__': main()

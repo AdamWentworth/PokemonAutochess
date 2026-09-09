@@ -29,6 +29,12 @@ step is to replace those callers with preserved reference assets before removing
 the procedural source-repair implementation. Broad renderer rewrites remain out
 of scope. Use `tools/environment/check_south_entrance.ps1` for the active map gate.
 
+The follow-up hardening pass adds atomic arena archives with interrupted-export
+recovery tests, a renderer-free planning/map target, shared perception/melee policy,
+recipe-driven publication and restore, and a dedicated board-document module.
+The current south entrance and mechanics stay unchanged. Further extraction should
+follow actual new mechanics or measured pain; the retained source path is still live.
+
 ## Desired End State
 
 - Every runtime model, environment, and authored VFX dependency is loaded from

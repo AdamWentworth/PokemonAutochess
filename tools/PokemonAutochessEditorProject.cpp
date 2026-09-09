@@ -1,3 +1,4 @@
+#include "game/runtime/shared/scene/ArenaSceneActivation.h"
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
 #include "engine/core/EngineServices.h"
 #include "engine/core/Environment.h"
@@ -1097,6 +1098,10 @@ public:
                     .terrainTileSizeCm = kTerrainTileSizeCm,
                     .terrainElevationStepCm =
                         kTerrainElevationStepCm});
+            if (!environmentEditingAvailable()) {
+                view.capabilities = 0;
+                view.inspectorSummary = "Board registration is published with the Blender arena.";
+            }
             if (!layoutProjectionReady_) {
                 return view;
             }
@@ -1137,6 +1142,10 @@ public:
         const auto& object = objects[address.index];
         auto view =
             editor_hierarchy::environmentObjectView(object);
+        if (!environmentEditingAvailable()) {
+            view.capabilities = 0;
+            view.inspectorSummary = "Edit scenery in Blender and export the complete arena.";
+        }
         if (!layoutProjectionReady_) {
             return view;
         }
@@ -1343,6 +1352,7 @@ public:
                 commitPreviewUnitTransform(
                     edit.stableId, outError);
         }
+        if (!requireEnvironmentEditing(outError)) return false;
         if (!sceneViewReady_ ||
             !edit.stableId) {
             if (outError) {
@@ -1410,6 +1420,7 @@ public:
             findPreviewUnitLayoutObject(edit.stableId)) {
             return previewPreviewUnitTransform(edit, outError);
         }
+        if (!requireEnvironmentEditing(outError)) return false;
         if (!sceneViewReady_ ||
             !edit.stableId) {
             if (outError) {
@@ -1491,6 +1502,7 @@ public:
             return commitPreviewUnitTransform(
                 stableId, outError);
         }
+        if (!requireEnvironmentEditing(outError)) return false;
         if (!sceneViewReady_ ||
             !stableId) {
             if (outError) {
@@ -1631,6 +1643,7 @@ public:
             return resetPreviewUnitTransform(
                 stableId, outError);
         }
+        if (!requireEnvironmentEditing(outError)) return false;
         if (!sceneViewReady_ ||
             !stableId) {
             if (outError) {
@@ -1704,6 +1717,7 @@ public:
             }
             return false;
         }
+        if (!requireEnvironmentEditing(outError)) return false;
         if (!sceneViewReady_ || !stableId) {
             if (outError) {
                 *outError =
@@ -1743,6 +1757,7 @@ public:
             }
             return false;
         }
+        if (!requireEnvironmentEditing(outError)) return false;
         if (!sceneViewReady_ || !stableId) {
             if (outError) {
                 *outError =
@@ -1770,6 +1785,7 @@ public:
         const char* const* stableIds,
         std::size_t stableIdCount,
         std::string* outError) override {
+        if (!requireEnvironmentEditing(outError)) return false;
         if (!sceneViewReady_ || !stableIds ||
             stableIdCount == 0u) {
             if (outError) {
@@ -1797,9 +1813,19 @@ public:
         return true;
     }
 
+    bool environmentEditingAvailable() const noexcept {
+        const auto *variant = route1_scene_variants::find(activeSceneId_);
+        return sceneViewReady_ && variant && variant->arenaBundlePath.empty();
+    }
+
+    bool requireEnvironmentEditing(std::string *error) const {
+        if (environmentEditingAvailable()) return true;
+        if (error) *error = "Edit this arena's scenery and board registration in Blender, then export it. Gameplay preview units remain editable here.";
+        return false;
+    }
+
     bool boardClearanceAvailable() const noexcept {
-        return sceneViewReady_ &&
-            route1_scene_variants::editable(activeSceneId_);
+        return environmentEditingAvailable();
     }
 
     std::size_t projectCommandCount() const noexcept override {
@@ -1963,6 +1989,7 @@ public:
     }
     bool resetSceneToSource(
         std::string* outError) {
+        if (!requireEnvironmentEditing(outError)) return false;
         if (!sceneViewReady_) {
             if (outError) {
                 *outError =
@@ -2007,6 +2034,7 @@ public:
             }
             return false;
         }
+        if (!requireEnvironmentEditing(outError)) return false;
         if (!sceneViewReady_ ||
             !command.stableId ||
             !command.value) {
@@ -2045,6 +2073,7 @@ public:
             }
             return false;
         }
+        if (!requireEnvironmentEditing(outError)) return false;
         if (!sceneViewReady_ ||
             !command.stableId ||
             !command.value) {
@@ -3069,7 +3098,10 @@ private:
             }
             return false;
         }
-        if (sceneViewReady_ &&
+        const auto *routeVariant = route1_scene_variants::find(sceneId);
+        // A published archive can change under the same scene/path identity.
+        // Reopening an authored arena must mount and validate that revision.
+        if (sceneViewReady_ && (!routeVariant || routeVariant->arenaBundlePath.empty()) &&
             activeEnvironmentAssetId_ ==
                 environmentAssetId &&
             activeEnvironmentPath_ ==
@@ -3128,8 +3160,6 @@ private:
 
         game::assets::DevAssetStore projectStore(
             projectRoot_.string());
-        const auto* routeVariant =
-            route1_scene_variants::find(sceneId);
         const std::string_view boardLayoutVirtualPath =
             routeVariant
             ? routeVariant->boardLayoutManifestPath
@@ -3174,74 +3204,10 @@ private:
             return false;
         }
         logPhase("environment");
-        game::runtime::route1_environment::
-            BoardLayoutTransform projectLayout;
-        if (!game::runtime::route1_environment::
-                loadBoardLayoutTransform(
-                    projectStore,
-                    std::string(boardLayoutVirtualPath),
-                    projectLayout,
-                    &error) ||
-            !nextEnvironment.previewBoardLayout(
-                projectLayout,
-                &error)) {
-            if (outError) {
-                *outError =
-                    "The project-owned Route 1 layout manifest was "
-                    "rejected: " +
-                    error;
-            }
-            return false;
-        }
-        logPhase("board_registration");
-        if (authoredScenePath.empty()) {
-            if (outError) {
-                *outError =
-                    "A cooked editable scene requires a project-owned authored_scene_path.";
-            }
-            return false;
-        }
-        std::filesystem::path authoredVirtualPath =
-            std::filesystem::relative(
-                authoredScenePath,
-                projectRoot_,
-                relativeError);
-        if (relativeError ||
-            authoredVirtualPath.empty() ||
-            authoredVirtualPath.is_absolute() ||
-            *authoredVirtualPath.begin() == "..") {
-            if (outError) {
-                *outError =
-                    "The authored scene document must resolve inside the Pokemon Autochess project.";
-            }
-            return false;
-        }
-        engine::assets::phlosion::AuthoredSceneDocument
-            authoredScene;
-        if (!engine::assets::phlosion::
-                loadAuthoredSceneDocument(
-                    projectStore,
-                    authoredVirtualPath.generic_string(),
-                    authoredScene,
-                    &error)) {
-            if (outError) {
-                *outError =
-                    "The project-owned authored scene document could not be loaded: " +
-                    error;
-            }
-            return false;
-        }
-        logPhase("authored_scene_document");
-        if (!nextEnvironment.applyAuthoredScene(
-                authoredScene,
-                projectStore,
-                terrainPatchV2PreviewEnabled_,
-                &error)) {
-            if (outError) {
-                *outError =
-                    "The project-owned authored scene document was rejected: " +
-                    error;
-            }
+        if (!game::runtime::arena_scene_activation::apply(projectStore,
+                                                          routeVariant ? *routeVariant : route1_scene_variants::kRoute1,
+                                                          nextEnvironment, true, terrainPatchV2PreviewEnabled_, &error)) {
+            if (outError) *outError = "Arena activation failed: " + error;
             return false;
         }
         logPhase("authored_scene_apply");

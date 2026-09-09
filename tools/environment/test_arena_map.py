@@ -58,5 +58,14 @@ class ArenaMapTests(unittest.TestCase):
         stale['connections'][0]['edge_height_delta_cm'] = [123, 123]
         with self.assertRaises(ValueError): validate_map(stale, self.scene, self.board, self.composition)
 
+    def test_single_reserve_side_uses_runtime_coordinates(self):
+        for side in ('north', 'south'):
+            board = copy.deepcopy(self.board)
+            registration = board['board_registration']
+            registration['bench_sides'] = [side]
+            result = build_map(self.document['cells'], self.scene, board, self.composition)
+            expected_z = registration['terrain_grid_origin'][1] + (registration['board_cells'][1] if side == 'north' else -1)
+            self.assertEqual({p[1] for p in result['reserve_cells']}, {expected_z})
+
 
 if __name__ == '__main__': unittest.main()

@@ -6,16 +6,11 @@ from mathutils import Vector
 import arena_terrain as terrain
 
 GUIDE = 'Tile blueprint'
-FIELDS = ('x', 'z', 'height', 'surface', 'ramp')
 SURFACES = ('lawn', 'dirt', 'dark_lawn')
 RAMPS = ('flat', 'north', 'east', 'south', 'west')
 
 
-def tile_height(cell, x, y):
-    u = terrain.clamp(x-cell['x'])
-    v = terrain.clamp(y+cell['z']+1)
-    rise = (0, v, u, 1-v, 1-u)[cell['ramp']]
-    return .5*(cell['height']+rise)
+from arena_coordinates import FIELDS, blender_height as tile_height
 
 
 def read_cells():

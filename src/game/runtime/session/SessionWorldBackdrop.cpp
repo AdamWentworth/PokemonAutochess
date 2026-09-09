@@ -1,3 +1,4 @@
+#include "game/runtime/shared/scene/ArenaSceneActivation.h"
 #include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/runtime/shared/scene/Route1SceneVariants.h"
 
@@ -2085,45 +2086,9 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
                 << " virtual files)\n";
         }
         if (scratch.route1RuntimeEnvironment &&
-            rootStore.exists(
-                std::string(
-                    route1Variant.boardLayoutManifestPath))) {
-            route1_environment::BoardLayoutTransform
-                projectLayout;
-            if (!route1_environment::
-                    loadBoardLayoutTransform(
-                        rootStore,
-                        std::string(
-                            route1Variant.boardLayoutManifestPath),
-                        projectLayout,
-                        &scratch.route1RuntimeLoadError) ||
-                !scratch.route1RuntimeEnvironment->
-                    applyBoardLayout(
-                        projectLayout,
-                        &scratch.route1RuntimeLoadError)) {
-                scratch.route1RuntimeEnvironment.reset();
-            }
-        }
-        if (scratch.route1RuntimeEnvironment &&
-            rootStore.exists(
-                std::string(
-                    route1Variant.authoredSceneDocumentPath))) {
-            engine::assets::phlosion::
-                AuthoredSceneDocument authoredScene;
-            if (!engine::assets::phlosion::
-                    loadAuthoredSceneDocument(
-                        rootStore,
-                        std::string(
-                            route1Variant.authoredSceneDocumentPath),
-                        authoredScene,
-                        &scratch.route1RuntimeLoadError) ||
-                !scratch.route1RuntimeEnvironment->
-                    applyAuthoredScene(
-                        authoredScene,
-                        rootStore,
-                        &scratch.route1RuntimeLoadError)) {
-                scratch.route1RuntimeEnvironment.reset();
-            }
+            !arena_scene_activation::apply(rootStore, route1Variant,
+                                           *scratch.route1RuntimeEnvironment, false, false, &scratch.route1RuntimeLoadError)) {
+            scratch.route1RuntimeEnvironment.reset();
         }
     }
     if (wantsCanonicalRoute1 &&

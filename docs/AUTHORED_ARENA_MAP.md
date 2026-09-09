@@ -55,5 +55,38 @@ The asset-independent exporter/validator is
 `tools/environment/blender/arena_map.py`. Validation rejects duplicate cells,
 missing board/reserve coverage, out-of-range tile attributes, stale scene or board
 hashes, and inconsistent derived connections/regions. The export installer treats
-scene, terrain, and gameplay map as one unit and rolls all three back after a
-failed native scene validation.
+the complete arena as one PHSC archive, described below.
+
+## Atomic runtime archive
+
+`content/phlosion/environment/arena-pilot/arena.phscene` is the active arena.
+It contains the authored scene, cooked terrain, map, board registration,
+composition metadata, and authoring recipe. The engine's PHSC codec checks file
+and archive integrity. JSON is normalized before encoding, so indentation and
+checkout line endings do not change a revision. `AuthoredArenaBundle` validates identity, bounded cell and
+polygon data, exact directed edges, board/reserve registration, visible grass
+footprints, and nine interior floor-height probes per tile (0.12 cm tolerance).
+Cosmetic rounded edges may differ between probes; this is not a proof of every
+triangle or surface material. Floor paint does not decide gameplay access.
+
+Both runtime and editor use `ArenaSceneActivation`. They require the complete
+archive for a bundled scene; loose files never substitute for absent entries.
+Scene/terrain/map files remain authoring and review mirrors. Editing those mirrors
+alone does not change the active arena. Editor scenery/registration mutations are
+disabled for bundled arenas; unit starting positions remain editable.
+
+`publish_arena.py` checks recipe, saved-source and export SHA-256 hashes, verifies
+staged copies again, cooks and qualifies a candidate, then atomically replaces the
+active archive. OS-owned writer locks release after process death. An interruption
+before replacement leaves the previous archive active; repeating publication
+repairs any partly updated review mirrors. It never activates a mixture of files.
+Backups are versioned by archive and Blender-source hashes; `latest-source.json`
+points to the verified restore source. A failed configured depot backup prevents
+local activation. Publication without a configured depot is local-only.
+
+The shared gameplay boundary is `game::arena::CombatMapRules`, carried by
+`GameWorld::combatMap()`. Planning, perception and melee queries consume it.
+Null rules preserve today's flat traversal and full visibility. Diagonals must
+satisfy both directed cardinal routes and the two occupancy checks. Flight
+animation (`usesAirLocomotion`) is separate from `TraversalCapabilities`.
+Directional drops and camouflage remain deliberately unimplemented.

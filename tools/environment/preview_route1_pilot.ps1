@@ -2,6 +2,7 @@
 param(
     [ValidateSet('planning','battle')][string]$Phase = 'planning',
     [ValidateSet('opengl','d3d12','vulkan')][string]$Backend = 'opengl',
+    [string]$OutputDirectory = '',
     [switch]$Capture
 )
 $ErrorActionPreference = 'Stop'
@@ -9,7 +10,8 @@ $taskGameRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $taskProjects = [IO.Path]::GetFullPath((Join-Path $taskGameRoot '../..'))
 $taskEditor = Join-Path $taskProjects 'Phlosion/PhlosionEngine/build/Release/PhlosionEditor.exe'
 if (-not (Test-Path -LiteralPath $taskEditor)) { throw 'Build the editor pair with tools/housekeeping/build_editor_pair.ps1 first.' }
-$taskOutput = Join-Path $taskGameRoot "debug/arena-pilot/editor-$Phase-$Backend"
+$taskOutput = if ($OutputDirectory) { [IO.Path]::GetFullPath([IO.Path]::Combine($taskGameRoot, $OutputDirectory)) }
+              else { Join-Path $taskGameRoot "debug/arena-pilot/editor-$Phase-$Backend" }
 New-Item -ItemType Directory -Path $taskOutput -Force | Out-Null
 $taskProject = Join-Path $taskGameRoot '.phlosion.arena-pilot.project.json'
 $taskDescriptor = Get-Content (Join-Path $taskGameRoot 'phlosion.project.json') -Raw | ConvertFrom-Json
@@ -27,14 +29,22 @@ $taskPreviousFrame = $env:PHLOSION_BACKEND_SCREENSHOT_FRAME
 try {
     $env:PHLOSION_BACKEND_SCREENSHOT_PATH = Join-Path $taskOutput 'capture.png'
     $env:PHLOSION_BACKEND_SCREENSHOT_FRAME = '60'
+    if (Test-Path -LiteralPath $env:PHLOSION_BACKEND_SCREENSHOT_PATH) {
+        Remove-Item -LiteralPath $env:PHLOSION_BACKEND_SCREENSHOT_PATH
+    }
     $taskArguments += @('--hidden', '--frames=65', '--fixed-delta=0.016666667', "--metrics-output=$taskOutput/metrics.json")
     $taskProcess = Start-Process -FilePath $taskEditor -WorkingDirectory $taskGameRoot -WindowStyle Hidden -PassThru `
         -ArgumentList ($taskArguments | ForEach-Object { '"' + $_ + '"' }) `
         -RedirectStandardOutput (Join-Path $taskOutput 'stdout.log') -RedirectStandardError (Join-Path $taskOutput 'stderr.log')
+    $null = $taskProcess.Handle
     if (-not $taskProcess.WaitForExit(240000)) { Stop-Process -Id $taskProcess.Id; throw 'Editor preview timed out.' }
     $taskProcess.WaitForExit()
     if ($taskProcess.ExitCode -ne 0) { throw "Editor preview exited with $($taskProcess.ExitCode)." }
     if (-not (Test-Path -LiteralPath $env:PHLOSION_BACKEND_SCREENSHOT_PATH)) { throw 'Editor screenshot was not produced.' }
+    $taskMetrics = Get-Content (Join-Path $taskOutput 'metrics.json') -Raw | ConvertFrom-Json
+    if ($taskMetrics.project.active_scene.id -ne 'routes/route1-pilot' -or
+        $taskMetrics.project.visible_triangles -le 0 -or $taskMetrics.renderer.backend -ne $Backend -or
+        -not $taskMetrics.capture.hidden) { throw 'Editor preview did not qualify the requested arena/backend.' }
     Write-Output $env:PHLOSION_BACKEND_SCREENSHOT_PATH
 } finally {
     $env:PHLOSION_BACKEND_SCREENSHOT_PATH = $taskPreviousPath

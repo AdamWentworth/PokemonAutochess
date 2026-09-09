@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Contract
-Last updated: 2026-08-21
+Last updated: 2026-09-08
 
 Pokemon Autochess is a Phlosion game project, not a fork of the engine. Its
 repository owns everything that would be nonsensical in a racing game or
@@ -62,3 +62,20 @@ plugin outputs, and `cache/` are generated. Caches may accelerate decoding,
 shader compilation, or derived atlases, but a clean rebuild from authoritative
 inputs must always work and cache keys must cover source hashes plus schema or
 implementation versions.
+
+## Arena boundaries
+
+- `src/game/arena`: renderer-free planning, policy and authored map data. The
+  project ownership gate rejects includes of higher-level game/engine modules.
+- `BoardLayoutDocument`: board registration, compatibility decoding and layout
+  serialization; its header owns the data types without rendering dependencies.
+- `AuthoredArenaBundle`: complete archive integrity and cross-file semantics.
+- `ArenaSceneActivation`: shared game/editor application to a candidate environment.
+- `AuthoredEnvironmentPatch` and `AuthoredGroundSurface`: render preparation and
+  sampled standing height. Neither defines camouflage or traversal permission.
+- `legacy/Route1SourceTerrainRules` and the remaining source reconstruction in
+  `Route1RuntimeEnvironment`: retained for original entrance/clearing references.
+
+The large runtime environment still owns scene assembly, grass and source terrain.
+This pass removes board-document responsibilities and prevents new arena policy
+from accumulating there; retiring all reference reconstruction is separate work.

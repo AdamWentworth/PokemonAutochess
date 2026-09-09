@@ -51,8 +51,10 @@ wall meet without overlapping shells. This keeps their shadow boundary closed
 and gives the top and fringe the same grass colour.
 
 **Applying tile changes regenerates the terrain mesh.** Direct sculpting of
-that mesh remains exportable, but another tile update replaces those sculpted
-changes. Save a separate copy before switching approaches.
+that mesh remains exportable for cosmetic refinements, but floor heights at the
+validation probes must still agree with the tile blueprint. Edit tile attributes
+for gameplay height changes. Another tile update replaces manual mesh changes;
+save a separate copy before switching approaches.
 
 ## Edit brush and other props
 
@@ -111,10 +113,10 @@ The editable source on this workstation is:
 `D:\ProjectData\Games\PokemonAutochess\EnvironmentResearch\Route1\authoring\arena-pilot\Route1_GardenClearing.blend`
 
 The filename is retained for existing launchers. The exporter reads that saved
-file; it does not recreate the starting layout. Phlosion edits to pilot props
-will be overwritten by the next Blender export, so keep permanent changes in Blender.
-The editor does not expose source-tile painting for this authored mesh arena;
-those controls remain available only on the original source-terrain scenes.
+file; it does not recreate the starting layout. Permanent scenery and board-registration changes are made in Blender and the
+recipe inputs. Phlosion presents the validated arena for inspection and gameplay
+preview; its environment mutation controls are disabled for bundled arenas.
+Pokémon starting positions remain editable in the game preview.
 
 Run from the game repository:
 
@@ -126,17 +128,21 @@ Run from the game repository:
 .\build\Release\PAC_Tests.exe --filter route1_arena_pilot_contract
 ```
 
-The installer compiles the new terrain, validates the map data, installs the scene,
-terrain and gameplay map together, and restores the previous installed files if
-native validation fails. Runtime files:
+The installer stages and validates scene, terrain, map and registration, then
+atomically replaces `content/phlosion/environment/arena-pilot/arena.phscene`.
+The runtime and editor read this complete archive. These loose review mirrors
+remain available:
 
 - `scenes/route1_pilot.scene.json`
 - `content/phlosion/environment/arena-pilot/terrain.phpatch`
 - `config/environment/route1_pilot_gameplay.json`
 
-Successful installs copy the current `.blend`, scene and terrain to the private
-asset depot under `pokemon-autochess/source/project-authored/route1-arena-pilot`
-and `pokemon-autochess/runtime/content/phlosion/environment/arena-pilot`.
+A failed or interrupted export leaves the previous complete runtime archive
+active; repeat the export to recover any partly updated mirrors. Successful
+publication with `PHLOSION_ASSET_DEPOT` set writes verified immutable source/archive
+backups and updates `latest-source.json`. Restoration follows that pointer and
+rejects corrupt backups or an existing destination. Older depots without the
+pointer retain support for their original source backup.
 The LGPE cooked environment remains required for materials and prefab geometry.
 
 The Blender viewport is a layout preview; Phlosion is the visual authority.
@@ -194,7 +200,7 @@ by this data; see [the map contract](AUTHORED_ARENA_MAP.md).
 ```
 
 The default command builds the game/tests/Forge and the editor/plugin pair,
-checks documentation and map data, validates the authored scene, and runs the
+checks documentation and map data, validates the complete arena archive, and runs the
 focused arena, movement, and model-visibility regressions. Missing private assets
 are failures with restore instructions. `-NoBuild` is only for already current
 binaries; the report records that compilation and paired-build proof were omitted.
@@ -204,7 +210,8 @@ rounded ledge walls/caps and ramp junctions, and verifies that an unedited expor
 reproduces the installed scene, gameplay data, and terrain bytes. `-Capture`
 creates a hidden OpenGL fixed-camera screenshot for visual review. Results are
 written to `debug/south-entrance-check`. The capture and round-trip cook use the
-standard Release build. No check changes the working Blender source.
+standard Release build. No check changes the working Blender source. Round-trip
+qualification also requires the resulting arena archive to be byte-identical.
 
 The native arena contract samples all board/reserve centres, ramp interpolation,
 the ledge drop, mesh transforms and reloads, missing ground, source-scene
@@ -225,3 +232,18 @@ source-terrain repair path. Their data and behavior remain available as referenc
 for the future clearing. New authored mesh preparation and ground sampling live
 in `AuthoredEnvironmentPatch` and `AuthoredGroundSurface`; source-preservation
 predicates live under the runtime scene directory's `legacy` folder.
+
+## Another arena recipe
+
+The exporter, installer, restore tool and round-trip verifier accept `-Recipe`
+(PowerShell) or `--recipe` (Python), with the south entrance as the default.
+Create a separate saved Blender source and recipe with distinct scene, terrain,
+map, bundle and backup paths. Board registration and composition come from that
+recipe; coordinate/ramp conversion is shared by the Blender and map exporters.
+The material/prop library is still the published Route 1 source profile. A different
+source library needs its own qualified profile rather than renamed mesh indices.
+
+The south-entrance qualification script retains map-specific geometry expectations
+and camera presets. A new arena needs its own qualification fixture and scene
+registration before becoming playable. The second-recipe unit test proves isolated
+publication paths; it does not claim the south clearing is already implemented.

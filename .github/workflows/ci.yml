@@ -48,6 +48,11 @@ jobs:
         run: powershell -ExecutionPolicy Bypass -File tools/check_script_syntax.ps1
       - name: Configure
         run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON
+      - name: Fast arena contracts (no renderer linkage)
+        run: |
+          cmake --build build --config Debug --target PAC_ArenaLogicTests
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build -C Debug -L fast --output-on-failure
       - name: Build
         run: cmake --build build --config Debug
       - name: Test

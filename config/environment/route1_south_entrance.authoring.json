@@ -9,5 +9,9 @@
   "composition_path": "config/environment/route1_environment_package.json",
   "scene_path": "scenes/route1_pilot.scene.json",
   "terrain_path": "content/phlosion/environment/arena-pilot/terrain.phpatch",
-  "gameplay_map_path": "config/environment/route1_pilot_gameplay.json"
+  "gameplay_map_path": "config/environment/route1_pilot_gameplay.json",
+  "bundle_path": "content/phlosion/environment/arena-pilot/arena.phscene",
+  "base_environment_asset_id": "environments/route1",
+  "terrain_node_id": "mesh-patch/arena-pilot/terrain",
+  "ground_material_index": 19
 }

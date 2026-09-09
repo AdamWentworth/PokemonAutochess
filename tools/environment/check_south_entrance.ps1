@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$BuildDirectory = 'build',
+    [string]$Recipe = 'config/environment/route1_south_entrance.authoring.json',
     [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release',
     [string]$OutputDirectory = 'debug/south-entrance-check',
     [switch]$NoBuild,
@@ -14,7 +15,7 @@ Set-StrictMode -Version Latest
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $taskOutput = [IO.Path]::GetFullPath([IO.Path]::Combine($taskRoot, $OutputDirectory))
 $taskBuild = [IO.Path]::GetFullPath([IO.Path]::Combine($taskRoot, $BuildDirectory))
-$taskRecipe = Get-Content (Join-Path $taskRoot 'config/environment/route1_south_entrance.authoring.json') -Raw | ConvertFrom-Json
+$taskRecipe = Get-Content ([IO.Path]::Combine($taskRoot, $Recipe)) -Raw | ConvertFrom-Json
 New-Item -ItemType Directory -Path $taskOutput -Force | Out-Null
 $taskResults = [Collections.Generic.List[object]]::new()
 $taskPassed = $false
@@ -26,8 +27,17 @@ function Invoke-Check {
     param([string]$Name, [string]$Program, [string[]]$Arguments)
     Write-Host "Checking $Name..."
     $taskLog = Join-Path $taskOutput "$Name.log"
-    & $Program @Arguments *> $taskLog
-    $taskExit = $LASTEXITCODE
+    $null = Get-Command $Program -ErrorAction Stop
+    $taskSavedErrorPreference = $ErrorActionPreference
+    try {
+        # Windows PowerShell wraps native stderr (including unittest's normal
+        # progress) as ErrorRecords. The process exit code decides success.
+        $ErrorActionPreference = 'Continue'
+        & $Program @Arguments *> $taskLog
+        $taskExit = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $taskSavedErrorPreference
+    }
     $taskResults.Add(@{ name = $Name; passed = ($taskExit -eq 0); log = $taskLog })
     if ($taskExit -ne 0) {
         Get-Content -LiteralPath $taskLog -Tail 35 | Write-Host
@@ -44,7 +54,7 @@ try {
         throw 'Blender round-trip and fixed-camera checks use the standard build/Release executables.'
     }
     # These are qualification prerequisites, not skipped test cases.
-    foreach ($taskRelative in @('content/phlosion/scenes/route1.phscene', 'assets/models/0001_Bulbasaur_SV.phmodel', $taskRecipe.terrain_path)) {
+    foreach ($taskRelative in @('content/phlosion/scenes/route1.phscene', 'assets/models/0001_Bulbasaur_SV.phmodel', $taskRecipe.bundle_path)) {
         if (-not (Test-Path -LiteralPath (Join-Path $taskRoot $taskRelative))) {
             throw "Missing private asset: $taskRelative. Restore the depot with tools/assets/sync_asset_depot.ps1."
         }
@@ -60,7 +70,7 @@ try {
     Invoke-Check 'arena-data-regressions' 'python' @('tools/environment/test_arena_map.py')
     if (-not $NoBuild) {
         Invoke-Check 'build' 'cmake' @('--build', $taskBuild, '--config', $Configuration,
-            '--target', 'PAC_Tests', 'PhlosionForge', 'PokemonAutochess', '--parallel')
+            '--target', 'PAC_Tests', 'PAC_ArenaLogicTests', 'PhlosionForge', 'PokemonAutochess', '--parallel')
         Invoke-Check 'editor-pair' 'powershell' @('-NoProfile', '-File', 'tools/housekeeping/build_editor_pair.ps1',
             '-Configuration', $Configuration, '-GameBuildDirectory', $taskBuild, '-OutputDirectory', (Join-Path $taskOutput 'editor-pair'))
     }
@@ -69,8 +79,9 @@ try {
     foreach ($taskBinary in @($taskTests, $taskForge)) {
         if (-not (Test-Path -LiteralPath $taskBinary)) { throw "Missing build output: $taskBinary. Run without -NoBuild." }
     }
-    Invoke-Check 'scene' $taskForge @('validate-authored-environment', $taskRecipe.scene_path)
-    foreach ($taskTest in @('authored_ground_surface_contract', 'route1_arena_pilot_contract',
+    Invoke-Check 'arena-bundle' $taskForge @('validate-arena-bundle', $taskRecipe.bundle_path)
+    Invoke-Check 'fast-arena' 'ctest' @('--test-dir', $taskBuild, '-C', $Configuration, '-L', 'fast', '--output-on-failure')
+    foreach ($taskTest in @('authored_ground_surface_contract', 'authored_arena_bundle_contract', 'route1_arena_pilot_contract',
             'route1_runtime_environment_contract', 'movement_collision_regressions', 'movement_invariants',
             'battle_invariants', 'end_to_end_headless', 'shared_projected_unit_renderer_bulbasaur_vine_visibility',
             'shared_projected_unit_world_scene_multiple_rigid_batches')) {
@@ -85,14 +96,18 @@ try {
         foreach ($taskCase in @('tile_editability', 'ledge_geometry', 'roundtrip')) {
             $taskCaseOutput = Join-Path $taskOutput "blender-$taskCase"
             if ($taskCase -eq 'ledge_geometry') { $taskCaseOutput += '.json' }
-            Invoke-Check "blender-$taskCase" $Blender @('--background', '--factory-startup', '--disable-autoexec',
+            $taskRecipeArguments = @()
+            if ($taskCase -eq 'roundtrip') { $taskRecipeArguments = @('--recipe', $Recipe) }
+            Invoke-Check "blender-$taskCase" $Blender (@('--background', '--factory-startup', '--disable-autoexec',
                 $BlendFile, '--python-exit-code', '1', '--python', "tools/environment/verify_arena_$taskCase.py", '--',
-                '--output', $taskCaseOutput)
+                '--output', $taskCaseOutput) + $taskRecipeArguments)
         }
     }
     if ($Capture) {
         Invoke-Check 'capture' 'powershell' @('-NoProfile', '-File', 'tools/environment/capture_arena_pilot.ps1',
             '-OutputDirectory', $taskOutput)
+        Invoke-Check 'editor-preview' 'powershell' @('-NoProfile', '-File', 'tools/environment/preview_route1_pilot.ps1',
+            '-Phase', 'planning', '-Capture', '-OutputDirectory', (Join-Path $taskOutput 'editor-preview'))
     }
     $taskPassed = $true
 } catch {

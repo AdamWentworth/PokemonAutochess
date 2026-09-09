@@ -8,6 +8,7 @@ struct Variant {
     std::string_view sceneId;
     std::string_view boardLayoutManifestPath;
     std::string_view authoredSceneDocumentPath;
+    std::string_view arenaBundlePath;
     bool usesSourceTerrain = true;
 };
 
@@ -27,6 +28,7 @@ inline constexpr Variant kRoute1Pilot{
     .sceneId = "routes/route1-pilot",
     .boardLayoutManifestPath = "config/environment/route1_pilot_board_layout.json",
     .authoredSceneDocumentPath = "scenes/route1_pilot.scene.json",
+    .arenaBundlePath = "content/phlosion/environment/arena-pilot/arena.phscene",
     .usesSourceTerrain = false};
 
 inline constexpr const Variant* find(

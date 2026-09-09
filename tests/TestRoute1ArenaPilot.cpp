@@ -1,3 +1,5 @@
+#include "game/runtime/shared/scene/AuthoredArenaBundle.h"
+#include "game/runtime/shared/scene/ArenaSceneActivation.h"
 #include "engine/assets/phlosion/PhlosionAuthoredScene.h"
 #include "engine/assets/phlosion/PhlosionEnvironmentPatch.h"
 #include "engine/core/Paths.h"
@@ -15,12 +17,12 @@ bool test_route1_arena_pilot_contract(std::string& outFail) {
     game::assets::DevAssetStore store(engine::paths::dataRoot());
     env::RuntimeEnvironment environment;
     env::BoardLayoutTransform board;
-    ph::AuthoredSceneDocument scene;
-    if (!env::loadCookedEnvironment(store, environment, nullptr, &outFail) ||
-        !env::loadBoardLayoutTransform(store, std::string(variants::kRoute1Pilot.boardLayoutManifestPath), board, &outFail) ||
-        !environment.applyBoardLayout(board, &outFail) ||
-        !ph::loadAuthoredSceneDocument(store, std::string(variants::kRoute1Pilot.authoredSceneDocumentPath), scene, &outFail) ||
-        !environment.applyAuthoredScene(scene, store, true, &outFail)) return false;
+    game::runtime::authored_arena::Bundle arena;
+    if (!arena.load(store, std::string(variants::kRoute1Pilot.arenaBundlePath), &outFail) ||
+        !env::loadCookedEnvironment(store, environment, nullptr, &outFail) ||
+        !env::loadBoardLayoutTransform(arena.store, arena.boardPath, board, &outFail) ||
+        !game::runtime::arena_scene_activation::apply(store, variants::kRoute1Pilot, environment, false, true, &outFail)) return false;
+    auto scene = arena.scene;
     if (!environment.terrainTiles().empty() || environment.stats().visibleTriangleCount == 0) {
         outFail = "Mesh-authored arena must render without regenerated source terrain, including Terrain Patch V2 preview.";
         return false;
@@ -45,7 +47,7 @@ bool test_route1_arena_pilot_contract(std::string& outFail) {
     }
     if (playableBrushBeds < 2) { outFail = "The arena needs playable encounter-grass pockets."; return false; }
     ph::EnvironmentPatchDocument patch;
-    if (!ph::loadEnvironmentPatchDocument(store, "content/phlosion/environment/arena-pilot/terrain.phpatch", patch, &outFail)) return false;
+    if (!ph::loadEnvironmentPatchDocument(arena.store, "content/phlosion/environment/arena-pilot/terrain.phpatch", patch, &outFail)) return false;
     std::size_t footprintVertices = 0;
     std::size_t groundTriangles = 0;
     for (const auto& mesh : patch.meshes) {
@@ -111,9 +113,9 @@ bool test_route1_arena_pilot_contract(std::string& outFail) {
     for (auto& node : lifted.nodes) {
         if (node.meshPatch) node.transform->translation[1] += 25;
     }
-    if (!environment.applyAuthoredScene(lifted, store, false, &outFail) ||
+    if (!environment.applyAuthoredScene(lifted, arena.store, false, &outFail) ||
         !sample(2100, -770, 25) || !sample(2100, -830, 75) ||
-        !environment.applyAuthoredScene(scene, store, true, &outFail) ||
+        !environment.applyAuthoredScene(scene, arena.store, true, &outFail) ||
         !sample(2100, -830, 50)) return false;
     // Switching back must restore source terrain after the pilot cleared it.
     if (!ph::loadAuthoredSceneDocument(store, std::string(variants::kRoute1.authoredSceneDocumentPath), scene, &outFail) ||
