@@ -19,7 +19,7 @@ import arena_pilot as arena
 import arena_tiles as tiles
 import arena_grass
 from arena_recipe import load_recipe
-from create_route1_south_clearing import recover_cells, components, bounds, detail
+from create_route1_south_clearing import recover_cells, components, bounds, detail, uses_source_layout
 
 
 def main():
@@ -48,6 +48,9 @@ def main():
     for mesh in templates.values(): mesh.use_fake_user=True
     legacy=json.loads((ROOT/config['reference_scene']).read_text())
     overrides={n['id']:n['components']['transform'] for n in legacy['nodes'] if 'transform' in n['components']}
+    def placement_transform(proto):
+        x,_,z=proto['transform']['translation']
+        return proto['transform'] if uses_source_layout(config,math.floor(x*.01),math.floor(z*.01)) else overrides.get(proto['id'],proto['transform'])
     composition=json.loads((ROOT/recipe['composition_path']).read_text())
     cells,_=recover_cells(kit,legacy,config)
     lookup={(c['x'],c['z']):c for c in cells}
@@ -77,7 +80,7 @@ def main():
     arena.rebuild_terrain(config)
     omitted=[]
     def place(proto,name=None,position=None,size=1,yaw=0):
-        transform=overrides.get(proto['id'],proto['transform'])
+        transform=placement_transform(proto)
         x,h,z=transform['translation']; x,y=(x*.01,-z*.01) if position is None else position
         grass=proto['id'].startswith('encounter-grass/')
         asset=proto['prefab_asset_id']
@@ -104,7 +107,7 @@ def main():
         return obj
     for proto in kit['objects']:
         identity=proto['id']
-        t=overrides.get(identity,proto['transform']); x,_,z=t['translation']
+        t=placement_transform(proto); x,_,z=t['translation']
         if not contains(x*.01,-z*.01,1): continue
         if identity.startswith('encounter-grass/'):
             if int(identity.rsplit('-',1)[-1]) in config['encounter_records']: place(proto)

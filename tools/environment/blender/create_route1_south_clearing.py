@@ -25,11 +25,17 @@ RECIPE = 'config/environment/route1_south_clearing.authoring.json'
 BLUEPRINT = 'config/environment/route1_south_clearing_blueprint.json'
 
 
+def uses_source_layout(config, x, z):
+    """Backdrop regions can opt out of another arena's gameplay adaptations."""
+    return any(r['x_min'] <= x <= r['x_max'] and r['z_min'] <= z <= r['z_max']
+               for r in config.get('source_layout_regions', []))
+
+
 def recover_cells(kit, legacy, config):
     source = {(c['x'], c['z']): dict(c) for c in kit['source_terrain_tiles']}
     for node in legacy['nodes']:
         t = node['components'].get('terrain_tile')
-        if t:
+        if t and not uses_source_layout(config, t['grid_x'], t['grid_z']):
             source[t['grid_x'], t['grid_z']] = dict(x=t['grid_x'], z=t['grid_z'],
                 height=t['elevation_level'], surface=t['surface'], shape=t['shape'], occupied=node['enabled'])
     bounds = config['tile_bounds']
@@ -49,7 +55,7 @@ def recover_cells(kit, legacy, config):
     # overlapping backdrop without reinterpreting the original source slopes.
     if config.get('reference_map'):
         for cell in json.loads((ROOT/config['reference_map']).read_text())['cells']:
-            if (cell['x'],cell['z']) in lookup:
+            if (cell['x'],cell['z']) in lookup and not uses_source_layout(config, cell['x'], cell['z']):
                 lookup[cell['x'],cell['z']].update(cell)
     for override in config.get('tile_overrides', []):
         lookup[override['x'], override['z']].update(override)

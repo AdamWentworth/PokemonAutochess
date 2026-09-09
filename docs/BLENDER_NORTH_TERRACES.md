@@ -41,19 +41,29 @@ this arena's source, board registration, scene and archive.
 The board advances **nine source tiles north** of South Clearing, matching the
 Entrance-to-Clearing increment. It occupies **X=17..24, Z=-28..-21**; reserve rows
 are Z=-29 and Z=-20. The backdrop contains 840 editable metre tiles, X=6..35 and
-Z=-38..-11. Overlapping terrain starts from the approved South Clearing map;
-the northern extension comes from the original LGPE source tile blueprint.
+Z=-38..-11. The northern terrain preserves the approved route terraces. The
+southern backdrop, Z=-19..-11, uses the original LGPE layout rather than South
+Clearing's arena adaptations. This regional override also restores source prop
+positions and leaves the separate South Clearing scene unchanged.
 
-The arena includes the next raised island and the left edge of the east grass
-bed. The broad northern encounter bed, upper dirt pockets and east ramp frame the
+The six-cell island at X=21..23, Z=-25..-24 is flattened to the surrounding 2 m
+light lawn, leaving an open board. Both eight-cell reserve rows are dirt, with
+their small decorative plants cleared away. The broad northern encounter bed,
+upper dirt pockets and east ramp frame the
 enemy reserve row. Source geometry probes establish the NE corner foot at
-(20,-28) and the upper ramp strip X=25..27, Z=-33. Raised islands retain their
+(20,-28) and the upper ramp strip X=25..27, Z=-33. Other terraces retain their
 terrain, with solid shrubs and canopies cleared out of the board and reserve rows.
 This also excludes the tall leafy `small_grass_02` shrub at (20,-27.2). The
 blueprint records these deliberate gameplay adaptations.
 
-All three encounter beds use full-size Grass01 clumps. Their source records are
-3, 4 and 5; record 3 retains the approved legacy editor adjustment. Six source
+Encounter grass uses full-size Grass01 clumps from source records 3, 4 and 5.
+The northern bed is split into two editable pieces, leaving a four-tile notch
+for the enemy bench while retaining grass beyond its east end. Its main footprint
+is X=21..28, Z=-32..-29; the east return is X=25..28, Z=-29..-28.
+Record 3 returns to its original X=2350 cm pivot in this scene.
+The southern backdrop restores its smaller dirt pockets, two-level western bank,
+source shrub at (19.655,-13.393), and narrower southern ramp X=22..25, Z=-13.
+Six source
 rocks retain their original colours. The scene has rounded closed ledges, dark
 inaccessible lawn, source vegetation and additional woodland around the edges.
 It uses the shared directional jumps, uphill blocking, flying, grass visibility,
@@ -82,8 +92,10 @@ After seeding, use the normal export launcher in a fresh Blender process.
 ## Qualification
 
 `PAC_Tests.route1_north_terraces_contract` checks all 80 board/reserve centres
-against the visible floor, island jumps, ramps, flying, grass sight, prop clearance,
-source suppression, shadows and switching among all three arenas. The shared grass
+against the visible floor, dirt benches, level movement across the removed island,
+terrace jumps, ramps, flying, grass sight, prop clearance, source suppression,
+shadows and switching among all three arenas. It also checks the restored southern
+terrain and prop positions. The shared grass
 rendering test checks North Terraces contacts, rooted blades and recovery too.
 
 The shared Blender checks preserve the working source:

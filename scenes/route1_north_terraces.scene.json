@@ -7633,15 +7633,62 @@
       }
     },
     {
-      "id": "authored-prefab/north-terraces/encounter-grass-enc_grass01-record-3",
-      "display_name": "Source Encounter Grass 01 - source patch 3",
+      "id": "authored-prefab/north-terraces/northern-grass-east-return",
+      "display_name": "Northern encounter grass - east bench return",
       "parent_id": "folder/environment/props",
       "sibling_order": 159,
       "enabled": true,
       "components": {
         "transform": {
           "translation": [
-            2242.2117233276367,
+            2650.0,
+            250.0,
+            -2862.5
+          ],
+          "rotation_degrees": [
+            0,
+            0.0,
+            0
+          ],
+          "scale": [
+            0.4285714328289032,
+            1.0,
+            0.25
+          ]
+        },
+        "prefab_instance": {
+          "prototype_node_id": "encounter-grass/enc_grass01/record-5",
+          "prefab_asset_id": "route1/encounter_grass_01",
+          "creation_transform": {
+            "rotation_degrees": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "translation": [
+              2450.0,
+              250.0,
+              -3050.0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "authored-prefab/north-terraces/encounter-grass-enc_grass01-record-3",
+      "display_name": "Source Encounter Grass 01 - source patch 3",
+      "parent_id": "folder/environment/props",
+      "sibling_order": 160,
+      "enabled": true,
+      "components": {
+        "transform": {
+          "translation": [
+            2350.0,
             100.0,
             -1550.0
           ],
@@ -7683,7 +7730,7 @@
       "id": "authored-prefab/north-terraces/encounter-grass-enc_grass01-record-4",
       "display_name": "Source Encounter Grass 01 - source patch 4",
       "parent_id": "folder/environment/props",
-      "sibling_order": 160,
+      "sibling_order": 161,
       "enabled": true,
       "components": {
         "transform": {
@@ -7730,14 +7777,14 @@
       "id": "authored-prefab/north-terraces/encounter-grass-enc_grass01-record-5",
       "display_name": "Source Encounter Grass 01 - source patch 5",
       "parent_id": "folder/environment/props",
-      "sibling_order": 161,
+      "sibling_order": 162,
       "enabled": true,
       "components": {
         "transform": {
           "translation": [
             2450.0,
             250.0,
-            -3050.0
+            -3087.5
           ],
           "rotation_degrees": [
             0,
@@ -7747,7 +7794,7 @@
           "scale": [
             1.0,
             1.0,
-            1.0
+            0.75
           ]
         },
         "prefab_instance": {
@@ -7777,7 +7824,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_001-instance-0",
       "display_name": "Source Tree 001 - source instance 1",
       "parent_id": "folder/environment/props",
-      "sibling_order": 162,
+      "sibling_order": 163,
       "enabled": true,
       "components": {
         "transform": {
@@ -7824,7 +7871,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_001-instance-10",
       "display_name": "Source Tree 001 - source instance 11",
       "parent_id": "folder/environment/props",
-      "sibling_order": 163,
+      "sibling_order": 164,
       "enabled": true,
       "components": {
         "transform": {
@@ -7871,7 +7918,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_001-instance-1",
       "display_name": "Source Tree 001 - source instance 2",
       "parent_id": "folder/environment/props",
-      "sibling_order": 164,
+      "sibling_order": 165,
       "enabled": true,
       "components": {
         "transform": {
@@ -7918,7 +7965,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_001-instance-2",
       "display_name": "Source Tree 001 - source instance 3",
       "parent_id": "folder/environment/props",
-      "sibling_order": 165,
+      "sibling_order": 166,
       "enabled": true,
       "components": {
         "transform": {
@@ -7965,7 +8012,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_001-instance-3",
       "display_name": "Source Tree 001 - source instance 4",
       "parent_id": "folder/environment/props",
-      "sibling_order": 166,
+      "sibling_order": 167,
       "enabled": true,
       "components": {
         "transform": {
@@ -8012,7 +8059,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_001-instance-4",
       "display_name": "Source Tree 001 - source instance 5",
       "parent_id": "folder/environment/props",
-      "sibling_order": 167,
+      "sibling_order": 168,
       "enabled": true,
       "components": {
         "transform": {
@@ -8059,7 +8106,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_001-instance-5",
       "display_name": "Source Tree 001 - source instance 6",
       "parent_id": "folder/environment/props",
-      "sibling_order": 168,
+      "sibling_order": 169,
       "enabled": true,
       "components": {
         "transform": {
@@ -8106,7 +8153,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_001-instance-6",
       "display_name": "Source Tree 001 - source instance 7",
       "parent_id": "folder/environment/props",
-      "sibling_order": 169,
+      "sibling_order": 170,
       "enabled": true,
       "components": {
         "transform": {
@@ -8153,7 +8200,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_001-instance-7",
       "display_name": "Source Tree 001 - source instance 8",
       "parent_id": "folder/environment/props",
-      "sibling_order": 170,
+      "sibling_order": 171,
       "enabled": true,
       "components": {
         "transform": {
@@ -8200,7 +8247,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_002-instance-9",
       "display_name": "Source Tree 002 - source instance 10",
       "parent_id": "folder/environment/props",
-      "sibling_order": 171,
+      "sibling_order": 172,
       "enabled": true,
       "components": {
         "transform": {
@@ -8247,7 +8294,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_002-instance-10",
       "display_name": "Source Tree 002 - source instance 11",
       "parent_id": "folder/environment/props",
-      "sibling_order": 172,
+      "sibling_order": 173,
       "enabled": true,
       "components": {
         "transform": {
@@ -8294,7 +8341,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_002-instance-1",
       "display_name": "Source Tree 002 - source instance 2",
       "parent_id": "folder/environment/props",
-      "sibling_order": 173,
+      "sibling_order": 174,
       "enabled": true,
       "components": {
         "transform": {
@@ -8341,7 +8388,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_002-instance-3",
       "display_name": "Source Tree 002 - source instance 4",
       "parent_id": "folder/environment/props",
-      "sibling_order": 174,
+      "sibling_order": 175,
       "enabled": true,
       "components": {
         "transform": {
@@ -8388,7 +8435,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_002-instance-4",
       "display_name": "Source Tree 002 - source instance 5",
       "parent_id": "folder/environment/props",
-      "sibling_order": 175,
+      "sibling_order": 176,
       "enabled": true,
       "components": {
         "transform": {
@@ -8435,7 +8482,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_002-instance-5",
       "display_name": "Source Tree 002 - source instance 6",
       "parent_id": "folder/environment/props",
-      "sibling_order": 176,
+      "sibling_order": 177,
       "enabled": true,
       "components": {
         "transform": {
@@ -8482,7 +8529,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_003-instance-0",
       "display_name": "Source Tree 003 - source instance 1",
       "parent_id": "folder/environment/props",
-      "sibling_order": 177,
+      "sibling_order": 178,
       "enabled": true,
       "components": {
         "transform": {
@@ -8529,7 +8576,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_003-instance-9",
       "display_name": "Source Tree 003 - source instance 10",
       "parent_id": "folder/environment/props",
-      "sibling_order": 178,
+      "sibling_order": 179,
       "enabled": true,
       "components": {
         "transform": {
@@ -8576,7 +8623,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_003-instance-11",
       "display_name": "Source Tree 003 - source instance 12",
       "parent_id": "folder/environment/props",
-      "sibling_order": 179,
+      "sibling_order": 180,
       "enabled": true,
       "components": {
         "transform": {
@@ -8623,7 +8670,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_003-instance-2",
       "display_name": "Source Tree 003 - source instance 3",
       "parent_id": "folder/environment/props",
-      "sibling_order": 180,
+      "sibling_order": 181,
       "enabled": true,
       "components": {
         "transform": {
@@ -8670,7 +8717,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_003-instance-4",
       "display_name": "Source Tree 003 - source instance 5",
       "parent_id": "folder/environment/props",
-      "sibling_order": 181,
+      "sibling_order": 182,
       "enabled": true,
       "components": {
         "transform": {
@@ -8717,7 +8764,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_003-instance-7",
       "display_name": "Source Tree 003 - source instance 8",
       "parent_id": "folder/environment/props",
-      "sibling_order": 182,
+      "sibling_order": 183,
       "enabled": true,
       "components": {
         "transform": {
@@ -8764,7 +8811,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_004-instance-1",
       "display_name": "Source Tree 004 - source instance 2",
       "parent_id": "folder/environment/props",
-      "sibling_order": 183,
+      "sibling_order": 184,
       "enabled": true,
       "components": {
         "transform": {
@@ -8811,7 +8858,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_005-instance-0",
       "display_name": "Source Tree 005 - source instance 1",
       "parent_id": "folder/environment/props",
-      "sibling_order": 184,
+      "sibling_order": 185,
       "enabled": true,
       "components": {
         "transform": {
@@ -8858,7 +8905,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_005-instance-1",
       "display_name": "Source Tree 005 - source instance 2",
       "parent_id": "folder/environment/props",
-      "sibling_order": 185,
+      "sibling_order": 186,
       "enabled": true,
       "components": {
         "transform": {
@@ -8905,7 +8952,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_006-instance-1",
       "display_name": "Source Tree 006 - source instance 2",
       "parent_id": "folder/environment/props",
-      "sibling_order": 186,
+      "sibling_order": 187,
       "enabled": true,
       "components": {
         "transform": {
@@ -8952,7 +8999,7 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_006-instance-5",
       "display_name": "Source Tree 006 - source instance 6",
       "parent_id": "folder/environment/props",
-      "sibling_order": 187,
+      "sibling_order": 188,
       "enabled": true,
       "components": {
         "transform": {
@@ -8999,14 +9046,14 @@
       "id": "authored-prefab/north-terraces/canonical-tree-tree_006-instance-8",
       "display_name": "Source Tree 006 - source instance 9",
       "parent_id": "folder/environment/props",
-      "sibling_order": 188,
+      "sibling_order": 189,
       "enabled": true,
       "components": {
         "transform": {
           "translation": [
-            1490.0500297546387,
+            1965.5193328857422,
             150.0,
-            -1373.6374855041504
+            -1339.3231391906738
           ],
           "rotation_degrees": [
             0,
@@ -9046,7 +9093,7 @@
       "id": "authored-prefab/north-terraces/buildmodel-vegetation-flowers02-record-11",
       "display_name": "Source flowers02 - source record 11",
       "parent_id": "folder/environment/props",
-      "sibling_order": 189,
+      "sibling_order": 190,
       "enabled": true,
       "components": {
         "transform": {
@@ -9093,7 +9140,7 @@
       "id": "authored-prefab/north-terraces/buildmodel-vegetation-flowers02-record-12",
       "display_name": "Source flowers02 - source record 12",
       "parent_id": "folder/environment/props",
-      "sibling_order": 190,
+      "sibling_order": 191,
       "enabled": true,
       "components": {
         "transform": {
@@ -9131,53 +9178,6 @@
               1500.0,
               150.0,
               -1900.0
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "authored-prefab/north-terraces/buildmodel-vegetation-flowers02-record-13",
-      "display_name": "Source flowers02 - source record 13",
-      "parent_id": "folder/environment/props",
-      "sibling_order": 191,
-      "enabled": true,
-      "components": {
-        "transform": {
-          "translation": [
-            2029.9999237060547,
-            250.5037784576416,
-            -2900.0
-          ],
-          "rotation_degrees": [
-            0,
-            26.666665321732026,
-            0
-          ],
-          "scale": [
-            1.0,
-            1.0,
-            1.0
-          ]
-        },
-        "prefab_instance": {
-          "prototype_node_id": "buildmodel-vegetation/flowers02/record-13",
-          "prefab_asset_id": "route1/flowers_02",
-          "creation_transform": {
-            "rotation_degrees": [
-              0.0,
-              26.66666603088379,
-              0.0
-            ],
-            "scale": [
-              1.0,
-              1.0,
-              1.0
-            ],
-            "translation": [
-              2030.0,
-              300.0,
-              -2900.0
             ]
           }
         }
@@ -9475,7 +9475,7 @@
         "transform": {
           "translation": [
             1979.9999237060547,
-            185.5037808418274,
+            185.50381660461426,
             -2270.0000762939453
           ],
           "rotation_degrees": [
@@ -9569,7 +9569,7 @@
         "transform": {
           "translation": [
             2350.0,
-            250.5037784576416,
+            200.5037784576416,
             -2320.0000762939453
           ],
           "rotation_degrees": [

@@ -32,22 +32,30 @@ bool test_route1_north_terraces_contract(std::string &outFail) {
         check(activation::apply(store, variant, environment, true, true, &outFail), outFail);
         check(environment.terrainTiles().empty() && environment.stats().visibleTriangleCount > 0 && environment.stats().shadowGroundTriangleCount > 0,
               "North Terraces must use its authored terrain and shadows.");
+        bool restoredSouthernGrass = false, restoredSouthernShrub = false;
         for (const auto &object : environment.layoutObjects()) {
             if (object.suppressed || object.targetKind == "gameplay_board_ground_prototype") continue;
             check(object.authored, "Original source scenery leaked into North Terraces: " + object.stableId);
+            if (object.stableId.ends_with("encounter-grass-enc_grass01-record-3")) {
+                restoredSouthernGrass = std::abs(object.translationCm[0] - 2350) < .1f && std::abs(object.translationCm[2] + 1550) < .1f;
+            }
+            if (object.stableId.ends_with("canonical-tree-tree_006-instance-8")) {
+                restoredSouthernShrub = std::abs(object.translationCm[0] - 1965.5194f) < .1f && std::abs(object.translationCm[2] + 1339.3231f) < .1f;
+            }
             if (object.targetKind == "environment_mesh_patch" || object.prefabAssetId.find("encounter_grass") != std::string::npos) continue;
             if (!object.prefabAssetId.starts_with("route1/tree_") && object.boundsMaximumCm[1] - object.boundsMinimumCm[1] <= 65) continue;
             check(!(object.boundsMinimumCm[0] < 2500 && object.boundsMaximumCm[0] > 1700 &&
                     object.boundsMinimumCm[2] < -2000 && object.boundsMaximumCm[2] > -2900),
                   "A canopy or solid shrub overlaps the North Terraces board/reserve rows: " + object.stableId);
         }
+        check(restoredSouthernGrass && restoredSouthernShrub, "The southern backdrop must use original LGPE prop positions rather than South Clearing's arena adjustments.");
         constexpr float heights[10][8] = {
             {250, 250, 250, 250, 250, 250, 250, 250},
             {200, 200, 200, 200, 225, 225, 225, 225},
             {200, 200, 200, 200, 200, 200, 200, 200},
             {200, 200, 200, 200, 200, 200, 200, 200},
-            {200, 200, 200, 200, 250, 250, 250, 200},
-            {200, 200, 200, 200, 250, 250, 250, 200},
+            {200, 200, 200, 200, 200, 200, 200, 200},
+            {200, 200, 200, 200, 200, 200, 200, 200},
             {175, 175, 175, 200, 200, 200, 200, 200},
             {150, 150, 150, 150, 150, 150, 200, 200},
             {150, 150, 150, 150, 150, 150, 150, 175},
@@ -58,19 +66,31 @@ bool test_route1_north_terraces_contract(std::string &outFail) {
                 const float x = (17.5f + col) * 100, z = (-27.5f + row) * 100;
                 const auto *tile = bundle.map.tileAt(17 + col, -28 + row);
                 const float expected = heights[row + 1][col];
-                check(tile && std::abs(tile->heightAt(x, z) - expected) < .01f, "North Terraces lost its source terraces, island or corner ramp.");
+                check(tile && std::abs(tile->heightAt(x, z) - expected) < .01f, "North Terraces lost its open board floor, terraces or corner ramp.");
+                if (row == -1 || row == 8) check(tile->surface == 1 && bundle.map.coverAt(x, z).empty(), "Both North Terraces reserve rows must be dirt without encounter grass.");
+                if ((row == 3 || row == 4) && col >= 4 && col <= 6) check(tile->surface == 0, "The removed island must blend into the accessible light lawn.");
                 float actual = -999;
                 check(environment.sampleWorldTerrainHeight(matrix[0] * x + matrix[8] * z + matrix[12], matrix[2] * x + matrix[10] * z + matrix[14], actual) &&
                           std::abs(actual - (matrix[5] * expected + matrix[13])) < .001f,
                       "A North Terraces board/reserve centre does not stand on the rendered floor.");
             }
+        for (const auto &expected : {game::arena::Tile{17, -15, 4, 2, 0}, game::arena::Tile{20, -14, 3, 2, 0},
+                                     game::arena::Tile{16, -17, 2, 1, 0}, game::arena::Tile{20, -17, 2, 0, 0},
+                                     game::arena::Tile{17, -13, 2, 2, 0}, game::arena::Tile{23, -13, 1, 0, 1},
+                                     game::arena::Tile{19, -12, 1, 1, 0}, game::arena::Tile{24, -11, 1, 0, 0}}) {
+            const auto *tile = bundle.map.tileAt(expected.x, expected.z);
+            check(tile && tile->height == expected.height && tile->surface == expected.surface && tile->ramp == expected.ramp,
+                  "The southern backdrop lost its source banks, dirt pockets or narrow ramp.");
+        }
         GameConfigData config;
         GameWorld gameplay(config);
         check(activation::applyGameplay(store, variant, gameplay, &outFail), outFail);
         const auto map = gameplay.combatMap();
-        check(map.stepKind({4, 4}, {4, 5}, {}) == StepKind::LedgeDrop && map.stepKind({4, 5}, {4, 4}, {}) == StepKind::Blocked &&
-                  map.stepKind({4, 5}, {4, 4}, {true}) == StepKind::Walk,
-              "North Terraces must retain southbound island jumps, uphill walls and flying exceptions.");
+        check(map.stepKind({4, 4}, {4, 5}, {}) == StepKind::Walk && map.stepKind({4, 5}, {4, 4}, {}) == StepKind::Walk,
+              "The removed island must allow level movement in both directions.");
+        check(map.stepKind({3, 5}, {3, 6}, {}) == StepKind::LedgeDrop && map.stepKind({3, 6}, {3, 5}, {}) == StepKind::Blocked &&
+                  map.stepKind({3, 6}, {3, 5}, {true}) == StepKind::Walk,
+              "North Terraces must retain southbound terrace jumps, uphill walls and flying exceptions.");
         check(map.stepKind({6, 0}, {6, 1}, {}) == StepKind::Walk && map.stepKind({6, 1}, {6, 0}, {}) == StepKind::Walk &&
                   map.stepKind({1, 5}, {1, 6}, {}) == StepKind::Walk && map.stepKind({1, 6}, {1, 5}, {}) == StepKind::Walk,
               "North Terraces ramps must remain walkable in both directions.");
