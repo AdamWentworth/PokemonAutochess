@@ -359,6 +359,27 @@ bool test_shared_projected_unit_world_scene_multiple_rigid_batches(std::string& 
         return false;
     }
 
+    mesh.animationMeshVisibility.resize(1u);
+    game::runtime::render_model::MeshVisibilityTrack visibility;
+    visibility.nodeIndex = 5;
+    visibility.sourceFrameRate = 60.0f;
+    visibility.inputs = {0.0f, 1.0f / 60.0f, 85.0f / 60.0f};
+    visibility.values = {0u, 1u, 0u};
+    mesh.animationMeshVisibility[0] = {visibility};
+    args.materialAnimationIndex = 0;
+    for (const float frame : {0.0f, 1.0f, 85.0f, 1.0f, 0.0f}) {
+        game::runtime::shared_world_scene::beginWorldSceneFrame(worldSceneFrame);
+        game::runtime::shared_projected_render_items::beginProjectedRenderItemsFrame(projectedRenderItems);
+        remainingModelTrianglesBudget = 4096u;
+        args.materialAnimationTimeSec = frame / 60.0f;
+        result = {};
+        const bool rendered = game::runtime::shared_projected_unit_world_scene::tryRenderProjectedUnitModelWorldScene(args, result);
+        std::size_t instances = 0;
+        for (const auto& drawClass : worldSceneFrame.drawClasses) instances += drawClass.instances.size();
+        if (!expect(rendered && instances == (frame >= 1.0f && frame < 85.0f ? 2u : 1u),
+                "Hidden opaque meshes must leave the world/shadow submission, and reappear without rebuilding cached geometry.", outFail)) return false;
+    }
+
     return true;
 }
 

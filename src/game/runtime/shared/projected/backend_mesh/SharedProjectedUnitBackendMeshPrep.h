@@ -72,12 +72,14 @@ bool sampleClipBoundMaterialAnimation(
     float animationTimeSec,
     glm::vec4& outValue);
 
+// Sample authored visibility for every mesh, including opaque auxiliary
+// geometry such as retractable vines. Missing tracks retain default visibility.
 // Scarlet/Violet SSSEffect emitters author discrete smoke-puff visibility
 // gates around a complete skeletal expand/travel/contract lifecycle. The
 // selected action clip owns that gate when it authors a lifecycle; otherwise
 // a retained loop01 controller may supply the repeating idle emission. Retain
 // the geometry in the render cache and return the exact active source gate.
-float sampleNativeEffectVisibilityAlpha(
+float sampleMeshVisibilityAlpha(
     const runtime::render_model::MeshData& mesh,
     int animationIndex,
     std::size_t submeshIndex,
@@ -93,4 +95,3 @@ bool prepareProjectedUnitBackendMeshWorldScene(const Args& args,
                                                PreparedState& prepared);
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh_prep
-

@@ -835,7 +835,7 @@ bool sampleClipBoundMaterialAnimation(
     return true;
 }
 
-float sampleNativeEffectVisibilityAlpha(
+float sampleMeshVisibilityAlpha(
     const runtime::render_model::MeshData& mesh,
     int animationIndex,
     std::size_t submeshIndex,
@@ -850,8 +850,7 @@ float sampleNativeEffectVisibilityAlpha(
         mesh.submeshMaterialFlags[submeshIndex] < 3.5f &&
         submeshIndex < mesh.submeshAlphaMode.size() &&
         mesh.submeshAlphaMode[submeshIndex] == 2u;
-    if (!softNativeEffect ||
-        submeshIndex >= mesh.submeshMeshIndex.size()) {
+    if (submeshIndex >= mesh.submeshMeshIndex.size()) {
         return 1.0f;
     }
 
@@ -919,7 +918,7 @@ float sampleNativeEffectVisibilityAlpha(
             mesh.animationMeshVisibility.size() &&
         selectedTrack != mesh.animationMeshVisibility[
             static_cast<std::size_t>(animationIndex)].end();
-    if (!game::runtime::shared_backend_pose::
+    if (softNativeEffect && !game::runtime::shared_backend_pose::
             animationOwnsNativeEffectVisibility(
                 mesh,
                 animationIndex)) {
@@ -1030,7 +1029,7 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
          submeshIndex < prepared.submeshVisibilityAlpha.size();
          ++submeshIndex) {
         prepared.submeshVisibilityAlpha[submeshIndex] =
-            detail::sampleNativeEffectVisibilityAlpha(
+            detail::sampleMeshVisibilityAlpha(
                 *mesh,
                 args.materialAnimationIndex,
                 submeshIndex,

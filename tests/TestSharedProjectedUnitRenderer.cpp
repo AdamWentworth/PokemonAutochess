@@ -503,6 +503,89 @@ bool test_shared_projected_unit_renderer_gastly_tongue_timeline_contract(
         outFail);
 }
 
+bool test_shared_projected_unit_renderer_bulbasaur_vine_visibility(std::string& outFail) {
+    using namespace game::runtime;
+    const auto sample = [](const render_model::MeshData& mesh, int clip, std::size_t submesh, float frame) {
+        return shared_projected_unit_backend_mesh_prep::detail::sampleMeshVisibilityAlpha(
+            mesh, clip, submesh, frame / 60.0f, frame / 60.0f);
+    };
+    // Opaque auxiliary geometry still has authored visibility. Do not require
+    // an effect material or collapse the vine bones to hide it.
+    render_model::MeshData synthetic;
+    synthetic.submeshMeshIndex = {0, 1, 2};
+    synthetic.meshIndexToNode = {5, 7, 8};
+    synthetic.submeshAlphaMode = {0, 0, 0};
+    synthetic.animationMeshVisibility.resize(2);
+    render_model::MeshVisibilityTrack right;
+    right.nodeIndex = 7;
+    right.sourceFrameRate = 60.0f;
+    right.inputs = {0.0f};
+    right.values = {0u};
+    auto left = right;
+    left.nodeIndex = 8;
+    synthetic.animationMeshVisibility[0] = {right, left};
+    right.inputs = left.inputs = {0.0f, 1.0f / 60.0f, 85.0f / 60.0f};
+    right.values = left.values = {0u, 1u, 0u};
+    synthetic.animationMeshVisibility[1] = {right, left};
+    for (const std::size_t vine : {1u, 2u}) {
+        if (!expect(sample(synthetic, 0, vine, 30) == 0.0f,
+                "Opaque vines must be hidden by the idle animation's visibility track.", outFail)) return false;
+        for (const float frame : {0.0f, 0.5f, 1.0f, 42.0f, 84.5f, 85.0f, 86.0f}) {
+            const float expected = frame >= 1.0f && frame < 85.0f ? 1.0f : 0.0f;
+            if (!expect(sample(synthetic, 1, vine, frame) == expected,
+                    "Vine Whip must reveal and retract each vine at the authored frame boundaries.", outFail)) return false;
+        }
+        if (!expect(sample(synthetic, 0, vine, 0) == 0.0f,
+                "Returning from Vine Whip to idle must hide the vines immediately.", outFail)) return false;
+    }
+    if (!expect(sample(synthetic, 0, 0, 30) == 1.0f && sample(synthetic, -1, 1, 0) == 1.0f,
+            "Meshes without an active visibility track must retain default visibility.", outFail)) return false;
+
+    // Audit both locally cooked variants through the runtime's real node and
+    // submesh mapping. Synthetic coverage above also runs without private assets.
+    const std::filesystem::path objects = "content/phlosion/objects";
+    if (!std::filesystem::exists(objects)) return true;
+    for (const auto& entry : std::filesystem::recursive_directory_iterator(objects)) {
+        const auto filename = entry.path().filename().string();
+        if (filename != "0001_Bulbasaur_SV.phlo" && filename != "0001_Bulbasaur_SV_Shiny.phlo") continue;
+        render_model::MeshData mesh;
+        std::string error;
+        if (!phlosion::loadModelObject(entry.path().string(), mesh, &error)) {
+            outFail = "Could not load cooked Bulbasaur: " + error;
+            return false;
+        }
+        std::vector<std::size_t> vines;
+        for (std::size_t submesh = 0; submesh < mesh.submeshMeshIndex.size(); ++submesh) {
+            const int meshIndex = mesh.submeshMeshIndex[submesh];
+            if (meshIndex < 0 || static_cast<std::size_t>(meshIndex) >= mesh.meshIndexToNode.size()) continue;
+            const int node = mesh.meshIndexToNode[meshIndex];
+            if (node >= 0 && static_cast<std::size_t>(node) < mesh.nodeNames.size() &&
+                    mesh.nodeNames[node].find("_tuta_mesh") != std::string::npos) vines.push_back(submesh);
+        }
+        if (!expect(vines.size() == 2, "Cooked Bulbasaur must contain both tuta meshes.", outFail)) return false;
+        for (const auto* name : {"pm0001_00_00_00000_defaultwait01_loop", "pm0001_00_00_00001_battlewait01_loop",
+                "pm0001_00_00_00030_walk01_loop", "pm0001_00_00_00100_run01_loop",
+                "pm0001_00_00_00400_attack01", "pm0001_00_00_00450_rangeattack01"}) {
+            const int clip = resolveAnimIndex(mesh, name);
+            if (!expect(clip >= 0, "Cooked Bulbasaur is missing a tested gameplay clip.", outFail)) return false;
+            for (std::size_t submesh = 0; submesh < mesh.submeshMeshIndex.size(); ++submesh) {
+                const bool vine = std::find(vines.begin(), vines.end(), submesh) != vines.end();
+                if (!expect(sample(mesh, clip, submesh, 30) == (vine ? 0.0f : 1.0f),
+                        std::string("Cooked Bulbasaur should hide vines and retain its body/eyes in ") + name, outFail)) return false;
+            }
+        }
+        const int whip = resolveAnimIndex(mesh, "pm0001_00_00_00410_attack02");
+        if (!expect(whip >= 0, "Cooked Bulbasaur is missing Vine Whip.", outFail)) return false;
+        for (const auto vine : vines) {
+            for (const float frame : {0.0f, 1.0f, 42.0f, 84.0f, 85.0f}) {
+                if (!expect(sample(mesh, whip, vine, frame) == (frame >= 1 && frame < 85 ? 1.0f : 0.0f),
+                        "Cooked Bulbasaur must follow the retained Vine Whip reveal/retract timing.", outFail)) return false;
+            }
+        }
+    }
+    return true;
+}
+
 bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& outFail) {
     using game::runtime::shared_projected_units::detail::canonicalSceneAnimTimeForCacheKey;
 
@@ -1206,7 +1289,7 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
     const auto sampleSmokeVisibility = [&](float timeSec) {
         return game::runtime::
             shared_projected_unit_backend_mesh_prep::detail::
-                sampleNativeEffectVisibilityAlpha(
+                sampleMeshVisibilityAlpha(
                     smokeVisibilityMesh,
                     0,
                     0u,
@@ -1245,8 +1328,8 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
                 fallingBoundary < 0.001f &&
                 afterSmoke < 0.001f &&
                 singleFrameVisibility > 0.999f &&
-                opaqueNonEffect > 0.999f,
-            "SV SSSEffect visibility must preserve each authored puff gate exactly and leave opaque non-effect materials unchanged.",
+                opaqueNonEffect < 0.001f,
+            "Authored visibility gates must apply to both SSSEffects and ordinary opaque meshes.",
             outFail)) {
         return false;
     }
@@ -1277,7 +1360,7 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
         [&](float bodyTimeSec, float controllerTimeSec) {
             return game::runtime::
                 shared_projected_unit_backend_mesh_prep::detail::
-                    sampleNativeEffectVisibilityAlpha(
+                    sampleMeshVisibilityAlpha(
                         idleSmokeControllerMesh,
                         0,
                         0u,
@@ -1416,7 +1499,7 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
                      effectSubmeshIndices) {
                     const float alpha = game::runtime::
                         shared_projected_unit_backend_mesh_prep::detail::
-                            sampleNativeEffectVisibilityAlpha(
+                            sampleMeshVisibilityAlpha(
                                 weezingMesh,
                                 idleIndex,
                                 submeshIndex,
@@ -1462,7 +1545,7 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
                 for (const std::size_t submeshIndex : effectSubmeshIndices) {
                     const float alpha = game::runtime::
                         shared_projected_unit_backend_mesh_prep::detail::
-                            sampleNativeEffectVisibilityAlpha(
+                            sampleMeshVisibilityAlpha(
                                 weezingMesh,
                                 roarIndex,
                                 submeshIndex,
@@ -1566,7 +1649,7 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
                      effectSubmeshIndices) {
                     const float alpha = game::runtime::
                         shared_projected_unit_backend_mesh_prep::detail::
-                            sampleNativeEffectVisibilityAlpha(
+                            sampleMeshVisibilityAlpha(
                                 koffingMesh,
                                 idleIndex,
                                 submeshIndex,
@@ -1824,4 +1907,3 @@ bool test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract(std::stri
 
     return true;
 }
-

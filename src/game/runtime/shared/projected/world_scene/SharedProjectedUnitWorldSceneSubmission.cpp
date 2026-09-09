@@ -73,6 +73,8 @@ SubmissionSummary appendWorldSceneInstances(
                       batchTemplate.baseSubmeshIndex]
                 : 1.0f;
         const float instanceAlpha = sceneAlpha * visibilityAlpha;
+        // Opaque draws and shadow passes cannot be hidden by alpha alone.
+        if (visibilityAlpha <= 0.0f) continue;
 
         persistent::ProjectedRenderItemKey itemKey{};
         itemKey.unitId = args.unit->id;

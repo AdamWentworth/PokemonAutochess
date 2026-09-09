@@ -45,6 +45,8 @@ DirectFastTexturedResult tryQueueDirectFastTexturedWorldBatches(
     for (std::size_t fastBatchIndex = 0; fastBatchIndex < fastCache.batches.size();
          ++fastBatchIndex) {
         const auto& srcBatch = fastCache.batches[fastBatchIndex];
+        if (srcBatch.baseSubmeshIndex < prep.submeshVisibilityAlpha.size() &&
+                prep.submeshVisibilityAlpha[srcBatch.baseSubmeshIndex] <= 0.0f) continue;
         const bool hasSharedTemplate =
             srcBatch.baseSubmeshIndex < modelIndexedBatchesPerSubmesh.size() &&
             modelIndexedBatchesPerSubmesh[srcBatch.baseSubmeshIndex].sharedTemplate != nullptr;

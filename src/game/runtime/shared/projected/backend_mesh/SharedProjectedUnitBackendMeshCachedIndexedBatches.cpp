@@ -132,6 +132,9 @@ Result buildCachedIndexedBatches(const Args& args) {
 
         const auto& srcBatch = fastCache.batches[bi];
         auto& dstBatch = modelIndexedBatchesPerSubmesh[bi];
+        // Geometry was cleared above; leave this batch empty until revealed.
+        if (srcBatch.baseSubmeshIndex < prep.submeshVisibilityAlpha.size() &&
+                prep.submeshVisibilityAlpha[srcBatch.baseSubmeshIndex] <= 0.0f) continue;
         dstBatch.vertexColorMulR = args.fastTexturedTint.r;
         dstBatch.vertexColorMulG = args.fastTexturedTint.g;
         dstBatch.vertexColorMulB = args.fastTexturedTint.b;
