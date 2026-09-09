@@ -47,6 +47,15 @@
   ],
   "scenes": [
     {
+      "scene_id": "routes/route1-pilot",
+      "display_name": "Route 1 - South Entrance",
+      "category": "Current Map",
+      "environment_asset_id": "environments/route1",
+      "authored_scene_path": "scenes/route1_pilot.scene.json",
+      "runtime_path": "scripts/states/route1_pilot.lua",
+      "status": "in_progress"
+    },
+    {
       "scene_id": "reference/route1-published-environment",
       "display_name": "Route 1 - Published Environment",
       "category": "Reference Environments",
@@ -56,16 +65,16 @@
     },
     {
       "scene_id": "routes/route1",
-      "display_name": "Route 1 - South Entrance",
-      "category": "Routes",
+      "display_name": "Route 1 - South Entrance (Legacy)",
+      "category": "Legacy Maps",
       "environment_asset_id": "environments/route1",
       "authored_scene_path": "scenes/route1.scene.json",
       "status": "implemented"
     },
     {
       "scene_id": "routes/route1-5",
-      "display_name": "Route 1 - South Clearing",
-      "category": "Routes",
+      "display_name": "Route 1 - South Clearing (Legacy)",
+      "category": "Legacy Maps",
       "environment_asset_id": "environments/route1",
       "authored_scene_path": "scenes/route1_5.scene.json",
       "runtime_path": "scripts/states/route1_5.lua",
@@ -74,7 +83,7 @@
     {
       "scene_id": "routes/route22",
       "display_name": "Route 22",
-      "category": "Routes",
+      "category": "Future Maps",
       "environment_asset_id": "environments/route22",
       "runtime_path": "scripts/states/route22.lua",
       "status": "in_progress"
@@ -82,7 +91,7 @@
     {
       "scene_id": "routes/route2",
       "display_name": "Route 2",
-      "category": "Routes",
+      "category": "Future Maps",
       "environment_asset_id": "environments/route2",
       "runtime_path": "scripts/states/route2.lua",
       "status": "in_progress"
@@ -90,7 +99,7 @@
     {
       "scene_id": "routes/viridian-forest",
       "display_name": "Viridian Forest",
-      "category": "Routes",
+      "category": "Future Maps",
       "environment_asset_id": "environments/viridian-forest",
       "runtime_path": "scripts/states/viridian_forest.lua",
       "status": "in_progress"
@@ -98,18 +107,9 @@
     {
       "scene_id": "routes/route3",
       "display_name": "Route 3",
-      "category": "Routes",
+      "category": "Future Maps",
       "environment_asset_id": "environments/route3",
       "runtime_path": "scripts/states/route3.lua",
-      "status": "in_progress"
-    },
-    {
-      "scene_id": "routes/route1-pilot",
-      "display_name": "Route 1 - Arena Pilot",
-      "category": "Arena Pilots",
-      "environment_asset_id": "environments/route1",
-      "authored_scene_path": "scenes/route1_pilot.scene.json",
-      "runtime_path": "scripts/states/route1_pilot.lua",
       "status": "in_progress"
     }
   ],
@@ -117,7 +117,11 @@
     "enabled": true,
     "build_directory": "build",
     "target": "PokemonAutochessEditorProject",
-    "watch": ["src", "tools", "CMakeLists.txt"],
+    "watch": [
+      "src",
+      "tools",
+      "CMakeLists.txt"
+    ],
     "debounce_ms": 1200
   },
   "editor_plugin": {

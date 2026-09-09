@@ -2,7 +2,21 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-08-30
+Last updated: 2026-09-08
+
+## Current workflow
+
+The active gameplay map is now **Route 1 - South Entrance** (`routes/route1-pilot`),
+authored in Blender. Use **Scene / location** above the viewport to choose the
+map, then **Scenario / starting setup** to choose **Ledge Test**, **Planning**, or
+**Battle**. Press **Play** to simulate. Loading a scenario leaves the game stopped.
+The expanded scenario panel is named **Scenarios** (formerly **Game Preview**).
+
+**Scene** view inspects the environment; **Game** view shows the gameplay setup
+and editable Pokemon starting positions. The current map's scenery is edited
+in Blender. The original imported South Entrance and South Clearing remain
+available as **Legacy Maps** for reference. The detailed imported-environment
+model below applies to those legacy locations.
 
 ## Semantic model
 

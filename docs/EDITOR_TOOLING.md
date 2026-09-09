@@ -2,12 +2,39 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-08-27
+Last updated: 2026-09-08
 
 PokemonAutochess extends the reusable Phlosion Editor through
 `PokemonAutochessEditorProject`. The game repository owns every tool whose
 meaning depends on PokemonAutochess, LGPE evidence, Route 1, or the Autochess
 board.
+
+## Current South Entrance workflow
+
+The selectors above the viewport keep the location and starting setup together:
+
+1. **Scene / location: Route 1 - South Entrance** is the current Blender-authored
+   map (`routes/route1-pilot`). It appears first under **Current Map**.
+2. **Scenario / starting setup** offers **Ledge Test**, **Planning**, and **Battle**.
+   Loading one opens Game view with simulation stopped. **Ledge Test** places
+   Bulbasaur and Rattata above the ledge and Charmander below it.
+3. Press **Play** to run, **Pause / Step** to inspect, and **Stop** to restore
+   the setup. Selecting a scenario again reloads it.
+
+**Scene** view inspects the environment with the editor camera. For this map,
+scenery and board registration are authored in Blender and published together;
+they are read-only in the editor. **Game** view shows the actual game camera,
+board, and Pokemon, whose starting placements remain editable while stopped.
+
+The **Scenarios** panel is the expanded version of the scenario selector (formerly
+**Game Preview**). **Scenes** is the full location catalog. Older imported Route 1
+locations are explicitly marked **Legacy**; unfinished routes are under
+**Future Maps**. Their stable IDs and saved placements are preserved.
+
+The editor executable must be restarted once after installing these engine UI
+changes. The existing gameplay reload workflow still handles game-code changes.
+
+The tools below also cover the legacy imported-map workflow.
 
 It also declares `phlosion.tile-tools` 0.1.0. That reusable package owns the
 generic grid UI and interaction; this plugin supplies Route 1 catalogs,

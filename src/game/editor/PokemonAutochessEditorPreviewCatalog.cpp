@@ -9,9 +9,9 @@ namespace {
 constexpr Definitions kDefinitions{{
     {
         "route1-pilot-ledges",
-        "Route 1 South Entrance - Ledge Test",
-        "Arena Pilots",
-        "Replay ground Pokemon descending the northern ledge and routing around its uphill wall.",
+        "Ledge Test",
+        "South Entrance",
+        "Bulbasaur and Rattata start above the ledge; Charmander starts below. Press Play to watch the one-way jumps.",
         "snapshot",
         "classic",
         "config/debug/editor_route1_pilot_ledges.json",
@@ -19,9 +19,9 @@ constexpr Definitions kDefinitions{{
     },
     {
         "route1-pilot-planning",
-        "Route 1 Arena Pilot - Planning",
-        "Arena Pilots",
-        "Review the Blender-authored Route 1 clearing with the real gameplay board.",
+        "Planning",
+        "South Entrance",
+        "Place Pokemon on the current South Entrance board before combat.",
         "route_planning",
         "classic",
         "scripts/states/route1_pilot.lua",
@@ -29,9 +29,9 @@ constexpr Definitions kDefinitions{{
     },
     {
         "route1-pilot-battle",
-        "Route 1 Arena Pilot - Battle",
-        "Arena Pilots",
-        "Review combat readability in the Blender-authored Route 1 clearing.",
+        "Battle",
+        "South Entrance",
+        "Start a battle on the current South Entrance map.",
         "route_battle",
         "classic",
         "scripts/states/route1_pilot.lua",

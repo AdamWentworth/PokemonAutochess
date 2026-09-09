@@ -62,7 +62,8 @@ safe cell. Repositioning and round recovery clear the jump state. Faint/capture
 interruptions keep the committed corridor according to the existing blocking
 policy until the unit is removed or reset.
 
-Use **Route 1 South Entrance - Ledge Test** in the editor preview picker to replay
+Above the editor viewport, choose **Route 1 - South Entrance**, then
+**Scenario / starting setup > Ledge Test**, and press **Play** to replay
 Bulbasaur and Rattata descending toward Charmander. Its starting positions are
 data in `config/debug/editor_route1_pilot_ledges.json`. The same preview launches
 with `tools/environment/preview_route1_pilot.ps1 -Phase ledges`.
