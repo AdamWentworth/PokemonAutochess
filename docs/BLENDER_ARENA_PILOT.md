@@ -1,4 +1,8 @@
-# Blender arena pilot
+# Blender environment workflow
+
+Status: Active
+Type: Runbook
+Last updated: 2026-09-08
 
 The current pilot is **Route 1 - Southern Entrance** (pass 10). It rebuilds the
 Phlosion editor's south-entrance tile blueprint with new Blender geometry.
@@ -109,6 +113,8 @@ The editable source on this workstation is:
 The filename is retained for existing launchers. The exporter reads that saved
 file; it does not recreate the starting layout. Phlosion edits to pilot props
 will be overwritten by the next Blender export, so keep permanent changes in Blender.
+The editor does not expose source-tile painting for this authored mesh arena;
+those controls remain available only on the original source-terrain scenes.
 
 Run from the game repository:
 
@@ -120,11 +126,13 @@ Run from the game repository:
 .\build\Release\PAC_Tests.exe --filter route1_arena_pilot_contract
 ```
 
-The installer compiles the new terrain, installs and validates the scene, and
-restores the previous installed files if native validation fails. Runtime files:
+The installer compiles the new terrain, validates the map data, installs the scene,
+terrain and gameplay map together, and restores the previous installed files if
+native validation fails. Runtime files:
 
 - `scenes/route1_pilot.scene.json`
 - `content/phlosion/environment/arena-pilot/terrain.phpatch`
+- `config/environment/route1_pilot_gameplay.json`
 
 Successful installs copy the current `.blend`, scene and terrain to the private
 asset depot under `pokemon-autochess/source/project-authored/route1-arena-pilot`
@@ -135,68 +143,85 @@ The Blender viewport is a layout preview; Phlosion is the visual authority.
 Use OpenGL for this pilot. The existing Direct3D material defect also affects
 the original route and remains separate renderer work.
 
-## Reproduce and verify
+## Current ownership and recovery
 
-The companion research bridge contains `arena_pilot.py`, `arena_terrain.py`,
-and `arena_tiles.py`. It runs ordinary Blender Python; no Blender MCP service
-is needed. C++ changes require the existing paired editor/plugin build workflow;
-ordinary Blender edits require no C++ build.
+The maintained Blender tool lives in `tools/environment/blender`. Routine edits
+and exports use only this game checkout, Blender, Forge, and the restored asset
+library. The research repository is needed for extracting or publishing a new
+reference library, not for editing the existing environment.
 
-`PhlosionForge export-route1-authoring-kit <output.json>` exports both recovered
-source and current editor tile records. `compose_route1_tiles.py` takes
-`--bridge-root`, `--blueprint` and `--source-kit` inside Blender to create pass 6
-from an earlier pilot source. It deliberately replaces the composition and is
-only for reproducing the starting layout. Daily authoring uses the saved file.
-The pass 6 seed is `config/environment/route1_pilot_pass6_blueprint.json`.
-Its cell map is `config/environment/route1_pilot_tile_layout.json`; omit
-`--source-kit` to reproduce that checked-in map. The source audit verifies
-all 210 cells in that earlier entrance crop retain their editor heights and ground types.
-See [the tile blueprint](art/route1_south_tile_blueprint.svg) for a top view.
+`config/environment/route1_south_entrance.authoring.json` records the current
+scene, board, runtime outputs, working source, and depot backup paths. Stable
+`route1-pilot` IDs and the existing `.blend` filename are retained so saved
+placements, launchers, checkpoints, and scene references remain valid.
 
-To recreate pass 7, run `refine_route1_details.py` inside Blender with
-`--bridge-root`, `--library-root` and `--blueprint`. The blueprint is
-`config/environment/route1_pilot_pass7_blueprint.json`, with cells in
-`route1_pilot_pass7_tile_layout.json`. This one-time composition tool replaces
-the earlier approximate dressing; ordinary exports retain artist edits.
-Pass 7 retains all ground-type assignments and changes only the four rear
-height cells described above.
+To restore runtime assets on a fresh workstation, set `PHLOSION_ASSET_DEPOT` and
+run `tools/assets/sync_asset_depot.ps1`. Restore a missing working source with:
 
-Then run `refine_route1_edges.py` with `--bridge-root` and
-`--blueprint config/environment/route1_pilot_pass8_edges.json` for the current
-border dressing. It keeps the existing tile map and grass beds, restores source
-rock colour and regenerates the repaired ledge geometry. Daily exports preserve
-manual edits; this composition script is only for recreating the pass.
+```powershell
+./tools/environment/restore_arena_source.ps1
+```
 
-Previous complete source/runtime compositions are backed up beside the source
-under `versions/pass-01` through `versions/pass-07`, and copied into the depot.
-Pass 8 is checkpointed under `versions/pass-08`.
-Run `refine_route1_ledge_finish.py --bridge-root <bridge directory>` inside
-Blender to reproduce pass 9 from pass 8: it retains all heights, ramps, dirt,
-props and detail meshes, applies dark lawn, and regenerates the rounded ledges.
-Pass 9 is checkpointed under `versions/pass-09`.
-For pass 10, run `refine_route1_access_finish.py` inside Blender with
-`--bridge-root`, `--source-kit <authoring directory>/source-layout-kit.json`,
-and `--blueprint config/environment/route1_pilot_pass10_finish.json`.
-This one-time paint seed follows full shared-edge connections from the entrance,
-within the route corridor, and retains the source's dark decorative islands.
-It does not install navigation or collision restrictions. Daily tile editing
-and exports retain the saved surface choices rather than repainting by access.
-The current source/runtime checkpoint is `versions/pass-10`.
-Earlier freeform path and ledge tools remain available for those older files.
+Restoration verifies the copied source hash and refuses to overwrite an existing
+working file. Use `-Destination` for a separate review copy. Configure the build,
+build Forge and the editor/plugin pair, then use the normal Blender launcher.
+The engine revision pinned in CMake must be available in the engine repository;
+when publishing coordinated changes, publish that engine revision before the game.
 
-`verify_arena_tile_editability.py` uses a separate copy to edit one tile's height,
-ground type and ramp through the real Blender operator. It checks the generated
-ramp, preservation of other cells, props and detail meshes, export of a moved grass bed, and
-that the original source hash is unchanged. The native pilot contract checks
-all 80 board/reserve centres, interpolation on the western ramp, the ledge drop,
-patch transforms and reloads, missing-ground handling and restoration of the
-original route after switching back. These samples qualify the seeded layout;
-intentional layout changes may require updating its expected heights.
+C++ gameplay saves use [Auto Reload](EDITOR_GAMEPLAY_RELOAD.md). Engine/editor
+C++ changes require the paired build and an editor restart. Blender exports need
+no C++ rebuild; reopen the game preview to load the updated environment.
 
-`verify_arena_ledge_geometry.py` casts rays at actual wall triangles, including
-samples near tile corners and the top fringe, and checks source rock colours.
-Rounded corners are checked against their circular boundary, with additional
-vertical rays verifying both the upper cap and the exposed lower-floor pocket.
-Every curved wall segment is also checked at three heights, including the seven
-ramp junctions and their sloped lower floors.
-The native contract also verifies that authored ground reaches the shadow atlas.
+## Gameplay data
+
+Export also writes `arena-map.json`, installed as
+`config/environment/route1_pilot_gameplay.json`. It records 840 authored terrain
+cells, the 64 board cells, 16 reserve cells, four encounter-grass regions, and
+height changes across directed shared edges. Playability follows board
+registration; dark grass paint does not determine movement permission.
+
+Grass footprints use the published core cells transformed with each grass
+prefab. This preserves hooked footprints and prop movement instead of treating
+an entire grass bed's rectangular bounding box as cover. The decorative outer
+blade ring is excluded. Cover behavior and directional traversal are not enabled
+by this data; see [the map contract](AUTHORED_ARENA_MAP.md).
+
+## Verify the south entrance
+
+```powershell
+./tools/environment/check_south_entrance.ps1
+./tools/environment/check_south_entrance.ps1 -IncludeBlender -Capture
+```
+
+The default command builds the game/tests/Forge and the editor/plugin pair,
+checks documentation and map data, validates the authored scene, and runs the
+focused arena, movement, and model-visibility regressions. Missing private assets
+are failures with restore instructions. `-NoBuild` is only for already current
+binaries; the report records that compilation and paired-build proof were omitted.
+
+`-IncludeBlender` exercises tile height, paint, and ramp edits on a copy, checks
+rounded ledge walls/caps and ramp junctions, and verifies that an unedited export
+reproduces the installed scene, gameplay data, and terrain bytes. `-Capture`
+creates a hidden OpenGL fixed-camera screenshot for visual review. Results are
+written to `debug/south-entrance-check`. The capture and round-trip cook use the
+standard Release build. No check changes the working Blender source.
+
+The native arena contract samples all board/reserve centres, ramp interpolation,
+the ledge drop, mesh transforms and reloads, missing ground, source-scene
+restoration, and shadow participation. Expected heights qualify the current
+layout; intentional terrain edits may require updating those expectations.
+
+## Historical compositions
+
+One-time composition, dressing, and repair recipes are retained under
+`tools/environment/archive/route1`. Their pass-specific JSON seeds remain in
+`config/environment`, and source/runtime checkpoints remain in the private
+asset depot. These recipes explain how the approved map was developed; daily
+editing never reruns them. The original source-repair plan is archived as
+[historical context](archive/ARENA_BACKDROP_PLAN.md).
+
+The original entrance and south-clearing scenes still depend on the legacy
+source-terrain repair path. Their data and behavior remain available as reference
+for the future clearing. New authored mesh preparation and ground sampling live
+in `AuthoredEnvironmentPatch` and `AuthoredGroundSurface`; source-preservation
+predicates live under the runtime scene directory's `legacy` folder.

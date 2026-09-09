@@ -7,7 +7,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $taskGameRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
-$taskOutput = [IO.Path]::GetFullPath((Join-Path $taskGameRoot $OutputDirectory))
+$taskOutput = [IO.Path]::GetFullPath([IO.Path]::Combine($taskGameRoot, $OutputDirectory))
 New-Item -ItemType Directory -Path $taskOutput -Force | Out-Null
 $taskVariables = @{
     PHLOSION_DATA_ROOT = $taskGameRoot

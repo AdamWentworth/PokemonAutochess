@@ -1,5 +1,9 @@
 # Gameplay reload in the Phlosion Editor
 
+Status: Active
+Type: Runbook
+Last updated: 2026-09-08
+
 Saving C++ gameplay source now starts an incremental build while the editor
 stays open. Auto Reload is enabled in `phlosion.project.json`, including the
 south entrance pilot launcher, which copies that descriptor.

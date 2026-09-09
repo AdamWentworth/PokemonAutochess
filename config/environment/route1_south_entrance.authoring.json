@@ -1,0 +1,13 @@
+{
+  "kind": "pokemon_autochess_arena_authoring",
+  "schema_version": 1,
+  "display_name": "Route 1 - South Entrance (Blender)",
+  "scene_id": "routes/route1-pilot",
+  "working_source_relative": "EnvironmentResearch/Route1/authoring/arena-pilot/Route1_GardenClearing.blend",
+  "depot_source_relative": "pokemon-autochess/source/project-authored/route1-arena-pilot/Route1_GardenClearing.blend",
+  "board_path": "config/environment/route1_pilot_board_layout.json",
+  "composition_path": "config/environment/route1_environment_package.json",
+  "scene_path": "scenes/route1_pilot.scene.json",
+  "terrain_path": "content/phlosion/environment/arena-pilot/terrain.phpatch",
+  "gameplay_map_path": "config/environment/route1_pilot_gameplay.json"
+}

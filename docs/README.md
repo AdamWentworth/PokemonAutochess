@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Index
-Last updated: 2026-08-27
+Last updated: 2026-09-08
 
 This folder holds the live engineering docs for the repo. Historical or
 superseded plans belong in `docs/archive/`. Live docs stay in `docs/`; their
@@ -18,7 +18,10 @@ role is expressed through metadata rather than deep folder nesting.
 | `PHLOSION_ASSET_ARCHITECTURE.md` | `Architecture` | Engine-wide source, canonical IR, cooked PHRC resource, scene, and vault decisions. |
 | `PHLOSION_ASSET_MIGRATION.md` | `Runbook` | Current Forge cook, strict gameplay proof, compatibility boundaries, and promotion gates. |
 | `EXTERNAL_ASSET_RESEARCH.md` | `Architecture` | Boundary between the game, private research workspace, and private asset depot. |
-| `ARENA_BACKDROP_PLAN.md` | `Roadmap` | Source-faithful arena environment integration and Route 1 implementation sequence. |
+| `BLENDER_ARENA_PILOT.md` | `Runbook` | Current south-entrance authoring, export, recovery, and verification. |
+| `COMBAT_MOVEMENT.md` | `Contract` | Step reservations and deterministic combat movement. |
+| `AUTHORED_ARENA_MAP.md` | `Contract` | Authored cells, directed height connections, and encounter-grass regions. |
+| `EDITOR_GAMEPLAY_RELOAD.md` | `Runbook` | C++ rebuild and reload while the editor remains open. |
 | `CPU_GPU_WORK_SPLIT.md` | `Architecture` | Current CPU/GPU ownership and projected-path decision guide. |
 | `RENDERER_PARITY_CONTRACT.md` | `Contract` | Backend render-state and parity baseline. |
 | `RENDERER_PARITY_ROADMAP.md` | `Roadmap` | Active renderer parity and performance roadmap. |

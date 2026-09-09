@@ -191,7 +191,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "960b968140f2caecd6f2afb969d57e2e0881d1ca"
+    "28f0c24baa1d76c79dab3f9f2200760d4c5c1081"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 
@@ -1083,6 +1083,9 @@ if (BUILD_TESTING)
     # Register individual tests for CTest output granularity.
     # Source of truth is tests/TestMain.cpp (single list used by runtime filtering).
     set(PAC_TEST_MAIN_FILE "${CMAKE_SOURCE_DIR}/tests/TestMain.cpp")
+    find_program(PAC_TEST_PYTHON NAMES python python3 REQUIRED)
+    add_test(NAME PAC_Tools.arena_map_contract
+        COMMAND "${PAC_TEST_PYTHON}" "${CMAKE_SOURCE_DIR}/tools/environment/test_arena_map.py")
     file(READ "${PAC_TEST_MAIN_FILE}" PAC_TEST_MAIN_CONTENTS)
     string(REGEX MATCHALL "\\{\"[A-Za-z0-9_]+\",[ \t]*&test_[A-Za-z0-9_]+\\}" PAC_TEST_CASE_ROWS "${PAC_TEST_MAIN_CONTENTS}")
 

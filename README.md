@@ -132,6 +132,12 @@ stay isolated from game-specific preview composition.
 
 ## Phlosion Editor
 
+The active environment is the Blender-authored **Route 1 south entrance**.
+Use [the Blender workflow](docs/BLENDER_ARENA_PILOT.md) for editing and asset
+recovery, and [Auto Reload](docs/EDITOR_GAMEPLAY_RELOAD.md) for C++ gameplay saves.
+Run `./tools/environment/check_south_entrance.ps1` for its focused build and
+validation command; add `-IncludeBlender -Capture` to qualify authoring and visuals.
+
 The tracked `phlosion.project.json` names this project's cooked content mount,
 scene catalog, startup scene, and generated editor-project adapter. The editor
 does not fall back to loose Game Freak caches. Build and verify the

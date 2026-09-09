@@ -1,5 +1,9 @@
 # Combat movement
 
+Status: Active
+Type: Contract
+Last updated: 2026-09-08
+
 The current gameplay test map is the Blender-authored Route 1 south entrance
 (`routes/route1-pilot`, art pass 10). Open its Planning or Battle preset in
 Phlosion Editor. The south clearing is deferred.

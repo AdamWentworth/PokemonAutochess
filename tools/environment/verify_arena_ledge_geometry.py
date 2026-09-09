@@ -11,7 +11,7 @@ from mathutils.bvhtree import BVHTree
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument('--bridge-root',type=Path,required=True)
+    parser.add_argument('--bridge-root',type=Path,default=Path(__file__).resolve().parent/'blender')
     parser.add_argument('--output',type=Path,required=True)
     args=parser.parse_args(sys.argv[sys.argv.index('--')+1:])
     sys.path.insert(0,str(args.bridge_root))

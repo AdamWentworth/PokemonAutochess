@@ -5,7 +5,7 @@ Type: Roadmap
 Last updated: 2026-09-07
 
 The new direction is a board-first arena authored in Blender, retaining LGPE
-materials and reusable props. Start with [BLENDER_ARENA_PILOT.md](BLENDER_ARENA_PILOT.md).
+materials and reusable props. Start with [the current arena runbook](../BLENDER_ARENA_PILOT.md).
 The original Route 1 and Route 1.5 scenes remain reference and comparison scenes.
 The preservation requirements below describe the earlier approach; they do not
 require the new pilot to reproduce LGPE's original route layout.

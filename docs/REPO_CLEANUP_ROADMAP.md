@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-08-20
+Last updated: 2026-09-08
 
 This is the ordered housekeeping plan for Pokemon Autochess and its sibling
 Phlosion Engine repository. It supersedes the April cleanup ladder, whose
@@ -12,6 +12,22 @@ Game Freak asset path.
 The observations below came from a read-only audit. They are not permission to
 delete generated content, private source assets, cooked objects, or legacy
 rendering code without completing the gates in this roadmap.
+
+## Current environment housekeeping
+
+The approved workflow is now Blender-authored terrain and prefab placement.
+`BLENDER_ARENA_PILOT.md` owns daily editing and recovery; `AUTHORED_ARENA_MAP.md`
+owns the environment data prepared for future gameplay mechanics. Historical
+composition tools are archived. New authored patch preparation and floor sampling
+have dedicated runtime modules; old source-preservation predicates live in the
+scene runtime's `legacy` directory.
+
+The original entrance and clearing still call the source-terrain reconstruction
+path. Keep their blueprints and reference rendering available until the clearing
+is rebuilt; do not treat those remaining callers as dead code. The next retirement
+step is to replace those callers with preserved reference assets before removing
+the procedural source-repair implementation. Broad renderer rewrites remain out
+of scope. Use `tools/environment/check_south_entrance.ps1` for the active map gate.
 
 ## Desired End State
 

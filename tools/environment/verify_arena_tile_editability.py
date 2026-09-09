@@ -9,7 +9,7 @@ import bpy
 
 def main():
     p=argparse.ArgumentParser()
-    p.add_argument('--bridge-root',type=Path,required=True)
+    p.add_argument('--bridge-root',type=Path,default=Path(__file__).resolve().parent/'blender')
     p.add_argument('--output',type=Path,required=True)
     args=p.parse_args(sys.argv[sys.argv.index('--')+1:])
     sys.path.insert(0,str(args.bridge_root))

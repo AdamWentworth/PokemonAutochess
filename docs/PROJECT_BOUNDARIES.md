@@ -22,6 +22,12 @@ publication recipes belong to the private `PokemonSwitchAssetResearch`
 companion workspace. They are optional inputs to an explicit publication step,
 never game build or runtime dependencies.
 
+Maintained Blender arena authoring belongs to this game under
+`tools/environment/blender`. It consumes already published material/prop
+identities and saved tile blueprints. Historical source-import and composition
+recipes remain research/reference tools; they are not required for routine
+editing, export, or validation of the current south entrance.
+
 ## Project-owned editor extension
 
 `PokemonAutochessEditorProject` supplies scene/game-preview catalogs, Pokemon
