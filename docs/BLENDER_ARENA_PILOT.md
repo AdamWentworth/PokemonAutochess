@@ -17,6 +17,8 @@ opens its Planning game preview directly.
 
 [South Clearing](BLENDER_SOUTH_CLEARING.md) now has its own Blender source,
 recipe and editor scene, using this same authoring and publication workflow.
+[North Terraces](BLENDER_NORTH_TERRACES.md) advances the board another nine tiles
+north as the third independent arena.
 
 ## Edit the tile blueprint
 

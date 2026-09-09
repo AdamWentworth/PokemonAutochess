@@ -95,7 +95,12 @@ For a longer crossing, select **Route 1 - South Clearing > Grass Test**, then
 Play. Bulbasaur starts at the northeast corner of the large grass bed and walks
 through it toward Rattata on open ground. The fixture is
 `config/debug/editor_route1_south_clearing_grass.json`. The preview launcher also
-accepts `-Phase grass` with either authoring recipe.
+accepts `-Phase grass` with each authoring recipe.
+
+**Route 1 - North Terraces > Grass Test** uses the next eastern grass bed, with
+Bulbasaur inside and Rattata on the open terrace. Its fixture is
+`config/debug/editor_route1_north_terraces_grass.json`. All three arenas share
+the same blade packing, contact animation and visibility rules.
 
 ## Verification
 
@@ -110,7 +115,7 @@ accepts `-Phase grass` with either authoring recipe.
   transitions with no hidden body, shadow or HUD submissions.
 - `encounter_grass_motion`: frame-rate independence at 30/60/144 fps, rebound
   and settling, steady standing pressure, and isolation across ledge heights.
-- `encounter_grass_rendering`: actual indexed blade vertices on both authored
+- `encounter_grass_rendering`: actual indexed blade vertices on all three authored
   maps visibly part, keep their roots planted, leave distant grass alone, and
   recover to ambient wind. Checks cached skin pointers, pause, restart and height
   isolation.

@@ -20,6 +20,7 @@ role is expressed through metadata rather than deep folder nesting.
 | `EXTERNAL_ASSET_RESEARCH.md` | `Architecture` | Boundary between the game, private research workspace, and private asset depot. |
 | `BLENDER_ARENA_PILOT.md` | `Runbook` | Current south-entrance authoring, export, recovery, and verification. |
 | `BLENDER_SOUTH_CLEARING.md` | `Runbook` | South Clearing layout, Blender editing, preview, recovery, and qualification. |
+| `BLENDER_NORTH_TERRACES.md` | `Runbook` | Third Route 1 arena farther north, source blueprint, editing, preview and qualification. |
 | `ENCOUNTER_GRASS.md` | `Contract` | Grass sight, attack reveals, search patrols, interaction and editor checks. |
 | `COMBAT_MOVEMENT.md` | `Contract` | Step reservations and deterministic combat movement. |
 | `AUTHORED_ARENA_MAP.md` | `Contract` | Authored cells, directed height connections, and encounter-grass regions. |

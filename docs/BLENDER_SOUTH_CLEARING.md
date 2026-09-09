@@ -7,6 +7,8 @@ Last updated: 2026-09-09
 **Route 1 - South Clearing** (`routes/route1-south-clearing`) is a separate
 Blender-authored arena. South Entrance remains the startup map. The imported
 clearing remains **Route 1 - South Clearing (Legacy)** for comparison.
+The next authored landmark is [North Terraces](BLENDER_NORTH_TERRACES.md), with
+its board nine tiles farther north.
 
 ## Preview and edit
 

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "name": "Route 1 - North Terraces",
+  "scene_id": "routes/route1-north-terraces",
+  "terrain_style": "tile_blueprint",
+  "reference_scene": "scenes/route1_5.scene.json",
+  "reference_map": "config/environment/route1_south_clearing_gameplay.json",
+  "board_center_blender_m": [21, 24],
+  "tile_bounds": {"x_min": 6, "x_max": 35, "z_min": -38, "z_max": -11},
+  "tile_size_m": 1,
+  "elevation_step_m": 0.5,
+  "ledge_corner_radius_m": 0.18,
+  "ledge_ramp_corner_radius_m": 0.24,
+  "material_roles": {
+    "ground": 19,
+    "ground_uv2_lawn": [0.9501953125, 0.66357421875],
+    "ground_uv2_dirt": [0.9501953125, 0.66259765625]
+  },
+  "ramp_strips": [{"z": -33, "x_min": 25, "x_max": 27}],
+  "tile_overrides": [{"x": 20, "z": -28, "height": 4, "ramp": 5}],
+  "encounter_records": [3, 4, 5],
+  "visual_access_paint": {"seed_cell": [21, -26], "route_corridor_x": [14, 27]},
+  "adaptations": [
+    "Advance the arena nine source tiles north from South Clearing: source X=17..24, Z=-28..-21, with reserve rows -29 and -20.",
+    "Carry the approved overlapping South Clearing terrain into this separate source; extend the northern backdrop from the original LGPE tile blueprint.",
+    "Recover the northeast corner foot at (20,-28) and the original upper east ramp at Z=-33 from source geometry probes.",
+    "Retain the raised islands, dirt pockets, original right grass bed and broader northern grass bed. Use full-size Grass01 blades throughout.",
+    "Keep trees and solid shrubs outside the board and reserve rows; retain their island landforms as terrain and dress the banks with foliage.",
+    "Keep source rock colours, rounded closed ledges, dark inaccessible lawn and independently editable props. No fences.",
+    "Clear the tall small_grass_02 shrub at source (20,-27.2) from the board; its asset name does not describe its blocking height."
+  ]
+}

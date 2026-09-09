@@ -45,6 +45,12 @@ def recover_cells(kit, legacy, config):
             ramp = int(any(r['z'] == z and r['x_min'] <= x <= r['x_max'] for r in config['ramp_strips']))
             cells.append(dict(x=x, z=z, height=raw['height'], surface=int(raw['surface'] == 'dirt_path'), ramp=ramp))
     lookup = {(c['x'], c['z']): c for c in cells}
+    # A later arena can carry an approved neighbouring blueprint into its
+    # overlapping backdrop without reinterpreting the original source slopes.
+    if config.get('reference_map'):
+        for cell in json.loads((ROOT/config['reference_map']).read_text())['cells']:
+            if (cell['x'],cell['z']) in lookup:
+                lookup[cell['x'],cell['z']].update(cell)
     for override in config.get('tile_overrides', []):
         lookup[override['x'], override['z']].update(override)
     lo, hi = config['visual_access_paint']['route_corridor_x']
@@ -97,7 +103,7 @@ def bounds(mesh, faces):
     return [Vector([fn(mesh.vertices[v].co[a] for v in indices) for a in range(3)]) for fn in (min, max)]
 
 
-def detail(source, faces, name, pivot, location):
+def detail(source, faces, name, pivot, location, prefix='south-clearing'):
     mesh = source.data.copy()
     bm = bmesh.new()
     bm.from_mesh(mesh)
@@ -112,7 +118,7 @@ def detail(source, faces, name, pivot, location):
     obj = bpy.data.objects.new(name, mesh)
     arena.collection('PAC_EDIT_PATCH').objects.link(obj)
     obj.location = location
-    obj['phlosion_patch_id'] = 'south-clearing/detail/' + name.lower().replace(' ', '-')
+    obj['phlosion_patch_id'] = prefix+'/detail/' + name.lower().replace(' ', '-')
     obj['phlosion_display_name'] = name
     obj['lgpe_source_mesh_index'] = -1
     obj['source_reference_mesh'] = source['lgpe_source_mesh_index']

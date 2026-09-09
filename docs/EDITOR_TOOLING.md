@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 PokemonAutochess extends the reusable Phlosion Editor through
 `PokemonAutochessEditorProject`. The game repository owns every tool whose
@@ -32,6 +32,11 @@ The **Scenarios** panel is the expanded version of the scenario selector (former
 **Game Preview**). **Scenes** is the full location catalog. Older imported Route 1
 locations are explicitly marked **Legacy**; unfinished routes are under
 **Future Maps**. Their stable IDs and saved placements are preserved.
+
+**Current Map** also includes the independently authored **Route 1 - South
+Clearing** and **Route 1 - North Terraces**, each with Planning, Battle and Grass
+Test setups. These advance the board nine source tiles north per arena. See
+`BLENDER_SOUTH_CLEARING.md` and `BLENDER_NORTH_TERRACES.md` for editing and recovery.
 
 The editor executable must be restarted once after installing these engine UI
 changes. The existing gameplay reload workflow still handles game-code changes.
