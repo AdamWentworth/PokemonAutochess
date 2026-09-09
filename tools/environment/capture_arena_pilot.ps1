@@ -29,10 +29,15 @@ try {
         $taskPrevious[$key] = [Environment]::GetEnvironmentVariable($key, 'Process')
         [Environment]::SetEnvironmentVariable($key, $taskVariables[$key], 'Process')
     }
+    $taskScreenshot = $taskVariables.PHLOSION_BACKEND_SCREENSHOT_PATH
+    if (Test-Path -LiteralPath $taskScreenshot) { Remove-Item -LiteralPath $taskScreenshot }
     $taskProcess = Start-Process -FilePath (Join-Path $taskGameRoot 'build/Release/PokemonAutochess.exe') `
         -WindowStyle Hidden -WorkingDirectory $taskGameRoot -PassThru `
         -RedirectStandardOutput (Join-Path $taskOutput "$Backend.stdout.log") `
         -RedirectStandardError (Join-Path $taskOutput "$Backend.stderr.log")
+    # Windows PowerShell needs the process handle retained before waiting to
+    # reliably expose ExitCode after Start-Process with redirected output.
+    $null = $taskProcess.Handle
     if (-not $taskProcess.WaitForExit(240000)) {
         Stop-Process -Id $taskProcess.Id
         throw 'Arena capture timed out.'

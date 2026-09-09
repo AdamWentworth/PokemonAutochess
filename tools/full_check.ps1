@@ -36,9 +36,14 @@ if (-not (Test-Path $cache)) {
     Assert-LastExitCode "Configure"
 }
 
-& (Join-Path $PSScriptRoot "check_docs_hygiene.ps1") -BuildDir $BuildDir
+# Run script gates in a child shell so their explicit nonzero exit codes cannot
+# be overwritten by the later successful build or test command.
+$taskValidationShell = (Get-Process -Id $PID).Path
+& $taskValidationShell -NoProfile -File (Join-Path $PSScriptRoot "check_docs_hygiene.ps1") -BuildDir $BuildDir
+Assert-LastExitCode "Docs hygiene"
 
-& (Join-Path $PSScriptRoot "assets\validate_kanto_model_promotions.ps1")
+& $taskValidationShell -NoProfile -File (Join-Path $PSScriptRoot "assets\validate_kanto_model_promotions.ps1")
+Assert-LastExitCode "Kanto model promotions"
 
 $runPreviewSmoke = $IncludePreviewSmoke.IsPresent
 if (-not $runPreviewSmoke) {

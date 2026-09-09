@@ -1191,9 +1191,12 @@ if (BUILD_TESTING)
     endif()
 
     if (WIN32)
+        # A native CTest launch inherits PowerShell 7 module paths verbatim.
+        # Let Windows PowerShell resolve its own standard modules in each child.
+        set(PAC_TEST_POWERSHELL ${CMAKE_COMMAND} -E env --unset=PSModulePath powershell)
         add_test(
             NAME PAC_Tools.ci_workflow_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/test_ci_workflow.ps1)
         set_tests_properties(PAC_Tools.ci_workflow_contract PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -1202,7 +1205,7 @@ if (BUILD_TESTING)
 
         add_test(
             NAME PAC_Tools.phlosion_dependency_pins
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/test_phlosion_dependency_pins.ps1)
         set_tests_properties(PAC_Tools.phlosion_dependency_pins PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -1211,7 +1214,7 @@ if (BUILD_TESTING)
 
         add_test(
             NAME PAC_Tools.script_syntax
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/check_script_syntax.ps1)
         set_tests_properties(PAC_Tools.script_syntax PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -1220,7 +1223,7 @@ if (BUILD_TESTING)
 
         add_test(
             NAME PAC_Tools.render_parity_content_guard
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/test_render_parity_content_guard.ps1)
         set_tests_properties(PAC_Tools.render_parity_content_guard PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -1229,7 +1232,7 @@ if (BUILD_TESTING)
 
         add_test(
             NAME PAC_Tools.renderer_qualification_support
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/test_renderer_qualification_report.ps1)
         set_tests_properties(PAC_Tools.renderer_qualification_support PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -1238,7 +1241,7 @@ if (BUILD_TESTING)
 
         add_test(
             NAME PAC_Tools.housekeeping_cleanup_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/housekeeping/test_cleanup_workspace.ps1)
         set_tests_properties(PAC_Tools.housekeeping_cleanup_contract PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -1247,7 +1250,7 @@ if (BUILD_TESTING)
 
         add_test(
             NAME PAC_Tools.housekeeping_inventory_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/housekeeping/test_inventory_workspace.ps1)
         set_tests_properties(PAC_Tools.housekeeping_inventory_contract PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -1256,7 +1259,7 @@ if (BUILD_TESTING)
 
         add_test(
             NAME PAC_Tools.game_editor_retirement_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/housekeeping/test_retire_game_editor_artifacts.ps1)
         set_tests_properties(PAC_Tools.game_editor_retirement_contract PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -1265,7 +1268,7 @@ if (BUILD_TESTING)
 
         add_test(
             NAME PAC_Tools.native_model_payload_store_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/assets/test_native_model_payload_store.ps1)
         set_tests_properties(PAC_Tools.native_model_payload_store_contract PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -1274,7 +1277,7 @@ if (BUILD_TESTING)
 
         add_test(
             NAME PAC_Tools.runtime_content_depot_publisher_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/assets/test_publish_runtime_content_to_depot.ps1)
         set_tests_properties(PAC_Tools.runtime_content_depot_publisher_contract PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -1283,7 +1286,7 @@ if (BUILD_TESTING)
 
         add_test(
             NAME PAC_Tools.unreferenced_cooked_object_pruner_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/assets/test_prune_unreferenced_cooked_objects.ps1)
         set_tests_properties(PAC_Tools.unreferenced_cooked_object_pruner_contract PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -1292,7 +1295,7 @@ if (BUILD_TESTING)
 
         add_test(
             NAME PAC_Tools.unreferenced_native_import_pruner_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/assets/test_prune_unreferenced_native_imports.ps1)
         set_tests_properties(PAC_Tools.unreferenced_native_import_pruner_contract PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -1302,7 +1305,7 @@ if (BUILD_TESTING)
 
         add_test(
             NAME PAC_Tools.unreferenced_review_model_pruner_contract
-            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                 -File ${CMAKE_SOURCE_DIR}/tools/assets/test_prune_unreferenced_review_models.ps1)
         set_tests_properties(PAC_Tools.unreferenced_review_model_pruner_contract PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -1313,7 +1316,7 @@ if (BUILD_TESTING)
         if (PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE)
             add_test(
                 NAME PAC_Tools.kanto_model_promotions
-                COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                     -File ${CMAKE_SOURCE_DIR}/tools/assets/validate_kanto_model_promotions.ps1)
             set_tests_properties(PAC_Tools.kanto_model_promotions PROPERTIES
                 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -1352,7 +1355,7 @@ if (BUILD_TESTING)
 
             add_test(
                 NAME PAC_RuntimeSmoke.parity_contract
-                COMMAND powershell -ExecutionPolicy Bypass
+                COMMAND ${PAC_TEST_POWERSHELL} -ExecutionPolicy Bypass
                     -File ${CMAKE_SOURCE_DIR}/tools/check_renderer_parity_contract.ps1
                     -BuildDir ${CMAKE_BINARY_DIR}
                     -Config $<CONFIG>
