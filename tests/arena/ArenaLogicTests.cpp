@@ -110,6 +110,7 @@ void authoredTraversal() {
     stream >> document;
     std::string error;
     check(data.load(document.dump(), &error), "Traversal fixture failed to load.");
+    data.cover.clear();
     AuthoredCombatMap rules(data, {17, -10});
     CombatMapView map{8, 8, &rules};
     std::vector<std::uint8_t> blocked(64);
@@ -138,11 +139,84 @@ void authoredTraversal() {
     check(!canReachMelee(map, {1, 0, {6, 3}}, {2, 1, {6, 1}}), "An unreachable upper target was accepted.");
     check(canReachMelee(map, {1, 0, {6, 3}}, {3, 1, {0, 6}}), "Reachable lower target was discarded.");
 }
+CoverRegion rect(const char *id, float x, float z, float w, float h) {
+    CoverRegion region;
+    region.id = id;
+    region.polygons.push_back({{{x,z},{x+w,z},{x+w,z+h},{x,z+h}}});
+    return region;
+}
+void concealment() {
+    ArenaMapData data;
+    data.cover = {rect("a",100,100,200,100), rect("b",300,100,100,100),
+                  rect("corner",400,200,100,100), rect("separate",600,100,100,100)};
+    // An authored object may contain disconnected islands; these stay separate.
+    data.cover[0].polygons.push_back(rect("island",100,400,100,100).polygons[0]);
+    AuthoredCombatMap rules(data,{0,0});
+    Actor outside{1,0,{0,1}}, inside{2,1,{1,1}}, same{3,0,{3,1}}, other{4,0,{6,1}};
+    check(!rules.canPerceive(outside,inside), "Outside observer saw into cover.");
+    check(rules.canPerceive(inside,outside), "Grass blocked sight of open ground.");
+    check(rules.canPerceive(same,inside), "Shared-edge polygons did not form one patch.");
+    check(!rules.canPerceive(other,inside), "Separate patches shared sight.");
+    other.cell={4,2};
+    check(!rules.canPerceive(other,inside), "Corner-only contact joined patches.");
+    other.cell={1,4};
+    check(!rules.canPerceive(other,inside), "Disconnected islands of one prefab shared sight.");
+    inside.revealed=true;
+    check(rules.canPerceive(outside,inside), "Attack reveal failed.");
+    inside.revealed=false;
+    inside.grounded=false;
+    check(rules.canPerceive(outside,inside), "Airborne unit inherited ground concealment.");
+    inside.grounded=true;
+    inside.traversingLedge=true;
+    check(rules.canPerceive(outside,inside), "Ledge jumper inherited ground concealment.");
+    inside.traversingLedge=false;
+    inside.team=outside.team;
+    check(rules.canPerceive(outside,inside), "Ally hidden from its own side.");
+    inside.team=1;
+    inside.offsetZ=-0.6f;
+    check(rules.canPerceive(outside,inside), "Cover used rounded cell instead of continuous footprint.");
+}
+void patrol() {
+    CombatMapView map{8,8,nullptr};
+    std::vector<std::uint8_t> blocked(64);
+    for (bool north : {true,false}) {
+        Actor mover{1,0,{3,4}};
+        PatrolState state;
+        std::set<std::pair<int,int>> visited;
+        const auto first=firstPatrolStep(map,mover,state,blocked,north);
+        check(first == Cell{3,north ? 3 : 5}, "Patrol did not start toward enemy end.");
+        for (int tick=0;tick<180;++tick) {
+            visited.insert({mover.cell.x,mover.cell.z});
+            auto copy=state;
+            const auto step=firstPatrolStep(map,mover,state,blocked,north);
+            check(step==firstPatrolStep(map,mover,copy,blocked,north), "Search was not deterministic.");
+            check(map.canStep(mover.cell,step,{},blocked), "Patrol took illegal step.");
+            mover.cell=step;
+        }
+        check(visited.size()==64, "Search repeated a lane while missing reachable cells.");
+    }
+    blocked[map.index({3,3})]=1;
+    Actor mover{1,0,{3,4}};
+    PatrolState state;
+    auto step=firstPatrolStep(map,mover,state,blocked,true);
+    check(map.canStep(mover.cell,step,{},blocked), "Occupied waypoint stalled or bypassed collision.");
+    TestRules wall;
+    map.rules=&wall;
+    mover.cell={1,4};state={};
+    for (int i=0;i<150;++i) {
+        const auto next=firstPatrolStep(map,mover,state,blocked,true);
+        check(map.canStep(mover.cell,next,{},blocked) && next.x<3, "Search crossed one-way wall.");
+        mover.cell=next;
+    }
+}
+
 } // namespace
 
 int main() {
     try {
         navigation();
+        concealment();
+        patrol();
         authoredData();
         authoredTraversal();
     } catch (const std::exception &error) {

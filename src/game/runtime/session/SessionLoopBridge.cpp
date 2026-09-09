@@ -172,6 +172,13 @@ void handleEvent(const InputEvent& event, const Context& context) {
                         context.log,
                         *context.route1BackdropTuning);
                 },
+            .toggleConcealedUnits = [&]() {
+                if (!context.gameWorld) return;
+                context.gameWorld->setShowConcealedUnits(!context.gameWorld->showConcealedUnits());
+                game::log::info(context.log, context.gameWorld->showConcealedUnits()
+                    ? "[Grass View] Show concealed units ON (F10 restores player vision; targeting unchanged)"
+                    : "[Grass View] Player vision (F10 shows concealed units)");
+            },
             .loadDebugSnapshot = context.loadDebugSnapshot,
             .openMainMenu =
                 [&]() {

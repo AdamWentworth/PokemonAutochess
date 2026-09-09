@@ -96,30 +96,18 @@ Result appendProjectedWorldView(const Args& args) {
         args.gameWorld->getPokemons().size());
     for (const auto& unit : args.gameWorld->getPokemons()) {
         if (!unit.alive || unit.fainting || unit.captureInProgress ||
-            !unit.isMoving ||
-            unit.airState != AirLocomotionState::Grounded) {
-            continue;
-        }
-        glm::vec3 motion = unit.moveTo - unit.moveFrom;
+            unit.ledgeJump.active() || unit.airState != AirLocomotionState::Grounded ||
+            !args.gameWorld->isVisibleToPlayer(unit)) continue;
+        glm::vec3 motion = unit.isMoving ? unit.moveTo - unit.moveFrom : glm::vec3(0.0f);
         motion.y = 0.0f;
         const float motionLength = glm::length(motion);
-        if (motionLength <= 0.001f) {
-            continue;
-        }
-        motion /= motionLength;
+        const bool moving = motionLength > 0.001f;
+        if (moving) motion /= motionLength;
         encounterGrassInteractors.push_back({
-            .worldPosition = {
-                unit.position.x,
-                unit.position.y,
-                unit.position.z},
-            .worldMotionDirection = {
-                motion.x,
-                motion.y,
-                motion.z},
-            .motionStrength = std::clamp(
-                unit.movementSpeed / 1.4f,
-                0.35f,
-                1.0f)});
+            .worldPosition = {unit.position.x, unit.position.y, unit.position.z},
+            .worldMotionDirection = {motion.x, 0.0f, motion.z},
+            .motionStrength = moving ? std::clamp(unit.movementSpeed / 1.4f, 0.35f, 1.0f) : 0.0f,
+            .contactStrength = moving ? 1.0f : 0.65f});
     }
 
     out.worldBackdropComposeMs =

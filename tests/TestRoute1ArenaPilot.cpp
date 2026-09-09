@@ -128,6 +128,49 @@ bool test_route1_arena_pilot_contract(std::string& outFail) {
         !sample(2100, -770, 25) || !sample(2100, -830, 75) ||
         !environment.applyAuthoredScene(scene, arena.store, true, &outFail) ||
         !sample(2100, -830, 50)) return false;
+    // Compare submitted skin palettes at identical wind times. This exercises
+    // the authored grass instances, recovered blade pivots and render pointers.
+    const auto palette = [&](float time) {
+        std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> batches;
+        environment.updateAnimation(time);
+        environment.appendIndexedBatches(time,batches);
+        std::vector<float> values;
+        for (const auto &batch:batches) {
+            for (const auto &instance:batch.instances) {
+                if (instance.gpuSkinning && instance.skinMatrices && instance.skinMatrixCount)
+                    values.insert(values.end(),instance.skinMatrices,instance.skinMatrices+instance.skinMatrixCount*16u);
+            }
+            const float *matrices=batch.sharedSkinMatrices ? batch.sharedSkinMatrices : batch.skinMatrices.data();
+            if (batch.gpuSkinning && matrices && batch.skinMatrixCount)
+                values.insert(values.end(),matrices,matrices+batch.skinMatrixCount*16u);
+        }
+        return values;
+    };
+    const auto delta = [&](const auto &a,const auto &b) {
+        if (a.empty() || a.size()!=b.size()) return -1.0f;
+        float result=0;
+        for (std::size_t i=0;i<a.size();++i) result=std::max(result,std::abs(a[i]-b[i]));
+        return result;
+    };
+    const auto baseline=palette(1.0f), recoveredBaseline=palette(3.0f);
+    const auto contactPosition=gameplay.gridToWorld(7,4);
+    env::EncounterGrassInteractor contact{{contactPosition.x,contactPosition.y,contactPosition.z},{0,0,0},0.0f,0.65f};
+    environment.setEncounterGrassInteractors(std::span(&contact,1));
+    for (int i=0;i<=60;++i) environment.updateAnimation(i/60.0f);
+    const auto standing=palette(1.0f);
+    contact.worldMotionDirection={1,0,0};contact.motionStrength=1;contact.contactStrength=1;
+    environment.setEncounterGrassInteractors(std::span(&contact,1));
+    for (int i=0;i<=60;++i) environment.updateAnimation(i/60.0f);
+    const auto moving=palette(1.0f);
+    environment.setEncounterGrassInteractors({});
+    for (int i=61;i<=180;++i) environment.updateAnimation(i/60.0f);
+    const auto recovered=palette(3.0f);
+    if (delta(baseline,standing)<0.001f || delta(standing,moving)<0.001f ||
+        delta(recoveredBaseline,recovered)<0 || delta(recoveredBaseline,recovered)>0.001f) {
+        outFail="Authored grass failed standing pressure, movement rustle or recovery: "+
+            std::to_string(delta(baseline,standing))+" / "+std::to_string(delta(standing,moving))+" / "+std::to_string(delta(recoveredBaseline,recovered));
+        return false;
+    }
     // Switching back must restore source terrain after the pilot cleared it.
     if (!ph::loadAuthoredSceneDocument(store, std::string(variants::kRoute1.authoredSceneDocumentPath), scene, &outFail) ||
         !environment.applyAuthoredScene(scene, store, false, &outFail)) return false;

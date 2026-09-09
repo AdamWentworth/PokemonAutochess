@@ -63,7 +63,7 @@ bool shouldHoldLocomotionAfterArrival(const GameWorld &world,
         foundEnemy = true;
         if (map.canEngageMelee(actor, target)) return false;
     }
-    return foundEnemy;
+    return foundEnemy || unit.patrol.startColumn >= 0;
 }
 
 const char* sideName(PokemonSide side) {
@@ -292,13 +292,20 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         PokemonInstance& unit = *entry.unit;
         if (unit.isMoving && hasCommittedMove(unit)) continue;
         if (unit.attackTimerSec > 0.0f) continue;
-        if (entry.adjacentToEnemy || entry.enemyCol == -1 || unit.movementSpeed <= 0.0f) {
+        if (entry.enemyCol != -1) unit.patrol = {};
+        if (entry.adjacentToEnemy || unit.movementSpeed <= 0.0f) {
             unit.isMoving = false;
             unit.committedDest = {-1, -1};
             continue;
         }
-        const auto [wantCol, wantRow] = game::arena::firstStepTowards(
-            map, gameWorld->combatActor(unit), entry.target, blocked);
+        const bool enemiesRemain = std::any_of(boardUnits.begin(), boardUnits.end(), [&](const auto &other) {
+            return isCombatActive(other) && other.side != unit.side;
+        });
+        const auto [wantCol, wantRow] = entry.enemyCol != -1
+            ? game::arena::firstStepTowards(map, gameWorld->combatActor(unit), entry.target, blocked)
+            : enemiesRemain
+                ? game::arena::firstPatrolStep(map, gameWorld->combatActor(unit), unit.patrol, blocked, unit.side == PokemonSide::Player)
+                : game::arena::Cell{};
         if (wantCol < 0 || wantRow < 0) {
             unit.isMoving = false;
             unit.committedDest = {-1, -1};
@@ -336,7 +343,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     }
 
     for (const PlannerUnit& unit : units) {
-        if (unit.unit->ledgeJump.active()) {
+        if (unit.unit->ledgeJump.active() || (unit.enemyCol == -1 && unit.unit->isMoving)) {
             setFacingToTarget(*unit.unit, unit.unit->moveTo);
             continue;
         }

@@ -175,6 +175,11 @@ void clearPendingAttackState(PokemonInstance& unit) {
 }  // namespace
 
 void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
+    // Fixed simulation time, including jumps; pausing cannot consume a reveal.
+    unit.coverRevealRemainingSec = std::max(0.0f, unit.coverRevealRemainingSec - dt);
+    if (unit.attackTimerSec > 0.0f)
+        unit.coverRevealRemainingSec = std::max(unit.coverRevealRemainingSec,
+            std::max(0.0f, unit.attackTimerSec - dt) + game::arena::kAttackRevealSeconds);
     if (unit.fainting) {
         updateFaint(unit, dt);
         return;

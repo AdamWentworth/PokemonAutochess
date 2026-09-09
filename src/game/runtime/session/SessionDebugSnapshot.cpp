@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -95,6 +96,9 @@ nlohmann::json encodeUnitSnapshot(const GameWorld::DebugUnitSnapshot& snap) {
     j["alive"] = snap.alive;
     j["fainting"] = snap.fainting;
     j["capture_in_progress"] = snap.captureInProgress;
+    j["cover_reveal_seconds"] = snap.coverRevealRemainingSec;
+    j["patrol_cursor"] = snap.patrol.cursor;
+    j["patrol_start_column"] = snap.patrol.startColumn;
     return j;
 }
 
@@ -215,6 +219,14 @@ bool decodeUnitSnapshot(const nlohmann::json& j,
         out.captureInProgress = it->get<bool>();
     }
 
+    if (const auto it = j.find("cover_reveal_seconds"); it != j.end() && it->is_number()) {
+        const float value = it->get<float>();
+        out.coverRevealRemainingSec = std::isfinite(value) ? std::clamp(value, 0.0f, 60.0f) : 0.0f;
+    }
+    if (const auto it = j.find("patrol_cursor"); it != j.end() && it->is_number_integer())
+        out.patrol.cursor = std::clamp(it->get<int>(), 0, 65535);
+    if (const auto it = j.find("patrol_start_column"); it != j.end() && it->is_number_integer())
+        out.patrol.startColumn = std::clamp(it->get<int>(), -1, 255);
     if (expectBench) {
         out.side = PokemonSide::Player;
     }
@@ -224,6 +236,7 @@ bool decodeUnitSnapshot(const nlohmann::json& j,
 nlohmann::json encodeStateSnapshot(const GameWorld::DebugStateSnapshot& snapshot) {
     nlohmann::json j = nlohmann::json::object();
     j["version"] = 1;
+    j["show_concealed_units"] = snapshot.showConcealedUnits;
     j["money"] = snapshot.money;
     j["classic_win_streak"] = snapshot.classicWinStreak;
     j["classic_loss_streak"] = snapshot.classicLossStreak;
@@ -274,6 +287,8 @@ bool decodeStateSnapshot(const nlohmann::json& j,
     }
 
     out = GameWorld::DebugStateSnapshot{};
+    if (const auto it = j.find("show_concealed_units"); it != j.end() && it->is_boolean())
+        out.showConcealedUnits = it->get<bool>();
     if (const auto it = j.find("money"); it != j.end() && it->is_number_integer()) {
         out.money = it->get<int>();
     }

@@ -26,6 +26,10 @@ void handleEvent(const InputEvent& event,
         }
     }
 
+    if (event.type == InputEvent::Type::KeyDown && !event.repeat && event.keyId == InputEvent::Key::F10) {
+        if (options.toggleConcealedUnits) options.toggleConcealedUnits();
+        return;
+    }
     if (game::runtime::session_debug_snapshot::pinSnapshotStateEnabled()) {
         return;
     }

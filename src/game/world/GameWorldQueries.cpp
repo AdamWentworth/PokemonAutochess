@@ -104,6 +104,7 @@ glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const 
 
     for (const auto& other : pokemons) {
         if (!other.alive || other.captureInProgress || other.side == unit.side) continue;
+        if (!combatMap().canPerceive(combatActor(unit), combatActor(other))) continue;
         const float d = glm::distance(unit.position, other.position);
         if (d < closestDist) {
             closestDist = d;
@@ -120,5 +121,30 @@ game::arena::CombatMapView GameWorld::combatMap() const {
 
 game::arena::Actor GameWorld::combatActor(const PokemonInstance &unit) const {
     const auto cell = worldToGrid(unit.position);
-    return {unit.id, static_cast<int>(unit.side), {cell.x, cell.y}, unit.traversalCapabilities, unit.ledgeJump.active()};
+    const auto centre = gridToWorld(cell.x, cell.y);
+    const float size = std::max(config.cellSize, 0.0001f);
+    return {unit.id, static_cast<int>(unit.side), {cell.x, cell.y}, unit.traversalCapabilities,
+            unit.ledgeJump.active(), unit.airState == AirLocomotionState::Grounded,
+            unit.coverRevealRemainingSec > 0.0f || unit.attackTimerSec > 0.0f || unit.captureInProgress,
+            (unit.position.x - centre.x) / size, (unit.position.z - centre.z) / size};
+}
+
+bool GameWorld::canTeamPerceive(PokemonSide team, const PokemonInstance &target) const {
+    if (target.side == team) return true;
+    const auto map = combatMap();
+    const auto actor = combatActor(target);
+    // Open terrain and attack reveals remain visible even without a spotter.
+    game::arena::Actor outside;
+    outside.team = static_cast<int>(team);
+    outside.grounded = false;
+    if (map.canPerceive(outside, actor)) return true;
+    for (const auto &observer : pokemons) {
+        if (observer.side == team && observer.alive && !observer.fainting && !observer.captureInProgress &&
+            map.canPerceive(combatActor(observer), actor)) return true;
+    }
+    return false;
+}
+
+bool GameWorld::isVisibleToPlayer(const PokemonInstance &unit) const {
+    return showConcealedUnits_ || canTeamPerceive(PokemonSide::Player, unit);
 }

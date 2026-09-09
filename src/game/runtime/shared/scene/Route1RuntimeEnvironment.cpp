@@ -5716,6 +5716,7 @@ struct RuntimeEnvironment::Impl {
             glm::vec3 position{};
             glm::vec3 motion{0.0f, 0.0f, 1.0f};
             float strength = 1.0f;
+            float motionStrength = 1.0f;
         };
         std::vector<SourceInteractor> sourceInteractors;
         sourceInteractors.reserve(encounterGrassInteractors.size());
@@ -5737,13 +5738,13 @@ struct RuntimeEnvironment::Impl {
             if (motionLength > 0.001f) {
                 sourceMotion /= motionLength;
             } else {
-                sourceMotion = glm::vec3(0.0f, 0.0f, 1.0f);
+                sourceMotion = glm::vec3(0.0f);
             }
             sourceInteractors.push_back({
                 .position = glm::vec3(sourcePosition),
                 .motion = sourceMotion,
-                .strength = std::clamp(
-                    interactor.motionStrength, 0.0f, 1.0f)});
+                .strength = std::clamp(interactor.contactStrength, 0.0f, 1.0f),
+                .motionStrength = std::clamp(interactor.motionStrength, 0.0f, 1.0f)});
         }
 
         // The source rigs split each one-metre module into four (Grass01) or
@@ -5832,7 +5833,7 @@ struct RuntimeEnvironment::Impl {
                         // Primarily part away from the unit while allowing a
                         // small directional wake in its direction of travel.
                         partDirection =
-                            partDirection * 0.84f + motion * 0.16f;
+                            partDirection * (1.0f - 0.16f * interactor.motionStrength) + motion * (0.16f * interactor.motionStrength);
                         const float directionLength =
                             glm::length(partDirection);
                         if (directionLength > 0.001f) {
@@ -5845,7 +5846,7 @@ struct RuntimeEnvironment::Impl {
                             placement.phaseCycles * 6.28318530718f +
                             static_cast<float>(joint) * 0.61f;
                         const float flutter =
-                            0.88f + 0.12f * std::sin(phase);
+                            1.0f - interactor.motionStrength * (0.12f - 0.12f * std::sin(phase));
                         const float amplitude =
                             kMaximumContactRotationRadians *
                             influence * flutter;

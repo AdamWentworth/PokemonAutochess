@@ -15,6 +15,7 @@ int clampInt(int v, int lo, int hi) {
 
 bool GameWorld::buildDebugStateSnapshot(DebugStateSnapshot& out) const {
     out = DebugStateSnapshot{};
+    out.showConcealedUnits = showConcealedUnits_;
     out.money = money;
     out.classicWinStreak = classicWinStreak;
     out.classicLossStreak = classicLossStreak;
@@ -62,6 +63,9 @@ bool GameWorld::buildDebugStateSnapshot(DebugStateSnapshot& out) const {
         snap.alive = unit.alive;
         snap.fainting = unit.fainting;
         snap.captureInProgress = unit.captureInProgress;
+        snap.coverRevealRemainingSec = std::max(unit.coverRevealRemainingSec,
+            unit.attackTimerSec > 0.0f ? unit.attackTimerSec + game::arena::kAttackRevealSeconds : 0.0f);
+        snap.patrol = unit.patrol;
         out.boardUnits.push_back(std::move(snap));
     }
 
@@ -100,6 +104,9 @@ bool GameWorld::buildDebugStateSnapshot(DebugStateSnapshot& out) const {
         snap.alive = unit.alive;
         snap.fainting = unit.fainting;
         snap.captureInProgress = unit.captureInProgress;
+        snap.coverRevealRemainingSec = std::max(unit.coverRevealRemainingSec,
+            unit.attackTimerSec > 0.0f ? unit.attackTimerSec + game::arena::kAttackRevealSeconds : 0.0f);
+        snap.patrol = unit.patrol;
         out.benchUnits.push_back(std::move(snap));
     }
 
@@ -118,6 +125,7 @@ bool GameWorld::applyDebugStateSnapshot(const DebugStateSnapshot& in, std::strin
 
     battleStartPositions.clear();
     resetForNewGame(in.money);
+    showConcealedUnits_ = in.showConcealedUnits;
 
     classicWinStreak = std::max(0, in.classicWinStreak);
     classicLossStreak = std::max(0, in.classicLossStreak);
@@ -161,6 +169,9 @@ bool GameWorld::applyDebugStateSnapshot(const DebugStateSnapshot& in, std::strin
         if (!inst.alive) inst.hp = 0;
         inst.fainting = snap.fainting;
         inst.captureInProgress = snap.captureInProgress;
+        inst.coverRevealRemainingSec = std::isfinite(snap.coverRevealRemainingSec)
+            ? std::clamp(snap.coverRevealRemainingSec, 0.0f, 60.0f) : 0.0f;
+        inst.patrol = snap.patrol;
         const int newId = inst.id;
         pokemons.push_back(std::move(inst));
         if (snap.hasBattleStartPose) {
@@ -215,6 +226,9 @@ bool GameWorld::applyDebugStateSnapshot(const DebugStateSnapshot& in, std::strin
         if (!inst.alive) inst.hp = 0;
         inst.fainting = snap.fainting;
         inst.captureInProgress = snap.captureInProgress;
+        inst.coverRevealRemainingSec = std::isfinite(snap.coverRevealRemainingSec)
+            ? std::clamp(snap.coverRevealRemainingSec, 0.0f, 60.0f) : 0.0f;
+        inst.patrol = snap.patrol;
         const int newId = inst.id;
         benchPokemons.push_back(std::move(inst));
         if (snap.hasBattleStartPose) {

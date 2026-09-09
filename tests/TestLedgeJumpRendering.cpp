@@ -8,6 +8,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "engine/core/Paths.h"
 #include "game/GameConfig.h"
+#include "game/arena/AuthoredCombatMap.h"
 #include "game/animation/LedgeJump.h"
 #include "game/config/AnimSetLoader.h"
 #include "game/runtime/session/SessionBackendUnitHydration.h"
@@ -188,6 +189,24 @@ bool test_ledge_jump_rendering(std::string &outFail) {
                 previousPalette = std::move(palette);
             }
         }
+        game::arena::ArenaMapData cover;
+        cover.cover.push_back({"hidden", {{{{-1000,-1000},{1000,-1000},{1000,1000},{-1000,1000}}}}});
+        world.setCombatMapRules(std::make_shared<game::arena::AuthoredCombatMap>(cover, game::arena::Cell{0,0}));
+        unit.side=PokemonSide::Enemy;unit.ledgeJump={};unit.airState=AirLocomotionState::Grounded;
+        unit.position=world.gridToWorld(3,3);
+        for (bool debugView : {true,false,true}) {
+            world.setShowConcealedUnits(debugView);
+            frame.clear();batches.clear();quads.clear();lines.clear();textLines.clear();sprites.clear();
+            triangles.clear();worldTriangles.clear();depth.clear();worldDepth.clear();
+            runtime::shared_projected_render_items::beginProjectedRenderItemsFrame(items);
+            runtime::shared_projected_units::drawProjectedUnits(args,{unit});
+            const bool submitted=!frame.drawClasses.empty() || !batches.empty();
+            if (submitted!=debugView || (!debugView && (!quads.empty() || !lines.empty() || !textLines.empty() || !sprites.empty() || !triangles.empty() || !worldTriangles.empty()))) {
+                outFail="Concealment leaked a model, shadow or HUD submission, or debug view failed.";return false;
+            }
+        }
+        world.setShowConcealedUnits(false);
+        world.setCombatMapRules(nullptr);
     }
     return true;
 }

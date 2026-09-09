@@ -19,6 +19,7 @@ role is expressed through metadata rather than deep folder nesting.
 | `PHLOSION_ASSET_MIGRATION.md` | `Runbook` | Current Forge cook, strict gameplay proof, compatibility boundaries, and promotion gates. |
 | `EXTERNAL_ASSET_RESEARCH.md` | `Architecture` | Boundary between the game, private research workspace, and private asset depot. |
 | `BLENDER_ARENA_PILOT.md` | `Runbook` | Current south-entrance authoring, export, recovery, and verification. |
+| `ENCOUNTER_GRASS.md` | `Contract` | Grass sight, attack reveals, search patrols, interaction and editor checks. |
 | `COMBAT_MOVEMENT.md` | `Contract` | Step reservations and deterministic combat movement. |
 | `AUTHORED_ARENA_MAP.md` | `Contract` | Authored cells, directed height connections, and encounter-grass regions. |
 | `EDITOR_GAMEPLAY_RELOAD.md` | `Runbook` | C++ rebuild and reload while the editor remains open. |

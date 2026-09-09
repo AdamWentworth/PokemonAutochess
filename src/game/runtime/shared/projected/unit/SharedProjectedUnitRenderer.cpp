@@ -471,6 +471,7 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
         std::vector<int> eligibleUnitIds;
         eligibleUnitIds.reserve(units.size());
         for (const auto& unit : units) {
+        if (args.gameWorld && !args.gameWorld->isVisibleToPlayer(unit)) continue;
             if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
             if (!unit.alive && unit.visualScale <= 0.0001f && !unit.captureInProgress) continue;
             eligibleUnitIds.push_back(unit.id);
@@ -486,6 +487,7 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
     const std::uint64_t poseCacheFrame = ++g_cachedScenePoseFrameCounter;
     pruneScenePoseCache(poseCacheFrame);
 for (const auto& unit : units) {
+        if (args.gameWorld && !args.gameWorld->isVisibleToPlayer(unit)) continue;
     if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
     if (!unit.alive && unit.visualScale <= 0.0001f && !unit.captureInProgress) continue;
     const glm::vec3 coarseWorldPos =

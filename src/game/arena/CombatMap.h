@@ -28,6 +28,10 @@ struct Actor {
     Cell cell;
     TraversalCapabilities traversal;
     bool traversingLedge = false;
+    bool grounded = true;
+    bool revealed = false;
+    // Continuous position relative to the cell centre, in tile units.
+    float offsetX = 0.0f, offsetZ = 0.0f;
 };
 
 // Null rules retain today's flat-board movement and full visibility. Future
@@ -76,5 +80,19 @@ Cell firstStepTowards(CombatMapView map, Actor mover, const Actor &target,
 // Terrain reachability ignores temporary unit queues, but never treats the
 // target's occupied cell as a route through a narrow passage.
 bool canReachMelee(CombatMapView map, Actor mover, const Actor &target);
+
+inline constexpr float kAttackRevealSeconds = 1.25f;
+
+struct PatrolState {
+    int cursor = 0;
+    int startColumn = -1;
+};
+// Exact destination navigation; never substitutes an occupied/unreachable goal.
+Cell firstStepToCell(CombatMapView map, Actor mover, Cell destination,
+                     std::span<const std::uint8_t> blocked);
+// Serpentine search starts toward the enemy end, then returns in the next lane.
+// Visits reachable cells without taking any enemy positions as input.
+Cell firstPatrolStep(CombatMapView map, Actor mover, PatrolState &state,
+                     std::span<const std::uint8_t> blocked, bool enemyEndIsNorth);
 
 } // namespace game::arena

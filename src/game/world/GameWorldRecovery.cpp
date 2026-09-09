@@ -86,6 +86,8 @@ void GameWorld::healPlayerUnitsToFull() {
 
             u.isMoving = false;
             u.ledgeJump = {};
+            u.patrol = {};
+            u.coverRevealRemainingSec = 0.0f;
             u.committedDest = {-1, -1};
             u.moveT = 1.0f;
             u.attackTimerSec = 0.0f;
@@ -142,6 +144,8 @@ void GameWorld::restorePlayerPositionsAfterBattle() {
             u.moveT = 1.0f;
             u.committedDest = {-1, -1};
             u.ledgeJump = {};
+            u.patrol = {};
+            u.coverRevealRemainingSec = 0.0f;
             u.moveFrom = u.position;
             u.moveTo = u.position;
         }

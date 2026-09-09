@@ -114,6 +114,7 @@ bool test_session_debug_snapshot_contract(std::string& outFail) {
 
         GameWorld::DebugStateSnapshot snapshot;
         snapshot.money = 42;
+        snapshot.showConcealedUnits = true;
         snapshot.classicWinStreak = 2;
         snapshot.classicLossStreak = 1;
         snapshot.classicRoundsCompleted = 5;
@@ -137,6 +138,8 @@ bool test_session_debug_snapshot_contract(std::string& outFail) {
             .rotY = 90.0f,
             .alive = true,
         });
+        snapshot.boardUnits.front().coverRevealRemainingSec = 0.75f;
+        snapshot.boardUnits.front().patrol = {17, 3};
         snapshot.benchUnits.push_back(GameWorld::DebugUnitSnapshot{
             .name = "squirtle",
             .side = PokemonSide::Enemy,
@@ -186,7 +189,9 @@ bool test_session_debug_snapshot_contract(std::string& outFail) {
             return false;
         }
 
-        if (loaded.boardUnits.front().name != "charmander" ||
+        if (!loaded.showConcealedUnits || loaded.boardUnits.front().coverRevealRemainingSec != 0.75f ||
+            loaded.boardUnits.front().patrol.cursor != 17 || loaded.boardUnits.front().patrol.startColumn != 3 ||
+            loaded.boardUnits.front().name != "charmander" ||
             loaded.boardUnits.front().modelVariant != "shiny" ||
             loaded.boardUnits.front().side != PokemonSide::Enemy ||
             !loaded.boardUnits.front().hasPosition ||

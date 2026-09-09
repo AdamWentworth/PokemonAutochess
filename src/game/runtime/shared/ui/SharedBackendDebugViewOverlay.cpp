@@ -177,6 +177,10 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
             }
         }
 
+        if (renderWorld && gameWorld && gameWorld->showConcealedUnits()) {
+            appendText(edgePad, edgePad + lineStep * 2.0f,
+                "SHOW CONCEALED UNITS - F10: player vision", 0.85f * uiScale, glm::vec3(1.0f, 0.80f, 0.35f));
+        }
         const std::string cachedMode = (services ? services->gameMode : std::string("classic"));
         RoundPhase cachedRoundPhase = RoundPhase::Planning;
         bool cachedCombatActive = false;

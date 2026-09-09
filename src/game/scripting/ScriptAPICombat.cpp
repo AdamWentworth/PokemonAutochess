@@ -54,7 +54,10 @@ int ScriptAPI::applyDamage(int attackerId,
     if (attackerIt == units.end() || targetIt == units.end()) return -1;
     if (!isCombatActive(*attackerIt)) return targetIt->hp;
     if (attackerIt->ledgeJump.active()) return targetIt->hp;
-    if (targetIt->captureInProgress) return targetIt->hp;
+    if (!isCombatActive(*targetIt)) return targetIt->hp;
+    // Gate a new attack here as well as in Lua/native target selection. Already
+    // scheduled impacts and projectiles resolve through their existing paths.
+    if (!world_->combatMap().canPerceive(world_->combatActor(*attackerIt), world_->combatActor(*targetIt))) return targetIt->hp;
 
     const auto contextStart = traceScratch ? Clock::now() : Clock::time_point{};
     const scriptapi::combat::DamageContext ctx =
@@ -132,6 +135,7 @@ int ScriptAPI::applyDamage(int attackerId,
         return resultHp;
     }
 
+    attackerIt->coverRevealRemainingSec = game::arena::kAttackRevealSeconds;
     const auto immediateStart = traceScratch ? Clock::now() : Clock::time_point{};
     resultHp =
         scriptapi::combat::applyImmediateDamage(*world_, *attackerIt, *targetIt, amount, ctx, trace);

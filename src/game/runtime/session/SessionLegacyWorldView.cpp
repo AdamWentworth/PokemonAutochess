@@ -89,6 +89,7 @@ void appendBoardUnits(const Args& args,
                       session_render_scratch::RenderScratch& scratch,
                       Result& result) {
     for (const auto& unit : args.gameWorld->getPokemons()) {
+        if (args.gameWorld && !args.gameWorld->isVisibleToPlayer(unit)) continue;
         if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
         const auto uv = render_prep_projection::worldToBoardUv(
             unit.position.x,

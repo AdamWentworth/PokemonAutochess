@@ -185,6 +185,7 @@ bool tryBeginAttackAnimation(PokemonInstance& attacker,
     const float windowSec = std::max(0.05f, desiredWindowSec);
 
     attacker.attackTimerSec = windowSec;
+    attacker.coverRevealRemainingSec = windowSec + game::arena::kAttackRevealSeconds;
     attacker.animTimeSec = 0.0f;
     attacker.currentAttackAnimIndex = desiredAnimIdx;
     attacker.activeAnimIndex = desiredAnimIdx;

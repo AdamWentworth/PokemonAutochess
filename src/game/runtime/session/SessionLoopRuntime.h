@@ -23,6 +23,7 @@ struct InputOptions {
     std::function<void()> toggleBackdropTiles;
     std::function<void()> toggleTerminalLogMode;
     std::function<void()> toggleRoute1BackdropTuning;
+    std::function<void()> toggleConcealedUnits;
     std::function<void()> loadDebugSnapshot;
     std::function<void()> openMainMenu;
     std::function<bool()> clearSelection;

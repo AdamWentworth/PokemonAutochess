@@ -130,6 +130,7 @@ bool test_movement_collision_regressions(std::string& outFail);
 bool test_ledge_jump_movement(std::string &outFail);
 bool test_ledge_jump_asset_roles(std::string &outFail);
 bool test_ledge_jump_rendering(std::string &outFail);
+bool test_encounter_grass_gameplay(std::string &outFail);
 bool test_model_parse_smoke(std::string& outFail);
 bool test_model_loader_source_modularity(std::string& outFail);
 bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail);
@@ -412,6 +413,7 @@ int main(int argc, char** argv) {
         {"ledge_jump_movement", &test_ledge_jump_movement},
         {"ledge_jump_asset_roles", &test_ledge_jump_asset_roles},
         {"ledge_jump_rendering", &test_ledge_jump_rendering},
+        {"encounter_grass_gameplay", &test_encounter_grass_gameplay},
         {"model_parse_smoke", &test_model_parse_smoke},
         {"model_loader_source_modularity", &test_model_loader_source_modularity},
         {"projected_mesh_renderer_hot_path_contract", &test_projected_mesh_renderer_hot_path_contract},

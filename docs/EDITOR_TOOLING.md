@@ -15,9 +15,11 @@ The selectors above the viewport keep the location and starting setup together:
 
 1. **Scene / location: Route 1 - South Entrance** is the current Blender-authored
    map (`routes/route1-pilot`). It appears first under **Current Map**.
-2. **Scenario / starting setup** offers **Ledge Test**, **Planning**, and **Battle**.
+2. **Scenario / starting setup** offers **Grass Test**, **Ledge Test**, **Planning**, and **Battle**.
    Loading one opens Game view with simulation stopped. **Ledge Test** places
-   Bulbasaur and Rattata above the ledge and Charmander below it.
+   Bulbasaur and Rattata above the ledge and Charmander below it. **Grass Test**
+   starts opponents in separate encounter-grass patches; F10 toggles concealed
+   units for visual debugging without changing targeting. See `ENCOUNTER_GRASS.md`.
 3. Press **Play** to run, **Pause / Step** to inspect, and **Stop** to restore
    the setup. Selecting a scenario again reloads it.
 

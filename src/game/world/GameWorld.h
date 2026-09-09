@@ -97,9 +97,12 @@ public:
         bool alive = true;
         bool fainting = false;
         bool captureInProgress = false;
+        float coverRevealRemainingSec = 0.0f;
+        game::arena::PatrolState patrol;
     };
 
     struct DebugStateSnapshot {
+        bool showConcealedUnits = false;
         int money = 0;
         int classicWinStreak = 0;
         int classicLossStreak = 0;
@@ -157,6 +160,10 @@ public:
     const GameConfigData& getConfig() const { return config; }
     game::arena::CombatMapView combatMap() const;
     game::arena::Actor combatActor(const PokemonInstance &unit) const;
+    bool canTeamPerceive(PokemonSide team, const PokemonInstance &target) const;
+    bool isVisibleToPlayer(const PokemonInstance &unit) const;
+    bool showConcealedUnits() const { return showConcealedUnits_; }
+    void setShowConcealedUnits(bool show) { showConcealedUnits_ = show; }
     void setCombatMapRules(std::shared_ptr<const game::arena::CombatMapRules> rules) { combatMapRules_ = std::move(rules); }
 
     void spawnPokemon(const std::string& pokemonName,
@@ -293,6 +300,7 @@ private:
     LogBus::Logger* log = nullptr;        // optional game-owned logger
     const GameConfigData& config;
     std::shared_ptr<const game::arena::CombatMapRules> combatMapRules_;
+    bool showConcealedUnits_ = false;
     bool renderEnabled = false;
     engine::IRandom* rng = nullptr;
     EngineServices* engineServices = nullptr;

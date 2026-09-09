@@ -25,7 +25,8 @@ Authored takeoff animations retain their reservations while the flyer is still
 on the ground. Configured flyers bypass height barriers but follow the same
 occupancy and corridor rules. A model having generic jump/landing clips does not
 grant flight; species configuration or explicit airborne metadata supplies that
-capability. Grass concealment remains a future mechanic.
+capability. `ENCOUNTER_GRASS.md` defines concealment, attack reveals and the
+terrain-legal search patrol used when no visible, reachable target remains.
 
 ## Ground ledges and ramps
 

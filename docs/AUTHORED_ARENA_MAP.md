@@ -35,8 +35,8 @@ requires an explicit board/gameplay decision, not an art-only terrain edit.
 
 Encounter regions use the published grass core cells, transformed by the authored
 prefab's position, scale, and yaw. They preserve hooked shapes and omit the outer
-decorative blade ring. Disabled grass props produce no region. The simulation can
-later query these regions consistently for sight, targeting, and camouflage.
+decorative blade ring. Disabled grass props produce no region. The simulation uses these regions for sight, targeting, and camouflage, as
+described in `ENCOUNTER_GRASS.md`.
 
 ## Runtime boundary
 
@@ -46,8 +46,8 @@ including connected ramps, and cardinal jumps across full, level south-facing
 drops. Other discontinuities are walls. A negative height delta alone does not
 permit jumping in other directions or across an uneven ramp side. Configured
 flyers bypass height restrictions while respecting occupancy. See
-`COMBAT_MOVEMENT.md` for animation and targeting behavior. Concealment remains
-unimplemented.
+`COMBAT_MOVEMENT.md` for animation and targeting behavior. `AuthoredCombatMap` also connects the published cover polygons and
+evaluates continuous-position concealment; see `ENCOUNTER_GRASS.md`.
 
 Rendered standing height comes from `AuthoredGroundSurface`, which samples the
 actual authored floor, including rounded caps and ramps. Logical adjacency comes

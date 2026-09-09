@@ -297,7 +297,7 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
 
             auto& board = gameWorld->getPokemons();
             for (auto& u : board) {
-                if (u.captureInProgress) continue;
+                if (u.captureInProgress || !gameWorld->canTeamPerceive(PokemonSide::Player, u)) continue;
 
                 const bool isPokeball = (selected == "pokeball");
                 if (isPokeball) {

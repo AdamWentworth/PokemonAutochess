@@ -33,6 +33,7 @@ void GameWorld::bumpInventoryUiRevision() {
 }
 
 void GameWorld::resetForNewGame(int startingMoney) {
+    showConcealedUnits_ = false;
     pokemons.clear();
     benchPokemons.clear();
     battleStartPositions.clear();

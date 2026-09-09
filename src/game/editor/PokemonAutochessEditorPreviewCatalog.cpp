@@ -8,6 +8,16 @@ namespace {
 
 constexpr Definitions kDefinitions{{
     {
+        "route1-pilot-grass",
+        "Grass Test",
+        "South Entrance",
+        "Opposing Pokemon start in separate grass patches. Play to watch searching, local rustling and attack reveals. F10 toggles concealed units for debugging.",
+        "snapshot",
+        "classic",
+        "config/debug/editor_route1_pilot_grass.json",
+        "routes/route1-pilot",
+    },
+    {
         "route1-pilot-ledges",
         "Ledge Test",
         "South Entrance",

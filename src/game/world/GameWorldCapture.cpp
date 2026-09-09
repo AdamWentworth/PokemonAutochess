@@ -27,7 +27,7 @@ std::string capitalize(std::string s) {
 
 bool GameWorld::startCaptureAttempt(int targetId, float ballMult, const glm::vec3* throwOrigin) {
     auto* target = findUnitById(targetId);
-    if (!target) return false;
+    if (!target || !canTeamPerceive(PokemonSide::Player, *target)) return false;
     if (target->side != PokemonSide::Enemy) return false;
     if (target->captureInProgress) return false;
     if (!target->alive && !target->fainting) return false;  // already gone

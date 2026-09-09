@@ -1050,6 +1050,7 @@ if (BUILD_TESTING)
         tests/TestSharedProjectedUnitRenderer.cpp
         tests/TestSharedProjectedUnitWorldSceneRenderer.cpp
         tests/TestLedgeJumpRendering.cpp
+        tests/TestEncounterGrass.cpp
         tests/TestSharedProjectedBodyPresentation.cpp
         tests/TestSharedPreviewBodyPresentationPath.cpp
         tests/TestSharedAuthoredVfxHelpers.cpp

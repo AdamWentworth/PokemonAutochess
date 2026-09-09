@@ -159,7 +159,7 @@ struct EnvironmentSourceIdentity {
     std::string coordinateSystem;
 };
 
-// A grounded gameplay actor currently travelling through the world. The
+// A grounded gameplay actor standing or travelling through the world. The
 // environment converts this world-space sample back into published source
 // space so
 // only the authored encounter-grass modules under the actor react.
@@ -167,6 +167,7 @@ struct EncounterGrassInteractor {
     std::array<float, 3> worldPosition{};
     std::array<float, 3> worldMotionDirection{};
     float motionStrength = 1.0f;
+    float contactStrength = 1.0f;
 };
 
 struct LightProjectionRows {
@@ -353,7 +354,7 @@ public:
         const std::string& categoryPath,
         std::string* outError = nullptr);
 
-    // Supplies grounded moving actors before updateAnimation(). Interaction
+    // Supplies grounded actors before updateAnimation(). Interaction
     // uses the source encounter-grass placement footprint and the same
     // recovered joint pivots/weights as ambient motion.
     void setEncounterGrassInteractors(
