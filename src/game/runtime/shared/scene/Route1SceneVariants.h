@@ -31,7 +31,14 @@ inline constexpr Variant kRoute1Pilot{
     .arenaBundlePath = "content/phlosion/environment/arena-pilot/arena.phscene",
     .usesSourceTerrain = false};
 
-inline constexpr const Variant* find(
+inline constexpr Variant kRoute1SouthClearing{
+    .sceneId = "routes/route1-south-clearing",
+    .boardLayoutManifestPath = "config/environment/route1_south_clearing_board_layout.json",
+    .authoredSceneDocumentPath = "scenes/route1_south_clearing.scene.json",
+    .arenaBundlePath = "content/phlosion/environment/south-clearing/arena.phscene",
+    .usesSourceTerrain = false};
+
+inline constexpr const Variant *find(
     std::string_view sceneId) noexcept {
     if (sceneId == kRoute1.sceneId) {
         return &kRoute1;
@@ -41,6 +48,9 @@ inline constexpr const Variant* find(
     }
     if (sceneId == kRoute1Pilot.sceneId) {
         return &kRoute1Pilot;
+    }
+    if (sceneId == kRoute1SouthClearing.sceneId) {
+        return &kRoute1SouthClearing;
     }
     return nullptr;
 }
@@ -52,6 +62,9 @@ inline constexpr bool editable(
 
 inline constexpr const Variant& fromStateScriptPath(
     std::string_view stateScriptPath) noexcept {
+    if (stateScriptPath.find("route1_south_clearing") != std::string_view::npos) {
+        return kRoute1SouthClearing;
+    }
     if (stateScriptPath.find("route1_pilot") != std::string_view::npos) {
         return kRoute1Pilot;
     }

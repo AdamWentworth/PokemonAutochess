@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "name": "Route 1 - South Clearing",
+  "scene_id": "routes/route1-south-clearing",
+  "terrain_style": "tile_blueprint",
+  "reference_scene": "scenes/route1_5.scene.json",
+  "board_center_blender_m": [21, 15],
+  "tile_bounds": {"x_min": 6, "x_max": 35, "z_min": -29, "z_max": -2},
+  "tile_size_m": 1,
+  "elevation_step_m": 0.5,
+  "ledge_corner_radius_m": 0.18,
+  "ledge_ramp_corner_radius_m": 0.24,
+  "material_roles": {
+    "ground": 19,
+    "ground_uv2_lawn": [0.9501953125, 0.66357421875],
+    "ground_uv2_dirt": [0.9501953125, 0.66259765625]
+  },
+  "ramp_strips": [
+    {"z": -28, "x_min": 21, "x_max": 27},
+    {"z": -23, "x_min": 17, "x_max": 19},
+    {"z": -21, "x_min": 23, "x_max": 27},
+    {"z": -19, "x_min": 16, "x_max": 20},
+    {"z": -13, "x_min": 17, "x_max": 25},
+    {"z": -9, "x_min": 16, "x_max": 19}
+  ],
+  "encounter_records": [1, 2, 3, 4],
+  "visual_access_paint": {
+    "seed_cell": [21, -12],
+    "route_corridor_x": [14, 27]
+  },
+  "adaptations": [
+    "Recover the source tile layout, then apply South Clearing's saved Phlosion tile edits and prop transforms.",
+    "Preserve the 8 by 8 board at source (17, -19), the left dirt square, the shifted right grass bed, the northern ledge and the full southern ramp.",
+    "Rebuild rounded, closed ledges with the approved South Entrance materials and corner radii.",
+    "Normalize isolated source slope classifications into coherent ramp strips; keep inaccessible banks and forest floor dark.",
+    "Retain source rock colours, plant locations and the woodland perimeter; keep all props independently editable.",
+    "Seat the east-bank boulder 18 cm south of its source position to clear the rebuilt bank, and omit fine foliage from dirt tiles."
+  ]
+}

@@ -13,6 +13,7 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--bridge-root',type=Path,default=Path(__file__).resolve().parent/'blender')
     parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--expected-rocks',type=int,default=6)
     args=parser.parse_args(sys.argv[sys.argv.index('--')+1:])
     sys.path.insert(0,str(args.bridge_root))
     import arena_tiles as tiles
@@ -115,7 +116,7 @@ def main():
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_text(json.dumps(report,indent=2)+'\n')
     print('LEDGE_GEOMETRY '+json.dumps(report))
-    assert checked>100 and not errors and rocks==6
+    assert checked>100 and not errors and rocks==args.expected_rocks
 
 
 if __name__=='__main__': main()

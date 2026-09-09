@@ -1,0 +1,17 @@
+{
+  "kind": "pokemon_autochess_arena_authoring",
+  "schema_version": 1,
+  "display_name": "Route 1 - South Clearing (Blender)",
+  "scene_id": "routes/route1-south-clearing",
+  "working_source_relative": "EnvironmentResearch/Route1/authoring/south-clearing/Route1_SouthClearing.blend",
+  "depot_source_relative": "pokemon-autochess/source/project-authored/route1-south-clearing/Route1_SouthClearing.blend",
+  "board_path": "config/environment/route1_south_clearing_board_layout.json",
+  "composition_path": "config/environment/route1_environment_package.json",
+  "scene_path": "scenes/route1_south_clearing.scene.json",
+  "terrain_path": "content/phlosion/environment/south-clearing/terrain.phpatch",
+  "gameplay_map_path": "config/environment/route1_south_clearing_gameplay.json",
+  "bundle_path": "content/phlosion/environment/south-clearing/arena.phscene",
+  "base_environment_asset_id": "environments/route1",
+  "terrain_node_id": "mesh-patch/south-clearing/terrain",
+  "ground_material_index": 19
+}

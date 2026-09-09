@@ -60,6 +60,7 @@ bool test_route1_terrain_contour_assembler_contract(std::string& outFail);
 bool test_terrain_contour_mesher_contract(std::string& outFail);
 bool test_route1_cooked_environment_contract(std::string& outFail);
 bool test_route1_arena_pilot_contract(std::string& outFail);
+bool test_route1_south_clearing_contract(std::string& outFail);
 bool test_authored_ground_surface_contract(std::string &outFail);
 bool test_authored_arena_bundle_contract(std::string &outFail);
 bool test_render_prep_world_projection_contract(std::string& outFail);
@@ -344,6 +345,7 @@ int main(int argc, char** argv) {
         {"terrain_contour_mesher_contract", &test_terrain_contour_mesher_contract},
         {"route1_cooked_environment_contract", &test_route1_cooked_environment_contract},
         {"route1_arena_pilot_contract", &test_route1_arena_pilot_contract},
+        {"route1_south_clearing_contract", &test_route1_south_clearing_contract},
         {"authored_ground_surface_contract", &test_authored_ground_surface_contract},
         {"authored_arena_bundle_contract", &test_authored_arena_bundle_contract},
         {"render_prep_world_projection_contract", &test_render_prep_world_projection_contract},
@@ -552,5 +554,4 @@ int main(int argc, char** argv) {
     std::cerr << "[PAC_Tests] " << fails << " test(s) failed.\n";
     return 1;
 }
-
 

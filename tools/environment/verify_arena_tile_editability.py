@@ -11,6 +11,7 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument('--bridge-root',type=Path,default=Path(__file__).resolve().parent/'blender')
     p.add_argument('--output',type=Path,required=True)
+    p.add_argument('--cell',type=int,nargs=2,default=[21,-6],help='Two adjacent floor cells to edit on the verification copy')
     args=p.parse_args(sys.argv[sys.argv.index('--')+1:])
     sys.path.insert(0,str(args.bridge_root))
     import arena_pilot as arena
@@ -25,7 +26,8 @@ def main():
     bpy.ops.pac.edit_tiles()
     # Exercise the same face-selection and Apply button used in the UI.
     bpy.ops.object.mode_set(mode='OBJECT')
-    index=next(i for i,c in enumerate(before) if (c['x'],c['z'])==(21,-6))
+    x,z=args.cell
+    index=next(i for i,c in enumerate(before) if (c['x'],c['z'])==(x,z))
     for face in guide.data.polygons: face.select=face.index==index
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.context.scene.pac_tile_height=2
@@ -37,10 +39,10 @@ def main():
     assert after[index]==dict(before[index],height=2,surface=1,ramp=1)
     assert all(a==b for i,(a,b) in enumerate(zip(before,after)) if i!=index)
     ground=next(o for o in arena.collection('PAC_EDIT_PATCH').objects if o.get('phlosion_patch_id')=='arena-pilot/terrain')
-    sample=[v.co.z for v in ground.data.vertices if abs(v.co.x-21.4)<.001 and abs(v.co.y-5.4)<.001]
+    sample=[v.co.z for v in ground.data.vertices if abs(v.co.x-(x+.4))<.001 and abs(v.co.y-(-z-.6))<.001]
     assert sample and abs(max(sample)-1.2)<.001
     # Dark lawn is a real surface choice, independent of height or dirt.
-    dark_index=next(i for i,c in enumerate(before) if (c['x'],c['z'])==(22,-6))
+    dark_index=next(i for i,c in enumerate(before) if (c['x'],c['z'])==(x+1,z))
     for face in guide.data.polygons: face.select=face.index==dark_index
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.context.scene.pac_tile_height=before[dark_index]['height']
@@ -53,12 +55,14 @@ def main():
     assert all(a==b for i,(a,b) in enumerate(zip(after,dark_after)) if i!=dark_index)
     assert all(tuple(bpy.data.objects[name].location)==loc for name,loc in props.items())
     assert all((bpy.data.objects[name].data.as_pointer(),tuple(bpy.data.objects[name].location))==state for name,state in details.items())
-    brush=next(o for o in arena.collection('PAC_PREFABS').objects if o.get('pilot_playable_brush'))
+    brush=next(o for o in arena.collection('PAC_PREFABS').objects if o.get('pilot_placement_kind')=='brush_bed')
     brush.location.x-=1
     args.output.mkdir(parents=True,exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=str(args.output/'Edited_Tile_Test_Copy.blend'))
     arena.export(args.output)
-    doc=json.loads((args.output/'route1_pilot.scene.json').read_text())
+    from arena_recipe import DEFAULT_RECIPE, load_recipe, export_name
+    recipe=load_recipe(Path(__file__).resolve().parents[2],bpy.context.scene.get('pilot_authoring_recipe',DEFAULT_RECIPE))
+    doc=json.loads((args.output/export_name(recipe,'scene_path')).read_text())
     node=next(n for n in doc['nodes'] if n['id']==brush['phlosion_node_id'])
     assert abs(node['components']['transform']['translation'][0]-brush.location.x*100)<.001
     assert len(tiles.read_cells())==len(before)

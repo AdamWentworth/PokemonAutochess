@@ -91,9 +91,10 @@ constexpr float kDefaultBoardCellSizeWorld = 1.0f;
 constexpr std::array<std::int32_t, 2>
 defaultBoardTerrainGridOrigin(
     std::string_view sceneId) noexcept {
-    return sceneId == route1_scene_variants::kRoute1_5.sceneId
-        ? std::array<std::int32_t, 2>{17, -19}
-        : std::array<std::int32_t, 2>{17, -10};
+    return (sceneId == route1_scene_variants::kRoute1_5.sceneId ||
+            sceneId == route1_scene_variants::kRoute1SouthClearing.sceneId)
+               ? std::array<std::int32_t, 2>{17, -19}
+               : std::array<std::int32_t, 2>{17, -10};
 }
 
 constexpr std::array<float, 3> defaultBoardSourceAnchorCm(

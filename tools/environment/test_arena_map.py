@@ -8,9 +8,21 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent/'blender'))
 from arena_map import build_map, validate_map, encounter_grass_centers
+from arena_coordinates import source_direction_float64
 
 
 class ArenaMapTests(unittest.TestCase):
+    def test_direction_normalization_has_stable_runtime_bytes(self):
+        expected = source_direction_float64([0, 2, 1])
+        # Actual equivalent 1:2 bitangents exposed by the clearing ramp export.
+        for y,z in ((0.8944271802902222,0.4472135901451111),
+                    (0.8944272398948669,0.44721361994743347)):
+            self.assertEqual(source_direction_float64([0,y,z]),expected)
+        self.assertEqual(source_direction_float64([0,0,3]),[0,1,0])
+        self.assertEqual(source_direction_float64([0,3,0]),[0,0,-1])
+        for value in ([0,0,0],[float('inf'),0,0],[0,float('nan'),0]):
+            with self.assertRaises(ValueError): source_direction_float64(value)
+
     @classmethod
     def setUpClass(cls):
         read = lambda name: json.loads((ROOT/name).read_text())

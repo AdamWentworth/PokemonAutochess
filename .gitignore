@@ -31,7 +31,7 @@ config/user/*
 # Local Phlosion Editor layout
 phlosion_editor.ini
 .phlosion/
-.phlosion.arena-pilot.project.json
+.phlosion.*.project.json
 
 # CMake files
 CMakeCache.txt

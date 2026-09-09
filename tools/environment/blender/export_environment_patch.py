@@ -9,6 +9,11 @@ from pathlib import Path
 import sys
 from typing import Any
 
+BRIDGE_ROOT = Path(__file__).resolve().parent
+if str(BRIDGE_ROOT) not in sys.path:
+    sys.path.insert(0, str(BRIDGE_ROOT))
+from arena_coordinates import source_direction_float64
+
 import bpy
 from mathutils import Vector
 
@@ -36,7 +41,9 @@ def blender_to_source_position(value: Vector) -> list[float]:
     return [value.x * 100.0, value.z * 100.0, -value.y * 100.0]
 
 
-def blender_to_source_direction(value: Vector) -> list[float]:
+def blender_to_source_direction(value: Vector, precise: bool = False) -> list[float]:
+    if precise:
+        return source_direction_float64(value)
     converted = Vector((value.x, value.z, -value.y))
     if converted.length_squared <= 1.0e-12:
         raise RuntimeError("Patch contains a zero-length direction")
@@ -105,6 +112,9 @@ def export_object(obj: bpy.types.Object, depsgraph: bpy.types.Depsgraph) -> dict
         world = evaluated.matrix_world
         normal_matrix = world.to_3x3().inverted_safe().transposed()
         direction_matrix = world.to_3x3()
+        # Source-owned opt-in preserves the approved entrance's existing bytes.
+        # New arenas use double intermediates before final float32 encoding.
+        precise_directions = bpy.context.scene.get('phlosion_patch_direction_precision', 32) == 64
         groups: dict[int, list[int]] = {}
         vertices: list[dict[str, Any]] = []
 
@@ -147,10 +157,10 @@ def export_object(obj: bpy.types.Object, depsgraph: bpy.types.Depsgraph) -> dict
                 )
                 vertices.append({
                     "position": blender_to_source_position(position),
-                    "normal": blender_to_source_direction(normal),
-                    "tangent": blender_to_source_direction(tangent)
+                    "normal": blender_to_source_direction(normal, precise_directions),
+                    "tangent": blender_to_source_direction(tangent, precise_directions)
                     + [float(loop.bitangent_sign)],
-                    "bitangent": blender_to_source_direction(bitangent)
+                    "bitangent": blender_to_source_direction(bitangent, precise_directions)
                     + [1.0],
                     "texcoords": [
                         raw_uv0,

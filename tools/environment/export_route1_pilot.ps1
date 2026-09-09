@@ -36,4 +36,4 @@ $taskArguments = @((Join-Path $PSScriptRoot 'publish_arena.py'), '--game-root', 
 if ($env:PHLOSION_ASSET_DEPOT) { $taskArguments += @('--depot', $env:PHLOSION_ASSET_DEPOT) }
 & python @taskArguments
 if ($LASTEXITCODE -ne 0) { throw 'Arena publication failed; inspect the export logs and active archive.' }
-if ($Capture) { & (Join-Path $PSScriptRoot 'capture_arena_pilot.ps1') }
+if ($Capture) { & (Join-Path $PSScriptRoot 'preview_route1_pilot.ps1') -Recipe $Recipe -Capture }

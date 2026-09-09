@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 The current pilot is **Route 1 - Southern Entrance** (pass 10). It rebuilds the
 Phlosion editor's south-entrance tile blueprint with new Blender geometry.
@@ -14,6 +14,9 @@ The editor starts in the independent pilot, `routes/route1-pilot`. The original
 Route 1 and Route 1.5 remain available in the scene list. The pilot is not part
 of normal route progression. `tools/environment/Preview Route 1 Arena.cmd`
 opens its Planning game preview directly.
+
+[South Clearing](BLENDER_SOUTH_CLEARING.md) now has its own Blender source,
+recipe and editor scene, using this same authoring and publication workflow.
 
 ## Edit the tile blueprint
 
@@ -101,10 +104,10 @@ exposes a one-metre grass shelf between two half-metre rear ledges. The native
 height contract checks all three consecutive levels, so the shelf cannot
 silently turn back into a single tall wall.
 
-Pokémon and board overlays sample the actual authored terrain height. These
-are visual features: camouflage, one-way north-to-south drops, uphill blocking,
-jump animations and flying exceptions remain future gameplay work. Ground
-units can currently cross ledges without directional restrictions.
+Pokémon and board overlays sample the actual authored terrain height. Gameplay
+uses directional ledge jumps, uphill blocking, flying exceptions and encounter
+grass concealment. See [movement](COMBAT_MOVEMENT.md) and
+[encounter grass](ENCOUNTER_GRASS.md) for the current rules.
 
 ## Source, export and preview
 
@@ -116,7 +119,7 @@ The filename is retained for existing launchers. The exporter reads that saved
 file; it does not recreate the starting layout. Permanent scenery and board-registration changes are made in Blender and the
 recipe inputs. Phlosion presents the validated arena for inspection and gameplay
 preview; its environment mutation controls are disabled for bundled arenas.
-Pok�mon starting positions remain editable in the game preview.
+Pokémon starting positions remain editable in the game preview.
 
 Run from the game repository:
 
@@ -186,11 +189,11 @@ cells, the 64 board cells, 16 reserve cells, four encounter-grass regions, and
 height changes across directed shared edges. Playability follows board
 registration; dark grass paint does not determine movement permission.
 
-Grass footprints use the published core cells transformed with each grass
-prefab. This preserves hooked footprints and prop movement instead of treating
-an entire grass bed's rectangular bounding box as cover. The decorative outer
-blade ring is excluded. Cover behavior and directional traversal are not enabled
-by this data; see [the map contract](AUTHORED_ARENA_MAP.md).
+Grass footprints follow the published rendered clump centres, including their
+expanded border ring, transformed with each prefab. Hooked footprints and prop
+movement remain intact. Actor foot positions determine cover membership;
+individual wind-blown blade tips do not change the boundary. See
+[the map contract](AUTHORED_ARENA_MAP.md).
 
 ## Verify the south entrance
 
@@ -229,7 +232,7 @@ editing never reruns them. The original source-repair plan is archived as
 
 The original entrance and south-clearing scenes still depend on the legacy
 source-terrain repair path. Their data and behavior remain available as reference
-for the future clearing. New authored mesh preparation and ground sampling live
+alongside the new Blender clearing. New authored mesh preparation and ground sampling live
 in `AuthoredEnvironmentPatch` and `AuthoredGroundSurface`; source-preservation
 predicates live under the runtime scene directory's `legacy` folder.
 
@@ -245,5 +248,5 @@ source library needs its own qualified profile rather than renamed mesh indices.
 
 The south-entrance qualification script retains map-specific geometry expectations
 and camera presets. A new arena needs its own qualification fixture and scene
-registration before becoming playable. The second-recipe unit test proves isolated
-publication paths; it does not claim the south clearing is already implemented.
+registration before becoming playable. South Clearing provides the second
+implemented recipe and its own native layout/gameplay fixture.

@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Index
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 This folder holds the live engineering docs for the repo. Historical or
 superseded plans belong in `docs/archive/`. Live docs stay in `docs/`; their
@@ -19,6 +19,7 @@ role is expressed through metadata rather than deep folder nesting.
 | `PHLOSION_ASSET_MIGRATION.md` | `Runbook` | Current Forge cook, strict gameplay proof, compatibility boundaries, and promotion gates. |
 | `EXTERNAL_ASSET_RESEARCH.md` | `Architecture` | Boundary between the game, private research workspace, and private asset depot. |
 | `BLENDER_ARENA_PILOT.md` | `Runbook` | Current south-entrance authoring, export, recovery, and verification. |
+| `BLENDER_SOUTH_CLEARING.md` | `Runbook` | South Clearing layout, Blender editing, preview, recovery, and qualification. |
 | `ENCOUNTER_GRASS.md` | `Contract` | Grass sight, attack reveals, search patrols, interaction and editor checks. |
 | `COMBAT_MOVEMENT.md` | `Contract` | Step reservations and deterministic combat movement. |
 | `AUTHORED_ARENA_MAP.md` | `Contract` | Authored cells, directed height connections, and encounter-grass regions. |

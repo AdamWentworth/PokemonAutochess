@@ -909,6 +909,7 @@ if (BUILD_TESTING)
         tests/TestTerrainContourMesher.cpp
         tests/TestRoute1CookedEnvironment.cpp
         tests/TestRoute1ArenaPilot.cpp
+        tests/TestRoute1SouthClearing.cpp
         tests/TestAuthoredGroundSurface.cpp
         tests/TestAuthoredArenaBundle.cpp
         tests/TestRenderPrepWorldProjection.cpp
@@ -1153,6 +1154,7 @@ if (BUILD_TESTING)
         native_charmander_family_fire_contract
         route1_cooked_environment_contract
         route1_arena_pilot_contract
+        route1_south_clearing_contract
         render_prep_unit_visuals_contract
         ui_card_visuals_contract
         ui_card_renderer_contract
