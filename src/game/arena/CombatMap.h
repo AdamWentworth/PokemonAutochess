@@ -75,8 +75,10 @@ struct CombatMapView {
 // Both diagonal corridors stay reserved until arrival. Terrain permissions do
 // not allow flying actors to overlap occupied cells.
 void reserveStep(CombatMapView map, Cell from, Cell to, std::span<std::uint8_t> blocked);
-Cell firstStepTowards(CombatMapView map, Actor mover, const Actor &target,
-                      std::span<const std::uint8_t> blocked);
+// Visibility uses the observed target. A visible mover's reserved destination
+// can be used as the pursuit goal, including waiting for it to arrive in melee.
+Cell firstStepTowards(CombatMapView map, Actor mover, const Actor &observedTarget,
+                      std::span<const std::uint8_t> blocked, Cell targetDestination = {});
 // Terrain reachability ignores temporary unit queues, but never treats the
 // target's occupied cell as a route through a narrow passage.
 bool canReachMelee(CombatMapView map, Actor mover, const Actor &target);

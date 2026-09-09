@@ -166,6 +166,7 @@ struct PlannerUnit {
     int row = 0;
     float speed = 0.0f;
     game::arena::Actor target;
+    const PokemonInstance* targetUnit = nullptr;
     int enemyCol = -1;
     int enemyRow = -1;
     bool adjacentToEnemy = false;
@@ -266,6 +267,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
                 bestDistance = dist;
                 bestEnemyId = boardUnits[j].id;
                 entry.target = gameWorld->combatActor(boardUnits[j]);
+                entry.targetUnit = &boardUnits[j];
                 entry.enemyCol = cached[j].col;
                 entry.enemyRow = cached[j].row;
             }
@@ -301,8 +303,13 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         const bool enemiesRemain = std::any_of(boardUnits.begin(), boardUnits.end(), [&](const auto &other) {
             return isCombatActive(other) && other.side != unit.side;
         });
+        // Read after earlier planners have committed: two approaching units
+        // must agree on the same meeting point even within a single update.
+        const auto targetDestination = entry.targetUnit && entry.targetUnit->isMoving && hasCommittedMove(*entry.targetUnit)
+            ? game::arena::Cell{entry.targetUnit->committedDest.x, entry.targetUnit->committedDest.y}
+            : entry.target.cell;
         const auto [wantCol, wantRow] = entry.enemyCol != -1
-            ? game::arena::firstStepTowards(map, gameWorld->combatActor(unit), entry.target, blocked)
+            ? game::arena::firstStepTowards(map, gameWorld->combatActor(unit), entry.target, blocked, targetDestination)
             : enemiesRemain
                 ? game::arena::firstPatrolStep(map, gameWorld->combatActor(unit), unit.patrol, blocked, unit.side == PokemonSide::Player)
                 : game::arena::Cell{};

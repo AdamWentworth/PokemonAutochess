@@ -21,6 +21,15 @@ is occupied, it can approach a closer reachable cell and queue there; it waits
 when no closer position is available. Arrival releases the completed step for
 the next planner update. Units with zero speed do not claim new destinations.
 
+When a visible opponent is already moving, pursuit aims beside its reserved
+endpoint, including reservations made earlier in the same update. A unit holds
+its position when that opponent is already approaching a legal melee meeting
+point. This prevents both units treating the approach corridor as a stationary
+obstacle and making a sidestep or return trip toward the opponent's old tile.
+The complete corridor remains reserved. Visibility is checked at the opponent's
+actual position; predicted grass membership never reveals or hides it early.
+Attack range and cliff restrictions still use actual combat positions.
+
 Authored takeoff animations retain their reservations while the flyer is still
 on the ground. Configured flyers bypass height barriers but follow the same
 occupancy and corridor rules. A model having generic jump/landing clips does not

@@ -34,6 +34,16 @@ void navigation() {
     check(!map.canEngageMelee({1, 0, {2, 2}, {}}, {2, 1, {3, 2}, {}}), "Melee targeting ignored map rules.");
     check(firstStepTowards(map, {1, 0, {1, 1}, {}}, {99, 1, {6, 6}, {}}, occupied) == Cell{}, "Planner pursued an imperceptible target.");
     map.rules = nullptr;
+    occupied.assign(64, 0);
+    reserveStep(map, {3, 3}, {3, 4}, occupied);
+    check(firstStepTowards(map, {1, 0, {3, 5}}, {2, 1, {3, 3}}, occupied, {3, 4}) == Cell{},
+          "An incoming enemy provoked a detour instead of waiting at the meeting point.");
+    check(firstStepTowards(map, {1, 0, {3, 6}}, {2, 1, {3, 3}}, occupied, {3, 4}) == Cell{3, 5},
+          "Pursuit routed around the enemy's step toward its old cell.");
+    map.rules = &rules;
+    check(firstStepTowards(map, {1, 0, {3, 6}}, {99, 1, {3, 3}}, occupied, {3, 4}) == Cell{},
+          "Knowing a reservation bypassed target visibility.");
+    map.rules = nullptr;
     std::mt19937 random(0xA4E1u);
     for (int scenario = 0; scenario < 400; ++scenario) {
         for (auto &value : occupied)
@@ -110,6 +120,16 @@ void authoredTraversal() {
     stream >> document;
     std::string error;
     check(data.load(document.dump(), &error), "Traversal fixture failed to load.");
+    AuthoredCombatMap coverRules(data, {17, -10});
+    CombatMapView coverMap{8, 8, &coverRules};
+    std::vector<std::uint8_t> coverBlocked(64);
+    const Actor observer{1, 0, {5, 5}}, exposed{2, 1, {7, 5}}, concealed{2, 1, {7, 4}};
+    reserveStep(coverMap, exposed.cell, concealed.cell, coverBlocked);
+    check(coverMap.canPerceive(observer, exposed) && !coverMap.canPerceive(observer, concealed), "Pursuit cover fixture drifted.");
+    check(firstStepTowards(coverMap, observer, exposed, coverBlocked, concealed.cell) != Cell{},
+          "A visible target's future grass membership prematurely cancelled pursuit.");
+    check(firstStepTowards(coverMap, observer, concealed, coverBlocked, exposed.cell) == Cell{},
+          "A concealed target's future open-ground destination leaked into pursuit.");
     data.cover.clear();
     AuthoredCombatMap rules(data, {17, -10});
     CombatMapView map{8, 8, &rules};

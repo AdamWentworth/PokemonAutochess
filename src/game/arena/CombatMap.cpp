@@ -69,9 +69,18 @@ void reserveStep(CombatMapView map, Cell from, Cell to, std::span<std::uint8_t> 
             blocked[map.index({x, z})] = 1u;
 }
 
-Cell firstStepTowards(CombatMapView map, Actor mover, const Actor &target,
-                      std::span<const std::uint8_t> blocked) {
-    if (!validGrid(map, blocked.size()) || !map.contains(mover.cell) || !map.canPerceive(mover, target)) return {};
+Cell firstStepTowards(CombatMapView map, Actor mover, const Actor &observedTarget,
+                      std::span<const std::uint8_t> blocked, Cell targetDestination) {
+    if (!validGrid(map, blocked.size()) || !map.contains(mover.cell) ||
+        !map.contains(observedTarget.cell) || !map.canPerceive(mover, observedTarget)) return {};
+    Actor target = observedTarget;
+    if (map.contains(targetDestination)) {
+        target.cell = targetDestination;
+        target.offsetX = target.offsetZ = 0.0f;
+    }
+    // The target's full movement corridor stays blocked. Aim beside its known
+    // endpoint instead of routing around that corridor toward its old cell.
+    // This is planning only; attack queries still use the actual positions.
     const int total = map.cols * map.rows, start = map.index(mover.cell);
     std::vector<int> open{start}, parent(total, -1);
     std::vector<std::uint8_t> queued(total, 0);

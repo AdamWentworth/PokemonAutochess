@@ -269,6 +269,53 @@ bool test_movement_collision_regressions(std::string& outFail) {
         unit.isMoving = true;
     };
 
+    // Opponents approaching along an empty lane should meet in that lane.
+    // In particular, a fresh reservation toward us is not a stationary obstacle
+    // that requires a sidestep before the next update's rounded cell changes.
+    for (int gap : {2, 5}) {
+        for (bool horizontal : {false, true}) {
+            for (float speed : {0.6f, 1.0f, 1.7f}) {
+                for (float dt : {1.0f / 120.0f, 1.0f / 30.0f, 0.2f}) {
+                    GameWorld world(cfg);
+                    auto &units = world.getPokemons();
+                    units.push_back(makeUnit(cfg, "approaching_a", PokemonSide::Player, horizontal ? 1 : 3, horizontal ? 3 : 1, 1.0f));
+                    units.push_back(makeUnit(cfg, "approaching_b", PokemonSide::Enemy, horizontal ? 1 + gap : 3, horizontal ? 3 : 1 + gap, speed));
+                    MovementSystem movement(&world, services, combat);
+                    bool met = false;
+                    for (int tick = 0; tick < 1200; ++tick) {
+                        const float beforeA = horizontal ? units[0].position.x : units[0].position.z;
+                        const float beforeB = horizontal ? units[1].position.x : units[1].position.z;
+                        movement.update(ecs, dt);
+                        if ((horizontal ? units[0].position.x : units[0].position.z) < beforeA - 0.00001f ||
+                            (horizontal ? units[1].position.x : units[1].position.z) > beforeB + 0.00001f) {
+                            outFail = "Head-on approach reversed before meeting."; return false;
+                        }
+                        if (glm::distance(units[0].position, units[1].position) < cfg.cellSize - 0.001f) {
+                            outFail = "Head-on meeting bypassed physical separation.";
+                            return false;
+                        }
+                        for (const auto &unit : units) {
+                            if (unit.committedDest.x >= 0 && (horizontal ? unit.committedDest.y : unit.committedDest.x) != 3) {
+                                outFail = "Head-on approach left its empty lane: " + unit.name +
+                                          " committed " + std::to_string(unit.committedDest.x) + "," + std::to_string(unit.committedDest.y) +
+                                          " at tick " + std::to_string(tick) + " speed=" + std::to_string(speed) + " dt=" + std::to_string(dt);
+                                return false;
+                            }
+                        }
+                        if (units[0].committedDest.x < 0 && units[1].committedDest.x < 0 &&
+                            world.combatMap().canEngageMelee(world.combatActor(units[0]), world.combatActor(units[1]))) {
+                            met = true;
+                            break;
+                        }
+                    }
+                    if (!met) {
+                        outFail = "Head-on opponents failed to settle into melee.";
+                        return false;
+                    }
+                }
+            }
+        }
+    }
     // A faster contender is planned first, but cannot steal a slower unit's
     // already committed destination before the slow unit reaches its midpoint.
     {
