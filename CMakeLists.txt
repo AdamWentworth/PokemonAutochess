@@ -529,6 +529,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/scene/Route1RuntimeEnvironment.cpp
     src/game/runtime/shared/scene/AuthoredEnvironmentPatch.cpp
     src/game/runtime/shared/scene/AuthoredGroundSurface.cpp
+    src/game/runtime/shared/scene/BoardLayoutDocument.cpp
     src/game/runtime/shared/scene/legacy/Route1SourceTerrainRules.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.cpp
