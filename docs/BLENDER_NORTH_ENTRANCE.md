@@ -85,6 +85,12 @@ opts into original source placement throughout, specifies its bench clearances
 and grass pieces, and records deliberate adaptations. **Do not reseed for routine
 edits**. Export a newly seeded file in a fresh Blender process using the launcher.
 
+This source opts into stable lighting directions: unit vectors are rounded to
+five decimal places, then normalized for runtime encoding. This prevents tiny
+Blender tangent differences from changing archive bytes between exports. Mesh
+positions and UVs keep their original precision; existing arena sources retain
+their export settings.
+
 ## Qualification
 
 `PAC_Tests.route1_north_entrance_contract` checks scene selection, all board and

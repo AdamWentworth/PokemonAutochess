@@ -41,9 +41,9 @@ def blender_to_source_position(value: Vector) -> list[float]:
     return [value.x * 100.0, value.z * 100.0, -value.y * 100.0]
 
 
-def blender_to_source_direction(value: Vector, precise: bool = False) -> list[float]:
+def blender_to_source_direction(value: Vector, precise: bool = False, stabilize: bool = False) -> list[float]:
     if precise:
-        return source_direction_float64(value)
+        return source_direction_float64(value, stabilize)
     converted = Vector((value.x, value.z, -value.y))
     if converted.length_squared <= 1.0e-12:
         raise RuntimeError("Patch contains a zero-length direction")
@@ -115,6 +115,7 @@ def export_object(obj: bpy.types.Object, depsgraph: bpy.types.Depsgraph) -> dict
         # Source-owned opt-in preserves the approved entrance's existing bytes.
         # New arenas use double intermediates before final float32 encoding.
         precise_directions = bpy.context.scene.get('phlosion_patch_direction_precision', 32) == 64
+        stable_directions = bool(bpy.context.scene.get('phlosion_patch_stable_directions', False))
         groups: dict[int, list[int]] = {}
         vertices: list[dict[str, Any]] = []
 
@@ -157,10 +158,10 @@ def export_object(obj: bpy.types.Object, depsgraph: bpy.types.Depsgraph) -> dict
                 )
                 vertices.append({
                     "position": blender_to_source_position(position),
-                    "normal": blender_to_source_direction(normal, precise_directions),
-                    "tangent": blender_to_source_direction(tangent, precise_directions)
+                    "normal": blender_to_source_direction(normal, precise_directions, stable_directions),
+                    "tangent": blender_to_source_direction(tangent, precise_directions, stable_directions)
                     + [float(loop.bitangent_sign)],
-                    "bitangent": blender_to_source_direction(bitangent, precise_directions)
+                    "bitangent": blender_to_source_direction(bitangent, precise_directions, stable_directions)
                     + [1.0],
                     "texcoords": [
                         raw_uv0,

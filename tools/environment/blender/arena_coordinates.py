@@ -60,7 +60,7 @@ def source_translation(location):
     return [location[0]*100, location[2]*100, -location[1]*100]
 
 
-def source_direction_float64(value):
+def source_direction_float64(value, stabilize=False):
     """Normalize with double intermediates, then serialize runtime float32.
 
     Blender's float32 SIMD normalization can differ by one ULP for equivalent
@@ -70,4 +70,10 @@ def source_direction_float64(value):
     length = math.hypot(*direction)
     if not math.isfinite(length) or length <= 1e-6:
         raise ValueError('Patch contains a non-finite or zero-length direction')
+    if stabilize:
+        # MikkTSpace can also vary the direction itself by one float32 ULP.
+        # Snap unit lighting vectors before renormalizing; positions, UVs and
+        # legacy source exports retain their full existing precision.
+        direction = tuple(round(component/length, 5) for component in direction)
+        length = math.hypot(*direction)
     return [struct.unpack('<f', struct.pack('<f', component/length))[0] for component in direction]

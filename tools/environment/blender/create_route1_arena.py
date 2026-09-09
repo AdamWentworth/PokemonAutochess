@@ -78,6 +78,7 @@ def main():
     scene['pilot_game_root']=str(ROOT)
     scene['pilot_reference']=config['name']+'; source tile blueprint with approved overlapping arena terrain'
     scene['phlosion_patch_direction_precision']=64
+    scene['phlosion_patch_stable_directions']=True
     config['tile_cells']=cells
     scene['pilot_blueprint']=json.dumps(config)
     tiles.create_guide(arena,cells)

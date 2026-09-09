@@ -1,6 +1,7 @@
 """Asset-independent checks for authored map data and scene drift detection."""
 import copy
 import json
+import math
 from pathlib import Path
 import sys
 import unittest
@@ -79,6 +80,19 @@ class ArenaMapTests(unittest.TestCase):
         self.assertEqual(source_direction_float64([0,3,0]),[0,0,-1])
         for value in ([0,0,0],[float('inf'),0,0],[0,float('nan'),0]):
             with self.assertRaises(ValueError): source_direction_float64(value)
+
+    def test_rounded_wall_tangent_roundtrip_stabilization_is_opt_in(self):
+        # The same North Entrance corner produced these two MikkTSpace results
+        # in separate Blender processes, despite unchanged saved geometry.
+        variants = [(0.3826834261417389, 0.9238795042037964, 0),
+                    (0.3826834261417389, 0.9238795638084412, 0)]
+        self.assertNotEqual(*(source_direction_float64(v) for v in variants))
+        stable = [source_direction_float64(v, stabilize=True) for v in variants]
+        self.assertEqual(*stable)
+        for value, result in zip(variants, stable):
+            exact = source_direction_float64(value)
+            self.assertLess(math.dist(exact, result), 1e-5)
+            self.assertAlmostEqual(math.hypot(*result), 1, places=7)
 
     @classmethod
     def setUpClass(cls):
