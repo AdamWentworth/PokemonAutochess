@@ -130,6 +130,7 @@ bool test_d3d12_probe_contract(std::string& outFail);
 bool test_content_invariants(std::string& outFail);
 bool test_battle_invariants(std::string& outFail);
 bool test_end_to_end_headless(std::string& outFail);
+bool test_starter_frontend_selection_contract(std::string &outFail);
 bool test_movement_invariants(std::string& outFail);
 bool test_movement_collision_regressions(std::string& outFail);
 bool test_ledge_jump_movement(std::string &outFail);
@@ -419,6 +420,7 @@ int main(int argc, char** argv) {
         {"content_invariants", &test_content_invariants},
         {"battle_invariants", &test_battle_invariants},
         {"end_to_end_headless", &test_end_to_end_headless},
+        {"starter_frontend_selection_contract", &test_starter_frontend_selection_contract},
         {"movement_invariants", &test_movement_invariants},
         {"movement_collision_regressions", &test_movement_collision_regressions},
         {"ledge_jump_movement", &test_ledge_jump_movement},
@@ -562,4 +564,3 @@ int main(int argc, char** argv) {
     std::cerr << "[PAC_Tests] " << fails << " test(s) failed.\n";
     return 1;
 }
-

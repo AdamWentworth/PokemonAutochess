@@ -23,6 +23,8 @@
 #include "game/scripting/ScriptEventBus.h"
 #include "game/state/CombatState.h"
 #include "game/state/PlacementState.h"
+#include "game/state/scripted/ScriptedState.h"
+#include "engine/render/IRenderBackend.h"
 #include "game/systems/CombatSystem.h"
 #include "game/systems/LegacySystemAdapters.h"
 #include "game/systems/MovementSystem.h"
@@ -31,6 +33,21 @@
 #include "game/ui/UIViewport.h"
 
 namespace {
+class StarterRecordingBackend final : public IRenderBackend {
+  public:
+    const char *backendId() const override { return "test"; }
+    void beginFrame(float, float, float, float) override {}
+    void endFrame() override {}
+    void onResize(int, int) override {}
+    bool requiresOpenGLContext() const override { return false; }
+    bool handlesPresentation() const override { return false; }
+    void shutdown() override {}
+    void drawDebugSprites(const DebugSprite *values, std::size_t count, int, int) override {
+        sprites.insert(sprites.end(), values, values + count);
+    }
+    std::vector<DebugSprite> sprites;
+};
+
 glm::vec3 gridToWorld(const GameConfigData& cfg, int col, int row) {
     float boardOriginX = -((cfg.cols * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
     float boardOriginZ = -((cfg.rows * cfg.cellSize) / 2.0f) + cfg.cellSize * 0.5f;
@@ -63,6 +80,87 @@ PokemonInstance makeUnit(const GameConfigData& cfg,
     return u;
 }
 } // namespace
+
+bool test_starter_frontend_selection_contract(std::string &outFail) {
+    GameConfigData cfg;
+    GameDataDb db;
+    LogBus::Logger log;
+    log.setEchoToStdout(false);
+    ScriptEventBus events;
+    game::assets::DevAssetStore assets(engine::paths::dataRoot());
+    engine::XorShift32 rng(1337u);
+    engine::ManualTimeSource time;
+    if (!db.moves.loadConfig(engine::paths::data("config/moves_config.json"), nullptr) ||
+        !db.pokemon.loadConfig(engine::paths::data("config/pokemon_config.json"), &log, &assets)) {
+        outFail = "starter fixture data did not load";
+        return false;
+    }
+    const std::string names[] = {"bulbasaur", "charmander", "squirtle"};
+    const InputEvent::Key keys[] = {InputEvent::Key::Num1, InputEvent::Key::Num2, InputEvent::Key::Num3};
+    for (const std::string mode : {"classic", "adventure"}) {
+        for (int choice = 0; choice < 3; ++choice) {
+            game::ui::UIViewport viewport;
+            viewport.set(1280, 720);
+            GameServices services(cfg, db, log, events, assets, rng, time, nullptr, {}, &viewport, true);
+            StarterRecordingBackend renderer;
+            services.renderer = &renderer;
+            services.gameMode = mode;
+            GameWorld world(cfg);
+            world.setLogger(&log);
+            world.setData(&db);
+            world.setRenderEnabled(false);
+            GameStateManager manager;
+            auto starter = std::make_unique<ScriptedState>(&manager, &world, services, "scripts/states/starter.lua");
+            auto *state = starter.get();
+            manager.pushState(std::move(starter));
+            // Reproduce editor embedding: viewport changes without a Resize event.
+            viewport.set(844, 512);
+            state->render();
+            if (state->shouldRenderWorld() || renderer.sprites.size() != 7u) {
+                outFail = "starter frontend must render only the backdrop and three image/frame pairs";
+                return false;
+            }
+            const auto &backdrop = renderer.sprites[0];
+            if (backdrop.texturePath != "assets/ui/backdrops/oaks_lab.png" ||
+                backdrop.w != 844 || backdrop.h != 512) {
+                outFail = "starter backdrop must follow the embedded surface dimensions";
+                return false;
+            }
+            for (std::size_t i = 1; i < renderer.sprites.size(); ++i) {
+                const auto &sprite = renderer.sprites[i];
+                if (sprite.x < 0 || sprite.y < 0 || sprite.x + sprite.w > 844 || sprite.y + sprite.h > 512) {
+                    outFail = "starter cards must fit the editor without a window Resize event";
+                    return false;
+                }
+            }
+            InputEvent select;
+            if (mode == "classic") {
+                const auto &image = renderer.sprites[1 + choice * 2];
+                select.type = InputEvent::Type::MouseDown;
+                select.mouseButtonId = InputEvent::MouseButton::Left;
+                select.mouseX = static_cast<int>(image.x + image.w * .5f);
+                select.mouseY = static_cast<int>(image.y + image.h * .5f);
+            } else {
+                select = InputEvent::KeyDownEvent(keys[choice]);
+            }
+            state->handleInput(select);
+            if (!dynamic_cast<PlacementState *>(manager.getCurrentState())) {
+                outFail = "starter click/number key must enter placement";
+                return false;
+            }
+            int matching = 0;
+            for (const auto &unit : world.getPokemons())
+                if (unit.name == names[choice] && unit.level == 5 && unit.side == PokemonSide::Player) ++matching;
+            for (const auto &unit : world.getBenchPokemons())
+                if (unit.name == names[choice] && unit.level == 5 && unit.side == PokemonSide::Player) ++matching;
+            if (matching != 1) {
+                outFail = "starter selection must create exactly one chosen level-5 Pokemon";
+                return false;
+            }
+        }
+    }
+    return true;
+}
 
 bool test_end_to_end_headless(std::string& outFail) {
     GameConfigData cfg;

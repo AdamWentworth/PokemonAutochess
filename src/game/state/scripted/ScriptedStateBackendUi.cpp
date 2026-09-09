@@ -49,6 +49,8 @@ void ScriptedState::clearBackendShopUiCache() {
     backendMainButtons.clear();
     backendItemButtons.clear();
     backendShopSnapshot.clear();
+    backendCardUiWidth = 0;
+    backendCardUiHeight = 0;
     resetBackendShopActionRects();
 }
 
@@ -215,6 +217,8 @@ void ScriptedState::rebuildBackendCardUi(const std::vector<CardData>& cards, int
 
     std::vector<game::state::backend_cards::Button>& out = isItemRow ? backendItemButtons : backendMainButtons;
     out = game::state::backend_cards::buildButtons(in);
+    backendCardUiWidth = uiW;
+    backendCardUiHeight = uiH;
 }
 
 void ScriptedState::refreshBackendShopSnapshot() {
@@ -346,6 +350,18 @@ bool ScriptedState::invokeBackendShopEntry(const game::state::backend_shop::Entr
 void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     if (!services.renderer) return;
     if (cardMode != CardMode::Shop && cardMode != CardMode::Starter) return;
+    // Embedded editor surfaces can change size without delivering an SDL
+    // window-resize event. Relayout the cached cards before rendering or hits.
+    if (backendCardUiWidth != uiW || backendCardUiHeight != uiH) {
+        std::vector<CardData> mainCards;
+        std::vector<CardData> itemCards;
+        for (const auto &button : backendMainButtons)
+            mainCards.push_back(button.data);
+        for (const auto &button : backendItemButtons)
+            itemCards.push_back(button.data);
+        rebuildBackendCardUi(mainCards, uiW, uiH, false);
+        rebuildBackendCardUi(itemCards, uiW, uiH, true);
+    }
     const float uiScale = game::runtime::ui_scale::viewportScale(uiW, uiH);
     const float edgePad = game::runtime::ui_scale::edgePad(uiW, uiH);
     const float lineStep = game::runtime::ui_scale::lineStep(uiW, uiH);

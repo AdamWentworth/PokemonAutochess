@@ -66,7 +66,16 @@ selects the image while retaining `hide_world = true`. No Route 1 arena files ar
 modified by this workflow.
 
 `backend_card_layout_model_contract` covers viewport fit, independent card hit
-rectangles and undistorted centered backdrop cropping. Existing shop, preview
-catalog and end-to-end tests protect the surrounding frontend/placement flow.
+rectangles and undistorted centered backdrop cropping.
+`starter_frontend_selection_contract` opens the real frontend, changes the
+embedded viewport without a window resize event, and selects all three starters
+by mouse in Classic and number keys in Adventure, checking level-5 placement.
+Existing shop, preview catalog and end-to-end tests protect the surrounding flow.
 `config/debug/editor_starter_selection.json` provides an empty-world starter
 snapshot for reproducible renderer captures.
+
+DirectX uses a 16,384-entry shared texture table: the previous 4,096-entry limit
+was exhausted by full-content startup prewarming, preventing frontend images
+from loading. The engine now also reports sprite allocation exhaustion instead
+of silently omitting images. The editor only shows its unit-edit overlay when
+the current viewport actually contains editable objects.

@@ -120,6 +120,8 @@ private:
 
     std::vector<game::state::backend_cards::Button> backendMainButtons;
     std::vector<game::state::backend_cards::Button> backendItemButtons;
+    int backendCardUiWidth = 0;
+    int backendCardUiHeight = 0;
     std::vector<game::state::backend_shop::Entry> backendShopSnapshot;
     float backendRerollX = 0.0f;
     float backendRerollY = 0.0f;
