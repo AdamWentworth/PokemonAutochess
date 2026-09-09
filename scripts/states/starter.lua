@@ -2,6 +2,9 @@
 
 dofile("scripts/ui/starter_menu.lua")
 hide_world = true
+-- Presentation only: an editable Blender lab rendered through the UI asset path.
+frontend_backdrop_image = "assets/ui/backdrops/oaks_lab.png"
+frontend_backdrop_aspect = 1.6
 
 function get_starter_cards()
     return {

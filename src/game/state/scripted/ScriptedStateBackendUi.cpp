@@ -416,7 +416,27 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
 
     const auto msgOpt = game::scripting::callStringFunction(script.getScriptTable(), {"get_message"});
     const std::string header = msgOpt ? *msgOpt : ((cardMode == CardMode::Starter) ? "Starter" : "Shop");
-    game::runtime::ui_text::appendTextLines(
+    if (!isShopMode) {
+        IRenderBackend::DebugQuad titlePanel;
+        titlePanel.w = static_cast<float>(uiW);
+        titlePanel.h = std::max(100.0f, 112.0f * uiScale);
+        titlePanel.r = 0.06f;
+        titlePanel.g = 0.12f;
+        titlePanel.b = 0.10f;
+        titlePanel.a = 0.87f;
+        baseQuads.push_back(titlePanel);
+        appendCenteredText(uiW * 0.5f, 19.0f * uiScale,
+                           "PROFESSOR OAK'S LAB", 0.92f, 0.80f, 0.88f, 0.77f);
+        appendCenteredText(uiW * 0.5f, 49.0f * uiScale,
+                           header, 1.85f, 0.99f, 0.95f, 0.81f);
+        if (!backendMainButtons.empty()) {
+            auto choicePanel = titlePanel;
+            choicePanel.y = backendMainButtons.front().y - 20.0f * uiScale;
+            choicePanel.h = uiH - choicePanel.y;
+            choicePanel.a = 0.72f;
+            baseQuads.push_back(choicePanel);
+        }
+    } else game::runtime::ui_text::appendTextLines(
         textLines,
         edgePad,
         std::max(10.0f, edgePad - lineStep * 0.15f),
@@ -461,6 +481,12 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
                 &sprites,
                 renderIn,
                 &textLines);
+            if (!isShopMode) {
+                std::string label = card.data.pokemonName;
+                if (!label.empty() && label[0] >= 'a' && label[0] <= 'z') label[0] -= 'a' - 'A';
+                appendCenteredText(card.x + card.w * 0.5f, card.y + card.h + 10.0f * uiScale,
+                                   std::to_string(slot) + "  " + label, 0.95f, 0.99f, 0.95f, 0.81f);
+            }
         }
     };
 
@@ -603,7 +629,10 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     // Rebuild once after reroll/ready rects are known so mouse hit-testing stays in sync.
     refreshBackendShopSnapshot();
 
-    game::runtime::ui_text::appendTextLines(
+    if (!isShopMode) {
+        appendCenteredText(uiW * 0.5f, uiH - 23.0f * uiScale,
+                           "Click a card or press 1, 2 or 3", 0.80f, 0.86f, 0.91f, 0.84f);
+    } else game::runtime::ui_text::appendTextLines(
         textLines,
         edgePad,
         std::max(4.0f, static_cast<float>(uiH) - edgePad - lineStep * 0.8f),

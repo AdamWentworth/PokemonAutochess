@@ -50,8 +50,9 @@ Boot is not a `.phscene`. It initializes the application and presents loading
 progress. The editor's Boot preview replays that presentation over the already
 initialized runtime.
 
-Main Menu and Starter Selection are frontend states. They may eventually use
-presentation scene assets, but the state itself is not a route game scene.
+Main Menu and Starter Selection are frontend states. Starter Selection uses the
+[editable Oak's Lab camera backdrop](STARTER_LAB_BACKDROP.md) in both modes. It
+has no battlefield or combat, and is not a route game scene.
 
 A **game scene** is a playable location/state container. It references an
 environment backdrop and may also identify a route runtime script. The

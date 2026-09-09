@@ -2,6 +2,7 @@
 
 #include "game/scripting/LuaScriptHelpers.h"
 #include "game/runtime/routes/GameServiceRenderRoutes.h"
+#include "game/runtime/ui/FrontendBackdrop.h"
 #include "game/state/BackendUiPolicy.h"
 #include "game/ui/UIViewport.h"
 
@@ -18,12 +19,20 @@ void ScriptedState::render() {
     const auto* viewport = services.viewport;
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
+    const std::string backdropPath = S.get_or("frontend_backdrop_image", std::string());
+    if (!renderWorld && services.renderer && !backdropPath.empty()) {
+        const auto backdrop = game::runtime::ui_frontend::backdropSprite(
+            backdropPath, S.get_or("frontend_backdrop_aspect", 1.6f), uiW, uiH);
+        services.renderer->drawDebugSprites(&backdrop, 1, uiW, uiH);
+    }
     const auto routes = game::runtime::render::routesFromServices(services);
     const bool renderBackendTextMenuPath = game::state::backend_ui::shouldRenderBackendTextMenu(
         routes,
         cardMode == CardMode::TextMenu);
 
-    if (titleText && !renderBackendTextMenuPath) {
+    const bool renderBackendCards = shouldUseBackendCardUi() &&
+                                    (cardMode == CardMode::Shop || cardMode == CardMode::Starter);
+    if (titleText && !renderBackendTextMenuPath && !renderBackendCards) {
         const auto msgOpt = game::scripting::callStringFunction(S, {"get_message"});
         if (msgOpt) {
             const std::string& msg = *msgOpt;

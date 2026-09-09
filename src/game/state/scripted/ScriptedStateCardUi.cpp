@@ -151,7 +151,19 @@ void ScriptedState::rebuildCardRow() {
         if (useBackendCardUi) {
             rebuildBackendCardUi(list, uiW, uiH, /*isItemRow=*/false);
         } else {
-            cardSystem.spawnCardRow(list, uiW, /*y*/ 300);
+            game::state::backend_cards::BuildInput input;
+            input.cards = list;
+            input.uiW = uiW;
+            input.uiH = uiH;
+            input.mode = game::state::backend_cards::LayoutMode::Starter;
+            const auto buttons = game::state::backend_cards::buildButtons(input);
+            if (!buttons.empty()) {
+                const int spacing = buttons.size() > 1
+                                        ? static_cast<int>(buttons[1].x - buttons[0].x - buttons[0].w)
+                                        : 0;
+                cardSystem.spawnCardRowLayout(list, uiW, static_cast<int>(buttons[0].y),
+                                              static_cast<int>(buttons[0].w), static_cast<int>(buttons[0].h), spacing);
+            }
         }
     }
     std::cout << "[ScriptedState] Spawned " << list.size() << " cards\n";

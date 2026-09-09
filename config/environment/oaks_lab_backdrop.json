@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "kind": "frontend_backdrop_recipe",
+  "id": "oaks-lab-starter",
+  "authoring_file": "OaksLab.blend",
+  "runtime_path": "assets/ui/backdrops/oaks_lab.png",
+  "width": 2560,
+  "height": 1600,
+  "presentation_role": "starter_selection_backdrop_only"
+}

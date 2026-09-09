@@ -1,0 +1,12 @@
+{
+  "session": {
+    "combat_active": false,
+    "round_phase": "Planning",
+    "state_kind": "scripted",
+    "state_script_path": "scripts/states/starter.lua"
+  },
+  "world": {
+    "bench_units": [],
+    "board_units": []
+  }
+}

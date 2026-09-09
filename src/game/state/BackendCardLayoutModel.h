@@ -61,16 +61,21 @@ inline std::vector<Button> buildButtons(const BuildInput& in) {
                             static_cast<int>(std::round(static_cast<float>(in.uiH) * 0.16f)));
         }
     } else {
-        // Match legacy OpenGL starter card row geometry exactly.
-        cardW = 220;
-        cardH = 150;
-        spacing = 50;
+        // Leave the lab visible above the choices. Both rendering paths and
+        // mouse hit testing use this geometry, including narrow editor panes.
+        const float scale = std::clamp(std::min(in.uiW / 1000.0f, in.uiH / 600.0f), 0.35f, 1.0f);
+        cardW = static_cast<int>(std::round(220 * scale));
+        cardH = static_cast<int>(std::round(150 * scale));
+        spacing = static_cast<int>(std::round(50 * scale));
+        const int availableW = std::max(count, in.uiW - layout.edgeMargin * 2);
+        if (count * cardW + (count - 1) * spacing > availableW) {
+            spacing = std::min(spacing, availableW / (count * 8));
+            cardW = std::max(1, (availableW - (count - 1) * spacing) / count);
+            cardH = std::max(1, cardW * 150 / 220);
+        }
         const int totalW = count * (cardW + spacing) - spacing;
         startX = std::max(layout.edgeMargin, (in.uiW - totalW) / 2);
-        const int legacyY = 300;
-        rowY = std::clamp(legacyY,
-                          layout.edgeMargin + 12,
-                          std::max(layout.edgeMargin + 12, in.uiH - cardH - layout.edgeMargin));
+        rowY = std::max(layout.edgeMargin, in.uiH - cardH - static_cast<int>(std::round(64 * scale)));
     }
 
     out.reserve(in.cards.size());

@@ -1,4 +1,5 @@
 #include "game/state/BackendCardLayoutModel.h"
+#include "game/runtime/ui/FrontendBackdrop.h"
 
 #include <cmath>
 #include <string>
@@ -122,15 +123,41 @@ bool test_backend_card_layout_model_contract(std::string& outFail) {
             return false;
         }
         if (std::abs(buttons[0].w - 220.0f) > 0.001f || std::abs(buttons[0].h - 150.0f) > 0.001f) {
-            outFail = "starter mode should match legacy OpenGL card dimensions (220x150)";
+            outFail = "starter mode should retain readable card dimensions at normal viewport sizes";
             return false;
         }
         if (std::abs((buttons[1].x - buttons[0].x) - 270.0f) > 0.001f) {
-            outFail = "starter mode spacing should match legacy OpenGL row spacing (50)";
+            outFail = "starter mode should retain normal row spacing";
             return false;
         }
-        if (std::abs(buttons[0].y - 300.0f) > 0.001f) {
-            outFail = "starter mode y should match legacy OpenGL starter row (y=300)";
+        if (buttons[0].y < in.uiH * 0.6f || buttons[0].y + buttons[0].h > in.uiH - 32) {
+            outFail = "starter choices must leave the lab visible and room for the input hint";
+            return false;
+        }
+    }
+
+    for (const auto [width, height] : {std::pair{480, 320}, {800, 600}, {1280, 720}, {2560, 1080}}) {
+        BuildInput in;
+        in.cards = {makeCard("bulbasaur", CardType::Shop), makeCard("charmander", CardType::Shop),
+                    makeCard("squirtle", CardType::Shop)};
+        in.uiW = width;
+        in.uiH = height;
+        in.mode = LayoutMode::Starter;
+        const auto buttons = buildButtons(in);
+        for (std::size_t i = 0; i < buttons.size(); ++i) {
+            const auto &button = buttons[i];
+            if (button.x < 0 || button.y < height * 0.5f || button.x + button.w > width ||
+                button.y + button.h > height || (i && buttons[i - 1].x + buttons[i - 1].w >= button.x)) {
+                outFail = "resized starter choices must remain visible and independently clickable";
+                return false;
+            }
+        }
+        const auto backdrop = game::runtime::ui_frontend::backdropSprite("lab.png", 1.6f, width, height);
+        const float visibleAspect = 1.6f * (backdrop.u1 - backdrop.u0) / (backdrop.v1 - backdrop.v0);
+        if (std::abs(visibleAspect - static_cast<float>(width) / height) > 0.001f ||
+            std::abs(backdrop.u0 + backdrop.u1 - 1) > 0.001f ||
+            std::abs(backdrop.v0 + backdrop.v1 - 1) > 0.001f) {
+            outFail = "lab backdrop must preserve proportions and center when cropped";
             return false;
         }
     }
