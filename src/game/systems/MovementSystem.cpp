@@ -173,6 +173,22 @@ bool inside(const GameConfigData& cfg, int col, int row) {
     return col >= 0 && col < cfg.cols && row >= 0 && row < cfg.rows;
 }
 
+void reserveStep(const GameConfigData& cfg,
+                 glm::ivec2 from,
+                 glm::ivec2 to,
+                 std::vector<std::uint8_t>& blocked) {
+    // A one-cell diagonal sweeps the two flank cells as well as its endpoints.
+    // Hold this entire corridor until arrival, regardless of planner priority
+    // or whether the interpolated position has crossed the cell midpoint.
+    for (int row = std::max(0, std::min(from.y, to.y));
+         row <= std::min(cfg.rows-1, std::max(from.y, to.y)); ++row) {
+        for (int col = std::max(0, std::min(from.x, to.x));
+             col <= std::min(cfg.cols-1, std::max(from.x, to.x)); ++col) {
+            blocked[cellIndex(cfg, col, row)] = 1u;
+        }
+    }
+}
+
 float heuristic(int col, int row, int targetCol, int targetRow) {
     const int dx = std::abs(col - targetCol);
     const int dy = std::abs(row - targetRow);
@@ -186,8 +202,6 @@ struct PlannerUnit {
     int col = 0;
     int row = 0;
     float speed = 0.0f;
-    int plannedCol = -1;
-    int plannedRow = -1;
     int enemyCol = -1;
     int enemyRow = -1;
     bool adjacentToEnemy = false;
@@ -217,6 +231,14 @@ std::pair<int, int> aStarFirstStep(const GameConfigData& cfg,
     openList.push_back(startCell);
     openSet[startCell] = 1u;
     g[startCell] = 0.0f;
+    int closestCell = startCell;
+    float closestDistance = heuristic(startCol, startRow, targetCol, targetRow);
+    const auto firstStepTo = [&](int destination) -> std::pair<int, int> {
+        if (destination == startCell) return {-1, -1};
+        int step = destination;
+        while (parent[step] != -1 && parent[step] != startCell) step = parent[step];
+        return {step % cfg.cols, step / cfg.cols};
+    };
 
     while (!openList.empty()) {
         std::size_t bestPos = 0;
@@ -244,17 +266,13 @@ std::pair<int, int> aStarFirstStep(const GameConfigData& cfg,
         openList.pop_back();
 
         if (std::max(std::abs(curCol - targetCol), std::abs(curRow - targetRow)) == 1) {
-            int stepCell = curCell;
-            int parentCell = parent[curCell];
-            while (parentCell != -1) {
-                const int grandParent = parent[parentCell];
-                if (grandParent == -1) {
-                    return {stepCell % cfg.cols, stepCell / cfg.cols};
-                }
-                stepCell = parentCell;
-                parentCell = grandParent;
-            }
-            return {-1, -1};
+            return firstStepTo(curCell);
+        }
+        const float distance = heuristic(curCol, curRow, targetCol, targetRow);
+        if (distance < closestDistance ||
+            (curCell != startCell && distance == closestDistance && g[curCell] < g[closestCell])) {
+            closestCell = curCell;
+            closestDistance = distance;
         }
 
         const float curG = g[curCell];
@@ -267,6 +285,10 @@ std::pair<int, int> aStarFirstStep(const GameConfigData& cfg,
             if (blocked[nextCell] != 0u) continue;
 
             const bool diag = (dir[0] != 0 && dir[1] != 0);
+            if (diag && (blocked[cellIndex(cfg, nextCol, curRow)] != 0u ||
+                         blocked[cellIndex(cfg, curCol, nextRow)] != 0u)) {
+                continue;
+            }
             const float nextG = curG + (diag ? kCostDiag : kCostStraight);
             if (nextG >= g[nextCell]) continue;
 
@@ -279,7 +301,9 @@ std::pair<int, int> aStarFirstStep(const GameConfigData& cfg,
         }
     }
 
-    return {-1, -1};
+    // A busy attack position must not strand a queue at the far end of a lane.
+    // Advance to a strictly closer reachable cell, then wait and replan there.
+    return firstStepTo(closestCell);
 }
 
 }  // namespace
@@ -320,7 +344,6 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     std::vector<CachedUnit> cached;
     cached.reserve(boardUnits.size());
 
-    std::vector<int> occupantByCell(totalCells, -1);
     std::vector<std::uint8_t> blocked(totalCells, 0u);
 
     for (const auto& unit : boardUnits) {
@@ -338,23 +361,24 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         if (!inside(cfg, item.col, item.row)) continue;
         const int idx = cellIndex(cfg, item.col, item.row);
         blocked[idx] = 1u;
-        occupantByCell[idx] = unit.id;
+        if (unit.isMoving && hasCommittedMove(unit)) {
+            reserveStep(cfg, gameWorld->worldToGrid(unit.moveFrom), unit.committedDest, blocked);
+        }
     }
 
     std::vector<PlannerUnit> units;
     units.reserve(boardUnits.size());
     for (std::size_t i = 0; i < boardUnits.size(); ++i) {
-        if (!cached[i].active) continue;
+        if (!cached[i].active || !inside(cfg, cached[i].col, cached[i].row)) continue;
 
         PlannerUnit entry;
         entry.unit = &boardUnits[i];
         entry.col = cached[i].col;
         entry.row = cached[i].row;
         entry.speed = cached[i].speed;
-        entry.plannedCol = boardUnits[i].committedDest.x;
-        entry.plannedRow = boardUnits[i].committedDest.y;
 
         int bestDistance = std::numeric_limits<int>::max();
+        int bestEnemyId = std::numeric_limits<int>::max();
         for (std::size_t j = 0; j < boardUnits.size(); ++j) {
             if (i == j) continue;
             if (!cached[j].active || cached[j].side == cached[i].side) continue;
@@ -362,8 +386,9 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
             const int dx = std::abs(entry.col - cached[j].col);
             const int dy = std::abs(entry.row - cached[j].row);
             const int dist = std::max(dx, dy);
-            if (dist < bestDistance) {
+            if (dist < bestDistance || (dist == bestDistance && boardUnits[j].id < bestEnemyId)) {
                 bestDistance = dist;
+                bestEnemyId = boardUnits[j].id;
                 entry.enemyCol = cached[j].col;
                 entry.enemyRow = cached[j].row;
             }
@@ -383,91 +408,25 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         return betterPriority(a, b);
     });
 
-    std::vector<int> desiredCols(units.size(), -1);
-    std::vector<int> desiredRows(units.size(), -1);
-    std::vector<int> desiredCells(units.size(), -1);
-    std::vector<int> claimedByCell(totalCells, -1);
-
-    for (std::size_t i = 0; i < units.size(); ++i) {
-        const PlannerUnit& unit = units[i];
-
-        int wantCol = unit.col;
-        int wantRow = unit.row;
-
-        if (unit.unit->isMoving && unit.plannedCol >= 0 && unit.plannedRow >= 0) {
-            wantCol = unit.plannedCol;
-            wantRow = unit.plannedRow;
-        } else if (!unit.adjacentToEnemy && unit.enemyCol != -1) {
-            const auto next = aStarFirstStep(cfg, unit.col, unit.row, unit.enemyCol, unit.enemyRow, blocked);
-            if (next.first >= 0 && next.second >= 0) {
-                wantCol = next.first;
-                wantRow = next.second;
-            }
+    // Existing moves were reserved before sorting. Only idle units compete for
+    // new steps; an in-flight move can never lose its reservation to a winner
+    // chosen later. Newly accepted corridors immediately constrain later paths.
+    for (const PlannerUnit& entry : units) {
+        PokemonInstance& unit = *entry.unit;
+        if (unit.isMoving && hasCommittedMove(unit)) continue;
+        if (entry.adjacentToEnemy || entry.enemyCol == -1 || unit.movementSpeed <= 0.0f) {
+            unit.isMoving = false;
+            unit.committedDest = {-1, -1};
+            continue;
         }
-
-        int wantCell = inside(cfg, wantCol, wantRow) ? cellIndex(cfg, wantCol, wantRow) : -1;
-        if (wantCell < 0 || claimedByCell[wantCell] != -1) {
-            wantCol = unit.col;
-            wantRow = unit.row;
-            wantCell = cellIndex(cfg, wantCol, wantRow);
+        const auto [wantCol, wantRow] = aStarFirstStep(
+            cfg, entry.col, entry.row, entry.enemyCol, entry.enemyRow, blocked);
+        if (wantCol < 0 || wantRow < 0) {
+            unit.isMoving = false;
+            unit.committedDest = {-1, -1};
+            continue;
         }
-
-        desiredCols[i] = wantCol;
-        desiredRows[i] = wantRow;
-        desiredCells[i] = wantCell;
-        claimedByCell[wantCell] = static_cast<int>(i);
-        blocked[wantCell] = 1u;
-    }
-
-    std::vector<int> cellWinner(totalCells, -1);
-    std::vector<std::uint8_t> winners(units.size(), 0u);
-    for (std::size_t i = 0; i < units.size(); ++i) {
-        const int wantCell = desiredCells[i];
-        if (wantCell < 0) continue;
-
-        const int incumbent = cellWinner[wantCell];
-        if (incumbent < 0 || betterPriority(units[i], units[incumbent])) {
-            cellWinner[wantCell] = static_cast<int>(i);
-        }
-    }
-    for (int winner : cellWinner) {
-        if (winner >= 0) winners[winner] = 1u;
-    }
-
-    for (std::size_t i = 0; i < units.size(); ++i) {
-        if (winners[i] == 0u) continue;
-
-        const int wantCell = desiredCells[i];
-        if (wantCell < 0) continue;
-
-        const int otherId = occupantByCell[wantCell];
-        if (otherId < 0 || otherId == units[i].unit->id) continue;
-
-        int otherIndex = -1;
-        for (std::size_t j = 0; j < units.size(); ++j) {
-            if (units[j].unit->id == otherId) {
-                otherIndex = static_cast<int>(j);
-                break;
-            }
-        }
-        if (otherIndex < 0 || winners[otherIndex] == 0u) continue;
-
-        if (desiredCols[otherIndex] == units[i].col &&
-            desiredRows[otherIndex] == units[i].row) {
-            winners[i] = 0u;
-            winners[otherIndex] = 0u;
-        }
-    }
-
-    for (std::size_t i = 0; i < units.size(); ++i) {
-        PokemonInstance& unit = *units[i].unit;
-        const bool hasActiveCommittedStep = unit.isMoving && hasCommittedMove(unit);
-        if (winners[i] == 0u || hasActiveCommittedStep) continue;
-
-        const int wantCol = desiredCols[i];
-        const int wantRow = desiredRows[i];
-        if (wantCol == unit.committedDest.x && wantRow == unit.committedDest.y) continue;
-        if (wantCol == units[i].col && wantRow == units[i].row) continue;
+        reserveStep(cfg, {entry.col, entry.row}, {wantCol, wantRow}, blocked);
 
         unit.committedDest = {wantCol, wantRow};
         unit.moveFrom = unit.position;
@@ -477,10 +436,10 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         if (shouldTraceAnim(services.engineServices, unit)) {
             std::ostringstream trace;
             trace << std::fixed << std::setprecision(3)
-                  << "from_cell=" << cellString(units[i].col, units[i].row)
+                  << "from_cell=" << cellString(entry.col, entry.row)
                   << "to_cell=" << cellString(wantCol, wantRow)
-                  << "enemy_cell=" << cellString(units[i].enemyCol, units[i].enemyRow)
-                  << "adjacent=" << (units[i].adjacentToEnemy ? 1 : 0)
+                  << "enemy_cell=" << cellString(entry.enemyCol, entry.enemyRow)
+                  << "adjacent=" << (entry.adjacentToEnemy ? 1 : 0)
                   << "speed=" << unit.movementSpeed
                   << "move_from=" << vecString(unit.moveFrom)
                   << "move_to=" << vecString(unit.moveTo)
@@ -511,8 +470,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
 
     const float cellSize = std::max(cfg.cellSize, 1e-4f);
     for (auto& unit : worldUnits) {
-        if (!unit.alive) continue;
-        if (!unit.isMoving) continue;
+        if (!isCombatActive(unit) || !unit.isMoving || !hasCommittedMove(unit)) continue;
 
         const bool traceAnim = shouldTraceAnim(services.engineServices, unit);
         const glm::vec3 beforePos = unit.position;
@@ -564,7 +522,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         }
 
         const glm::vec3 dir = toVec / dist;
-        const float step = unit.movementSpeed * cellSize * deltaTime;
+        const float step = std::max(0.0f, unit.movementSpeed) * cellSize * std::max(0.0f, deltaTime);
         if (step >= dist) {
             unit.position = unit.moveTo;
             unit.moveT = 1.0f;

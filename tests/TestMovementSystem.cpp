@@ -1,5 +1,7 @@
 // tests/TestMovementSystem.cpp
 #include <cmath>
+#include <algorithm>
+#include <vector>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -52,6 +54,158 @@ int64_t cellKey(int col, int row) {
     return (static_cast<int64_t>(row) << 32) | static_cast<uint32_t>(col);
 }
 } // namespace
+
+bool test_movement_collision_regressions(std::string& outFail) {
+    GameConfigData cfg;
+    GameDataDb db;
+    LogBus::Logger log;
+    log.setEchoToStdout(false);
+    log.setFeedEnabled(false);
+    ScriptEventBus events;
+    game::assets::DevAssetStore assets(engine::paths::dataRoot());
+    engine::XorShift32 rng(1u);
+    engine::ManualTimeSource time;
+    GameServices services(cfg, db, log, events, assets, rng, time);
+    engine::CoreServices core;
+    core.rng = &rng;
+    core.time = &time;
+    engine::ecs::World ecs(&core);
+    const auto combat = ecs.create();
+    ecs.add<game::CombatActive>(combat, game::CombatActive{true});
+    const auto commit = [&](PokemonInstance& unit, int col, int row, float progress) {
+        unit.moveFrom = unit.position;
+        unit.moveTo = gridToWorld(cfg, col, row);
+        unit.position = glm::mix(unit.moveFrom, unit.moveTo, progress);
+        unit.committedDest = {col, row};
+        unit.moveT = progress;
+        unit.isMoving = true;
+    };
+
+    // A faster contender is planned first, but cannot steal a slower unit's
+    // already committed destination before the slow unit reaches its midpoint.
+    {
+        GameWorld world(cfg);
+        auto& units = world.getPokemons();
+        units.push_back(makeUnit(cfg, "slow", PokemonSide::Player, 1, 1, .25f));
+        units.push_back(makeUnit(cfg, "fast", PokemonSide::Player, 1, 3, 2.0f));
+        units.push_back(makeUnit(cfg, "target", PokemonSide::Enemy, 5, 2, 0.0f));
+        units.push_back(makeUnit(cfg, "east_wall", PokemonSide::Player, 3, 2, 0.0f));
+        units.push_back(makeUnit(cfg, "southeast_wall", PokemonSide::Player, 3, 3, 0.0f));
+        commit(units[0], 2, 2, .2f);
+        MovementSystem movement(&world, services, combat);
+        movement.update(ecs, .01f);
+        if (units[0].committedDest != glm::ivec2(2, 2) ||
+            units[1].committedDest == glm::ivec2(2, 2)) {
+            outFail = "A faster unit stole an in-flight destination reservation.";
+            return false;
+        }
+    }
+    // The origin is still occupied by the trailing portion of a slow move,
+    // even after rounding the moving position to the destination cell.
+    {
+        GameWorld world(cfg);
+        auto& units = world.getPokemons();
+        units.push_back(makeUnit(cfg, "leader", PokemonSide::Player, 2, 2, .25f));
+        units.push_back(makeUnit(cfg, "follower", PokemonSide::Player, 1, 2, 4.0f));
+        units.push_back(makeUnit(cfg, "target", PokemonSide::Enemy, 6, 2, 0.0f));
+        commit(units[0], 3, 2, .6f);
+        MovementSystem movement(&world, services, combat);
+        movement.update(ecs, .01f);
+        if (units[1].committedDest == glm::ivec2(2, 2)) {
+            outFail = "A follower entered a slow mover's origin before it cleared the step.";
+            return false;
+        }
+    }
+    // Two occupied flank cells must not be treated as a diagonal shortcut.
+    {
+        GameWorld world(cfg);
+        auto& units = world.getPokemons();
+        units.push_back(makeUnit(cfg, "runner", PokemonSide::Player, 1, 1));
+        units.push_back(makeUnit(cfg, "east_blocker", PokemonSide::Player, 2, 1, 0.0f));
+        units.push_back(makeUnit(cfg, "south_blocker", PokemonSide::Player, 1, 2, 0.0f));
+        units.push_back(makeUnit(cfg, "target", PokemonSide::Enemy, 6, 6, 0.0f));
+        MovementSystem movement(&world, services, combat);
+        movement.update(ecs, .01f);
+        if (units[0].committedDest == glm::ivec2(2, 2) || units[0].committedDest.x < 0) {
+            outFail = "The pathfinder must route around occupied corners rather than cut through them.";
+            return false;
+        }
+    }
+    // Reservations end on arrival, so queuing cannot permanently seal a lane.
+    {
+        GameWorld world(cfg);
+        auto& units = world.getPokemons();
+        units.push_back(makeUnit(cfg, "leader", PokemonSide::Player, 2, 2));
+        units.push_back(makeUnit(cfg, "follower", PokemonSide::Player, 1, 2));
+        units.push_back(makeUnit(cfg, "target", PokemonSide::Enemy, 6, 2, 0.0f));
+        for (int col = 0; col < cfg.cols; ++col) {
+            for (int row : {1, 3}) {
+                units.push_back(makeUnit(cfg, "lane_wall", PokemonSide::Player, col, row, 0.0f));
+            }
+        }
+        commit(units[0], 3, 2, .9f);
+        MovementSystem movement(&world, services, combat);
+        movement.update(ecs, .2f);
+        movement.update(ecs, .01f);
+        if (units[1].committedDest != glm::ivec2(2, 2)) {
+            outFail = "The cleared origin did not become available to a waiting follower.";
+            return false;
+        }
+    }
+    // Watch complete multi-unit approaches at different fixed steps and speeds.
+    // Check swept separation, not just cell occupancy at the end of a frame.
+    for (float dt : {1.0f/120.0f, 1.0f/30.0f, .2f}) {
+        GameWorld world(cfg), reversed(cfg);
+        auto& units = world.getPokemons();
+        for (int row : {0, 1, 6, 7}) {
+            for (int col : {0, 2, 4, 6}) {
+                units.push_back(makeUnit(cfg, "crowd", row < 2 ? PokemonSide::Enemy : PokemonSide::Player,
+                                         col, row, .6f+.3f*static_cast<float>((col+row)%5)));
+            }
+        }
+        reversed.getPokemons() = units;
+        std::reverse(reversed.getPokemons().begin(), reversed.getPokemons().end());
+        MovementSystem movement(&world, services, combat), reverseMovement(&reversed, services, combat);
+        bool approached = false;
+        for (int tick = 0; tick < static_cast<int>(12.0f/dt); ++tick) {
+            std::vector<glm::vec2> before;
+            for (const auto& unit : units) before.emplace_back(unit.position.x, unit.position.z);
+            movement.update(ecs, dt);
+            reverseMovement.update(ecs, dt);
+            for (std::size_t i = 0; i < units.size(); ++i) {
+                const auto& unit = units[i];
+                const auto* otherOrder = reversed.findUnitById(unit.id);
+                if (!otherOrder || glm::distance(unit.position, otherOrder->position) > 1e-5f ||
+                    unit.committedDest != otherOrder->committedDest) {
+                    outFail = "Movement conflicts depend on unit storage order.";
+                    return false;
+                }
+                const glm::vec2 now(unit.position.x, unit.position.z);
+                approached = approached || glm::distance(now, before[i]) > 1e-5f;
+                for (std::size_t j = 0; j < i; ++j) {
+                    const glm::vec2 relativeStart = before[i]-before[j];
+                    const glm::vec2 relativeEnd = now-glm::vec2(units[j].position.x, units[j].position.z);
+                    const glm::vec2 travel = relativeEnd-relativeStart;
+                    const float lengthSq = glm::dot(travel, travel);
+                    const float t = lengthSq > 1e-10f ? std::clamp(-glm::dot(relativeStart, travel)/lengthSq, 0.0f, 1.0f) : 0.0f;
+                    if (glm::length(relativeStart+travel*t) < cfg.cellSize*.68f) {
+                        outFail = "Units crossed or overlapped during a movement step at tick " + std::to_string(tick);
+                        return false;
+                    }
+                    if (unit.committedDest.x >= 0 && unit.committedDest == units[j].committedDest) {
+                        outFail = "Crowded movement assigned duplicate destinations.";
+                        return false;
+                    }
+                }
+            }
+        }
+        if (!approached) {
+            outFail = "Collision prevention froze all units instead of resolving movement.";
+            return false;
+        }
+    }
+    return true;
+}
 
 bool test_movement_invariants(std::string& outFail) {
     GameConfigData cfg;

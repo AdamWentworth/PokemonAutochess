@@ -124,6 +124,7 @@ bool test_content_invariants(std::string& outFail);
 bool test_battle_invariants(std::string& outFail);
 bool test_end_to_end_headless(std::string& outFail);
 bool test_movement_invariants(std::string& outFail);
+bool test_movement_collision_regressions(std::string& outFail);
 bool test_model_parse_smoke(std::string& outFail);
 bool test_model_loader_source_modularity(std::string& outFail);
 bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail);
@@ -399,6 +400,7 @@ int main(int argc, char** argv) {
         {"battle_invariants", &test_battle_invariants},
         {"end_to_end_headless", &test_end_to_end_headless},
         {"movement_invariants", &test_movement_invariants},
+        {"movement_collision_regressions", &test_movement_collision_regressions},
         {"model_parse_smoke", &test_model_parse_smoke},
         {"model_loader_source_modularity", &test_model_loader_source_modularity},
         {"projected_mesh_renderer_hot_path_contract", &test_projected_mesh_renderer_hot_path_contract},
