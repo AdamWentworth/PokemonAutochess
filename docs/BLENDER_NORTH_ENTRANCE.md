@@ -46,14 +46,16 @@ rows on each. The ledge permits southbound jumps and blocks uphill movement.
 The original eastern ramp at X=25..27 remains in the backdrop, outside the
 playable board. The narrow raised spur at X=18..20, Z=-32..-30 is flattened
 into the lower lawn. Solid plants and canopies are excluded from the board and
-reserves. The lower terrace extends beneath the south bench. Both bench rows use
-dirt and remain free of encounter grass and decorative plants. Former bench
+reserves. The friendly bench follows the original lower ground at 2 m and the
+corner/cardinal ramp rising toward 2.5 m. Bench height need not match the battlefield;
+the original ledge remains at the board edge. Both bench rows use dirt and remain
+free of encounter grass and decorative plants. Former bench
 locations return to their source lawn, raised northern bank and encounter grass.
 
 The backdrop uses original LGPE terrain and prop positions, preserving the
 southern island and dirt pockets that were adapted for North Terraces gameplay.
 Original geometry probes establish the eastern ramp and corner ramps farther
-south; the new south bench replaces the western part of the next downhill ramp.
+south; the south bench retains that original downhill ramp and corner profile.
 There are 750 editable metre tiles, X=6..35 and Z=-44..-20. The northern
 lane and woodland continue beyond the source cutoff, with a short dirt trail at
 X=19..22, Z=-44..-40 marking the route exit. Six rocks keep their source colours;

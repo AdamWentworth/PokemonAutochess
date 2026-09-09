@@ -54,10 +54,14 @@ bool test_route1_north_entrance_contract(std::string &outFail) {
         for (int row = -1; row <= 8; ++row) {
             for (int col = 0; col < 8; ++col) {
                 const float x = (17.5f + col) * 100, z = (-35.5f + row) * 100;
-                const float expected = row <= 3 ? 300.0f : 250.0f;
+                const float expected = row == 8 ? (col <= 3 ? 200.0f : 225.0f) : row <= 3 ? 300.0f
+                                                                                          : 250.0f;
                 const auto *tile = bundle.map.tileAt(17 + col, -36 + row);
-                check(tile && std::abs(tile->heightAt(x, z) - expected) < .01f, "North Entrance must have four playable rows on each terrace.");
+                check(tile && std::abs(tile->heightAt(x, z) - expected) < .01f, "North Entrance must preserve its battlefield terraces and the lower source terrain beneath the friendly bench.");
                 if (row == -1 || row == 8) check(tile->surface == 1 && bundle.map.coverAt(x, z).empty(), "Both reserve rows must be dirt without encounter grass.");
+                if (row == 8) check(tile->height == 4 && tile->ramp == (col < 3 ? 0 : col == 3 ? 5
+                                                                                               : 1),
+                                    "The friendly bench must preserve the original ledge and corner ramp instead of extending the battlefield platform.");
                 if (row >= 4 && row <= 6 && col >= 1 && col <= 3) check(tile->surface == 0, "The removed spur must blend into the accessible lawn.");
                 float actual = -999;
                 check(environment.sampleWorldTerrainHeight(matrix[0] * x + matrix[8] * z + matrix[12], matrix[2] * x + matrix[10] * z + matrix[14], actual) &&
