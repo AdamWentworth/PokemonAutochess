@@ -113,6 +113,13 @@
       "status": "in_progress"
     }
   ],
+  "gameplay_reload": {
+    "enabled": true,
+    "build_directory": "build",
+    "target": "PokemonAutochessEditorProject",
+    "watch": ["src", "tools", "CMakeLists.txt"],
+    "debounce_ms": 1200
+  },
   "editor_plugin": {
     "library": "PokemonAutochessEditorProject",
     "directory": ".phlosion/editor/{config}"
