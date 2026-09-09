@@ -527,6 +527,9 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/scene/TerrainContourMesher.cpp
     src/game/runtime/shared/scene/Route1TerrainSeamResolver.cpp
     src/game/runtime/shared/scene/Route1RuntimeEnvironment.cpp
+    src/game/runtime/shared/scene/AuthoredEnvironmentPatch.cpp
+    src/game/runtime/shared/scene/AuthoredGroundSurface.cpp
+    src/game/runtime/shared/scene/legacy/Route1SourceTerrainRules.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleSnapshotBillboards.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleVfxBridgeDispatch.cpp
@@ -892,6 +895,7 @@ if (BUILD_TESTING)
         tests/TestTerrainContourMesher.cpp
         tests/TestRoute1CookedEnvironment.cpp
         tests/TestRoute1ArenaPilot.cpp
+        tests/TestAuthoredGroundSurface.cpp
         tests/TestRenderPrepWorldProjection.cpp
         tests/TestRenderPrepWorldProxyGeometry.cpp
         tests/TestRenderPrepUnitVisuals.cpp

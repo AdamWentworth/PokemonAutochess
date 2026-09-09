@@ -1177,8 +1177,10 @@ public:
     }
 
     bool supportsTerrainTileEditing() const noexcept override {
-        return sceneViewReady_ &&
-            route1_scene_variants::editable(activeSceneId_);
+        const auto *variant = route1_scene_variants::find(activeSceneId_);
+        // Authored mesh arenas are edited in Blender. Source-tile stamps would
+        // create legacy repair records that their terrain never consumes.
+        return sceneViewReady_ && variant && variant->usesSourceTerrain;
     }
 
     std::size_t terrainTileCount() const noexcept override {
