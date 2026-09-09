@@ -1,3 +1,4 @@
+#include "game/GameConfig.h"
 #include "game/world/GameWorld.h"
 
 #include <algorithm>
@@ -113,3 +114,11 @@ glm::vec3 GameWorld::getNearestEnemyPosition(const PokemonInstance& unit) const 
     return closestPos;
 }
 
+game::arena::CombatMapView GameWorld::combatMap() const {
+    return {config.cols, config.rows, combatMapRules_.get()};
+}
+
+game::arena::Actor GameWorld::combatActor(const PokemonInstance &unit) const {
+    const auto cell = worldToGrid(unit.position);
+    return {unit.id, static_cast<int>(unit.side), {cell.x, cell.y}, unit.traversalCapabilities};
+}

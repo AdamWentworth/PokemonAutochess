@@ -377,7 +377,9 @@ bool preparePatch(
                         const auto &p = patchMesh.vertices[patchGroup.indices[i + corner]].position;
                         triangle[corner] = glm::vec3(transform * glm::vec4(p[0], p[1], p[2], 1.0f));
                     }
-                    prepared.ground.add(triangle);
+                    if (!prepared.ground.add(triangle)) {
+                        return fail(outError, "Authored floor triangle exceeds supported spatial limits.");
+                    }
                 }
             }
         }

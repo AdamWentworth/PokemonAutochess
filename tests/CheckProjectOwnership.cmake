@@ -72,3 +72,20 @@ foreach(_file IN LISTS _engine_sources)
 endforeach()
 
 message(STATUS "Pokemon Autochess project ownership boundary is intact")
+
+# These modules remain usable without a renderer, editor, world, or engine
+# service locator. Gameplay adapters depend on them, never the reverse.
+file(GLOB_RECURSE _arena_sources LIST_DIRECTORIES false
+    "${PAC_ROOT}/src/game/arena/*.h" "${PAC_ROOT}/src/game/arena/*.cpp")
+foreach(_file IN LISTS _arena_sources)
+    file(STRINGS "${_file}" _includes REGEX "^[ \t]*#include")
+    foreach(_include IN LISTS _includes)
+        if (_include MATCHES "\"" AND NOT _include MATCHES "\"game/arena/")
+            message(FATAL_ERROR "Arena logic includes a higher-level dependency: ${_file}: ${_include}")
+        endif()
+        if (_include MATCHES "[<\"](engine/|GL/|SDL|vulkan/)")
+            message(FATAL_ERROR "Arena logic acquired a runtime/render dependency: ${_file}: ${_include}")
+        endif()
+    endforeach()
+endforeach()
+message(STATUS "Arena logic dependency boundary is intact")

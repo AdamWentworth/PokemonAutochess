@@ -21,14 +21,7 @@
 
 namespace {
 
-constexpr float kCostDiag = 1.414f;
-constexpr float kCostStraight = 1.0f;
 constexpr float kInfCost = std::numeric_limits<float>::max();
-
-constexpr int kDirs[8][2] = {
-    {-1, 0}, {1, 0}, {0, -1}, {0, 1},
-    {-1, -1}, {1, 1}, {-1, 1}, {1, -1},
-};
 
 bool isCombatActive(const PokemonInstance& unit) {
     return unit.alive && !unit.captureInProgress;
@@ -57,25 +50,19 @@ bool hasCommittedMove(const PokemonInstance& unit) {
     return unit.committedDest.x >= 0 && unit.committedDest.y >= 0;
 }
 
-bool shouldHoldLocomotionAfterArrival(const GameConfigData& cfg,
-                                      const std::vector<PokemonInstance>& units,
-                                      const PokemonInstance& unit) {
-    const glm::ivec2 unitCell = worldCell(cfg, unit.position);
+bool shouldHoldLocomotionAfterArrival(const GameWorld &world,
+                                      const std::vector<PokemonInstance> &units,
+                                      const PokemonInstance &unit) {
+    const auto map = world.combatMap();
+    const auto actor = world.combatActor(unit);
     bool foundEnemy = false;
     for (const auto& other : units) {
-        if (other.id == unit.id) continue;
-        if (other.side == unit.side) continue;
-        if (!isCombatActive(other)) continue;
-
+        if (other.id == unit.id || other.side == unit.side || !isCombatActive(other)) continue;
+        const auto target = world.combatActor(other);
+        if (!map.canPerceive(actor, target)) continue;
         foundEnemy = true;
-        const glm::ivec2 enemyCell = worldCell(cfg, other.position);
-        const int dx = std::abs(unitCell.x - enemyCell.x);
-        const int dy = std::abs(unitCell.y - enemyCell.y);
-        if (std::max(dx, dy) <= 1) {
-            return false;
-        }
+        if (map.canEngageMelee(actor, target)) return false;
     }
-
     return foundEnemy;
 }
 
@@ -173,35 +160,12 @@ bool inside(const GameConfigData& cfg, int col, int row) {
     return col >= 0 && col < cfg.cols && row >= 0 && row < cfg.rows;
 }
 
-void reserveStep(const GameConfigData& cfg,
-                 glm::ivec2 from,
-                 glm::ivec2 to,
-                 std::vector<std::uint8_t>& blocked) {
-    // A one-cell diagonal sweeps the two flank cells as well as its endpoints.
-    // Hold this entire corridor until arrival, regardless of planner priority
-    // or whether the interpolated position has crossed the cell midpoint.
-    for (int row = std::max(0, std::min(from.y, to.y));
-         row <= std::min(cfg.rows-1, std::max(from.y, to.y)); ++row) {
-        for (int col = std::max(0, std::min(from.x, to.x));
-             col <= std::min(cfg.cols-1, std::max(from.x, to.x)); ++col) {
-            blocked[cellIndex(cfg, col, row)] = 1u;
-        }
-    }
-}
-
-float heuristic(int col, int row, int targetCol, int targetRow) {
-    const int dx = std::abs(col - targetCol);
-    const int dy = std::abs(row - targetRow);
-    const int diag = std::min(dx, dy);
-    return kCostDiag * static_cast<float>(diag) +
-           kCostStraight * static_cast<float>(std::max(dx, dy) - diag);
-}
-
 struct PlannerUnit {
     PokemonInstance* unit = nullptr;
     int col = 0;
     int row = 0;
     float speed = 0.0f;
+    game::arena::Actor target;
     int enemyCol = -1;
     int enemyRow = -1;
     bool adjacentToEnemy = false;
@@ -212,98 +176,6 @@ bool betterPriority(const PlannerUnit& a, const PlannerUnit& b) {
     if (a.dist != b.dist) return a.dist < b.dist;
     if (a.speed != b.speed) return a.speed > b.speed;
     return a.unit->id < b.unit->id;
-}
-
-std::pair<int, int> aStarFirstStep(const GameConfigData& cfg,
-                                   int startCol,
-                                   int startRow,
-                                   int targetCol,
-                                   int targetRow,
-                                   const std::vector<std::uint8_t>& blocked) {
-    const int totalCells = cfg.cols * cfg.rows;
-    std::vector<int> openList;
-    std::vector<std::uint8_t> openSet(totalCells, 0u);
-    std::vector<float> g(totalCells, kInfCost);
-    std::vector<int> parent(totalCells, -1);
-    openList.reserve(totalCells);
-
-    const int startCell = cellIndex(cfg, startCol, startRow);
-    openList.push_back(startCell);
-    openSet[startCell] = 1u;
-    g[startCell] = 0.0f;
-    int closestCell = startCell;
-    float closestDistance = heuristic(startCol, startRow, targetCol, targetRow);
-    const auto firstStepTo = [&](int destination) -> std::pair<int, int> {
-        if (destination == startCell) return {-1, -1};
-        int step = destination;
-        while (parent[step] != -1 && parent[step] != startCell) step = parent[step];
-        return {step % cfg.cols, step / cfg.cols};
-    };
-
-    while (!openList.empty()) {
-        std::size_t bestPos = 0;
-        float bestF = g[openList[0]] + heuristic(
-            openList[0] % cfg.cols,
-            openList[0] / cfg.cols,
-            targetCol,
-            targetRow);
-        for (std::size_t i = 1; i < openList.size(); ++i) {
-            const int idx = openList[i];
-            const float fi = g[idx] + heuristic(idx % cfg.cols, idx / cfg.cols, targetCol, targetRow);
-            if (fi < bestF) {
-                bestPos = i;
-                bestF = fi;
-            }
-        }
-
-        const int curCell = openList[bestPos];
-        const int curCol = curCell % cfg.cols;
-        const int curRow = curCell / cfg.cols;
-        openSet[curCell] = 0u;
-        if (bestPos + 1 != openList.size()) {
-            openList[bestPos] = openList.back();
-        }
-        openList.pop_back();
-
-        if (std::max(std::abs(curCol - targetCol), std::abs(curRow - targetRow)) == 1) {
-            return firstStepTo(curCell);
-        }
-        const float distance = heuristic(curCol, curRow, targetCol, targetRow);
-        if (distance < closestDistance ||
-            (curCell != startCell && distance == closestDistance && g[curCell] < g[closestCell])) {
-            closestCell = curCell;
-            closestDistance = distance;
-        }
-
-        const float curG = g[curCell];
-        for (const auto& dir : kDirs) {
-            const int nextCol = curCol + dir[0];
-            const int nextRow = curRow + dir[1];
-            if (!inside(cfg, nextCol, nextRow)) continue;
-
-            const int nextCell = cellIndex(cfg, nextCol, nextRow);
-            if (blocked[nextCell] != 0u) continue;
-
-            const bool diag = (dir[0] != 0 && dir[1] != 0);
-            if (diag && (blocked[cellIndex(cfg, nextCol, curRow)] != 0u ||
-                         blocked[cellIndex(cfg, curCol, nextRow)] != 0u)) {
-                continue;
-            }
-            const float nextG = curG + (diag ? kCostDiag : kCostStraight);
-            if (nextG >= g[nextCell]) continue;
-
-            g[nextCell] = nextG;
-            parent[nextCell] = curCell;
-            if (openSet[nextCell] == 0u) {
-                openList.push_back(nextCell);
-                openSet[nextCell] = 1u;
-            }
-        }
-    }
-
-    // A busy attack position must not strand a queue at the far end of a lane.
-    // Advance to a strictly closer reachable cell, then wait and replan there.
-    return firstStepTo(closestCell);
 }
 
 }  // namespace
@@ -327,6 +199,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         services.engineServices ? &services.engineServices->frameFixedBreakdown : nullptr;
 
     const auto& cfg = gameWorld->getConfig();
+    const auto map = gameWorld->combatMap();
     auto& boardUnits = gameWorld->getPokemons();
     const int totalCells = cfg.cols * cfg.rows;
 
@@ -362,7 +235,8 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         const int idx = cellIndex(cfg, item.col, item.row);
         blocked[idx] = 1u;
         if (unit.isMoving && hasCommittedMove(unit)) {
-            reserveStep(cfg, gameWorld->worldToGrid(unit.moveFrom), unit.committedDest, blocked);
+            const auto origin = gameWorld->worldToGrid(unit.moveFrom);
+            game::arena::reserveStep(map, {origin.x, origin.y}, {unit.committedDest.x, unit.committedDest.y}, blocked);
         }
     }
 
@@ -382,6 +256,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         for (std::size_t j = 0; j < boardUnits.size(); ++j) {
             if (i == j) continue;
             if (!cached[j].active || cached[j].side == cached[i].side) continue;
+            if (!map.canPerceive(gameWorld->combatActor(boardUnits[i]), gameWorld->combatActor(boardUnits[j]))) continue;
 
             const int dx = std::abs(entry.col - cached[j].col);
             const int dy = std::abs(entry.row - cached[j].row);
@@ -389,12 +264,13 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
             if (dist < bestDistance || (dist == bestDistance && boardUnits[j].id < bestEnemyId)) {
                 bestDistance = dist;
                 bestEnemyId = boardUnits[j].id;
+                entry.target = gameWorld->combatActor(boardUnits[j]);
                 entry.enemyCol = cached[j].col;
                 entry.enemyRow = cached[j].row;
             }
         }
 
-        entry.adjacentToEnemy = (bestDistance == 1);
+        entry.adjacentToEnemy = bestDistance == 1 && map.canEngageMelee(gameWorld->combatActor(*entry.unit), entry.target);
         if (entry.enemyCol != -1) {
             const int dx = entry.col - entry.enemyCol;
             const int dy = entry.row - entry.enemyRow;
@@ -419,14 +295,14 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
             unit.committedDest = {-1, -1};
             continue;
         }
-        const auto [wantCol, wantRow] = aStarFirstStep(
-            cfg, entry.col, entry.row, entry.enemyCol, entry.enemyRow, blocked);
+        const auto [wantCol, wantRow] = game::arena::firstStepTowards(
+            map, gameWorld->combatActor(unit), entry.target, blocked);
         if (wantCol < 0 || wantRow < 0) {
             unit.isMoving = false;
             unit.committedDest = {-1, -1};
             continue;
         }
-        reserveStep(cfg, {entry.col, entry.row}, {wantCol, wantRow}, blocked);
+        game::arena::reserveStep(map, {entry.col, entry.row}, {wantCol, wantRow}, blocked);
 
         unit.committedDest = {wantCol, wantRow};
         unit.moveFrom = unit.position;
@@ -527,7 +403,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
             unit.position = unit.moveTo;
             unit.moveT = 1.0f;
             unit.committedDest = {-1, -1};
-            unit.isMoving = shouldHoldLocomotionAfterArrival(cfg, worldUnits, unit);
+            unit.isMoving = shouldHoldLocomotionAfterArrival(*gameWorld, worldUnits, unit);
             if (traceAnim) {
                 std::ostringstream trace;
                 trace << std::fixed << std::setprecision(3)

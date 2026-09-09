@@ -13,7 +13,7 @@ namespace game::runtime::authored_environment {
 class GroundSurface {
   public:
     using Triangle = std::array<glm::vec3, 3>;
-    void add(const Triangle &triangle);
+    bool add(const Triangle &triangle);
     bool sample(float sourceX, float sourceZ, float &outHeight) const noexcept;
 
   private:

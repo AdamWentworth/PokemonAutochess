@@ -8,11 +8,19 @@
 
 namespace game::runtime::authored_environment {
 
-void GroundSurface::add(const Triangle &triangle) {
+bool GroundSurface::add(const Triangle &triangle) {
+    for (const auto &vertex : triangle) {
+        for (int axis = 0; axis < 3; ++axis) {
+            if (!std::isfinite(vertex[axis]) || std::abs(vertex[axis]) > 1.0e7f) return false;
+        }
+    }
     const auto normal = glm::cross(triangle[1] - triangle[0], triangle[2] - triangle[0]);
-    if (std::abs(normal.y) < 1.0e-5f) return;
+    if (std::abs(normal.y) < 1.0e-5f) return true;
     const auto minimum = glm::min(triangle[0], glm::min(triangle[1], triangle[2]));
     const auto maximum = glm::max(triangle[0], glm::max(triangle[1], triangle[2]));
+    const double columns = std::floor(maximum.x / kIndexCellSize) - std::floor(minimum.x / kIndexCellSize) + 1;
+    const double rows = std::floor(maximum.z / kIndexCellSize) - std::floor(minimum.z / kIndexCellSize) + 1;
+    if (columns * rows > 65536) return false;
     for (int x = static_cast<int>(std::floor(minimum.x / kIndexCellSize));
          x <= static_cast<int>(std::floor(maximum.x / kIndexCellSize)); ++x) {
         for (int z = static_cast<int>(std::floor(minimum.z / kIndexCellSize));
@@ -20,6 +28,7 @@ void GroundSurface::add(const Triangle &triangle) {
             cells_[{x, z}].push_back(triangle);
         }
     }
+    return true;
 }
 
 bool GroundSurface::sample(float sourceX, float sourceZ, float &outHeight) const noexcept {

@@ -371,6 +371,15 @@ if (NOT TARGET PhlosionVFX::Runtime OR NOT TARGET PhlosionVFX::Preview)
 endif()
 
 # ---------------- Game objects (shared by exe + tests) ----------------
+# Pure arena policy/data and spatial queries have no renderer or asset-store dependency.
+add_library(PAC_ArenaLogic STATIC
+    src/game/arena/CombatMap.cpp
+    src/game/arena/ArenaMapData.cpp
+    src/game/runtime/shared/scene/AuthoredGroundSurface.cpp)
+target_include_directories(PAC_ArenaLogic PUBLIC "${CMAKE_SOURCE_DIR}/src")
+target_link_libraries(PAC_ArenaLogic PUBLIC nlohmann_json::nlohmann_json glm::glm)
+pac_apply_warning_flags(PAC_ArenaLogic)
+
 add_library(PAC_GameObjects STATIC
     # Project-owned source format adapters
     src/game/assets/environment/PublishedEnvironmentScene.cpp
@@ -528,7 +537,6 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/scene/Route1TerrainSeamResolver.cpp
     src/game/runtime/shared/scene/Route1RuntimeEnvironment.cpp
     src/game/runtime/shared/scene/AuthoredEnvironmentPatch.cpp
-    src/game/runtime/shared/scene/AuthoredGroundSurface.cpp
     src/game/runtime/shared/scene/BoardLayoutDocument.cpp
     src/game/runtime/shared/scene/legacy/Route1SourceTerrainRules.cpp
     src/game/runtime/shared/vfx/particles/SharedParticleBillboardBatches.cpp
@@ -627,6 +635,7 @@ add_library(PAC_GameObjects STATIC
     src/game/systems/CombatSystem.cpp
     src/game/systems/ShopSystem.cpp
 )
+target_link_libraries(PAC_GameObjects PUBLIC PAC_ArenaLogic)
 target_link_libraries(PAC_GameObjects
     PUBLIC
         Engine
@@ -1084,9 +1093,18 @@ if (BUILD_TESTING)
     # Register individual tests for CTest output granularity.
     # Source of truth is tests/TestMain.cpp (single list used by runtime filtering).
     set(PAC_TEST_MAIN_FILE "${CMAKE_SOURCE_DIR}/tests/TestMain.cpp")
+    add_executable(PAC_ArenaLogicTests tests/arena/ArenaLogicTests.cpp)
+    target_link_libraries(PAC_ArenaLogicTests PRIVATE PAC_ArenaLogic)
+    target_compile_definitions(PAC_ArenaLogicTests PRIVATE
+        PAC_ARENA_MAP_FIXTURE="${CMAKE_SOURCE_DIR}/config/environment/route1_pilot_gameplay.json")
+    pac_apply_warning_flags(PAC_ArenaLogicTests)
+    add_test(NAME PAC_Arena.logic COMMAND PAC_ArenaLogicTests)
+    set_tests_properties(PAC_Arena.logic PROPERTIES TIMEOUT 20 LABELS "fast;arena")
     find_program(PAC_TEST_PYTHON NAMES python python3 REQUIRED)
     add_test(NAME PAC_Tools.arena_map_contract
         COMMAND "${PAC_TEST_PYTHON}" "${CMAKE_SOURCE_DIR}/tools/environment/test_arena_map.py")
+    set_tests_properties(PAC_Tools.arena_map_contract PROPERTIES TIMEOUT 30 LABELS "fast;arena")
+
     file(READ "${PAC_TEST_MAIN_FILE}" PAC_TEST_MAIN_CONTENTS)
     string(REGEX MATCHALL "\\{\"[A-Za-z0-9_]+\",[ \t]*&test_[A-Za-z0-9_]+\\}" PAC_TEST_CASE_ROWS "${PAC_TEST_MAIN_CONTENTS}")
 

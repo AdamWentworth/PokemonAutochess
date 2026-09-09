@@ -22,6 +22,7 @@
 #include "game/config/GameDataDb.h"
 #include "game/logging/LogBus.h"
 #include "game/scripting/ScriptEventBus.h"
+#include "game/scripting/ScriptAPI.h"
 #include "game/systems/MovementSystem.h"
 #include "game/scripting/LuaBindings_Internal.h"
 
@@ -149,6 +150,78 @@ bool test_movement_collision_regressions(std::string& outFail) {
         movement.update(ecs, .01f);
         if (units[1].committedDest != glm::ivec2(2, 2)) {
             outFail = "The cleared origin did not become available to a waiting follower.";
+            return false;
+        }
+    }
+    // Interrupted movers retain their swept corridor while their presentation
+    // blocks tiles. Removing the unit releases both endpoints on the next tick.
+    for (bool capturing : {false, true}) {
+        GameWorld world(cfg);
+        auto &units = world.getPokemons();
+        units.push_back(makeUnit(cfg, "departing", PokemonSide::Player, 2, 2));
+        units.push_back(makeUnit(cfg, "waiting", PokemonSide::Player, 1, 2));
+        units.push_back(makeUnit(cfg, "target", PokemonSide::Enemy, 6, 2, 0.0f));
+        for (int col = 0; col < cfg.cols; ++col)
+            for (int row : {1, 3})
+                units.push_back(makeUnit(cfg, "wall", PokemonSide::Player, col, row, 0.0f));
+        commit(units[0], 3, 2, .6f);
+        units[0].alive = false;
+        units[0].captureInProgress = capturing;
+        units[0].fainting = !capturing;
+        const bool priorFaintBlock = cfg.faintBlockTiles;
+        cfg.faintBlockTiles = true;
+        MovementSystem movement(&world, services, combat);
+        movement.update(ecs, .01f);
+        cfg.faintBlockTiles = priorFaintBlock;
+        if (units[1].committedDest.x >= 0) {
+            outFail = "Capture/faint presentation lost an interrupted mover's corridor.";
+            return false;
+        }
+        units.erase(units.begin());
+        movement.update(ecs, .01f);
+        if (units[0].committedDest != glm::ivec2(2, 2)) {
+            outFail = "Removing an interrupted mover left a stale reservation.";
+            return false;
+        }
+    }
+    // Planning and every script-facing query consume the same policy. The
+    // injected restrictions exercise the boundary without enabling new rules.
+    {
+        struct Rules : game::arena::CombatMapRules {
+            bool visible = false, melee = false;
+            bool canTraverseCardinal(game::arena::Cell, game::arena::Cell, game::arena::TraversalCapabilities) const override { return false; }
+            bool canPerceive(const game::arena::Actor &, const game::arena::Actor &) const override { return visible; }
+            bool canEngageMelee(const game::arena::Actor &, const game::arena::Actor &) const override { return melee; }
+        };
+        GameWorld world(cfg);
+        auto &units = world.getPokemons();
+        units.push_back(makeUnit(cfg, "observer", PokemonSide::Player, 1, 1));
+        units.push_back(makeUnit(cfg, "target", PokemonSide::Enemy, 4, 1, 0));
+        auto rules = std::make_shared<Rules>();
+        world.setCombatMapRules(rules);
+        MovementSystem movement(&world, services, combat);
+        ScriptAPI api(&world, nullptr, services);
+        movement.update(ecs, 0);
+        if (units[0].committedDest.x >= 0 || api.nearestEnemyCell(units[0].id).first >= 0 || api.listUnitsForMovement()[0].enemyCol >= 0) {
+            outFail = "Movement or script targeting pursued a hidden opponent.";
+            return false;
+        }
+        rules->visible = true;
+        movement.update(ecs, 0);
+        if (units[0].committedDest.x >= 0 || api.listUnitsForMovement()[0].enemyCol != 4) {
+            outFail = "Visibility and traversal restrictions were conflated.";
+            return false;
+        }
+        units[1].position = gridToWorld(cfg, 2, 1);
+        if (api.isAdjacentToEnemy(units[0].id) || !api.enemiesAdjacent(units[0].id).empty() ||
+            api.listUnitsForCombat()[0].adjacentEnemyCount || api.listUnitsForMovement()[0].adjacentToEnemy) {
+            outFail = "Melee queries ignored the shared map policy.";
+            return false;
+        }
+        rules->melee = true;
+        if (!api.isAdjacentToEnemy(units[0].id) || api.enemiesAdjacent(units[0].id).size() != 1 ||
+            api.listUnitsForCombat()[0].adjacentEnemyCount != 1 || !api.listUnitsForMovement()[0].adjacentToEnemy) {
+            outFail = "Melee queries did not agree after a policy change.";
             return false;
         }
     }

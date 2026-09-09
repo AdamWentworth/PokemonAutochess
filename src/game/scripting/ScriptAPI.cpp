@@ -123,6 +123,7 @@ std::vector<ScriptAPI::MovementUnitSnapshot> ScriptAPI::listUnitsForMovement() c
             for (std::size_t j = 0; j < units.size(); ++j) {
                 if (i == j) continue;
                 if (!cached[j].active || cached[j].side == cached[i].side) continue;
+                if (!world_->combatMap().canPerceive(world_->combatActor(units[i]), world_->combatActor(units[j]))) continue;
 
                 const int dx = std::abs(cached[i].cell.x - cached[j].cell.x);
                 const int dy = std::abs(cached[i].cell.y - cached[j].cell.y);
@@ -135,7 +136,7 @@ std::vector<ScriptAPI::MovementUnitSnapshot> ScriptAPI::listUnitsForMovement() c
 
             snapshot.enemyCol = bestCell.x;
             snapshot.enemyRow = bestCell.y;
-            snapshot.adjacentToEnemy = (bestDistance == 1);
+            snapshot.adjacentToEnemy = isAdjacentToEnemy(units[i].id);
         }
 
         out.push_back(snapshot);
@@ -199,10 +200,7 @@ std::vector<ScriptAPI::CombatUnitSnapshot> ScriptAPI::listUnitsForCombat() const
             for (std::size_t j = 0; j < units.size(); ++j) {
                 if (i == j) continue;
                 if (!cached[j].active || cached[j].side == cached[i].side) continue;
-
-                const int dx = std::abs(cached[i].cell.x - cached[j].cell.x);
-                const int dy = std::abs(cached[i].cell.y - cached[j].cell.y);
-                if (std::max(dx, dy) != 1) continue;
+                if (!world_->combatMap().canEngageMelee(world_->combatActor(units[i]), world_->combatActor(units[j]))) continue;
 
                 ++adjacentCount;
                 if (cached[j].hp < bestAdjacentHp ||
@@ -241,6 +239,7 @@ std::pair<int, int> ScriptAPI::nearestEnemyCell(int unitId) const {
 
     for (const auto& candidate : world_->getPokemons()) {
         if (!isCombatActive(candidate) || candidate.side == unit->side) continue;
+        if (!world_->combatMap().canPerceive(world_->combatActor(*unit), world_->combatActor(candidate))) continue;
         const auto ec = world_->worldToGrid(candidate.position);
         const int d = std::max(std::abs(myCell.x - ec.x), std::abs(myCell.y - ec.y));
         if (d < best) {
@@ -257,13 +256,11 @@ bool ScriptAPI::isAdjacentToEnemy(int unitId) const {
     const auto* unit = world_->findUnitById(unitId);
     if (!unit || !isCombatActive(*unit)) return false;
 
-    const auto myCell = world_->worldToGrid(unit->position);
-    const auto nearest = nearestEnemyCell(unitId);
-    if (nearest.first < 0 || nearest.second < 0) return false;
-
-    const int dx = std::abs(myCell.x - nearest.first);
-    const int dy = std::abs(myCell.y - nearest.second);
-    return std::max(dx, dy) == 1;
+    for (const auto &candidate : world_->getPokemons()) {
+        if (isCombatActive(candidate) && candidate.side != unit->side &&
+            world_->combatMap().canEngageMelee(world_->combatActor(*unit), world_->combatActor(candidate))) return true;
+    }
+    return false;
 }
 
 std::vector<int> ScriptAPI::enemiesAdjacent(int unitId) const {
@@ -273,13 +270,9 @@ std::vector<int> ScriptAPI::enemiesAdjacent(int unitId) const {
     const auto* attacker = world_->findUnitById(unitId);
     if (!attacker || !isCombatActive(*attacker)) return out;
 
-    const auto ac = world_->worldToGrid(attacker->position);
     for (const auto& candidate : world_->getPokemons()) {
         if (!isCombatActive(candidate) || candidate.side == attacker->side) continue;
-        const auto ec = world_->worldToGrid(candidate.position);
-        const int dx = std::abs(ac.x - ec.x);
-        const int dy = std::abs(ac.y - ec.y);
-        if (std::max(dx, dy) == 1) {
+        if (world_->combatMap().canEngageMelee(world_->combatActor(*attacker), world_->combatActor(candidate))) {
             out.push_back(candidate.id);
         }
     }

@@ -155,6 +155,9 @@ public:
     LogBus::Logger* getLogger() const { return log; }
     const GameDataDb* getData() const { return data; }
     const GameConfigData& getConfig() const { return config; }
+    game::arena::CombatMapView combatMap() const;
+    game::arena::Actor combatActor(const PokemonInstance &unit) const;
+    void setCombatMapRules(std::shared_ptr<const game::arena::CombatMapRules> rules) { combatMapRules_ = std::move(rules); }
 
     void spawnPokemon(const std::string& pokemonName,
                       const glm::vec3& startPos,
@@ -289,6 +292,7 @@ private:
     const GameDataDb* data = nullptr;     // game-owned, injected
     LogBus::Logger* log = nullptr;        // optional game-owned logger
     const GameConfigData& config;
+    std::shared_ptr<const game::arena::CombatMapRules> combatMapRules_;
     bool renderEnabled = false;
     engine::IRandom* rng = nullptr;
     EngineServices* engineServices = nullptr;

@@ -8,7 +8,8 @@ The current gameplay test map is the Blender-authored Route 1 south entrance
 (`routes/route1-pilot`, art pass 10). Open its Planning or Battle preset in
 Phlosion Editor. The south clearing is deferred.
 
-`MovementSystem` owns automatic combat movement. Each step reserves its origin
+`MovementSystem` owns movement timing and reservations; `game/arena/CombatMap`
+owns grid planning and the traversal/perception/melee policy interface. Each step reserves its origin
 and destination until arrival. Diagonal steps also reserve their two adjoining
 cells, and A* cannot cut across an occupied or reserved corner. Reservations for
 existing moves are established before any idle unit plans another step.
@@ -39,3 +40,13 @@ The collision regressions cover stolen destinations, premature origin release,
 blocked diagonal corners, a narrow queue, and 16-unit approaches at 120 Hz,
 30 Hz and 5 Hz. They measure separation throughout each frame's movement and
 verify that reversing unit storage order preserves the resulting paths.
+
+Capture and blocking faint presentations retain an interrupted move's corridor.
+Removing the unit releases the reservation on the next update; reservations are
+rebuilt from current units each tick. Regression tests cover these lifecycle
+transitions and policy agreement between MovementSystem and ScriptAPI.
+
+`PAC_ArenaLogicTests` links only the pure arena library, GLM and JSON. Its directed
+corner, capability, visibility, data reload and seeded-navigation cases run without
+private models or graphics services. `ctest --test-dir build -C Release -L fast`
+also runs the Python map and interrupted-publication contracts.

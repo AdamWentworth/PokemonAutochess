@@ -1,6 +1,7 @@
 // src/game/PokemonInstance.h
 #pragma once
 
+#include "game/arena/CombatMap.h"
 #include <string>
 #include <memory>
 #include <unordered_map>
@@ -91,6 +92,8 @@ struct PokemonInstance {
     bool  captureInProgress = false;
     float captureScale = 1.0f;
     float captureTintStrength = 0.0f;
+
+    game::arena::TraversalCapabilities traversalCapabilities{};
 
     // movement interpolation (used by your Lua bindings)
     bool isMoving = false;
