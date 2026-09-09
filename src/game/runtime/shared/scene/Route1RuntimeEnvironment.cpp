@@ -12,6 +12,7 @@
 #include "engine/core/IAssetStore.h"
 #include "game/render/environment/Route1FieldEncounterGrassMaterial.h"
 #include "game/render/environment/EncounterGrassMotion.h"
+#include "game/render/environment/EncounterGrassLayout.h"
 #include "game/render/environment/Route1FieldSmallGrassMaterial.h"
 #include "game/runtime/shared/scene/Route1ProjectedShadow.h"
 #include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
@@ -2315,6 +2316,7 @@ bool boardLayoutFromAuthoredScene(
             AuthoredPrefabInstance{
                 .stableId = node.id,
                 .prototypeStableId = prefab.prototypeNodeId,
+                .prefabAssetId = prefab.prefabAssetId,
                 .displayName = node.displayName,
                 .categoryPath = categoryPath,
                 .sourceTranslationCm =
@@ -4337,11 +4339,16 @@ struct RuntimeEnvironment::Impl {
                     0x80000000u +
                     static_cast<std::uint32_t>(authoredIndex);
                 const auto sourceRecord = *encounterPrototype;
+                const std::string bladeModel = authored.prefabAssetId.empty()
+                                                   ? sourceRecord.logicalName
+                                               : authored.prefabAssetId == "route1/encounter_grass_01" ? "enc_grass01"
+                                               : authored.prefabAssetId == "route1/encounter_grass_02" ? "enc_grass02"
+                                                                                                       : "";
+                if (bladeModel.empty()) return fail(outError, "Unsupported authored encounter-grass blade asset: " + authored.prefabAssetId);
                 encounterGrassRecords.push_back(
                     EncounterGrassRecord{
                         .stableId = authored.stableId,
-                        .logicalName =
-                            sourceRecord.logicalName,
+                        .logicalName = bladeModel,
                         .recordIndex =
                             syntheticRecordIndex,
                         .sourceTranslationCm =
@@ -4361,57 +4368,43 @@ struct RuntimeEnvironment::Impl {
                             sourceRecord.sourceBoundsMinimumCm[2] +
                                 authored.sourceTranslationCm[2] -
                                 sourceRecord.sourceTranslationCm[2]},
-                        .sourceBoundsMaximumCm = {
-                            sourceRecord.sourceBoundsMaximumCm[0] +
-                                authored.sourceTranslationCm[0] -
-                                sourceRecord.sourceTranslationCm[0],
-                            sourceRecord.sourceBoundsMaximumCm[1] +
-                                authored.sourceTranslationCm[1] -
-                                sourceRecord.sourceTranslationCm[1],
-                            sourceRecord.sourceBoundsMaximumCm[2] +
-                                authored.sourceTranslationCm[2] -
-                                sourceRecord.sourceTranslationCm[2]},
+                        .sourceBoundsMaximumCm = {sourceRecord.sourceBoundsMaximumCm[0] + authored.sourceTranslationCm[0] - sourceRecord.sourceTranslationCm[0], sourceRecord.sourceBoundsMaximumCm[1] + authored.sourceTranslationCm[1] - sourceRecord.sourceTranslationCm[1], sourceRecord.sourceBoundsMaximumCm[2] + authored.sourceTranslationCm[2] - sourceRecord.sourceTranslationCm[2]},
                         .suppressed = authored.suppressed,
                         .hasOverride = true,
                         .authored = true,
                         .reason = authored.reason});
-                auto layer = std::find_if(
-                    encounterGrass.begin(),
-                    encounterGrass.end(),
-                    [&](const EncounterGrassLayer& candidate) {
-                        return candidate.logicalName ==
-                            sourceRecord.logicalName;
-                    });
-                if (layer == encounterGrass.end()) {
-                    return fail(
-                        outError,
-                        "Route 1 authored encounter-grass prototype lost its layer.");
+                auto sourceLayer = std::find_if(encounterGrass.begin(), encounterGrass.end(),
+                                                [&](const auto &candidate) { return candidate.logicalName == sourceRecord.logicalName; });
+                auto layer = std::find_if(encounterGrass.begin(), encounterGrass.end(),
+                                          [&](const auto &candidate) { return candidate.logicalName == bladeModel; });
+                if (sourceLayer == encounterGrass.end() || layer == encounterGrass.end())
+                    return fail(outError, "Route 1 authored encounter-grass prototype lost its layer.");
+                std::vector<std::array<float, 2>> sourceCenters;
+                for (const auto &placement : sourceLayer->placements) {
+                    if (placement.recordIndex == sourceRecord.recordIndex)
+                        sourceCenters.push_back({placement.sourceCenter[0] - sourceRecord.sourceTranslationCm[0],
+                                                 placement.sourceCenter[2] - sourceRecord.sourceTranslationCm[2]});
                 }
-                std::vector<EncounterGrassPlacement> copies;
-                for (const auto& placement : layer->placements) {
-                    if (placement.recordIndex !=
-                        sourceRecord.recordIndex) {
-                        continue;
-                    }
-                    auto copy = placement;
-                    const std::array<float, 3> offset{
-                        placement.sourceCenter[0] -
-                            sourceRecord.sourceTranslationCm[0],
-                        placement.sourceCenter[1] -
-                            sourceRecord.sourceTranslationCm[1],
-                        placement.sourceCenter[2] -
-                            sourceRecord.sourceTranslationCm[2]};
+                std::vector<std::array<float, 2>> centers;
+                try {
+                    centers = game::render::encounter_grass_layout::centers(sourceCenters, authored.scale[0], authored.scale[2]);
+                } catch (const std::exception &error) {
+                    return fail(outError, error.what());
+                }
+                for (const auto &center : centers) {
+                    EncounterGrassPlacement copy;
                     copy.recordIndex = syntheticRecordIndex;
-                    copy.sourceCenter = {
-                        authored.sourceTranslationCm[0] + offset[0],
-                        authored.sourceTranslationCm[1] + offset[1],
-                        authored.sourceTranslationCm[2] + offset[2]};
-                    copies.push_back(std::move(copy));
+                    // Store bed-local offsets so translation/yaw retain their
+                    // normal meaning. Scale sizes the bed, not each blade.
+                    copy.sourceCenter = {authored.sourceTranslationCm[0] + center[0] / authored.scale[0],
+                                         authored.sourceTranslationCm[1],
+                                         authored.sourceTranslationCm[2] + center[1] / authored.scale[2]};
+                    copy.phaseCycles = std::fmod(sourceRecord.recordIndex * .173f +
+                                                     (center[0] / 100 - .5f) * .127f + (center[1] / 100 - .5f) * .193f,
+                                                 1.0f);
+                    if (copy.phaseCycles < 0) copy.phaseCycles += 1;
+                    layer->placements.push_back(std::move(copy));
                 }
-                layer->placements.insert(
-                    layer->placements.end(),
-                    copies.begin(),
-                    copies.end());
                 continue;
             }
 
@@ -4969,6 +4962,9 @@ struct RuntimeEnvironment::Impl {
                     glm::translate(
                         glm::mat4(1.0f),
                         localOffset));
+                if (record->authored) {
+                    placement.modelMatrix = sourcePlacementMatrix(placement.center, record->rotationDegrees, {1, 1, 1});
+                }
                 placement.suppressed = record->suppressed;
                 placement.suppressedJoints.fill(false);
                 if (!record->authored) {
@@ -5454,8 +5450,7 @@ struct RuntimeEnvironment::Impl {
                     .targetKind =
                         "authored_prefab_instance",
                     .categoryPath = authored.categoryPath,
-                    .prefabAssetId =
-                        prototype->prefabAssetId,
+                    .prefabAssetId = authored.prefabAssetId.empty() ? prototype->prefabAssetId : authored.prefabAssetId,
                     .logicalName =
                         prototype->logicalName,
                     .recordIndex =
@@ -23045,6 +23040,7 @@ bool RuntimeEnvironment::duplicateLayoutObject(
         AuthoredPrefabInstance{
             .stableId = createdId,
             .prototypeStableId = prototypeStableId,
+            .prefabAssetId = object->prefabAssetId,
             .displayName =
                 object->displayName + " Copy " +
                 std::to_string(displayCopyNumber),

@@ -8128,7 +8128,7 @@
         },
         "prefab_instance": {
           "prototype_node_id": "encounter-grass/enc_grass02/record-2",
-          "prefab_asset_id": "route1/encounter_grass_02",
+          "prefab_asset_id": "route1/encounter_grass_01",
           "creation_transform": {
             "rotation_degrees": [
               0.0,
@@ -9773,7 +9773,7 @@
         },
         "prefab_instance": {
           "prototype_node_id": "encounter-grass/enc_grass02/record-0",
-          "prefab_asset_id": "route1/encounter_grass_02",
+          "prefab_asset_id": "route1/encounter_grass_01",
           "creation_transform": {
             "rotation_degrees": [
               0.0,
@@ -10243,7 +10243,7 @@
         },
         "prefab_instance": {
           "prototype_node_id": "encounter-grass/enc_grass02/record-1",
-          "prefab_asset_id": "route1/encounter_grass_02",
+          "prefab_asset_id": "route1/encounter_grass_01",
           "creation_transform": {
             "rotation_degrees": [
               0.0,

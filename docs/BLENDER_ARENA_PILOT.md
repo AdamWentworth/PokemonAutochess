@@ -66,12 +66,21 @@ editable. Use **G** to move, **R then Z** to rotate, **S** to scale and **Shift 
 to duplicate. Terrain updates retain all prop transforms. Adjust a prop's
 height manually when moving it to a different terrain level.
 
-All four encounter areas use their correct source records. The hooked side beds
-and northern square retain their source positions and full scale. The side beds
-and southern threshold use **enc_grass02**; the northern square uses **enc_grass01**.
-The threshold's north/south depth is shortened to match the current editor's
-cleared southern rows (Blender Y=2..4.05 m). Its blade height and east/west width
-are unchanged. This is a bed transform, not a per-blade crop. White fences remain removed.
+All four encounter areas use **enc_grass01** blades, matching South Clearing's
+main bed. Their original source records still define the hooked, square and
+threshold footprints; the blade asset is independently selected by
+`prefab_asset_id`. Existing concealment polygons are unchanged.
+The threshold retains its shortened north/south footprint, but now contains
+12 full-size clumps instead of 20 compressed ones. The hooked beds each contain
+27 clumps, and the northern square 25. Grass-bed scaling resizes the layout;
+individual blades keep their original proportions. Beds too small for a full
+one-metre clump are rejected. White fences remain removed.
+
+The three restyled beds save `pac_grass_asset_id` and a reusable clump mesh in
+the Blender source. Export rebuilds their preview from the current bed scale,
+then saves it with the scene. Use **Save, Export and Update Game** after resizing
+to refresh the blade arrangement. Translation and rotation still move the whole
+bed, including its cover boundary. Terrain edits retain the grass configuration.
 There are 27 trees, 11 shrubs, four grass beds, 27 small plants and one sign.
 
 Field rocks, stone chips, path pebbles and small field foliage live in
@@ -189,8 +198,9 @@ cells, the 64 board cells, 16 reserve cells, four encounter-grass regions, and
 height changes across directed shared edges. Playability follows board
 registration; dark grass paint does not determine movement permission.
 
-Grass footprints follow the published rendered clump centres, including their
-expanded border ring, transformed with each prefab. Hooked footprints and prop
+Grass footprints follow the source bed's clump rectangles, including their
+expanded border ring, transformed with each prefab. Blade style and the packing
+of full-size visual clumps do not change those boundaries. Hooked footprints and prop
 movement remain intact. Actor foot positions determine cover membership;
 individual wind-blown blade tips do not change the boundary. See
 [the map contract](AUTHORED_ARENA_MAP.md).

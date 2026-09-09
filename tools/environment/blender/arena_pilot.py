@@ -70,6 +70,7 @@ def export(output, recipe_path=None, save_source=False):
     if config.get('terrain_style') != 'tile_blueprint':
         raise RuntimeError('Use the historical authoring bridge to export a freeform pilot')
     kit=json.loads(scene['pilot_source_kit'])
+    composition=json.loads((game_root/recipe['composition_path']).read_text())
     output.mkdir(parents=True,exist_ok=True)
     tiles=module('arena_tiles','arena_tiles.py').read_cells()
     (output/'tile-layout.json').write_text(json.dumps({'tile_size_m':1,'elevation_step_m':.5,'cells':tiles},indent=2)+'\n')
@@ -92,7 +93,9 @@ def export(output, recipe_path=None, save_source=False):
             'sibling_order':len(nodes),'enabled':False,'reason':'Replaced by the independently authored arena',
             'components':{'transform':p['transform'],'imported_source_binding':p['imported_source_binding']}})
     ids=set()
+    grass_preview=module('arena_grass', 'arena_grass.py')
     for obj in sorted(collection('PAC_PREFABS').objects,key=lambda o:o.name):
+        grass_preview.rebuild_preview(obj, composition)
         id=obj.get('phlosion_node_id')
         if not id: raise RuntimeError(f'Missing prefab ID: {obj.name}')
         if id in ids:
@@ -111,7 +114,7 @@ def export(output, recipe_path=None, save_source=False):
             'rotation_degrees':[0,math.degrees(angles.z),0],'scale':[scale.x,scale.z,scale.y]}
         nodes.append({'id':id,'display_name':obj.name,'parent_id':'folder/environment/props','sibling_order':len(nodes),
             'enabled':not obj.hide_render,'components':{'transform':transform,'prefab_instance':{
-                'prototype_node_id':proto['id'],'prefab_asset_id':proto['prefab_asset_id'],
+                'prototype_node_id':proto['id'],'prefab_asset_id':obj.get('pac_grass_asset_id',proto['prefab_asset_id']),
                 'creation_transform':proto['transform']}}})
     nodes.append({'id':recipe['terrain_node_id'],'display_name':config.get('name','Garden Clearing')+' Terrain',
         'parent_id':'folder/environment/terrain','sibling_order':0,'enabled':True,
@@ -122,7 +125,7 @@ def export(output, recipe_path=None, save_source=False):
     arena_map = module('arena_map', 'arena_map.py')
     gameplay = arena_map.build_map(tiles, base,
         json.loads((game_root/recipe['board_path']).read_text()),
-        json.loads((game_root/recipe['composition_path']).read_text()))
+        composition)
     (output/'arena-map.json').write_text(json.dumps(gameplay,indent=2)+'\n')
     report={'kind':'arena_pilot_export','scene_id':recipe['scene_id'],'prefab_count':len(ids),
         'source_visible_count':0,'terrain_vertices':sum(len(o.data.vertices) for o in collection('PAC_EDIT_PATCH').objects),

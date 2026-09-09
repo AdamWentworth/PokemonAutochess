@@ -33,6 +33,8 @@ struct LayoutObjectMetadataOverride {
 struct AuthoredPrefabInstance {
     std::string stableId;
     std::string prototypeStableId;
+    // Grass prototypes own the bed footprint; this selects its blade model.
+    std::string prefabAssetId;
     std::string displayName;
     std::string categoryPath;
     std::array<float, 3> sourceTranslationCm{};

@@ -3,6 +3,8 @@
 #include "game/GameWorld.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/render/environment/EncounterGrassMotion.h"
+#include "game/render/environment/EncounterGrassLayout.h"
+#include "game/arena/EncounterGrassFootprint.h"
 #include "game/render/environment/Route1FieldEncounterGrassMaterial.h"
 #include "game/runtime/shared/scene/ArenaSceneActivation.h"
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
@@ -75,6 +77,16 @@ float displacement(const std::vector<BladeVertex> &a, const std::vector<BladeVer
 } // namespace
 
 bool test_encounter_grass_motion(std::string &outFail) {
+    const auto source = game::arena::encounterGrassCenters({{-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 0}, {0, 1}});
+    const auto packed = game::render::encounter_grass_layout::centers(source, 1, .5f);
+    std::vector<std::array<float, 2>> expected;
+    for (float x : {-100.f, -50.f, 50.f, 100.f})
+        for (float z : {-25.f, 25.f, 75.f})
+            expected.push_back({x, z});
+    if (packed != expected || game::render::encounter_grass_layout::centers(source, 1, 1) != source) {
+        outFail = "Resized grass beds must place full-size clumps without changing their footprint.";
+        return false;
+    }
     namespace motion = game::render::encounter_grass_motion;
     motion::State reference;
     for (const int fps : {30, 60, 144}) {
@@ -122,6 +134,47 @@ bool test_encounter_grass_rendering(std::string &outFail) {
         environment.setEncounterGrassInteractors({});
         environment.updateAnimation(0);
         environment.appendIndexedBatches(0, cached);
+        if (variant == &variants::kRoute1Pilot) {
+            std::size_t clumps = 0;
+            for (const auto &batch : cached) {
+                const auto &material = batch.sharedTemplate ? *batch.sharedTemplate : batch;
+                if (material.materialMode != engine::render::route1_field_encounter_grass::kMaterialMode) continue;
+                const auto *vertices = batch.sharedVertices ? batch.sharedVertices : batch.vertices.data();
+                const auto *indices = batch.sharedIndices ? batch.sharedIndices : batch.indices.data();
+                const auto count = batch.sharedIndices ? batch.sharedIndexCount : batch.indices.size();
+                // The source skeleton has an extra unused bone. Check the
+                // actual blade influences: Grass01 uses joints 1..4, while
+                // Grass02 also has a fifth cluster.
+                for (std::size_t i = 0; i < count; ++i) {
+                    const auto &v = vertices[indices[i]];
+                    const float joints[]{v.joint0, v.joint1, v.joint2, v.joint3};
+                    const float weights[]{v.weight0, v.weight1, v.weight2, v.weight3};
+                    for (int j = 0; j < 4; ++j) {
+                        if (weights[j] > 0 && joints[j] > 4) {
+                            outFail = "Entrance still submits the coarse Grass02 blade geometry.";
+                            return false;
+                        }
+                    }
+                }
+                for (const auto &instance : batch.instances) {
+                    const auto matrix = glm::make_mat4(instance.modelMatrix.data());
+                    if (instance.skinMatrixCount < 5 ||
+                        std::abs(glm::length(glm::vec3(matrix[0])) - .01f) > 1e-6f ||
+                        std::abs(glm::length(glm::vec3(matrix[1])) - .01f) > 1e-6f ||
+                        std::abs(glm::length(glm::vec3(matrix[2])) - .01f) > 1e-6f) {
+                        outFail = "Entrance must submit Grass01 with full-size blades, including its shortened threshold: joints=" +
+                                  std::to_string(instance.skinMatrixCount) + " scale=" + std::to_string(glm::length(glm::vec3(matrix[0]))) + "," +
+                                  std::to_string(glm::length(glm::vec3(matrix[1]))) + "," + std::to_string(glm::length(glm::vec3(matrix[2])));
+                        return false;
+                    }
+                    ++clumps;
+                }
+            }
+            if (clumps != 91) {
+                outFail = "Entrance lost its 27 + 27 + 25 + 12 authored grass modules.";
+                return false;
+            }
+        }
         environment.updateAnimation(1);
         const auto ambient = sampleBlades(cached);
         environment.updateAnimation(3);

@@ -443,6 +443,7 @@ bool loadBoardLayoutTransform(
                     .prototypeStableId =
                         record.at("prototype_stable_id")
                             .get<std::string>(),
+                    .prefabAssetId = record.value("prefab_asset_id", std::string{}),
                     .displayName =
                         record.at("display_name")
                             .get<std::string>(),

@@ -1,6 +1,7 @@
 #include "game/runtime/shared/scene/AuthoredArenaBundle.h"
 #include "game/runtime/shared/scene/AuthoredGroundSurface.h"
 #include "game/arena/EncounterGrassFootprint.h"
+#include "game/render/environment/EncounterGrassLayout.h"
 #include "engine/assets/phlosion/PhlosionEnvironmentPatch.h"
 #include <nlohmann/json.hpp>
 #include <set>
@@ -122,6 +123,8 @@ bool Bundle::validate(std::string *error) {
             if (!node.at("enabled").get<bool>() || !components.contains("prefab_instance")) continue;
             const auto &prefab = components.at("prefab_instance");
             if (!prefab.at("prototype_node_id").get<std::string>().starts_with("encounter-grass/")) continue;
+            require(prefab.at("prefab_asset_id") == "route1/encounter_grass_01" || prefab.at("prefab_asset_id") == "route1/encounter_grass_02",
+                    "Unsupported authored encounter-grass blade asset.");
             ++coverCount;
             const auto id = node.at("id").get<std::string>();
             const auto region = std::find_if(map.cover.begin(), map.cover.end(), [&](const auto &r) { return r.id == id; });
@@ -133,6 +136,7 @@ bool Bundle::validate(std::string *error) {
             const auto centers = game::arena::encounterGrassCenters(core);
             require(!centers.empty() && centers.size() == region->polygons.size(), "Arena cover polygon count is stale.");
             const auto &transform = components.at("transform");
+            game::render::encounter_grass_layout::centers(centers, transform.at("scale")[0].get<float>(), transform.at("scale")[2].get<float>());
             const auto &rotation = transform.at("rotation_degrees");
             require(std::abs(rotation.at(0).get<double>()) <= .001 && std::abs(rotation.at(2).get<double>()) <= .001,
                     "Arena cover requires upright props.");

@@ -9,9 +9,32 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent/'blender'))
 from arena_map import build_map, validate_map, encounter_grass_centers
 from arena_coordinates import source_direction_float64, height_cm, blender_height, surface_polygons
+from arena_grass import layout_centers
 
 
 class ArenaMapTests(unittest.TestCase):
+    def test_grass_style_preserves_cover_and_resized_clumps_keep_their_size(self):
+        scene = copy.deepcopy(self.scene)
+        for node in scene['nodes']:
+            prefab = node.get('components',{}).get('prefab_instance',{})
+            if prefab.get('prototype_node_id','').startswith('encounter-grass/'):
+                prefab['prefab_asset_id'] = ('route1/encounter_grass_02' if prefab['prefab_asset_id'] == 'route1/encounter_grass_01'
+                                            else 'route1/encounter_grass_01')
+        self.assertEqual(self.build(scene=scene)['cover_regions'],self.document['cover_regions'])
+        core = [(-1,-1),(-1,0),(-1,1),(0,-1),(0,0),(0,1)]
+        original = encounter_grass_centers(core)
+        self.assertEqual(layout_centers(original,(1,1)),original)
+        packed = layout_centers(original,(1,.5))
+        self.assertEqual(packed,[(x,z) for x in (-100,-50,50,100) for z in (-25,25,75)])
+        # Twelve 1 m modules cover the original 3 m by 2 m threshold.
+        self.assertEqual([min(x for x,z in packed)-50,max(x for x,z in packed)+50,
+                          min(z for x,z in packed)-50,max(z for x,z in packed)+50],[-150,150,-75,125])
+        with self.assertRaises(ValueError): layout_centers(original,(.01,.01))
+        with self.assertRaises(ValueError): layout_centers(original,(1,float('nan')))
+        # Resizing a disconnected footprint must not fill the opening.
+        separated = [(-200,0),(200,0)]
+        self.assertEqual(layout_centers(separated,(2,1)),[(-450,0),(-400,0),(-350,0),(350,0),(400,0),(450,0)])
+
     def test_corner_ramp_heights_and_planar_caps(self):
         # Expected high corners in source order NW, NE, SE, SW. A foot rises
         # from one triangular half; a crest completes the other half uphill.

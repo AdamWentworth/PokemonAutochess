@@ -3,7 +3,7 @@
   "schema_version": 1,
   "scene_id": "routes/route1-pilot",
   "coordinate_system": "source_centimetres_xyz_y_up",
-  "scene_content_sha256": "8a50c997518fd8038af11ad014a13d07b08cda36dcb5b122e80c7a1cf58fe31c",
+  "scene_content_sha256": "e627dc253981811033d3b4656329e5fb0ed07d8634f816875d905d410040fb56",
   "board_content_sha256": "7895d9b870f2bcc0588907cc08c58618d03b2d195e71c1a22fcdc7905c7e4bab",
   "tile_size_cm": 100,
   "elevation_step_cm": 50,

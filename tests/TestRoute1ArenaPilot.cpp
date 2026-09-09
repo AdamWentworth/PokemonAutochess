@@ -48,7 +48,7 @@ bool test_route1_arena_pilot_contract(std::string& outFail) {
         if (object.targetKind != "environment_mesh_patch" &&
             object.boundsMinimumCm[0] < 2500 && object.boundsMaximumCm[0] > 1700 &&
             object.boundsMinimumCm[2] < -100 && object.boundsMaximumCm[2] > -1100) {
-            if (object.prefabAssetId == "route1/encounter_grass_02") {
+            if (object.prefabAssetId == "route1/encounter_grass_01") {
                 ++playableBrushBeds;
             } else if (object.prefabAssetId != "route1/source_mesh_037") {
                 outFail = "A canopy or unrelated prop intrudes into the board footprint: " + object.stableId;

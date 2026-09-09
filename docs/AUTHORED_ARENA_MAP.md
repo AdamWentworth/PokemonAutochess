@@ -38,11 +38,16 @@ colour, prop bounds, or all connected visual terrain. Changing the playable area
 requires an explicit board/gameplay decision, not an art-only terrain edit.
 
 Encounter regions use `rendered_clump_footprints`: nominal 100 cm squares around
-the same clump centres used by rendering, including its dense half-cell border
+the source bed's clump centres, including its dense half-cell border
 ring. Core indices are cell corners; clump centres include the +50 cm offset.
 The authored prefab position, scale and yaw transform the complete footprint,
 preserving hooked shapes. `EncounterGrassFootprint.h` supplies shared centres
-for rendering and archive validation; the Python exporter mirrors that rule.
+for source placement and archive validation; the Python exporter mirrors that rule.
+The prefab's asset ID selects Grass01 or Grass02 blades independently from its
+prototype's footprint. Authored bed scale changes the layout dimensions;
+`EncounterGrassLayout.h` packs full-size visual modules inside that footprint.
+The Blender preview mirrors this packing in `arena_grass.py`. Blade style and
+packing never rewrite the concealment polygons.
 Disabled grass props produce no region. The simulation uses these regions for
 sight, targeting and camouflage, as described in `ENCOUNTER_GRASS.md`.
 

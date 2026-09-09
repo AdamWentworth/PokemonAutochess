@@ -105,11 +105,14 @@ def build_map(rows, scene, board, composition):
             continue
         record = records.get(prefab['prototype_node_id'])
         if not record: raise ValueError(f"Missing encounter footprint for {node['id']}")
+        from arena_grass import ASSETS, layout_centers
+        if prefab['prefab_asset_id'] not in ASSETS: raise ValueError('Unknown encounter-grass blade asset')
         transform = node['components']['transform']
         pitch, yaw, roll = transform['rotation_degrees']
         if abs(pitch) > .001 or abs(roll) > .001: raise ValueError('Cover regions require upright props')
         tx, _, tz = transform['translation']
         sx, _, sz = transform['scale']
+        layout_centers(encounter_grass_centers(record['core_cells_source_xz']), (sx,sz))
         angle = math.radians(yaw)
         def point(x, z):
             x, z = x*sx, z*sz

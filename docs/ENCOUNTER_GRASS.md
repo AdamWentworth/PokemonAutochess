@@ -75,6 +75,10 @@ Both source grass models use the shared `EncounterGrassMotion` response. Contact
 blend smoothly when several Pokemon pass nearby, and cannot reach grass on the
 other side of a half-metre height difference. Its patch footprint never grows
 or shrinks.
+South Entrance uses the same finer Grass01 blades as South Clearing's main bed.
+The original bed records continue to define cover; choosing another blade asset
+does not change sight. Resized authored beds arrange full-size modules within
+that footprint, including the shortened southern Entrance bed.
 Hidden opponents do not contribute new contact animation to the player's view.
 Their body, shadow and unit HUD are omitted from projected rendering.
 Attack and projectile effects already in progress remain visible.
