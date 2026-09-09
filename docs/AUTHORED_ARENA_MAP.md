@@ -27,7 +27,11 @@ Cells are 100 cm wide and height levels are 50 cm. Surface values are lawn=0,
 dirt=1, dark lawn=2. Ramp values are flat=0, north=1, east=2, south=3, west=4.
 North is decreasing source Z, or increasing Blender Y. The cell-height function
 interpolates the ramp continuously; shared-edge height differences distinguish a
-connected ramp from an abrupt ledge at the same nominal elevation.
+connected ramp from an abrupt ledge at the same nominal elevation. Ramp IDs 0..4
+remain flat/north/east/south/west. IDs 5..12 are corner foot/crest pairs in
+northeast, southeast, southwest, northwest order. A foot has one high corner and
+a crest has three; both rise 50 cm above their base height. Blender splits caps
+at the diagonal slope change so mesh and runtime sampling agree.
 
 Playability currently follows the existing 8x8 board. It does not follow lawn
 colour, prop bounds, or all connected visual terrain. Changing the playable area

@@ -1595,14 +1595,14 @@
       "z": -22,
       "height": 3,
       "surface": 0,
-      "ramp": 0
+      "ramp": 5
     },
     {
       "x": 23,
       "z": -22,
-      "height": 4,
+      "height": 3,
       "surface": 0,
-      "ramp": 0
+      "ramp": 6
     },
     {
       "x": 24,
@@ -1812,7 +1812,7 @@
       "z": -21,
       "height": 3,
       "surface": 0,
-      "ramp": 1
+      "ramp": 5
     },
     {
       "x": 24,

@@ -60,6 +60,22 @@ bool test_route1_south_clearing_contract(std::string &outFail) {
             }
         }
         GameConfigData config;
+        // This turn in the ramp is outside the bench and board. Probe both
+        // sides of each diagonal fold against the actual published mesh.
+        for (const auto cell : {std::pair{22, -22}, std::pair{23, -22}, std::pair{23, -21}}) {
+            const auto *tile = bundle.map.tileAt(cell.first, cell.second);
+            check(tile && tile->height == 3 && tile->ramp == (cell.second == -22 && cell.first == 23 ? 6 : 5),
+                  "The LGPE corner ramp above the enemy bench was flattened back into a straight strip.");
+            for (int iz = 1; iz < 10; ++iz)
+                for (int ix = 1; ix < 10; ++ix) {
+                    const float x = cell.first * 100.0f + ix * 10.0f, z = cell.second * 100.0f + iz * 10.0f;
+                    float actual = -999;
+                    check(environment.sampleWorldTerrainHeight(matrix[0] * x + matrix[8] * z + matrix[12],
+                                                               matrix[2] * x + matrix[10] * z + matrix[14], actual) &&
+                              std::abs(actual - (matrix[5] * tile->heightAt(x, z) + matrix[13])) < .001f,
+                          "Corner ramp geometry and logical height disagree across the diagonal fold.");
+                }
+        }
         GameWorld gameplay(config);
         check(activation::applyGameplay(store, variant, gameplay, &outFail), outFail);
         const auto map = gameplay.combatMap();

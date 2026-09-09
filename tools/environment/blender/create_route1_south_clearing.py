@@ -45,6 +45,8 @@ def recover_cells(kit, legacy, config):
             ramp = int(any(r['z'] == z and r['x_min'] <= x <= r['x_max'] for r in config['ramp_strips']))
             cells.append(dict(x=x, z=z, height=raw['height'], surface=int(raw['surface'] == 'dirt_path'), ramp=ramp))
     lookup = {(c['x'], c['z']): c for c in cells}
+    for override in config.get('tile_overrides', []):
+        lookup[override['x'], override['z']].update(override)
     lo, hi = config['visual_access_paint']['route_corridor_x']
     pending = [tuple(config['visual_access_paint']['seed_cell'])]
     accessible = set(pending)

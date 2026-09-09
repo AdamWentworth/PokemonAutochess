@@ -10,6 +10,9 @@
 namespace game::arena {
 
 struct Tile {
+    // 0 flat, 1..4 north/east/south/west. 5..12 are corner foot/crest
+    // pairs rising NE, SE, SW, NW; height is always the lower elevation.
+    static constexpr int kMaximumRampShape = 12;
     int x = 0, z = 0, height = 0, surface = 0, ramp = 0;
     float heightAt(float sourceXcm, float sourceZcm) const noexcept;
 };

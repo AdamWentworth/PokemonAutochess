@@ -21,7 +21,11 @@ std::pair<int, int> cell(const nlohmann::json &value) {
 float Tile::heightAt(float sourceXcm, float sourceZcm) const noexcept {
     const float u = std::clamp(sourceXcm / 100.0f - x, 0.0f, 1.0f);
     const float v = std::clamp(sourceZcm / 100.0f - z, 0.0f, 1.0f);
-    const float rise[] = {0, 1 - v, u, v, 1 - u};
+    const float rise[] = {0, 1 - v, u, v, 1 - u,
+                          std::max(0.0f, u - v), std::min(1.0f, 1 + u - v),
+                          std::max(0.0f, u + v - 1), std::min(1.0f, u + v),
+                          std::max(0.0f, v - u), std::min(1.0f, 1 + v - u),
+                          std::max(0.0f, 1 - u - v), std::min(1.0f, 2 - u - v)};
     return 50.0f * (height + rise[ramp]);
 }
 
@@ -75,7 +79,7 @@ bool ArenaMapData::load(const std::string &text, std::string *error) {
         require(rows.is_array() && !rows.empty() && rows.size() <= 65536, "Arena tile count is invalid.");
         for (const auto &row : rows) {
             Tile tile{integer(row.at("x"), -100000, 100000), integer(row.at("z"), -100000, 100000),
-                      integer(row.at("height"), 0, 8), integer(row.at("surface"), 0, 2), integer(row.at("ramp"), 0, 4)};
+                      integer(row.at("height"), 0, 8), integer(row.at("surface"), 0, 2), integer(row.at("ramp"), 0, Tile::kMaximumRampShape)};
             require(next.tiles.emplace(std::pair{tile.x, tile.z}, tile).second, "Duplicate arena tile.");
         }
         const auto readCells = [&](const char *key, auto &result) {

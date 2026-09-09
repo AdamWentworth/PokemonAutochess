@@ -12,7 +12,7 @@ import math
 from pathlib import Path
 
 KIND = 'pokemon_autochess_arena_map'
-from arena_coordinates import FIELDS, height_cm
+from arena_coordinates import FIELDS, MAX_RAMP, height_cm
 
 
 def digest(value):
@@ -42,7 +42,7 @@ def normalized_cells(rows):
         if any(type(row.get(key)) is not int for key in FIELDS):
             raise ValueError('Tile coordinates, height, surface and ramp must be integers')
         cell = {key: row[key] for key in FIELDS}
-        if not (0 <= cell['height'] <= 8 and 0 <= cell['surface'] <= 2 and 0 <= cell['ramp'] <= 4):
+        if not (0 <= cell['height'] <= 8 and 0 <= cell['surface'] <= 2 and 0 <= cell['ramp'] <= MAX_RAMP):
             raise ValueError('Tile attributes are outside the authoring range')
         key = cell['x'], cell['z']
         if any(abs(value) > 100000 for value in key): raise ValueError('Tile coordinates exceed the supported range')

@@ -92,6 +92,9 @@ void authoredData() {
     bad["cells"].push_back(bad["cells"][0]);
     check(!map.load(bad.dump(), &error) && map.tiles.size() == originalCount, "Invalid reload replaced good map state.");
     bad = document;
+    bad["cells"][0]["ramp"] = 13;
+    check(!map.load(bad.dump(), &error), "An unknown corner-ramp shape was accepted.");
+    bad = document;
     bad["connections"].erase(0);
     check(!map.load(bad.dump(), &error), "Missing directed connection accepted.");
     bad = document;
@@ -111,6 +114,34 @@ void authoredData() {
     game::runtime::authored_environment::GroundSurface ground;
     check(!ground.add({glm::vec3{0, 0, 0}, {std::numeric_limits<float>::infinity(), 0, 0}, {0, 0, 1}}), "Non-finite floor accepted.");
     check(!ground.add({glm::vec3{0, 0, 0}, {1.0e7f, 0, 0}, {0, 0, 1.0e7f}}), "Unbounded spatial index accepted.");
+}
+
+void cornerRamps() {
+    constexpr std::array<std::array<float, 2>, 4> corners{{{0, 0}, {100, 0}, {100, 100}, {0, 100}}};
+    for (int direction = 0; direction < 4; ++direction) {
+        for (int part = 0; part < 2; ++part) {
+            const Tile tile{22, -22, 3, 0, 5 + direction * 2 + part};
+            const int high = (direction + 1) % 4;
+            for (int i = 0; i < 4; ++i) {
+                const bool raised = part ? i != (high + 2) % 4 : i == high;
+                check(tile.heightAt(2200 + corners[i][0], -2200 + corners[i][1]) == (raised ? 200 : 150),
+                      "Corner-ramp rotation or foot/crest heights changed.");
+            }
+            check(tile.heightAt(2250, -2150) == (part ? 200 : 150), "Corner ramp lost its diagonal fold.");
+        }
+    }
+    // Recovered diagonal band above South Clearing's enemy bench. Shared
+    // edges must meet all the way across, including each intermediate height.
+    const Tile west{22, -22, 3, 0, 5}, crest{23, -22, 3, 0, 6}, foot{23, -21, 3, 0, 5}, straight{24, -21, 3, 0, 1};
+    for (int i = 0; i <= 10; ++i) {
+        const float t = i * 10.0f;
+        check(west.heightAt(2300, -2200 + t) == crest.heightAt(2300, -2200 + t) &&
+                  crest.heightAt(2300 + t, -2100) == foot.heightAt(2300 + t, -2100) &&
+                  foot.heightAt(2400, -2100 + t) == straight.heightAt(2400, -2100 + t),
+              "Corner ramp has an internal step at its join.");
+    }
+    check(west.heightAt(2275, -2175) == 175 && crest.heightAt(2325, -2125) == 175 && foot.heightAt(2375, -2075) == 175,
+          "The diagonal slope no longer interpolates halfway between its terraces.");
 }
 
 void authoredTraversal() {
@@ -284,6 +315,7 @@ int main() {
         investigation();
         patrol();
         authoredData();
+        cornerRamps();
         authoredTraversal();
     } catch (const std::exception &error) {
         std::cerr << error.what() << '\n';

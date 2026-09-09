@@ -8,10 +8,44 @@ import unittest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent/'blender'))
 from arena_map import build_map, validate_map, encounter_grass_centers
-from arena_coordinates import source_direction_float64
+from arena_coordinates import source_direction_float64, height_cm, blender_height, surface_polygons
 
 
 class ArenaMapTests(unittest.TestCase):
+    def test_corner_ramp_heights_and_planar_caps(self):
+        # Expected high corners in source order NW, NE, SE, SW. A foot rises
+        # from one triangular half; a crest completes the other half uphill.
+        corners = ((0,0), (1,0), (1,1), (0,1))
+        for direction in range(4):
+            for part in range(2):
+                cell = dict(x=22,z=-22,height=3,surface=0,ramp=5+2*direction+part)
+                high = (direction+1) % 4
+                expected = [200 if i == high else 150 for i in range(4)] if not part else [150 if i == (high+2)%4 else 200 for i in range(4)]
+                self.assertEqual([height_cm(cell,22+u,-22+v) for u,v in corners], expected)
+                self.assertEqual(height_cm(cell,22.5,-21.5),150 if not part else 200)
+                # A clipped sub-cell straddling the fold must become two planar
+                # pieces with the same area, including away from the grid centre.
+                points = [(22.35,21.4),(22.6,21.4),(22.6,21.65),(22.35,21.65)]
+                pieces = surface_polygons(cell,points)
+                self.assertEqual(len(pieces),2)
+                area = 0
+                for poly in pieces:
+                    area += abs(sum(a[0]*b[1]-b[0]*a[1] for a,b in zip(poly,poly[1:]+poly[:1])))/2
+                    h = [blender_height(cell,*p) for p in poly]
+                    mid = [sum(p[i] for p in poly)/len(poly) for i in (0,1)]
+                    self.assertAlmostEqual(blender_height(cell,*mid),sum(h)/len(h),places=7)
+                self.assertAlmostEqual(area,.25*.25,places=7)
+        cell['ramp'] = 1
+        self.assertEqual(surface_polygons(cell,points),[points])
+
+    def test_corner_ramp_range_is_validated(self):
+        for ramp in (5,6,7,8,9,10,11,12):
+            cells = copy.deepcopy(self.document['cells'])
+            cells[0]['ramp'] = ramp
+            self.build(cells=cells)
+        cells[0]['ramp'] = 13
+        with self.assertRaises(ValueError): self.build(cells=cells)
+
     def test_direction_normalization_has_stable_runtime_bytes(self):
         expected = source_direction_float64([0, 2, 1])
         # Actual equivalent 1:2 bitangents exposed by the clearing ramp export.

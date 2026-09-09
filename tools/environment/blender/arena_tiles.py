@@ -7,10 +7,12 @@ import arena_terrain as terrain
 
 GUIDE = 'Tile blueprint'
 SURFACES = ('lawn', 'dirt', 'dark_lawn')
-RAMPS = ('flat', 'north', 'east', 'south', 'west')
+RAMPS = ('flat', 'north', 'east', 'south', 'west',
+         'northeast_foot', 'northeast_crest', 'southeast_foot', 'southeast_crest',
+         'southwest_foot', 'southwest_crest', 'northwest_foot', 'northwest_crest')
 
 
-from arena_coordinates import FIELDS, blender_height as tile_height
+from arena_coordinates import FIELDS, blender_height as tile_height, surface_polygons
 
 
 def read_cells():
@@ -73,12 +75,13 @@ def ground(bridge, config, materials):
                 tuple(a+(b-a)*soil for a,b in zip(grass,(.93,.90,.81)))+(1,))
     def cap(cell,points,height=None):
         if len(points)<3: return
-        face=[]
-        for px,py in points:
-            uv,color=paint(cell,px,py)
-            z=tile_height(cell,px,py) if height is None else (height(px,py) if callable(height) else height)
-            face.append(vertex(px,py,z,uv,color))
-        faces.append(tuple(face)); mats.append(19)
+        for polygon in surface_polygons(cell,points) if height is None else [points]:
+            face=[]
+            for px,py in polygon:
+                uv,color=paint(cell,px,py)
+                z=tile_height(cell,px,py) if height is None else (height(px,py) if callable(height) else height)
+                face.append(vertex(px,py,z,uv,color))
+            faces.append(tuple(face)); mats.append(19)
 
     # Clip both flat and ramp-adjacent corners. The removed pocket extends the
     # lower floor as a plane matching each incident edge, including its slope.
@@ -231,4 +234,8 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.Scene.pac_tile_height=bpy.props.IntProperty(name='Height level (0.5 m)',default=0,min=0,max=8)
     bpy.types.Scene.pac_tile_surface=bpy.props.EnumProperty(name='Ground',items=[('0','Lawn',''),('1','Dirt',''),('2','Dark lawn','LGPE decorative banks and inaccessible areas')])
-    bpy.types.Scene.pac_tile_ramp=bpy.props.EnumProperty(name='Shape',items=[('0','Flat',''),('1','Rises north',''),('2','Rises east',''),('3','Rises south',''),('4','Rises west','')])
+    bpy.types.Scene.pac_tile_ramp=bpy.props.EnumProperty(name='Shape',items=[
+        ('0','Flat',''),('1','Rises north',''),('2','Rises east',''),('3','Rises south',''),('4','Rises west',''),
+        *[(str(5+direction*2+part), f'{name} corner {label}',
+           'One high corner; pair with a crest to turn a ramp' if part == 0 else 'Three high corners; joins the upper terrace')
+          for direction,name in enumerate(('NE','SE','SW','NW')) for part,label in enumerate(('foot','crest'))]])

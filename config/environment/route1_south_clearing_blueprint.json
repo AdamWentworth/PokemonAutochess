@@ -23,6 +23,11 @@
     {"z": -13, "x_min": 17, "x_max": 25},
     {"z": -9, "x_min": 16, "x_max": 19}
   ],
+  "tile_overrides": [
+    {"x": 22, "z": -22, "height": 3, "ramp": 5},
+    {"x": 23, "z": -22, "height": 3, "ramp": 6},
+    {"x": 23, "z": -21, "height": 3, "ramp": 5}
+  ],
   "encounter_records": [1, 2, 3, 4],
   "visual_access_paint": {
     "seed_cell": [21, -12],
@@ -33,6 +38,7 @@
     "Preserve the 8 by 8 board at source (17, -19), the left dirt square, the shifted right grass bed, the northern ledge and the full southern ramp.",
     "Rebuild rounded, closed ledges with the approved South Entrance materials and corner radii.",
     "Normalize isolated source slope classifications into coherent ramp strips; keep inaccessible banks and forest floor dark.",
+    "Recover the original diagonal corner above the enemy reserve row with two northeast corner feet and a connecting crest; preserve the board and reserve elevations.",
     "Retain source rock colours, plant locations and the woodland perimeter; keep all props independently editable.",
     "Seat the east-bank boulder 18 cm south of its source position to clear the rebuilt bank, and omit fine foliage from dirt tiles."
   ]

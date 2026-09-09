@@ -39,8 +39,8 @@ registration, archive, and scene. `-Capture` also follows the selected recipe.
 ## Layout and fidelity
 
 The blueprint starts from recovered LGPE source tiles and applies the saved
-Phlosion edits in `scenes/route1_5.scene.json`. All occupied source elevation
-levels are retained. The board occupies **X=17..24, Z=-19..-12**; reserve rows
+Phlosion edits in `scenes/route1_5.scene.json`. Source terrace elevations are retained; the northern corner crest uses a lower
+base level plus its ramp shape to reproduce the original diagonal surface. The board occupies **X=17..24, Z=-19..-12**; reserve rows
 are Z=-20 and Z=-11. There are 840 editable 1 m terrain cells overall.
 
 The left dirt square occupies X=17..20, Z=-17..-14. The right grass bed uses
@@ -52,6 +52,14 @@ The northern board edge has an eastern half-metre drop and a western ramp. The
 southern ramp spans the board. Terraces and side banks use the entrance's rounded
 corners and closed wall/fringe/cap construction. Connected route lawn is light;
 inaccessible banks and woodland are dark. Terrain and rocks cast projected shadows.
+
+Above the enemy reserve row, the northeast-rising corner ramp uses source cells
+(22, -22) and (23, -21) as **NE corner foot**, with (23, -22) as **NE corner crest**,
+all at base height 3 (1.5 m). These three tiles reproduce the original LGPE
+diagonal turn into the straight northern ramp. Their split triangular surfaces
+match continuous runtime height sampling; the board and reserve rows are unchanged.
+Use the Autochess **Shape** menu to edit corner feet and crests in any of the
+four directions. A foot has one high corner; a crest has three.
 
 Source trees, plants and rock colours are retained, with extra perimeter foliage.
 The east-bank boulder sits 18 cm south of its source position to clear the rebuilt
@@ -88,7 +96,7 @@ blend becomes authoritative. Bootstrap output must differ from its input blend.
 
 Build Forge, the game/tests, and the paired editor/plugin before testing C++ changes.
 `PAC_Tests.route1_south_clearing_contract` checks all 80 rendered board/reserve floor
-heights, ramps, ledges, flying, grass sight, source suppression, prop clearance,
+heights, the corner ramp surface, ramps, ledges, flying, grass sight, source suppression, prop clearance,
 shadows and switching back to South Entrance. Also run the existing entrance,
 editor catalog, arena bundle, and Python map/publication contracts.
 
