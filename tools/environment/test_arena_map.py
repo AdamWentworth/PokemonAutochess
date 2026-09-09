@@ -7,7 +7,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent/'blender'))
-from arena_map import build_map, validate_map
+from arena_map import build_map, validate_map, encounter_grass_centers
 
 
 class ArenaMapTests(unittest.TestCase):
@@ -50,6 +50,21 @@ class ArenaMapTests(unittest.TestCase):
         result = self.build(cells=cells)
         self.assertEqual(result['playable_cells'], self.document['playable_cells'])
         self.assertEqual(result['connections'], self.document['connections'])
+
+    def test_rendered_grass_centers_include_half_cell_origin_and_border(self):
+        self.assertEqual(encounter_grass_centers([[0, 0]]),
+                         [(x, z) for x in (0, 50, 100) for z in (0, 50, 100)])
+        with self.assertRaises(ValueError): encounter_grass_centers([])
+
+    def test_grass_test_south_edge_retains_cover(self):
+        east = next(r for r in self.build()['cover_regions'] if 'east-hooked' in r['id'])
+        def covered(x, z):
+            return any(min(p[0] for p in polygon) <= x <= max(p[0] for p in polygon) and
+                       min(p[1] for p in polygon) <= z <= max(p[1] for p in polygon)
+                       for polygon in east['polygons_source_xz_cm'])
+        self.assertTrue(covered(2450, -450))  # Rattata at (7, 5), still in dense grass.
+        self.assertFalse(covered(2450, -350))  # (7, 6), clear of the grass.
+        self.assertFalse(covered(2150, -450))  # Bulbasaur's open central lane.
 
     def test_missing_duplicate_and_stale_data_fail(self):
         with self.assertRaises(ValueError): self.build(cells=self.document['cells']*2)

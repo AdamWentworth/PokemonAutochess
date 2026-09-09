@@ -1,3 +1,4 @@
+#include "game/arena/EncounterGrassFootprint.h"
 #include "game/runtime/shared/scene/BoardLayoutDocument.h"
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 #include "game/runtime/shared/scene/Route1SceneVariants.h"
@@ -931,9 +932,9 @@ void initializeEncounterGrassDrawMasks(
 }
 
 std::vector<EncounterGrassPlacement> expandedEncounterGrassPlacements(
-    const nlohmann::json& record) {
+    const nlohmann::json &record) {
     std::set<GridCell> core;
-    for (const auto& cell : record.at("core_cells_source_xz")) {
+    for (const auto &cell : record.at("core_cells_source_xz")) {
         core.emplace(cell.at(0).get<int>(), cell.at(1).get<int>());
     }
     if (core.empty()) {
@@ -941,46 +942,14 @@ std::vector<EncounterGrassPlacement> expandedEncounterGrassPlacements(
             "Encounter-grass collision footprint is empty.");
     }
 
-    std::set<GridCell> expanded;
-    for (const auto& cell : core) {
-        for (int dx = -1; dx <= 1; ++dx) {
-            for (int dz = -1; dz <= 1; ++dz) {
-                expanded.emplace(cell.first + dx, cell.second + dz);
-            }
-        }
-    }
-
-    const auto translation =
-        record.at("translation_cm").get<std::array<float, 3>>();
+    const auto centers = game::arena::encounterGrassCenters(core);
+    const auto translation = record.at("translation_cm").get<std::array<float, 3>>();
     const int recordIndex = record.at("record_index").get<int>();
     std::vector<EncounterGrassPlacement> placements;
-    placements.reserve(expanded.size());
-    for (const auto& cell : expanded) {
-        float gridX = static_cast<float>(cell.first);
-        float gridZ = static_cast<float>(cell.second);
-        if (core.find(cell) == core.end()) {
-            const auto nearest = std::min_element(
-                core.begin(),
-                core.end(),
-                [&](const GridCell& lhs, const GridCell& rhs) {
-                    const int lhsDx = lhs.first - cell.first;
-                    const int lhsDz = lhs.second - cell.second;
-                    const int rhsDx = rhs.first - cell.first;
-                    const int rhsDz = rhs.second - cell.second;
-                    return std::array<int, 3>{
-                               lhsDx * lhsDx + lhsDz * lhsDz,
-                               lhs.first,
-                               lhs.second} <
-                           std::array<int, 3>{
-                               rhsDx * rhsDx + rhsDz * rhsDz,
-                               rhs.first,
-                               rhs.second};
-                });
-            gridX =
-                0.5f * (gridX + static_cast<float>(nearest->first));
-            gridZ =
-                0.5f * (gridZ + static_cast<float>(nearest->second));
-        }
+    placements.reserve(centers.size());
+    for (const auto &center : centers) {
+        const float gridX = center[0] / 100.0f - 0.5f;
+        const float gridZ = center[1] / 100.0f - 0.5f;
         EncounterGrassPlacement placement;
         placement.recordIndex =
             static_cast<std::uint32_t>(recordIndex);

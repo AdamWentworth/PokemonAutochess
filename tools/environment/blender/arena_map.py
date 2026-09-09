@@ -19,6 +19,20 @@ def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 
 
+def encounter_grass_centers(core_cells):
+    """Mirror game/arena/EncounterGrassFootprint.h in prefab-local centimetres."""
+    core = {tuple(cell) for cell in core_cells}
+    if not core: raise ValueError('Encounter-grass footprint is empty')
+    expanded = {(x+dx, z+dz) for x, z in core for dx in (-1, 0, 1) for dz in (-1, 0, 1)}
+    centers = []
+    for x, z in sorted(expanded):
+        if (x, z) not in core:
+            nx, nz = min(core, key=lambda p: ((p[0]-x)**2+(p[1]-z)**2, p[0], p[1]))
+            x, z = (x+nx)*.5, (z+nz)*.5
+        centers.append(((x+.5)*100, (z+.5)*100))
+    return centers
+
+
 def normalized_cells(rows):
     if not isinstance(rows, list) or not 0 < len(rows) <= 65536:
         raise ValueError('The tile blueprint must contain 1 to 65536 cells')
@@ -101,9 +115,9 @@ def build_map(rows, scene, board, composition):
             x, z = x*sx, z*sz
             return [round(tx+math.cos(angle)*x+math.sin(angle)*z, 6),
                     round(tz-math.sin(angle)*x+math.cos(angle)*z, 6)]
-        polygons = [[point(cx*100+dx, cz*100+dz) for dx, dz in ((-50,-50),(50,-50),(50,50),(-50,50))]
-                    for cx, cz in record['core_cells_source_xz']]
-        cover.append({'id': node['id'], 'node_id': node['id'], 'footprint_policy': 'published_core_cells',
+        polygons = [[point(cx+dx, cz+dz) for dx, dz in ((-50,-50),(50,-50),(50,50),(-50,50))]
+                    for cx, cz in encounter_grass_centers(record['core_cells_source_xz'])]
+        cover.append({'id': node['id'], 'node_id': node['id'], 'footprint_policy': 'rendered_clump_footprints',
                       'polygons_source_xz_cm': polygons})
     result = {'kind': KIND, 'schema_version': 1, 'scene_id': scene['scene_id'],
               'coordinate_system': 'source_centimetres_xyz_y_up',

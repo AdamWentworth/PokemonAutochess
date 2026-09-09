@@ -4,16 +4,18 @@ Status: Active
 Type: Contract
 Last updated: 2026-09-08
 
-South Entrance uses the grass core polygons published in `arena.phscene` for
-concealment. Dark lawn and decorative blade fringes do not grant cover.
+South Entrance uses the grass clump footprints published in `arena.phscene` for
+concealment, including the dense half-cell border ring. Dark lawn and sparse
+decorative tufts do not grant cover. Individual swaying blade tips do not change
+the boundary.
 
 ## Sight and combat
 
 - Each Pokemon sees enemies on open ground and inside its own connected grass
   patch. It cannot see enemies in another patch. Allies are always visible.
-- Shared edges and overlapping grass polygons form one patch. Corner contact
-  alone does not connect patches; disconnected islands remain separate even
-  when they belong to one authored prefab.
+- Shared edges and overlapping grass polygons form one patch. Corner contacts
+  of 10 cm or less do not connect otherwise separate patches; disconnected
+  islands remain separate even when they belong to one authored prefab.
 - Membership follows continuous ground position, not rounded cell occupancy.
   Airborne Pokemon and ledge jumpers receive no ground-cover concealment.
 - Starting an attack reveals its user through the attack window and for 1.25
@@ -24,7 +26,7 @@ concealment. Dark lawn and decorative blade fringes do not grant cover.
 - New captures require player-team sight. Debug visibility does not grant it.
 
 The shared `CombatMapRules` policy drives native movement, script queries,
-attack acquisition, player presentation and capture selection. Physical route
+attack acquisition, enemy-facing commands, player presentation and capture selection. Physical route
 reachability is evaluated after acquisition, without accidentally recomputing
 sight from hypothetical pathfinding positions. Attack reveals use fixed
 simulation time and survive debug snapshot reloads.
@@ -63,8 +65,9 @@ preserved in debug snapshots, and a fresh game resets the override.
 
 - `PAC_Arena.logic`: connected/disconnected cover, continuous boundaries,
   airborne/revealed actors, deterministic full-board searches and legal steps.
-- `encounter_grass_gameplay`: script queries, individual/team sight, attack
-  rejection and reveals, scheduled impacts, actual searching and re-engagement.
+- `encounter_grass_gameplay`: the real Grass Test keeps Rattata concealed during
+  its first southward step; one-way pursuit, queued/idle facing, script queries,
+  individual/team sight, attack rejection/reveals, scheduled impacts and searches.
 - `ledge_jump_rendering`: real model submissions, including visible/hidden/debug
   transitions with no hidden body, shadow or HUD submissions.
 - `route1_arena_pilot_contract`: actual authored grass skin palettes change under

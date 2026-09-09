@@ -14,6 +14,8 @@
 #include "game/scripting/ScriptAPI.h"
 #include "game/scripting/ScriptEventBus.h"
 #include "game/systems/MovementSystem.h"
+#include "game/systems/CombatSystem.h"
+#include <cmath>
 #include <stdexcept>
 
 bool test_encounter_grass_gameplay(std::string &outFail) {
@@ -60,6 +62,85 @@ bool test_encounter_grass_gameplay(std::string &outFail) {
         add(PokemonSide::Player, 1, 1);
         add(PokemonSide::Enemy, 7, 6);
         ScriptAPI api(&world, nullptr, services);
+        // Run the real movement -> combat -> animation order. A concealed
+        // pursuer must not make the searching opponent turn toward it after
+        // movement has already selected a patrol step.
+        const auto initialUnits = units;
+        for (bool swapTeams : {false, true}) {
+            units = initialUnits;
+            units[0].position = world.gridToWorld(4, 6);
+            if (swapTeams) std::swap(units[0].side, units[1].side);
+            MovementSystem movement(&world, services, combat);
+            CombatSystem fighting(&world, services, combat);
+            for (int tick = 0; tick < 24; ++tick) {
+                check(!world.combatMap().canPerceive(world.combatActor(units[0]), world.combatActor(units[1])),
+                      "Pursuit fixture left concealment too early.");
+                movement.update(ecs, 1.0f / 60.0f);
+                check(units[0].patrol.startColumn == 4 && units[0].committedDest.x == 4 &&
+                          units[0].committedDest.y == (swapTeams ? 7 : 5),
+                      "Outside unit chased a concealed pursuer instead of patrolling.");
+                check(units[1].isMoving && units[1].patrol.startColumn < 0,
+                      "Concealed unit did not pursue its visible opponent.");
+                const float patrolFacing = units[0].rotation.y;
+                fighting.update(ecs, 1.0f / 60.0f);
+                check(std::abs(units[0].rotation.y - patrolFacing) < 0.001f,
+                      "Combat facing leaked the concealed pursuer's position to the searching unit.");
+                world.update(1.0f / 60.0f);
+                check(api.nearestEnemyCell(units[0].id).first < 0 && units[1].coverRevealRemainingSec == 0,
+                      "Moving in grass revealed the pursuer.");
+            }
+        }
+        units = initialUnits;
+        units[0].position = world.gridToWorld(4, 6);
+        units[0].movementSpeed = 0;
+        units[0].rotation.y = 180;
+        {
+            MovementSystem movement(&world, services, combat);
+            CombatSystem fighting(&world, services, combat);
+            movement.update(ecs, 1.0f / 60.0f);
+            fighting.update(ecs, 1.0f / 60.0f);
+            check(units[0].rotation.y == 180, "Idle combat facing tracked a moving concealed enemy.");
+        }
+        units = initialUnits;
+        // Explicit queued facing must also recheck sight at execution time.
+        units[0].position = world.gridToWorld(4, 6);
+        units[1].position = world.gridToWorld(7, 4);
+        api.faceTarget(units[0].id, units[1].id);
+        units[1].position = world.gridToWorld(7, 6);
+        units[0].rotation.y = 180;
+        api.flush();
+        check(units[0].rotation.y == 180, "Queued target facing tracked an enemy after it entered cover.");
+        units[1].coverRevealRemainingSec = 1;
+        api.faceTarget(units[0].id, units[1].id);
+        api.flush();
+        check(std::abs(units[0].rotation.y - 90.0f) < 0.001f, "Revealed enemy could not be faced.");
+        units = initialUnits;
+        // Replay the Grass Test's real authored patches. Rattata remains in
+        // dense grass after its first step from (7,4) to (7,5); Bulbasaur must
+        // keep searching even though Rattata can pursue it from that border.
+        {
+            std::string mapText, error;
+            game::arena::ArenaMapData authored;
+            check(assets.readText("config/environment/route1_pilot_gameplay.json", mapText, &error) && authored.load(mapText, &error),
+                  "Grass Test map fixture failed to load.");
+            world.setCombatMapRules(std::make_shared<game::arena::AuthoredCombatMap>(std::move(authored), game::arena::Cell{17, -10}));
+            units[0].position = world.gridToWorld(2, 6);
+            units[1].position = world.gridToWorld(7, 4);
+            MovementSystem movement(&world, services, combat);
+            CombatSystem fighting(&world, services, combat);
+            bool crossedOldBoundary = false;
+            for (int tick = 0; tick < 60; ++tick) {
+                movement.update(ecs, 1.0f / 60.0f);
+                fighting.update(ecs, 1.0f / 60.0f);
+                world.update(1.0f / 60.0f);
+                crossedOldBoundary |= units[1].position.z > world.gridToWorld(7, 4).z + cfg.cellSize * 0.5f;
+                check(api.nearestEnemyCell(units[0].id).first < 0 && units[0].patrol.startColumn == 2,
+                      "Bulbasaur acquired Rattata before it left the Grass Test's dense border.");
+            }
+            check(crossedOldBoundary, "Grass Test replay never reached the formerly exposed border.");
+            world.setCombatMapRules(std::make_shared<game::arena::AuthoredCombatMap>(data, game::arena::Cell{0, 0}));
+            units = initialUnits;
+        }
         check(!world.isVisibleToPlayer(units[1]), "Enemy in separate patch was visible.");
         world.setShowConcealedUnits(true);
         check(world.isVisibleToPlayer(units[1]) && api.nearestEnemyCell(units[0].id).first < 0,

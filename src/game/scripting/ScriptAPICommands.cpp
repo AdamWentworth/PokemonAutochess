@@ -80,7 +80,6 @@ void ScriptAPI::flush() {
 
     struct FlushLookup {
         std::unordered_map<int, PokemonInstance*> unitsById;
-        std::vector<PokemonInstance*> boardUnits;
         std::unordered_map<std::uint32_t, int> occupiedByCell;
         std::unordered_map<std::uint32_t, int> reservedByCell;
         std::unordered_map<int, std::uint32_t> reservedCellByUnit;
@@ -99,11 +98,9 @@ void ScriptAPI::flush() {
         lookup = {};
 
         auto& board = world_->getPokemons();
-        lookup.boardUnits.reserve(board.size());
         lookup.unitsById.reserve(board.size() + world_->getBenchPokemons().size());
         for (auto& unit : board) {
             lookup.unitsById[unit.id] = &unit;
-            lookup.boardUnits.push_back(&unit);
 
             const bool blocksTile =
                 unit.alive || unit.captureInProgress || (unit.fainting && config().faintBlockTiles);
@@ -205,44 +202,37 @@ void ScriptAPI::flush() {
                 continue;
             }
 
-            if (const auto* c = std::get_if<FaceEnemyCommand>(&cmd)) {
+            if (const auto *c = std::get_if<FaceEnemyCommand>(&cmd)) {
                 ensureLookup();
                 auto found = lookup.unitsById.find(c->unitId);
                 if (found != lookup.unitsById.end()) {
-                    auto* unit = found->second;
+                    auto *unit = found->second;
                     if (!unit) continue;
 
                     glm::vec3 target = unit->position;
                     if (c->hasTarget) {
                         target = world_->gridToWorld(c->col, c->row);
                     } else {
-                        float best = std::numeric_limits<float>::max();
-                        for (PokemonInstance* other : lookup.boardUnits) {
-                            if (!other || !isCombatActive(*other) || other->side == unit->side) continue;
-                            const float d = glm::distance(unit->position, other->position);
-                            if (d < best) {
-                                best = d;
-                                target = other->position;
-                            }
-                        }
+                        target = world_->getNearestEnemyPosition(*unit);
                     }
                     setFacingToTarget(*unit, target);
                 }
                 continue;
             }
 
-            if (const auto* c = std::get_if<FaceTargetCommand>(&cmd)) {
+            if (const auto *c = std::get_if<FaceTargetCommand>(&cmd)) {
                 ensureLookup();
                 auto unitIt = lookup.unitsById.find(c->unitId);
                 auto targetIt = lookup.unitsById.find(c->targetId);
                 if (unitIt != lookup.unitsById.end() && targetIt != lookup.unitsById.end() &&
-                    unitIt->second && targetIt->second) {
+                    unitIt->second && targetIt->second &&
+                    world_->combatMap().canPerceive(world_->combatActor(*unitIt->second), world_->combatActor(*targetIt->second))) {
                     setFacingToTarget(*unitIt->second, targetIt->second->position);
                 }
                 continue;
             }
 
-            if (const auto* c = std::get_if<SetEnergyCommand>(&cmd)) {
+            if (const auto *c = std::get_if<SetEnergyCommand>(&cmd)) {
                 ensureLookup();
                 auto found = lookup.unitsById.find(c->unitId);
                 if (found != lookup.unitsById.end() && found->second) {
@@ -507,41 +497,31 @@ void ScriptAPI::applyCommand(const Command& cmd) {
     }
 
     if (std::holds_alternative<FaceEnemyCommand>(cmd)) {
-        const auto& c = std::get<FaceEnemyCommand>(cmd);
+        const auto &c = std::get<FaceEnemyCommand>(cmd);
         if (!world_) return;
-        auto& list = world_->getPokemons();
+        auto &list = world_->getPokemons();
         auto it = std::find_if(list.begin(), list.end(),
-            [&](const PokemonInstance& p) { return p.id == c.unitId; });
+                               [&](const PokemonInstance &p) { return p.id == c.unitId; });
         if (it == list.end()) return;
 
         glm::vec3 target;
         if (c.hasTarget) {
             target = world_->gridToWorld(c.col, c.row);
         } else {
-            float best = std::numeric_limits<float>::max();
-            glm::vec3 bestPos = it->position;
-            for (auto& u : list) {
-                if (!isCombatActive(u) || u.side == it->side) continue;
-                const float d = glm::distance(it->position, u.position);
-                if (d < best) {
-                    best = d;
-                    bestPos = u.position;
-                }
-            }
-            target = bestPos;
+            target = world_->getNearestEnemyPosition(*it);
         }
         setFacingToTarget(*it, target);
         return;
     }
 
     if (std::holds_alternative<FaceTargetCommand>(cmd)) {
-        const auto& c = std::get<FaceTargetCommand>(cmd);
+        const auto &c = std::get<FaceTargetCommand>(cmd);
         if (!world_) return;
         if (c.unitId < 0 || c.targetId < 0) return;
 
-        auto* u = world_->findUnitById(c.unitId);
-        auto* t = world_->findUnitById(c.targetId);
-        if (!u || !t) return;
+        auto *u = world_->findUnitById(c.unitId);
+        auto *t = world_->findUnitById(c.targetId);
+        if (!u || !t || !world_->combatMap().canPerceive(world_->combatActor(*u), world_->combatActor(*t))) return;
 
         setFacingToTarget(*u, t->position);
         return;

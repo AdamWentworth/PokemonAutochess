@@ -20,7 +20,7 @@ triangles used for decorative rocks, fringes, and rounded walls.
 | `playable_cells` | Explicit board footprint from board registration. |
 | `reserve_cells` | Explicit bench footprint; excluded from combat connections. |
 | `connections` | Directed cardinal adjacency with the two shared-edge endpoint height differences, destination minus origin, in centimetres. |
-| `cover_regions` | Stable grass-node identity and a union of transformed core-cell polygons in the source X/Z plane. |
+| `cover_regions` | Stable grass-node identity and a union of transformed grass-clump polygons in the source X/Z plane. |
 | `scene_content_sha256`, `board_content_sha256` | Hashes of canonical JSON content, independent of file whitespace and line endings. |
 
 Cells are 100 cm wide and height levels are 50 cm. Surface values are lawn=0,
@@ -33,10 +33,14 @@ Playability currently follows the existing 8x8 board. It does not follow lawn
 colour, prop bounds, or all connected visual terrain. Changing the playable area
 requires an explicit board/gameplay decision, not an art-only terrain edit.
 
-Encounter regions use the published grass core cells, transformed by the authored
-prefab's position, scale, and yaw. They preserve hooked shapes and omit the outer
-decorative blade ring. Disabled grass props produce no region. The simulation uses these regions for sight, targeting, and camouflage, as
-described in `ENCOUNTER_GRASS.md`.
+Encounter regions use `rendered_clump_footprints`: nominal 100 cm squares around
+the same clump centres used by rendering, including its dense half-cell border
+ring. Core indices are cell corners; clump centres include the +50 cm offset.
+The authored prefab position, scale and yaw transform the complete footprint,
+preserving hooked shapes. `EncounterGrassFootprint.h` supplies shared centres
+for rendering and archive validation; the Python exporter mirrors that rule.
+Disabled grass props produce no region. The simulation uses these regions for
+sight, targeting and camouflage, as described in `ENCOUNTER_GRASS.md`.
 
 ## Runtime boundary
 

@@ -3,7 +3,8 @@
 namespace game::arena {
 namespace {
 using Polygon = std::array<std::array<float, 2>, 4>;
-// Convex polygon SAT, allowing shared edges but not corner-only contact.
+// Convex polygon SAT. Dense clumps can share an edge, but a tiny contact at
+// their outer corners must not merge otherwise separate authored patches.
 bool connected(const Polygon &a, const Polygon &b) {
     std::array<float, 2> touchingAxis{};
     bool touching = false;
@@ -27,7 +28,8 @@ bool connected(const Polygon &a, const Polygon &b) {
             const auto ra = range(a), rb = range(b);
             const float overlap = std::min(ra[1], rb[1]) - std::max(ra[0], rb[0]);
             if (overlap < -0.01f) return false;
-            if (overlap <= 0.01f) {
+            constexpr float kMinimumConnectionCm = 10.0f;
+            if (overlap <= kMinimumConnectionCm) {
                 if (touching && std::abs(touchingAxis[0] * nz - touchingAxis[1] * nx) > 0.001f) return false;
                 touching = true;
                 touchingAxis = {nx, nz};

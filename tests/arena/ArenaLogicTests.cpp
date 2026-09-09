@@ -123,7 +123,12 @@ void authoredTraversal() {
     AuthoredCombatMap coverRules(data, {17, -10});
     CombatMapView coverMap{8, 8, &coverRules};
     std::vector<std::uint8_t> coverBlocked(64);
-    const Actor observer{1, 0, {5, 5}}, exposed{2, 1, {7, 5}}, concealed{2, 1, {7, 4}};
+    check(!coverMap.canPerceive({1, 0, {2, 6}}, {2, 1, {7, 4}}),
+          "A tiny border-corner contact merged the Grass Test's separate patches.");
+    // Rattata's first southward patrol step is still inside the dense border
+    // grass. The former core-only footprint exposed this entire visible row.
+    const Actor observer{1, 0, {4, 5}}, exposed{2, 1, {7, 6}}, concealed{2, 1, {7, 5}};
+    check(!coverMap.canPerceive(observer, concealed), "Rattata was exposed while still in the rendered south edge of the grass.");
     reserveStep(coverMap, exposed.cell, concealed.cell, coverBlocked);
     check(coverMap.canPerceive(observer, exposed) && !coverMap.canPerceive(observer, concealed), "Pursuit cover fixture drifted.");
     check(firstStepTowards(coverMap, observer, exposed, coverBlocked, concealed.cell) != Cell{},

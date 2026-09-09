@@ -1,5 +1,6 @@
 #include "game/runtime/shared/scene/AuthoredArenaBundle.h"
 #include "game/runtime/shared/scene/AuthoredGroundSurface.h"
+#include "game/arena/EncounterGrassFootprint.h"
 #include "engine/assets/phlosion/PhlosionEnvironmentPatch.h"
 #include <nlohmann/json.hpp>
 #include <set>
@@ -126,18 +127,21 @@ bool Bundle::validate(std::string *error) {
             const auto region = std::find_if(map.cover.begin(), map.cover.end(), [&](const auto &r) { return r.id == id; });
             require(region != map.cover.end(), "Arena encounter grass is missing its gameplay footprint.");
             const auto &record = grassRecords.at(prefab.at("prototype_node_id").get<std::string>());
-            const auto &core = record.at("core_cells_source_xz");
-            require(core.size() == region->polygons.size(), "Arena cover polygon count is stale.");
+            std::set<std::pair<int, int>> core;
+            for (const auto &cell : record.at("core_cells_source_xz"))
+                core.emplace(cell.at(0).get<int>(), cell.at(1).get<int>());
+            const auto centers = game::arena::encounterGrassCenters(core);
+            require(!centers.empty() && centers.size() == region->polygons.size(), "Arena cover polygon count is stale.");
             const auto &transform = components.at("transform");
             const auto &rotation = transform.at("rotation_degrees");
             require(std::abs(rotation.at(0).get<double>()) <= .001 && std::abs(rotation.at(2).get<double>()) <= .001,
                     "Arena cover requires upright props.");
             const double angle = rotation.at(1).get<double>() * 3.14159265358979323846 / 180;
             constexpr int corners[4][2] = {{-50, -50}, {50, -50}, {50, 50}, {-50, 50}};
-            for (std::size_t i = 0; i < core.size(); ++i)
+            for (std::size_t i = 0; i < centers.size(); ++i)
                 for (std::size_t j = 0; j < 4; ++j) {
-                    const double x = (core[i][0].get<double>() * 100 + corners[j][0]) * transform.at("scale")[0].get<double>();
-                    const double z = (core[i][1].get<double>() * 100 + corners[j][1]) * transform.at("scale")[2].get<double>();
+                    const double x = (centers[i][0] + corners[j][0]) * transform.at("scale")[0].get<double>();
+                    const double z = (centers[i][1] + corners[j][1]) * transform.at("scale")[2].get<double>();
                     const double px = transform.at("translation")[0].get<double>() + std::cos(angle) * x + std::sin(angle) * z;
                     const double pz = transform.at("translation")[2].get<double>() - std::sin(angle) * x + std::cos(angle) * z;
                     require(std::abs(region->polygons[i][j][0] - px) <= .002 && std::abs(region->polygons[i][j][1] - pz) <= .002,
