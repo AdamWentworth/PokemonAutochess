@@ -48,6 +48,16 @@ constexpr Definitions kDefinitions{{
         "routes/route1-pilot",
     },
     {
+        "route1-south-clearing-grass",
+        "Grass Test",
+        "South Clearing",
+        "Bulbasaur crosses the large east grass bed to pursue Rattata. Play to watch the blades part, rustle and spring back. F10 shows concealed units for debugging.",
+        "snapshot",
+        "classic",
+        "config/debug/editor_route1_south_clearing_grass.json",
+        "routes/route1-south-clearing",
+    },
+    {
         "route1-south-clearing-planning",
         "Planning",
         "South Clearing",

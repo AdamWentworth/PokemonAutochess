@@ -4,7 +4,7 @@ Status: Active
 Type: Contract
 Last updated: 2026-09-09
 
-South Entrance uses the grass clump footprints published in `arena.phscene` for
+South Entrance and South Clearing use the grass clump footprints in their published `arena.phscene` bundles for
 concealment, including the dense half-cell border ring. Dark lawn and sparse
 decorative tufts do not grant cover. Individual swaying blade tips do not change
 the boundary.
@@ -64,9 +64,17 @@ rule should handle those cases rather than granting omniscient targeting.
 
 ## Presentation and editor check
 
-Moving grounded Pokemon bend nearby blade clusters and produce a small wake.
-Standing Pokemon hold a gentler opening without continuous movement flutter.
-Grass recovers after contact ends; its patch footprint never grows or shrinks.
+Moving grounded Pokemon part nearby blade clusters and flick them sideways as
+they pass. Contact bends the tops from the ground plane, keeping their roots
+planted; the original ambient wind remains underneath. A damped spring gives
+the blades a short rebound before settling. Standing Pokemon hold a gentler
+opening without continuous movement flutter. Pausing freezes contact motion;
+restarting clears the old bend and spring velocity.
+
+Both source grass models use the shared `EncounterGrassMotion` response. Contacts
+blend smoothly when several Pokemon pass nearby, and cannot reach grass on the
+other side of a half-metre height difference. Its patch footprint never grows
+or shrinks.
 Hidden opponents do not contribute new contact animation to the player's view.
 Their body, shadow and unit HUD are omitted from projected rendering.
 Attack and projectile effects already in progress remain visible.
@@ -79,6 +87,12 @@ changes presentation only. The fixture is
 preserved in debug snapshots. New rounds, fresh games and editor repositioning
 clear old memories; a fresh game also resets the override.
 
+For a longer crossing, select **Route 1 - South Clearing > Grass Test**, then
+Play. Bulbasaur starts at the northeast corner of the large grass bed and walks
+through it toward Rattata on open ground. The fixture is
+`config/debug/editor_route1_south_clearing_grass.json`. The preview launcher also
+accepts `-Phase grass` with either authoring recipe.
+
 ## Verification
 
 - `PAC_Arena.logic`: connected/disconnected cover, continuous boundaries,
@@ -90,6 +104,12 @@ clear old memories; a fresh game also resets the override.
   independence, actual reacquisition, expiry, visible-target priority and resets.
 - `ledge_jump_rendering`: real model submissions, including visible/hidden/debug
   transitions with no hidden body, shadow or HUD submissions.
-- `route1_arena_pilot_contract`: actual authored grass skin palettes change under
-  stationary and moving contact and recover to ambient wind after release.
+- `encounter_grass_motion`: frame-rate independence at 30/60/144 fps, rebound
+  and settling, steady standing pressure, and isolation across ledge heights.
+- `encounter_grass_rendering`: actual indexed blade vertices on both authored
+  maps visibly part, keep their roots planted, leave distant grass alone, and
+  recover to ambient wind. Checks cached skin pointers, pause, restart and height
+  isolation.
+- `route1_arena_pilot_contract`: authored grass palettes also retain standing,
+  moving and recovery coverage as part of the published arena contract.
 - `session_debug_snapshot_contract`: reveal, search and debug-view round trips.

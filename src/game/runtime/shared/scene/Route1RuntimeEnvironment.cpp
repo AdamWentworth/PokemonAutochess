@@ -11,6 +11,7 @@
 #include "engine/core/Environment.h"
 #include "engine/core/IAssetStore.h"
 #include "game/render/environment/Route1FieldEncounterGrassMaterial.h"
+#include "game/render/environment/EncounterGrassMotion.h"
 #include "game/render/environment/Route1FieldSmallGrassMaterial.h"
 #include "game/runtime/shared/scene/Route1ProjectedShadow.h"
 #include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
@@ -228,8 +229,7 @@ struct EncounterGrassPlacement {
     // Joint zero is the rigid root. The remaining entries correspond to the
     // source grass clusters, so a passing unit parts nearby blades instead
     // of tilting an entire one-metre module as a single card.
-    std::array<float, 6> contactBendRadians{};
-    std::array<float, 6> contactCrossRadians{};
+    std::array<game::render::encounter_grass_motion::State, 6> contactMotion{};
     // A source module is centered on a terrain-cell corner and its
     // independently skinned blade clusters occupy the surrounding cells.
     // Per-cell removal therefore masks clusters, not the whole module.
@@ -980,8 +980,7 @@ std::vector<float> encounterGrassSkinPalette(
     std::size_t jointCount,
     float placementPhaseCycles,
     float windPhaseCycles,
-    const std::array<float, 6>& contactBendRadians,
-    const std::array<float, 6>& contactCrossRadians) {
+    const std::array<game::render::encounter_grass_motion::State, 6>& contactMotion) {
     std::vector<float> palette(jointCount * 16u, 0.0f);
     for (std::size_t joint = 0u; joint < jointCount; ++joint) {
         const auto rotation =
@@ -998,25 +997,19 @@ std::vector<float> encounterGrassSkinPalette(
             pivotValues[0],
             pivotValues[1],
             pivotValues[2]};
-        const float contactBend =
-            joint < contactBendRadians.size()
-            ? contactBendRadians[joint]
-            : 0.0f;
-        const float contactCross =
-            joint < contactCrossRadians.size()
-            ? contactCrossRadians[joint]
-            : 0.0f;
         const glm::mat4 jointMatrix =
             glm::translate(glm::mat4(1.0f), pivot) *
             glm::rotate(
                 glm::mat4(1.0f),
-                -rotation.bendRadians + contactBend,
+                -rotation.bendRadians,
                 glm::vec3(0.0f, 0.0f, 1.0f)) *
             glm::rotate(
                 glm::mat4(1.0f),
-                rotation.crossRadians + contactCross,
+                rotation.crossRadians,
                 glm::vec3(1.0f, 0.0f, 0.0f)) *
-            glm::translate(glm::mat4(1.0f), -pivot);
+            glm::translate(glm::mat4(1.0f), -pivot) *
+            game::render::encounter_grass_motion::deformation(
+                joint < contactMotion.size() ? contactMotion[joint].bend : glm::vec2(0));
         std::copy(
             glm::value_ptr(jointMatrix),
             glm::value_ptr(jointMatrix) + 16u,
@@ -1112,8 +1105,7 @@ void placeEncounterGrassLayer(
             layer.source.bones.size(),
             placement.phaseCycles,
             windPhaseCycles,
-            placement.contactBendRadians,
-            placement.contactCrossRadians);
+            placement.contactMotion);
         auto& palette = layer.skinPalettes[placementIndex];
         palette.resize(nextPalette.size());
         std::copy(
@@ -5672,36 +5664,28 @@ struct RuntimeEnvironment::Impl {
 
     void updateWind(float simulationSeconds) {
         windPhaseCycles = kInitialWindPhaseCycles +
-            simulationSeconds / kWindPeriodSeconds;
-        const float dt = std::isfinite(lastInteractionSimulationSeconds)
-            ? std::clamp(
-                  simulationSeconds - lastInteractionSimulationSeconds,
-                  0.0f,
-                  0.05f)
-            : 1.0f / 60.0f;
+                          simulationSeconds / kWindPeriodSeconds;
+        namespace grassMotion = game::render::encounter_grass_motion;
+        const bool rewound = simulationSeconds < lastInteractionSimulationSeconds;
+        const float dt = std::isfinite(lastInteractionSimulationSeconds) && !rewound
+                             ? std::clamp(simulationSeconds - lastInteractionSimulationSeconds, 0.0f, 0.1f)
+                             : 1.0f / 60.0f;
         lastInteractionSimulationSeconds = simulationSeconds;
-
-        struct SourceInteractor {
-            glm::vec3 position{};
-            glm::vec3 motion{0.0f, 0.0f, 1.0f};
-            float strength = 1.0f;
-            float motionStrength = 1.0f;
-        };
-        std::vector<SourceInteractor> sourceInteractors;
+        std::vector<grassMotion::Contact> sourceInteractors;
         sourceInteractors.reserve(encounterGrassInteractors.size());
-        for (const auto& interactor : encounterGrassInteractors) {
+        for (const auto &interactor : encounterGrassInteractors) {
             const glm::vec4 sourcePosition =
                 sourceFromWorld * glm::vec4(
-                    interactor.worldPosition[0],
-                    interactor.worldPosition[1],
-                    interactor.worldPosition[2],
-                    1.0f);
+                                      interactor.worldPosition[0],
+                                      interactor.worldPosition[1],
+                                      interactor.worldPosition[2],
+                                      1.0f);
             glm::vec3 sourceMotion = glm::vec3(
                 sourceFromWorld * glm::vec4(
-                    interactor.worldMotionDirection[0],
-                    0.0f,
-                    interactor.worldMotionDirection[2],
-                    0.0f));
+                                      interactor.worldMotionDirection[0],
+                                      0.0f,
+                                      interactor.worldMotionDirection[2],
+                                      0.0f));
             sourceMotion.y = 0.0f;
             const float motionLength = glm::length(sourceMotion);
             if (motionLength > 0.001f) {
@@ -5709,143 +5693,53 @@ struct RuntimeEnvironment::Impl {
             } else {
                 sourceMotion = glm::vec3(0.0f);
             }
-            sourceInteractors.push_back({
-                .position = glm::vec3(sourcePosition),
-                .motion = sourceMotion,
-                .strength = std::clamp(interactor.contactStrength, 0.0f, 1.0f),
-                .motionStrength = std::clamp(interactor.motionStrength, 0.0f, 1.0f)});
+            sourceInteractors.push_back({.position = glm::vec3(sourcePosition),
+                                         .motion = sourceMotion,
+                                         .strength = std::clamp(interactor.contactStrength, 0.0f, 1.0f),
+                                         .motionStrength = std::clamp(interactor.motionStrength, 0.0f, 1.0f)});
         }
 
-        // The source rigs split each one-metre module into four (Grass01) or
-        // five (Grass02) independently weighted blade clusters. Evaluate
-        // contact at those recovered pivots so the unit opens a local wake;
-        // rotating the whole module uniformly is visually lost in a dense
-        // patch and produces the wrong card-like motion.
-        constexpr float kContactRadiusCm = 110.0f;
-        constexpr float kContactVerticalToleranceCm = 85.0f;
-        constexpr float kMaximumContactRotationRadians = 0.36f;
-        constexpr float kAttackRate = 32.0f;
-        constexpr float kReleaseRate = 7.0f;
-        for (auto& layer : encounterGrass) {
+        // Both grass models retain their independent blade clusters and source
+        // wind animation. Contact adds root-anchored parting and a local rebound.
+        for (auto &layer : encounterGrass) {
             const auto variant =
                 layer.logicalName == "enc_grass02"
-                ? engine::render::route1_field_encounter_grass::
-                      SourceVariant::Grass02
-                : engine::render::route1_field_encounter_grass::
-                      SourceVariant::Grass01;
+                    ? engine::render::route1_field_encounter_grass::
+                          SourceVariant::Grass02
+                    : engine::render::route1_field_encounter_grass::
+                          SourceVariant::Grass01;
             const std::size_t responsiveJointCount = std::min(
                 layer.source.bones.size(),
                 engine::render::route1_field_encounter_grass::
                     sourceJointCount(variant));
-            for (auto& placement : layer.placements) {
-                if (placement.suppressed) {
-                    placement.contactBendRadians.fill(0.0f);
-                    placement.contactCrossRadians.fill(0.0f);
-                    continue;
-                }
-                for (std::size_t joint = 1u;
-                     joint < responsiveJointCount;
-                     ++joint) {
+            for (auto &placement : layer.placements) {
+                if (rewound || placement.suppressed) placement.contactMotion.fill({});
+                if (placement.suppressed) continue;
+                const auto placementMatrix = glm::make_mat4(placement.modelMatrix.data());
+                const auto localFromSource = glm::inverse(glm::mat3(placementMatrix));
+                for (std::size_t joint = 1; joint < responsiveJointCount; ++joint) {
+                    auto &motion = placement.contactMotion[joint];
                     if (placement.suppressedJoints[joint]) {
-                        placement.contactBendRadians[joint] = 0.0f;
-                        placement.contactCrossRadians[joint] = 0.0f;
+                        motion = {};
                         continue;
                     }
-                    const auto& anchor =
-                        layer.sourceJointAnchors[joint];
-                    const glm::vec4 renderedPivot =
-                        glm::make_mat4(
-                            placement.modelMatrix.data()) *
-                        glm::vec4(
-                            anchor[0], anchor[1], anchor[2], 1.0f);
-                    const glm::vec2 clusterCenter(
-                        renderedPivot.x,
-                        renderedPivot.z);
-                    float targetBend = 0.0f;
-                    float targetCross = 0.0f;
-                    float strongestInfluence = 0.0f;
-                    for (const auto& interactor : sourceInteractors) {
-                        const float verticalDistance = std::abs(
-                            placement.center[1] -
-                            interactor.position.y);
-                        if (verticalDistance >
-                            kContactVerticalToleranceCm) {
-                            continue;
-                        }
-                        const glm::vec2 delta(
-                            clusterCenter.x - interactor.position.x,
-                            clusterCenter.y - interactor.position.z);
-                        const float distance = glm::length(delta);
-                        if (distance >= kContactRadiusCm) {
-                            continue;
-                        }
-                        const float proximity = std::clamp(
-                            1.0f - distance / kContactRadiusCm,
-                            0.0f,
-                            1.0f);
-                        const float smoothProximity =
-                            proximity * proximity *
-                            (3.0f - 2.0f * proximity);
-                        const float influence =
-                            smoothProximity * interactor.strength;
-                        if (influence <= strongestInfluence) {
-                            continue;
-                        }
-                        strongestInfluence = influence;
-                        const glm::vec2 motion(
-                            interactor.motion.x,
-                            interactor.motion.z);
-                        glm::vec2 partDirection =
-                            distance > 0.001f
-                            ? delta / distance
-                            : motion;
-                        // Primarily part away from the unit while allowing a
-                        // small directional wake in its direction of travel.
-                        partDirection =
-                            partDirection * (1.0f - 0.16f * interactor.motionStrength) + motion * (0.16f * interactor.motionStrength);
-                        const float directionLength =
-                            glm::length(partDirection);
-                        if (directionLength > 0.001f) {
-                            partDirection /= directionLength;
-                        } else {
-                            partDirection = glm::vec2(0.0f, 1.0f);
-                        }
-                        const float phase =
-                            simulationSeconds * 18.0f +
-                            placement.phaseCycles * 6.28318530718f +
-                            static_cast<float>(joint) * 0.61f;
-                        const float flutter =
-                            1.0f - interactor.motionStrength * (0.12f - 0.12f * std::sin(phase));
-                        const float amplitude =
-                            kMaximumContactRotationRadians *
-                            influence * flutter;
-                        // A positive Z-axis rotation bends an upright source
-                        // blade toward -X; a positive X-axis rotation bends
-                        // it toward +Z.
-                        targetBend =
-                            -partDirection.x * amplitude;
-                        targetCross =
-                            partDirection.y * amplitude;
-                    }
-                    const bool contacting = strongestInfluence > 0.0f;
-                    const float response = contacting
-                        ? kAttackRate
-                        : kReleaseRate;
-                    const float blend =
-                        1.0f - std::exp(-response * dt);
-                    placement.contactBendRadians[joint] +=
-                        (targetBend -
-                         placement.contactBendRadians[joint]) * blend;
-                    placement.contactCrossRadians[joint] +=
-                        (targetCross -
-                         placement.contactCrossRadians[joint]) * blend;
+                    const auto &anchor = layer.sourceJointAnchors[joint];
+                    const auto ground = placementMatrix * glm::vec4(anchor[0], 0, anchor[2], 1);
+                    const auto sourceBend = grassMotion::target(glm::vec3(ground), sourceInteractors,
+                                                                simulationSeconds, placement.phaseCycles * 6.2831853f + static_cast<float>(joint) * 0.61f);
+                    // Contact direction is in source space; a rotated or mirrored
+                    // authored bed still needs to part away from the Pokemon.
+                    glm::vec3 localBend = localFromSource * glm::vec3(sourceBend.x, 0, sourceBend.y);
+                    const float length = glm::length(localBend);
+                    if (length > 0.000001f) localBend *= glm::length(sourceBend) / length;
+                    grassMotion::advance(motion, {localBend.x, localBend.z}, dt);
                 }
             }
             placeEncounterGrassLayer(
                 layer,
                 windPhaseCycles);
         }
-        for (auto& layer : placedVegetation) {
+        for (auto &layer : placedVegetation) {
             placeVegetationLayer(
                 layer,
                 windPhaseCycles);

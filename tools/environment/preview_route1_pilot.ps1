@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('planning','battle','ledges')][string]$Phase = 'planning',
+    [ValidateSet('planning','battle','ledges','grass')][string]$Phase = 'planning',
     [ValidateSet('opengl','d3d12','vulkan')][string]$Backend = 'opengl',
     [string]$OutputDirectory = '',
     [string]$Recipe = 'config/environment/route1_south_entrance.authoring.json',
