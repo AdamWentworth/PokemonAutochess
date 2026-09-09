@@ -1,0 +1,95 @@
+#include "game/runtime/shared/scene/AuthoredArenaBundle.h"
+#include "game/runtime/shared/scene/ArenaSceneActivation.h"
+#include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
+#include "game/runtime/shared/scene/Route1SceneVariants.h"
+#include "engine/core/Paths.h"
+#include "game/assets/DevAssetStore.h"
+#include "game/GameConfig.h"
+#include "game/GameWorld.h"
+#include <cmath>
+#include <stdexcept>
+
+bool test_route1_north_entrance_contract(std::string &outFail) {
+    namespace env = game::runtime::route1_environment;
+    namespace variants = game::runtime::route1_scene_variants;
+    namespace activation = game::runtime::arena_scene_activation;
+    using game::arena::Actor;
+    using game::arena::StepKind;
+    try {
+        const auto check = [](bool ok, const std::string &message) { if (!ok) throw std::runtime_error(message); };
+        const auto &variant = variants::kRoute1NorthEntrance;
+        check(variants::find(variant.sceneId) == &variant &&
+                  &variants::fromStateScriptPath("scripts/states/route1_north_entrance.lua") == &variant,
+              "North Entrance must select the fourth authored Route 1 arena.");
+        game::assets::DevAssetStore store(engine::paths::dataRoot());
+        game::runtime::authored_arena::Bundle bundle;
+        env::RuntimeEnvironment environment;
+        env::BoardLayoutTransform board;
+        check(bundle.load(store, std::string(variant.arenaBundlePath), &outFail), outFail);
+        check(env::loadCookedEnvironment(store, environment, nullptr, &outFail), outFail);
+        check(env::loadBoardLayoutTransform(bundle.store, bundle.boardPath, board, &outFail), outFail);
+        check(board.terrainGridOrigin == std::array<std::int32_t, 2>{19, -37}, "North Entrance must include the original eastern ramp inside its board.");
+        check(activation::apply(store, variant, environment, true, true, &outFail), outFail);
+        check(environment.terrainTiles().empty() && environment.stats().visibleTriangleCount > 0 && environment.stats().shadowGroundTriangleCount > 0,
+              "North Entrance must render and cast shadows from its authored terrain.");
+        bool sourceGrassRestored = false;
+        for (const auto &object : environment.layoutObjects()) {
+            if (object.suppressed || object.targetKind == "gameplay_board_ground_prototype") continue;
+            check(object.authored, "Source scenery leaked into North Entrance: " + object.stableId);
+            if (object.stableId.ends_with("encounter-grass-enc_grass01-record-4")) {
+                sourceGrassRestored = std::abs(object.translationCm[0] - 2550) < .1f && std::abs(object.translationCm[2] + 2350) < .1f;
+            }
+            if (object.targetKind == "environment_mesh_patch" || object.prefabAssetId.find("encounter_grass") != std::string::npos) continue;
+            const bool overlapsColumns = object.boundsMinimumCm[0] < 2700 && object.boundsMaximumCm[0] > 1900;
+            const bool overlapsRows = object.boundsMinimumCm[2] < -2800 && object.boundsMaximumCm[2] > -3800;
+            const bool solid = object.prefabAssetId.starts_with("route1/tree_") || object.boundsMaximumCm[1] - object.boundsMinimumCm[1] > 65;
+            check(!solid || !overlapsColumns || !overlapsRows, "A solid prop overlaps the board/reserves: " + object.stableId);
+            for (const int z : {-38, -29}) {
+                check(!overlapsColumns || object.boundsMinimumCm[2] >= (z + 1) * 100 || object.boundsMaximumCm[2] <= z * 100,
+                      "A decorative plant overlaps a dirt reserve row: " + object.stableId);
+            }
+        }
+        check(sourceGrassRestored, "The backdrop must preserve the original grass bed below this arena.");
+        const auto matrix = env::worldFromSourceMatrix(board);
+        for (int row = -1; row <= 8; ++row) {
+            for (int col = 0; col < 8; ++col) {
+                const float x = (19.5f + col) * 100, z = (-36.5f + row) * 100;
+                const float expected = row <= 3 ? 300.0f : row == 4 ? (col >= 6 ? 275.0f : 300.0f)
+                                                                    : 250.0f;
+                const auto *tile = bundle.map.tileAt(19 + col, -37 + row);
+                check(tile && std::abs(tile->heightAt(x, z) - expected) < .01f, "North Entrance lost its two open terraces or eastern ramp.");
+                if (row == -1 || row == 8) check(tile->surface == 1 && bundle.map.coverAt(x, z).empty(), "Both reserve rows must be dirt without encounter grass.");
+                if (row >= 5 && row <= 7 && col <= 1) check(tile->surface == 0, "The removed spur must blend into the accessible lawn.");
+                float actual = -999;
+                check(environment.sampleWorldTerrainHeight(matrix[0] * x + matrix[8] * z + matrix[12], matrix[2] * x + matrix[10] * z + matrix[14], actual) &&
+                          std::abs(actual - (matrix[5] * expected + matrix[13])) < .001f,
+                      "A board/reserve centre does not stand on the visible floor.");
+            }
+        }
+        const auto *backdropIsland = bundle.map.tileAt(21, -25);
+        const auto *backdropLawn = bundle.map.tileAt(24, -20);
+        check(backdropIsland && backdropIsland->height == 5 && backdropLawn && backdropLawn->surface == 0,
+              "North Terraces arena alterations must not leak into the southern backdrop.");
+        GameConfigData config;
+        GameWorld gameplay(config);
+        check(activation::applyGameplay(store, variant, gameplay, &outFail), outFail);
+        const auto map = gameplay.combatMap();
+        check(map.stepKind({3, 4}, {3, 5}, {}) == StepKind::LedgeDrop && map.stepKind({3, 5}, {3, 4}, {}) == StepKind::Blocked &&
+                  map.stepKind({3, 5}, {3, 4}, {true}) == StepKind::Walk,
+              "North Entrance must retain southbound jumps, uphill walls and flying exceptions.");
+        check(map.stepKind({6, 4}, {6, 5}, {}) == StepKind::Walk && map.stepKind({6, 5}, {6, 4}, {}) == StepKind::Walk &&
+                  map.stepKind({0, 5}, {1, 5}, {}) == StepKind::Walk,
+              "The eastern ramp and cleared spur must support ordinary walking.");
+        Actor open{.id = 1, .team = 0, .cell = {1, 2}}, hidden{.id = 2, .team = 1, .cell = {4, 6}}, samePatch{.id = 3, .team = 0, .cell = {5, 6}};
+        check(map.coverGroup(open) < 0 && map.coverGroup(hidden) >= 0 && map.coverGroup(hidden) == map.coverGroup(samePatch) &&
+                  !map.canPerceive(open, hidden) && map.canPerceive(hidden, open) && map.canPerceive(samePatch, hidden),
+              "The lower grass bed must preserve concealment and sight from within grass.");
+        for (const auto *other : {&variants::kRoute1Pilot, &variants::kRoute1SouthClearing, &variants::kRoute1NorthTerraces, &variant}) {
+            check(activation::apply(store, *other, environment, true, false, &outFail) && activation::applyGameplay(store, *other, gameplay, &outFail), outFail);
+        }
+        return true;
+    } catch (const std::exception &error) {
+        outFail = error.what();
+        return false;
+    }
+}

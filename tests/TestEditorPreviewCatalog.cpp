@@ -12,8 +12,8 @@ bool test_editor_preview_catalog_contract(std::string& outFail) {
 
     const auto& definitions = catalog::all();
     if (definitions.size() != catalog::kDefinitionCount ||
-        definitions.size() != 38u) {
-        outFail = "The project editor preview catalog should expose all 38 stable previews.";
+        definitions.size() != 41u) {
+        outFail = "The project editor preview catalog should expose all 41 stable previews.";
         return false;
     }
 

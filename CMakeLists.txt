@@ -911,6 +911,7 @@ if (BUILD_TESTING)
         tests/TestRoute1ArenaPilot.cpp
         tests/TestRoute1SouthClearing.cpp
         tests/TestRoute1NorthTerraces.cpp
+        tests/TestRoute1NorthEntrance.cpp
         tests/TestEncounterGrassRendering.cpp
         tests/TestAuthoredGroundSurface.cpp
         tests/TestAuthoredArenaBundle.cpp
@@ -1158,6 +1159,7 @@ if (BUILD_TESTING)
         route1_arena_pilot_contract
         route1_south_clearing_contract
         route1_north_terraces_contract
+        route1_north_entrance_contract
         encounter_grass_rendering
         render_prep_unit_visuals_contract
         ui_card_visuals_contract

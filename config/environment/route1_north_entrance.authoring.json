@@ -1,0 +1,17 @@
+{
+  "kind": "pokemon_autochess_arena_authoring",
+  "schema_version": 1,
+  "display_name": "Route 1 - North Entrance (Blender)",
+  "scene_id": "routes/route1-north-entrance",
+  "working_source_relative": "EnvironmentResearch/Route1/authoring/north-entrance/Route1_NorthEntrance.blend",
+  "depot_source_relative": "pokemon-autochess/source/project-authored/route1-north-entrance/Route1_NorthEntrance.blend",
+  "board_path": "config/environment/route1_north_entrance_board_layout.json",
+  "composition_path": "config/environment/route1_environment_package.json",
+  "scene_path": "scenes/route1_north_entrance.scene.json",
+  "terrain_path": "content/phlosion/environment/north-entrance/terrain.phpatch",
+  "gameplay_map_path": "config/environment/route1_north_entrance_gameplay.json",
+  "bundle_path": "content/phlosion/environment/north-entrance/arena.phscene",
+  "base_environment_asset_id": "environments/route1",
+  "terrain_node_id": "mesh-patch/north-entrance/terrain",
+  "ground_material_index": 19
+}

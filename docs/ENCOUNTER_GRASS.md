@@ -99,8 +99,13 @@ accepts `-Phase grass` with each authoring recipe.
 
 **Route 1 - North Terraces > Grass Test** uses the next eastern grass bed, with
 Bulbasaur inside and Rattata on the open terrace. Its fixture is
-`config/debug/editor_route1_north_terraces_grass.json`. All three arenas share
+`config/debug/editor_route1_north_terraces_grass.json`. All four arenas share
 the same blade packing, contact animation and visibility rules.
+
+**Route 1 - North Entrance > Grass Test** starts Bulbasaur in the lower grass and
+Rattata on the upper terrace. The original eastern ramp connects the levels, and
+the south reserve row remains clear of cover. Its fixture is
+`config/debug/editor_route1_north_entrance_grass.json`.
 
 ## Verification
 
@@ -115,7 +120,7 @@ the same blade packing, contact animation and visibility rules.
   transitions with no hidden body, shadow or HUD submissions.
 - `encounter_grass_motion`: frame-rate independence at 30/60/144 fps, rebound
   and settling, steady standing pressure, and isolation across ledge heights.
-- `encounter_grass_rendering`: actual indexed blade vertices on all three authored
+- `encounter_grass_rendering`: actual indexed blade vertices on all four authored
   maps visibly part, keep their roots planted, leave distant grass alone, and
   recover to ambient wind. Checks cached skin pointers, pause, restart and height
   isolation.

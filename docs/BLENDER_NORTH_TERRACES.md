@@ -9,6 +9,8 @@ Blender-authored Route 1 arena. Entrance, South Clearing and North Terraces are
 successive route landmarks, approximately one quarter, halfway and three quarters
 along the route. These are composition landmarks, not measured route distances.
 South Entrance remains the startup map; each arena has an independent source.
+[North Entrance](BLENDER_NORTH_ENTRANCE.md) completes the sequence nine tiles
+farther north, with an eastern board alignment that includes the source ramp.
 
 ## Preview and edit
 

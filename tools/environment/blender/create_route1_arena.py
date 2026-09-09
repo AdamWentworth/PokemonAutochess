@@ -67,6 +67,10 @@ def main():
     def intrudes(obj):
         points=[obj.matrix_world @ v.co for v in obj.data.vertices]
         return min(v.x for v in points)<ox+cols and max(v.x for v in points)>ox and min(v.y for v in points)<-oz+1 and max(v.y for v in points)>-oz-rows-1
+    def overlaps_reserve(lo,hi):
+        # Leave room for animated foliage bounds beyond the static preview.
+        margin=.10
+        return lo.x<ox+cols+margin and hi.x>ox-margin and any(lo.y<-z+margin and hi.y>-z-1-margin for z in (oz-1,oz+rows))
     for group in ('PAC_EDIT_PATCH','PAC_PREFABS','PAC_GUIDES'):
         for obj in list(arena.collection(group).objects): bpy.data.objects.remove(obj,do_unlink=True)
     old_center=json.loads(scene['pilot_blueprint'])['board_center_blender_m']
@@ -79,8 +83,8 @@ def main():
     tiles.create_guide(arena,cells)
     arena.rebuild_terrain(config)
     omitted=[]
-    def place(proto,name=None,position=None,size=1,yaw=0):
-        transform=placement_transform(proto)
+    def place(proto,name=None,position=None,size=1,yaw=0,transform_override=None):
+        transform=transform_override or placement_transform(proto)
         x,h,z=transform['translation']; x,y=(x*.01,-z*.01) if position is None else position
         grass=proto['id'].startswith('encounter-grass/')
         asset=proto['prefab_asset_id']
@@ -104,20 +108,33 @@ def main():
             omitted.append({'prototype':proto['id'],'reason':'canopy or solid shrub overlaps the board/reserve rows'})
             bpy.data.objects.remove(obj,do_unlink=True)
             return None
+        if not grass and config.get('clear_reserve_foliage'):
+            points=[obj.matrix_world @ v.co for v in obj.data.vertices]
+            lo,hi=(Vector(fn(v[a] for v in points) for a in range(3)) for fn in (min,max))
+            if overlaps_reserve(lo,hi):
+                omitted.append({'prototype':proto['id'],'reason':'foliage overlaps a dirt reserve row'})
+                bpy.data.objects.remove(obj,do_unlink=True)
+                return None
         return obj
     for proto in kit['objects']:
         identity=proto['id']
         t=placement_transform(proto); x,_,z=t['translation']
         if not contains(x*.01,-z*.01,1): continue
         if identity.startswith('encounter-grass/'):
-            if int(identity.rsplit('-',1)[-1]) in config['encounter_records']: place(proto)
+            if int(identity.rsplit('-',1)[-1]) in config['encounter_records']:
+                custom=[p for p in config.get('grass_bed_placements',[]) if p['prototype_id']==identity]
+                if not custom: place(proto)
+                for p in custom:
+                    place(proto,p['name'],transform_override=dict(t,translation=p['translation_cm'],scale=p['scale']))
         elif identity.startswith(('canonical-tree/','buildmodel-vegetation/')) and proto.get('prefab_asset_id') in templates:
             place(proto)
     # Reinforce the woodland border with the same source species and sizes.
     cx,cy=config['board_center_blender_m']
-    for i,(x,y,family) in enumerate([(13,cy-6,'tree_002'),(12.2,cy-2,'tree_001'),(13,cy+3,'tree_002'),
+    woodland=[(13,cy-6,'tree_002'),(12.2,cy-2,'tree_001'),(13,cy+3,'tree_002'),
                                     (12.3,cy+7,'tree_001'),(29.4,cy-5,'tree_002'),(29.2,cy,'tree_001'),
-                                    (30,cy+5,'tree_002'),(29.4,cy+10,'tree_001')]):
+                                    (30,cy+5,'tree_002'),(29.4,cy+10,'tree_001')]
+    woodland.extend((p['x'],p['y'],p['family']) for p in config.get('extra_woodland',[]))
+    for i,(x,y,family) in enumerate(woodland):
         if not contains(x,y,1):continue
         proto=next(p for p in kit['objects'] if p.get('prefab_asset_id')=='route1/'+family)
         place(proto,f'Woodland {family} {i+1:02}',(x,y),.78+(i%3)*.04,i*37)
@@ -132,6 +149,7 @@ def main():
             if index not in (2,3,4,9,26) and lookup[math.floor(center.x),math.floor(-center.y)]['surface']==1:continue
             if not rock and (max(hi.x-lo.x,hi.y-lo.y)>(1.5 if upright else .9) or hi.z-lo.z>(.8 if upright else .12)):continue
             if not all(contains(x,y) for x,y in ((lo.x,lo.y),(hi.x,hi.y))):continue
+            if config.get('clear_reserve_foliage') and overlaps_reserve(lo,hi):continue
             if rock and lo.x<ox+cols and hi.x>ox and lo.y<-oz+1 and hi.y>-oz-rows-1:continue
             samples=[ground(x,y) for x,y in ((lo.x,lo.y),(hi.x,hi.y),(lo.x,hi.y),(hi.x,lo.y))]
             if max(samples)-min(samples)>.05:continue

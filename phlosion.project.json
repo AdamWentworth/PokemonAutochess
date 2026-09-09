@@ -74,6 +74,15 @@
       "status": "in_progress"
     },
     {
+      "scene_id": "routes/route1-north-entrance",
+      "display_name": "Route 1 - North Entrance",
+      "category": "Current Map",
+      "environment_asset_id": "environments/route1",
+      "authored_scene_path": "scenes/route1_north_entrance.scene.json",
+      "runtime_path": "scripts/states/route1_north_entrance.lua",
+      "status": "in_progress"
+    },
+    {
       "scene_id": "reference/route1-published-environment",
       "display_name": "Route 1 - Published Environment",
       "category": "Reference Environments",
