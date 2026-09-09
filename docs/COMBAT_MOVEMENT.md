@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Contract
-Last updated: 2026-09-08
+Last updated: 2026-09-09
 
 The current gameplay test map is the Blender-authored Route 1 south entrance
 (`routes/route1-pilot`, art pass 10). Open its Planning or Battle preset in
@@ -35,7 +35,8 @@ on the ground. Configured flyers bypass height barriers but follow the same
 occupancy and corridor rules. A model having generic jump/landing clips does not
 grant flight; species configuration or explicit airborne metadata supplies that
 capability. `ENCOUNTER_GRASS.md` defines concealment, attack reveals and the
-terrain-legal search patrol used when no visible, reachable target remains.
+last-seen investigations and terrain-legal search patrol used when no visible,
+reachable target remains.
 
 ## Ground ledges and ramps
 

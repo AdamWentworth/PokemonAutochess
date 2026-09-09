@@ -99,6 +99,7 @@ public:
         bool captureInProgress = false;
         float coverRevealRemainingSec = 0.0f;
         game::arena::PatrolState patrol;
+        game::arena::TargetMemory targetMemory;
     };
 
     struct DebugStateSnapshot {
@@ -463,4 +464,3 @@ private:
     glm::mat4 lastViewMatrix = glm::mat4(1.0f);
     bool hasLastViewMatrix = false;
 };
-

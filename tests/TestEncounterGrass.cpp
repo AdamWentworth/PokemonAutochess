@@ -18,6 +18,164 @@
 #include <cmath>
 #include <stdexcept>
 
+bool test_encounter_grass_memory(std::string &outFail) {
+    try {
+        const auto check = [](bool ok, const char *message) { if (!ok) throw std::runtime_error(message); };
+        GameConfigData cfg;
+        GameDataDb db;
+        LogBus::Logger log;
+        log.setEchoToStdout(false);
+        ScriptEventBus events;
+        game::assets::DevAssetStore assets(engine::paths::dataRoot());
+        engine::XorShift32 rng(123);
+        engine::ManualTimeSource time;
+        GameServices services(cfg, db, log, events, assets, rng, time);
+        engine::CoreServices core;
+        core.rng = &rng;
+        core.time = &time;
+        engine::ecs::World ecs(&core);
+        const auto combat = ecs.create();
+        ecs.add<game::CombatActive>(combat, game::CombatActive{true});
+        game::arena::ArenaMapData data;
+        for (int z = 0; z < cfg.rows; ++z)
+            for (int x = 0; x < cfg.cols; ++x) {
+                data.tiles[{x, z}] = {x, z, 0, 0, 0};
+                data.playableCells.insert({x, z});
+            }
+        data.cover.push_back({"brush", {{{{500, 100}, {800, 100}, {800, 600}, {500, 600}}}}});
+        const auto rules = std::make_shared<game::arena::AuthoredCombatMap>(data, game::arena::Cell{0, 0});
+        {
+            GameWorld world(cfg);
+            world.setRenderEnabled(false);
+            world.setCombatMapRules(rules);
+            PokemonInstance observer, hidden;
+            observer.id = PokemonInstance::getNextUnitID();
+            observer.side = PokemonSide::Enemy;
+            observer.position = world.gridToWorld(1, 7);
+            observer.movementSpeed = 2;
+            observer.targetMemory = {{5, 3}, 0, 0, 8};
+            hidden.id = PokemonInstance::getNextUnitID();
+            hidden.side = PokemonSide::Player;
+            hidden.position = world.gridToWorld(5, 4);
+            hidden.movementSpeed = 0;
+            hidden.isMoving = true;
+            hidden.moveFrom = hidden.position;
+            hidden.moveTo = world.gridToWorld(5, 5);
+            hidden.committedDest = {5, 5};
+            MovementSystem movement(&world, services, combat);
+            auto distant = hidden;
+            distant.position = world.gridToWorld(7, 1);
+            distant.isMoving = false;
+            distant.committedDest = {-1, -1};
+            for (int x = 0; x <= 2; ++x)
+                for (int z = 0; z < 8; ++z) {
+                    observer.position = world.gridToWorld(x, z);
+                    world.getPokemons() = {observer, distant};
+                    movement.update(ecs, 0.01f);
+                    const auto expected = world.getPokemons()[0].committedDest;
+                    world.getPokemons() = {observer, hidden};
+                    movement.update(ecs, 0.01f);
+                    check(world.getPokemons()[0].committedDest == expected,
+                          "A hidden reservation steered a distant investigation.");
+                }
+            // At the occupied edge, retain the lead and wait for a safe step.
+            observer.position = world.gridToWorld(4, 5);
+            world.getPokemons() = {observer, hidden};
+            movement.update(ecs, 0.01f);
+            check(world.getPokemons()[0].committedDest.x < 0 && world.getPokemons()[0].targetMemory.active(),
+                  "Investigation bypassed a hidden collision or discarded its lead.");
+        }
+        const auto run = [&](int hiddenRow, bool previouslySeen) {
+            GameWorld world(cfg);
+            world.setRenderEnabled(false);
+            world.setCombatMapRules(rules);
+            auto &units = world.getPokemons();
+            for (int i = 0; i < 2; ++i) {
+                PokemonInstance unit;
+                unit.id = PokemonInstance::getNextUnitID();
+                unit.side = i == 0 ? PokemonSide::Enemy : PokemonSide::Player;
+                unit.position = world.gridToWorld(i == 0 ? 1 : 4, 3);
+                unit.hp = unit.maxHP = 100;
+                unit.movementSpeed = 2;
+                units.push_back(unit);
+            }
+            MovementSystem movement(&world, services, combat);
+            ScriptAPI api(&world, nullptr, services);
+            if (previouslySeen) {
+                // The observer sees this movement into the brush before the
+                // target disappears. No hidden destination may update the lead.
+                units[1].isMoving = true;
+                units[1].committedDest = {5, 3};
+                units[1].moveFrom = units[1].position;
+                units[1].moveTo = world.gridToWorld(5, 3);
+                movement.update(ecs, 0.01f);
+                check(units[0].targetMemory.cell == game::arena::Cell{5, 3}, "Visible entry into brush was not remembered.");
+            }
+            units[1].position = world.gridToWorld(7, hiddenRow);
+            units[1].isMoving = false;
+            units[1].committedDest = {-1, -1};
+            units[1].movementSpeed = 0;
+            std::vector<glm::vec3> path;
+            if (!previouslySeen) {
+                movement.update(ecs, 0.05f);
+                check(!units[0].targetMemory.active() && units[0].committedDest == glm::ivec2(1, 4),
+                      "Never-seen enemy generated a memory instead of a patrol.");
+                return path;
+            }
+            for (int tick = 0; tick < 20; ++tick) {
+                movement.update(ecs, 0.05f);
+                path.push_back(units[0].position);
+                check(units[0].targetMemory.cell == game::arena::Cell{5, 3} && units[0].patrol.startColumn < 0,
+                      "Hidden movement changed the remembered lead or replaced it with a patrol.");
+                check(api.nearestEnemyCell(units[0].id).first < 0,
+                      "Memory granted sight of the hidden enemy.");
+                api.applyDamage(units[0].id, units[1].id, 10, std::nullopt, std::nullopt, std::nullopt);
+                check(units[1].hp == 100 && units[0].coverRevealRemainingSec == 0,
+                      "A remembered target could be attacked without current sight.");
+            }
+            bool found = false;
+            for (int tick = 0; tick < 100; ++tick) {
+                movement.update(ecs, 0.05f);
+                const auto distance = units[0].position - units[1].position;
+                check(glm::dot(distance, distance) >= 0.9f, "Investigating units overlapped.");
+                if (api.nearestEnemyCell(units[0].id).first >= 0) {
+                    found = true;
+                    break;
+                }
+            }
+            check(found && rules->coverGroup(world.combatActor(units[0])) >= 0,
+                  "Investigator failed to enter brush and regain actual sight.");
+            // Repositioning clears a previous combat lead.
+            check(world.setEditorPreviewUnitTransform(units[0].id, world.gridToWorld(1, 3), {}, true),
+                  "Memory reset fixture could not reposition the observer.");
+            check(!units[0].targetMemory.active(), "Editor reposition retained stale enemy memory.");
+            units[0].targetMemory = {{5, 3}, 0, 0, 0.01f};
+            movement.update(ecs, 0.05f);
+            check(!units[0].targetMemory.active() && units[0].patrol.startColumn == 1,
+                  "Expired memory did not resume the ordinary patrol.");
+            // A fresh visible enemy takes priority over a remembered patch.
+            world.setEditorPreviewUnitTransform(units[0].id, world.gridToWorld(1, 3), {}, true);
+            units[0].targetMemory = {{5, 3}, 0, 0, 8};
+            auto visible = units[1];
+            visible.id = PokemonInstance::getNextUnitID();
+            visible.position = world.gridToWorld(1, 0);
+            units.push_back(visible);
+            movement.update(ecs, 0.05f);
+            check(units[0].committedDest == glm::ivec2(1, 2), "Memory took priority over an actually visible enemy.");
+            units[1].targetMemory = {{5, 3}, 0, 0, 8};
+            world.healPlayerUnitsToFull();
+            check(!units[1].targetMemory.active(), "Between-round recovery retained enemy memory.");
+            return path;
+        };
+        run(1, false);
+        check(run(1, true) == run(5, true), "Investigation followed hidden coordinates instead of the last observation.");
+        return true;
+    } catch (const std::exception &error) {
+        outFail = error.what();
+        return false;
+    }
+}
+
 bool test_encounter_grass_gameplay(std::string &outFail) {
     try {
         const auto check = [](bool ok, const char *message) { if (!ok) throw std::runtime_error(message); };

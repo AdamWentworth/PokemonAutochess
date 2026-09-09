@@ -99,6 +99,11 @@ nlohmann::json encodeUnitSnapshot(const GameWorld::DebugUnitSnapshot& snap) {
     j["cover_reveal_seconds"] = snap.coverRevealRemainingSec;
     j["patrol_cursor"] = snap.patrol.cursor;
     j["patrol_start_column"] = snap.patrol.startColumn;
+    if (snap.targetMemory.active()) {
+        j["target_memory"] = {{"cell", {snap.targetMemory.cell.x, snap.targetMemory.cell.z}},
+                              {"offset", {snap.targetMemory.offsetX, snap.targetMemory.offsetZ}},
+                              {"remaining_seconds", snap.targetMemory.remainingSec}};
+    }
     return j;
 }
 
@@ -227,6 +232,26 @@ bool decodeUnitSnapshot(const nlohmann::json& j,
         out.patrol.cursor = std::clamp(it->get<int>(), 0, 65535);
     if (const auto it = j.find("patrol_start_column"); it != j.end() && it->is_number_integer())
         out.patrol.startColumn = std::clamp(it->get<int>(), -1, 255);
+    if (const auto it = j.find("target_memory"); it != j.end() && it->is_object()) {
+        const auto cell = it->find("cell"), offset = it->find("offset"), seconds = it->find("remaining_seconds");
+        if (cell != it->end() && cell->is_array() && cell->size() == 2 &&
+            (*cell)[0].is_number_integer() && (*cell)[1].is_number_integer() &&
+            offset != it->end() && offset->is_array() && offset->size() == 2 &&
+            (*offset)[0].is_number() && (*offset)[1].is_number() && seconds != it->end() && seconds->is_number()) {
+            auto &memory = out.targetMemory;
+            memory.cell = {(*cell)[0].get<int>(), (*cell)[1].get<int>()};
+            memory.offsetX = (*offset)[0].get<float>();
+            memory.offsetZ = (*offset)[1].get<float>();
+            memory.remainingSec = seconds->get<float>();
+            if (memory.cell.x < 0 || memory.cell.x > 255 || memory.cell.z < 0 || memory.cell.z > 255 ||
+                !std::isfinite(memory.offsetX) || !std::isfinite(memory.offsetZ) || !std::isfinite(memory.remainingSec)) memory = {};
+            else {
+                memory.offsetX = std::clamp(memory.offsetX, -0.5f, 0.5f);
+                memory.offsetZ = std::clamp(memory.offsetZ, -0.5f, 0.5f);
+                memory.remainingSec = std::clamp(memory.remainingSec, 0.0f, game::arena::kTargetMemorySeconds);
+            }
+        }
+    }
     if (expectBench) {
         out.side = PokemonSide::Player;
     }

@@ -104,6 +104,7 @@ struct PokemonInstance {
     glm::ivec2 committedDest{-1, -1};
     LedgeJumpState ledgeJump;
     game::arena::PatrolState patrol;
+    game::arena::TargetMemory targetMemory;
     float coverRevealRemainingSec = 0.0f;
     int animJumpStartIndex = -1;
     int animJumpLoopIndex = -1;

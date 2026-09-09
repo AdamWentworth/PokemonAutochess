@@ -201,8 +201,48 @@ void concealment() {
     inside.offsetZ=-0.6f;
     check(rules.canPerceive(outside,inside), "Cover used rounded cell instead of continuous footprint.");
 }
+void investigation() {
+    ArenaMapData data;
+    for (int z = 0; z < 8; ++z)
+        for (int x = 0; x < 8; ++x) {
+            data.tiles[{x, z}] = {x, z, 0, 0, 0};
+            data.playableCells.insert({x, z});
+        }
+    data.cover = {rect("brush", 500, 100, 300, 500)};
+    AuthoredCombatMap rules(data, {0, 0});
+    CombatMapView map{8, 8, &rules};
+    std::vector<std::uint8_t> blocked(64);
+    Actor mover{1, 0, {1, 3}};
+    TargetMemory memory{{7, 1}, 0, 0, kTargetMemorySeconds};
+    // Head to the nearby edge of the remembered patch, not the old unit tile
+    // at its far end. Entering the patch is enough to check the whole group.
+    for (int x = 2; x <= 5; ++x) {
+        const auto next = firstInvestigationStep(map, mover, memory, blocked);
+        check(next == Cell{x, 3}, "Investigator did not use the nearest reachable patch entry.");
+        mover.cell = next;
+    }
+    check(firstInvestigationStep(map, mover, memory, blocked) == Cell{} && !memory.active(),
+          "An empty checked patch retained an investigation forever.");
+    memory = {{7, 1}, 0, 0, kTargetMemorySeconds};
+    mover.cell = {1, 3};
+    mover.grounded = false;
+    check(firstInvestigationStep(map, mover, memory, blocked) == Cell{2, 3}, "Airborne unit could not investigate a remembered area.");
+    mover.grounded = true;
+    std::fill(blocked.begin(), blocked.end(), 1);
+    check(firstInvestigationStep(map, mover, memory, blocked) == Cell{} && memory.active(),
+          "A temporary reservation discarded the remembered lead or allowed overlap.");
+    memory.remainingSec = 0;
+    check(firstInvestigationStep(map, mover, memory, blocked) == Cell{} && !memory.active(),
+          "Expired memory remained actionable.");
+    std::fill(blocked.begin(), blocked.end(), 0);
+    memory = {{3, 3}, 0, 0, kTargetMemorySeconds};
+    check(firstInvestigationStep(map, mover, memory, blocked) == Cell{2, 3}, "Open-ground memory was not investigated.");
+    mover.cell = {3, 3};
+    check(firstInvestigationStep(map, mover, memory, blocked) == Cell{} && !memory.active(), "Checked open-ground memory was not cleared.");
+}
+
 void patrol() {
-    CombatMapView map{8,8,nullptr};
+    CombatMapView map{8, 8, nullptr};
     std::vector<std::uint8_t> blocked(64);
     for (bool north : {true,false}) {
         Actor mover{1,0,{3,4}};
@@ -241,6 +281,7 @@ int main() {
     try {
         navigation();
         concealment();
+        investigation();
         patrol();
         authoredData();
         authoredTraversal();

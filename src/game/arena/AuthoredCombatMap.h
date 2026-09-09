@@ -13,7 +13,7 @@ class AuthoredCombatMap final : public CombatMapRules {
         return cardinalStep(from, to, capability) != StepKind::Blocked;
     }
     bool canPerceive(const Actor &observer, const Actor &target) const override;
-    int coverGroup(const Actor &actor) const;
+    int coverGroup(const Actor &actor) const override;
     bool canEngageMelee(const Actor &a, const Actor &b) const override;
     const ArenaMapData &data() const { return data_; }
     Cell sourceCell(Cell board) const { return {board.x + origin_.x, board.z + origin_.z}; }

@@ -66,6 +66,7 @@ bool GameWorld::buildDebugStateSnapshot(DebugStateSnapshot& out) const {
         snap.coverRevealRemainingSec = std::max(unit.coverRevealRemainingSec,
             unit.attackTimerSec > 0.0f ? unit.attackTimerSec + game::arena::kAttackRevealSeconds : 0.0f);
         snap.patrol = unit.patrol;
+        snap.targetMemory = unit.targetMemory;
         out.boardUnits.push_back(std::move(snap));
     }
 
@@ -107,6 +108,7 @@ bool GameWorld::buildDebugStateSnapshot(DebugStateSnapshot& out) const {
         snap.coverRevealRemainingSec = std::max(unit.coverRevealRemainingSec,
             unit.attackTimerSec > 0.0f ? unit.attackTimerSec + game::arena::kAttackRevealSeconds : 0.0f);
         snap.patrol = unit.patrol;
+        snap.targetMemory = unit.targetMemory;
         out.benchUnits.push_back(std::move(snap));
     }
 
@@ -170,8 +172,19 @@ bool GameWorld::applyDebugStateSnapshot(const DebugStateSnapshot& in, std::strin
         inst.fainting = snap.fainting;
         inst.captureInProgress = snap.captureInProgress;
         inst.coverRevealRemainingSec = std::isfinite(snap.coverRevealRemainingSec)
-            ? std::clamp(snap.coverRevealRemainingSec, 0.0f, 60.0f) : 0.0f;
+                                           ? std::clamp(snap.coverRevealRemainingSec, 0.0f, 60.0f)
+                                           : 0.0f;
         inst.patrol = snap.patrol;
+        inst.targetMemory = snap.targetMemory;
+        if (!combatMap().contains(inst.targetMemory.cell) ||
+            !std::isfinite(inst.targetMemory.remainingSec) ||
+            !std::isfinite(inst.targetMemory.offsetX) || !std::isfinite(inst.targetMemory.offsetZ)) {
+            inst.targetMemory = {};
+        } else {
+            inst.targetMemory.remainingSec = std::clamp(inst.targetMemory.remainingSec, 0.0f, game::arena::kTargetMemorySeconds);
+            inst.targetMemory.offsetX = std::clamp(inst.targetMemory.offsetX, -0.5f, 0.5f);
+            inst.targetMemory.offsetZ = std::clamp(inst.targetMemory.offsetZ, -0.5f, 0.5f);
+        }
         const int newId = inst.id;
         pokemons.push_back(std::move(inst));
         if (snap.hasBattleStartPose) {
@@ -227,8 +240,19 @@ bool GameWorld::applyDebugStateSnapshot(const DebugStateSnapshot& in, std::strin
         inst.fainting = snap.fainting;
         inst.captureInProgress = snap.captureInProgress;
         inst.coverRevealRemainingSec = std::isfinite(snap.coverRevealRemainingSec)
-            ? std::clamp(snap.coverRevealRemainingSec, 0.0f, 60.0f) : 0.0f;
+                                           ? std::clamp(snap.coverRevealRemainingSec, 0.0f, 60.0f)
+                                           : 0.0f;
         inst.patrol = snap.patrol;
+        inst.targetMemory = snap.targetMemory;
+        if (!combatMap().contains(inst.targetMemory.cell) ||
+            !std::isfinite(inst.targetMemory.remainingSec) ||
+            !std::isfinite(inst.targetMemory.offsetX) || !std::isfinite(inst.targetMemory.offsetZ)) {
+            inst.targetMemory = {};
+        } else {
+            inst.targetMemory.remainingSec = std::clamp(inst.targetMemory.remainingSec, 0.0f, game::arena::kTargetMemorySeconds);
+            inst.targetMemory.offsetX = std::clamp(inst.targetMemory.offsetX, -0.5f, 0.5f);
+            inst.targetMemory.offsetZ = std::clamp(inst.targetMemory.offsetZ, -0.5f, 0.5f);
+        }
         const int newId = inst.id;
         benchPokemons.push_back(std::move(inst));
         if (snap.hasBattleStartPose) {

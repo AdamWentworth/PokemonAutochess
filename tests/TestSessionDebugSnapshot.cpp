@@ -140,6 +140,7 @@ bool test_session_debug_snapshot_contract(std::string& outFail) {
         });
         snapshot.boardUnits.front().coverRevealRemainingSec = 0.75f;
         snapshot.boardUnits.front().patrol = {17, 3};
+        snapshot.boardUnits.front().targetMemory = {{7, 5}, 0.2f, -0.1f, 3.5f};
         snapshot.benchUnits.push_back(GameWorld::DebugUnitSnapshot{
             .name = "squirtle",
             .side = PokemonSide::Enemy,
@@ -191,6 +192,9 @@ bool test_session_debug_snapshot_contract(std::string& outFail) {
 
         if (!loaded.showConcealedUnits || loaded.boardUnits.front().coverRevealRemainingSec != 0.75f ||
             loaded.boardUnits.front().patrol.cursor != 17 || loaded.boardUnits.front().patrol.startColumn != 3 ||
+            loaded.boardUnits.front().targetMemory.cell != game::arena::Cell{7, 5} ||
+            loaded.boardUnits.front().targetMemory.offsetX != 0.2f || loaded.boardUnits.front().targetMemory.offsetZ != -0.1f ||
+            loaded.boardUnits.front().targetMemory.remainingSec != 3.5f ||
             loaded.boardUnits.front().name != "charmander" ||
             loaded.boardUnits.front().modelVariant != "shiny" ||
             loaded.boardUnits.front().side != PokemonSide::Enemy ||

@@ -44,6 +44,7 @@ class CombatMapRules {
         return canTraverseCardinal(from, to, capability) ? StepKind::Walk : StepKind::Blocked;
     }
     virtual bool canPerceive(const Actor &, const Actor &) const = 0;
+    virtual int coverGroup(const Actor &) const { return -1; }
     virtual bool canEngageMelee(const Actor &, const Actor &) const = 0;
 };
 
@@ -59,6 +60,7 @@ struct CombatMapView {
     bool canPerceive(const Actor &observer, const Actor &target) const {
         return !rules || rules->canPerceive(observer, target);
     }
+    int coverGroup(const Actor &actor) const { return rules ? rules->coverGroup(actor) : -1; }
     bool canEngageMelee(const Actor &attacker, const Actor &target) const {
         if (attacker.traversingLedge) return false;
         return std::max(std::abs(static_cast<std::int64_t>(attacker.cell.x) - target.cell.x), std::abs(static_cast<std::int64_t>(attacker.cell.z) - target.cell.z)) == 1 &&
@@ -84,6 +86,21 @@ Cell firstStepTowards(CombatMapView map, Actor mover, const Actor &observedTarge
 bool canReachMelee(CombatMapView map, Actor mover, const Actor &target);
 
 inline constexpr float kAttackRevealSeconds = 1.25f;
+inline constexpr float kTargetMemorySeconds = 8.0f;
+
+// An observed location, never a reference to the hidden enemy's live state.
+// A visible movement endpoint entering grass may supply this location too.
+struct TargetMemory {
+    Cell cell;
+    float offsetX = 0.0f, offsetZ = 0.0f;
+    float remainingSec = 0.0f;
+    bool active() const { return cell.x >= 0 && cell.z >= 0 && remainingSec > 0.0f; }
+};
+
+// Enter the remembered patch, or visit the last-seen location on open ground.
+// Clears the lead after checking it; temporary blockers wait for memory expiry.
+Cell firstInvestigationStep(CombatMapView map, Actor mover, TargetMemory &memory,
+                            std::span<const std::uint8_t> blocked);
 
 struct PatrolState {
     int cursor = 0;

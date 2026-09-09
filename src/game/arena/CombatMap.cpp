@@ -163,6 +163,55 @@ Cell firstStepToCell(CombatMapView map, Actor mover, Cell destination,
     return {};
 }
 
+Cell firstInvestigationStep(CombatMapView map, Actor mover, TargetMemory &memory,
+                            std::span<const std::uint8_t> blocked) {
+    if (!validGrid(map, blocked.size()) || !map.contains(mover.cell) ||
+        !memory.active() || !map.contains(memory.cell)) {
+        memory = {};
+        return {};
+    }
+    Actor anchor;
+    anchor.cell = memory.cell;
+    anchor.offsetX = memory.offsetX;
+    anchor.offsetZ = memory.offsetZ;
+    const int patch = map.coverGroup(anchor);
+    const auto checked = [&](const Actor &position) {
+        auto groundPosition = position;
+        groundPosition.grounded = true;
+        groundPosition.traversingLedge = false;
+        return patch >= 0 ? map.coverGroup(groundPosition) == patch : position.cell == memory.cell;
+    };
+    // Called after actual enemy acquisition. Reaching the remembered area
+    // completes the search; this geometric query grants no additional sight.
+    if (checked(mover)) {
+        memory = {};
+        return {};
+    }
+    std::vector<int> parents(blocked.size(), -1);
+    std::vector<Cell> queue{mover.cell};
+    const int start = map.index(mover.cell);
+    parents[start] = start;
+    for (std::size_t i = 0; i < queue.size(); ++i) {
+        for (const auto &direction : kDirections) {
+            const Cell next{queue[i].x + direction[0], queue[i].z + direction[1]};
+            if (!map.contains(next) || parents[map.index(next)] >= 0 ||
+                !map.canStep(queue[i], next, mover.traversal, blocked)) continue;
+            int index = map.index(next);
+            parents[index] = map.index(queue[i]);
+            Actor candidate = mover;
+            candidate.cell = next;
+            candidate.offsetX = candidate.offsetZ = 0.0f;
+            if (checked(candidate)) {
+                while (parents[index] != start)
+                    index = parents[index];
+                return {index % map.cols, index / map.cols};
+            }
+            queue.push_back(next);
+        }
+    }
+    return {};
+}
+
 Cell firstPatrolStep(CombatMapView map, Actor mover, PatrolState &state,
                      std::span<const std::uint8_t> blocked, bool enemyEndIsNorth) {
     if (!validGrid(map, blocked.size()) || !map.contains(mover.cell)) return {};

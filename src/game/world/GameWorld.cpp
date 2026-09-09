@@ -125,6 +125,7 @@ void GameWorld::clearGroundHeightResolver() {
     for (auto& unit : pokemons) {
         unit.ledgeJump = {};
         unit.patrol = {};
+        unit.targetMemory = {};
         unit.coverRevealRemainingSec = 0.0f;
         flatten(unit.position);
         flatten(unit.moveFrom);
@@ -133,6 +134,7 @@ void GameWorld::clearGroundHeightResolver() {
     for (auto& unit : benchPokemons) {
         unit.ledgeJump = {};
         unit.patrol = {};
+        unit.targetMemory = {};
         unit.coverRevealRemainingSec = 0.0f;
         flatten(unit.position);
         flatten(unit.moveFrom);
@@ -419,6 +421,7 @@ bool GameWorld::setEditorPreviewUnitTransform(
     unit->position = resolvedPosition;
     unit->ledgeJump = {};
     unit->patrol = {};
+    unit->targetMemory = {};
     unit->coverRevealRemainingSec = 0.0f;
     unit->rotation = rotationDegrees;
     unit->isMoving = false;

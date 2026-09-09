@@ -63,7 +63,7 @@ bool shouldHoldLocomotionAfterArrival(const GameWorld &world,
         foundEnemy = true;
         if (map.canEngageMelee(actor, target)) return false;
     }
-    return foundEnemy || unit.patrol.startColumn >= 0;
+    return foundEnemy || unit.patrol.startColumn >= 0 || unit.targetMemory.active();
 }
 
 const char* sideName(PokemonSide side) {
@@ -244,7 +244,13 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     std::vector<PlannerUnit> units;
     units.reserve(boardUnits.size());
     for (std::size_t i = 0; i < boardUnits.size(); ++i) {
-        if (!cached[i].active || !inside(cfg, cached[i].col, cached[i].row)) continue;
+        auto &memory = boardUnits[i].targetMemory;
+        if (!cached[i].active || !inside(cfg, cached[i].col, cached[i].row)) {
+            memory = {};
+            continue;
+        }
+        memory.remainingSec = std::max(0.0f, memory.remainingSec - std::max(0.0f, deltaTime));
+        if (!memory.active()) memory = {};
 
         PlannerUnit entry;
         entry.unit = &boardUnits[i];
@@ -308,11 +314,38 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         const auto targetDestination = entry.targetUnit && entry.targetUnit->isMoving && hasCommittedMove(*entry.targetUnit)
             ? game::arena::Cell{entry.targetUnit->committedDest.x, entry.targetUnit->committedDest.y}
             : entry.target.cell;
-        const auto [wantCol, wantRow] = entry.enemyCol != -1
-            ? game::arena::firstStepTowards(map, gameWorld->combatActor(unit), entry.target, blocked, targetDestination)
-            : enemiesRemain
-                ? game::arena::firstPatrolStep(map, gameWorld->combatActor(unit), unit.patrol, blocked, unit.side == PokemonSide::Player)
-                : game::arena::Cell{};
+        game::arena::Cell next;
+        const char *intent = "pursue";
+        if (entry.enemyCol != -1) {
+            next = game::arena::firstStepTowards(map, gameWorld->combatActor(unit), entry.target, blocked, targetDestination);
+        } else if (enemiesRemain) {
+            intent = "investigate";
+            if (unit.targetMemory.active()) {
+                const auto observer = gameWorld->combatActor(unit);
+                std::vector<std::uint8_t> knownBlocked(totalCells);
+                for (std::size_t i = 0; i < boardUnits.size(); ++i) {
+                    if (!cached[i].blocksTile || !map.canPerceive(observer, gameWorld->combatActor(boardUnits[i]))) continue;
+                    const game::arena::Cell cell{cached[i].col, cached[i].row};
+                    if (map.contains(cell)) knownBlocked[map.index(cell)] = 1;
+                    if (hasCommittedMove(boardUnits[i])) {
+                        const auto from = gameWorld->worldToGrid(boardUnits[i].moveFrom);
+                        game::arena::reserveStep(map, {from.x, from.y},
+                            {boardUnits[i].committedDest.x, boardUnits[i].committedDest.y}, knownBlocked);
+                    }
+                }
+                next = game::arena::firstInvestigationStep(map, observer, unit.targetMemory, knownBlocked);
+                // Hidden occupancy can prevent an immediate collision, but
+                // cannot select a different distant entrance into the brush.
+                if (!map.canStep(observer.cell, next, unit.traversalCapabilities, blocked)) next = {};
+            }
+            if (!unit.targetMemory.active()) {
+                intent = "patrol";
+                next = game::arena::firstPatrolStep(map, gameWorld->combatActor(unit), unit.patrol, blocked, unit.side == PokemonSide::Player);
+            }
+        } else {
+            unit.targetMemory = {};
+        }
+        const auto [wantCol, wantRow] = next;
         if (wantCol < 0 || wantRow < 0) {
             unit.isMoving = false;
             unit.committedDest = {-1, -1};
@@ -334,6 +367,8 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
                   << "from_cell=" << cellString(entry.col, entry.row)
                   << "to_cell=" << cellString(wantCol, wantRow)
                   << "enemy_cell=" << cellString(entry.enemyCol, entry.enemyRow)
+                  << " intent=" << intent
+                  << " memory_cell=" << cellString(unit.targetMemory.cell.x, unit.targetMemory.cell.z)
                   << "adjacent=" << (entry.adjacentToEnemy ? 1 : 0)
                   << "speed=" << unit.movementSpeed
                   << "move_from=" << vecString(unit.moveFrom)
@@ -349,7 +384,21 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         }
     }
 
-    for (const PlannerUnit& unit : units) {
+    // Sample the visible plans before advancing anyone, including moves begun
+    // this tick. Hidden enemies never contribute a position or destination.
+    for (const PlannerUnit &entry : units) {
+        if (!entry.targetUnit) continue;
+        auto observed = entry.target;
+        if (entry.targetUnit->isMoving && hasCommittedMove(*entry.targetUnit)) {
+            auto destination = observed;
+            destination.cell = {entry.targetUnit->committedDest.x, entry.targetUnit->committedDest.y};
+            destination.offsetX = destination.offsetZ = 0.0f;
+            if (map.contains(destination.cell) && map.coverGroup(destination) >= 0) observed = destination;
+        }
+        entry.unit->targetMemory = {observed.cell, observed.offsetX, observed.offsetZ, game::arena::kTargetMemorySeconds};
+    }
+
+    for (const PlannerUnit &unit : units) {
         if (unit.unit->ledgeJump.active() || (unit.enemyCol == -1 && unit.unit->isMoving)) {
             setFacingToTarget(*unit.unit, unit.unit->moveTo);
             continue;
