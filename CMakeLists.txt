@@ -1049,6 +1049,7 @@ if (BUILD_TESTING)
         tests/TestSharedProjectedUnitBackendMeshSupport.cpp
         tests/TestSharedProjectedUnitRenderer.cpp
         tests/TestSharedProjectedUnitWorldSceneRenderer.cpp
+        tests/TestLedgeJumpRendering.cpp
         tests/TestSharedProjectedBodyPresentation.cpp
         tests/TestSharedPreviewBodyPresentationPath.cpp
         tests/TestSharedAuthoredVfxHelpers.cpp
@@ -1146,6 +1147,7 @@ if (BUILD_TESTING)
 
     set(PAC_PRIVATE_ASSET_TEST_NAMES
         ledge_jump_asset_roles
+        ledge_jump_rendering
         ui_image_path_contract
         native_charmander_family_fire_contract
         route1_cooked_environment_contract

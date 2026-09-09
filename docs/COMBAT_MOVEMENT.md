@@ -70,10 +70,17 @@ with `tools/environment/preview_route1_pilot.ps1 -Phase ledges`.
 
 Verification:
 
+`ledge_jump_rendering` sends the real Bulbasaur and Rattata meshes through the
+public unit renderer. It checks skeletal draw submissions throughout the jump
+and changing bone palettes during running, takeoff, and landing. Airborne loops
+may hold an authored pose. GPU skinning uses the already evaluated in-place
+palette; disabling it is not a root-motion fix.
+
 ```powershell
 .\build\Release\PAC_Tests.exe --filter movement_collision_regressions
 .\build\Release\PAC_Tests.exe --filter ledge_jump_movement
 .\build\Release\PAC_Tests.exe --filter ledge_jump_asset_roles
+.\build\Release\PAC_Tests.exe --filter ledge_jump_rendering
 .\build\Release\PAC_Tests.exe --filter movement_invariants
 .\build\Release\PAC_Tests.exe --filter end_to_end_headless
 .\build\Release\PAC_Tests.exe --filter route1_arena_pilot_contract

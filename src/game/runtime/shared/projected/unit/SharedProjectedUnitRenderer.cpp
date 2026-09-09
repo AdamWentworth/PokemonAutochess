@@ -718,9 +718,10 @@ for (const auto& unit : units) {
                     .backendId = args.rendererBackendId,
                     .scenePoseReady = scenePoseReady,
                     .enableClipSkinning = unitClipSkinningEnabled,
-                    // Prebaked GPU clips preserve vertical root travel. Jumps use
-                    // the evaluated in-place palette so the simulation owns height.
-                    .enableGpuClipSkinning = enableGpuClipSkinning && !unit.ledgeJump.active(),
+                    // GPU skinning uploads the evaluated scenePose palette,
+                    // including jump root-motion removal. Keep it active for
+                    // every jump phase so the mesh follows the animated bones.
+                    .enableGpuClipSkinning = enableGpuClipSkinning,
                     .tint = &tint,
                     .worldCellSize = worldCellSize,
                     .boardSurfaceY = boardSurfaceY,
