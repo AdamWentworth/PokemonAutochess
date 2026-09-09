@@ -103,8 +103,9 @@ Bulbasaur inside and Rattata on the open terrace. Its fixture is
 the same blade packing, contact animation and visibility rules.
 
 **Route 1 - North Entrance > Grass Test** starts Bulbasaur in the lower grass and
-Rattata on the upper terrace. The original eastern ramp connects the levels, and
-the south reserve row remains clear of cover. Its fixture is
+Rattata on the upper terrace. Southbound ledge jumps connect the playable levels;
+the original eastern ramp sits outside the board. The south reserve row remains
+clear of cover. Its fixture is
 `config/debug/editor_route1_north_entrance_grass.json`.
 
 ## Verification

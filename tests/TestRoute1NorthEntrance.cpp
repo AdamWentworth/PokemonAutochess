@@ -28,7 +28,7 @@ bool test_route1_north_entrance_contract(std::string &outFail) {
         check(bundle.load(store, std::string(variant.arenaBundlePath), &outFail), outFail);
         check(env::loadCookedEnvironment(store, environment, nullptr, &outFail), outFail);
         check(env::loadBoardLayoutTransform(bundle.store, bundle.boardPath, board, &outFail), outFail);
-        check(board.terrainGridOrigin == std::array<std::int32_t, 2>{19, -37}, "North Entrance must include the original eastern ramp inside its board.");
+        check(board.terrainGridOrigin == std::array<std::int32_t, 2>{17, -36}, "North Entrance must align with the earlier arenas, one tile south and two west of its initial position.");
         check(activation::apply(store, variant, environment, true, true, &outFail), outFail);
         check(environment.terrainTiles().empty() && environment.stats().visibleTriangleCount > 0 && environment.stats().shadowGroundTriangleCount > 0,
               "North Entrance must render and cast shadows from its authored terrain.");
@@ -40,11 +40,11 @@ bool test_route1_north_entrance_contract(std::string &outFail) {
                 sourceGrassRestored = std::abs(object.translationCm[0] - 2550) < .1f && std::abs(object.translationCm[2] + 2350) < .1f;
             }
             if (object.targetKind == "environment_mesh_patch" || object.prefabAssetId.find("encounter_grass") != std::string::npos) continue;
-            const bool overlapsColumns = object.boundsMinimumCm[0] < 2700 && object.boundsMaximumCm[0] > 1900;
-            const bool overlapsRows = object.boundsMinimumCm[2] < -2800 && object.boundsMaximumCm[2] > -3800;
+            const bool overlapsColumns = object.boundsMinimumCm[0] < 2500 && object.boundsMaximumCm[0] > 1700;
+            const bool overlapsRows = object.boundsMinimumCm[2] < -2700 && object.boundsMaximumCm[2] > -3700;
             const bool solid = object.prefabAssetId.starts_with("route1/tree_") || object.boundsMaximumCm[1] - object.boundsMinimumCm[1] > 65;
             check(!solid || !overlapsColumns || !overlapsRows, "A solid prop overlaps the board/reserves: " + object.stableId);
-            for (const int z : {-38, -29}) {
+            for (const int z : {-37, -28}) {
                 check(!overlapsColumns || object.boundsMinimumCm[2] >= (z + 1) * 100 || object.boundsMaximumCm[2] <= z * 100,
                       "A decorative plant overlaps a dirt reserve row: " + object.stableId);
             }
@@ -53,13 +53,12 @@ bool test_route1_north_entrance_contract(std::string &outFail) {
         const auto matrix = env::worldFromSourceMatrix(board);
         for (int row = -1; row <= 8; ++row) {
             for (int col = 0; col < 8; ++col) {
-                const float x = (19.5f + col) * 100, z = (-36.5f + row) * 100;
-                const float expected = row <= 3 ? 300.0f : row == 4 ? (col >= 6 ? 275.0f : 300.0f)
-                                                                    : 250.0f;
-                const auto *tile = bundle.map.tileAt(19 + col, -37 + row);
-                check(tile && std::abs(tile->heightAt(x, z) - expected) < .01f, "North Entrance lost its two open terraces or eastern ramp.");
+                const float x = (17.5f + col) * 100, z = (-35.5f + row) * 100;
+                const float expected = row <= 3 ? 300.0f : 250.0f;
+                const auto *tile = bundle.map.tileAt(17 + col, -36 + row);
+                check(tile && std::abs(tile->heightAt(x, z) - expected) < .01f, "North Entrance must have four playable rows on each terrace.");
                 if (row == -1 || row == 8) check(tile->surface == 1 && bundle.map.coverAt(x, z).empty(), "Both reserve rows must be dirt without encounter grass.");
-                if (row >= 5 && row <= 7 && col <= 1) check(tile->surface == 0, "The removed spur must blend into the accessible lawn.");
+                if (row >= 4 && row <= 6 && col >= 1 && col <= 3) check(tile->surface == 0, "The removed spur must blend into the accessible lawn.");
                 float actual = -999;
                 check(environment.sampleWorldTerrainHeight(matrix[0] * x + matrix[8] * z + matrix[12], matrix[2] * x + matrix[10] * z + matrix[14], actual) &&
                           std::abs(actual - (matrix[5] * expected + matrix[13])) < .001f,
@@ -70,16 +69,25 @@ bool test_route1_north_entrance_contract(std::string &outFail) {
         const auto *backdropLawn = bundle.map.tileAt(24, -20);
         check(backdropIsland && backdropIsland->height == 5 && backdropLawn && backdropLawn->surface == 0,
               "North Terraces arena alterations must not leak into the southern backdrop.");
+        const auto *oldNorthBank = bundle.map.tileAt(24, -38);
+        const auto *oldNorthLane = bundle.map.tileAt(20, -38);
+        const auto *oldSouthBench = bundle.map.tileAt(23, -29);
+        const auto *easternRamp = bundle.map.tileAt(25, -33);
+        check(oldNorthBank && oldNorthBank->height == 7 && oldNorthBank->surface == 2 &&
+                  oldNorthLane && oldNorthLane->height == 6 && oldNorthLane->surface == 0 &&
+                  oldSouthBench && oldSouthBench->height == 5 && oldSouthBench->surface == 0 && !bundle.map.coverAt(2350, -2850).empty(),
+              "The old bench locations must return to their source bank, lane and full grass bed.");
+        check(easternRamp && easternRamp->height == 5 && easternRamp->ramp == 1,
+              "Recentring the board must preserve the original eastern ramp beside it.");
         GameConfigData config;
         GameWorld gameplay(config);
         check(activation::applyGameplay(store, variant, gameplay, &outFail), outFail);
         const auto map = gameplay.combatMap();
-        check(map.stepKind({3, 4}, {3, 5}, {}) == StepKind::LedgeDrop && map.stepKind({3, 5}, {3, 4}, {}) == StepKind::Blocked &&
-                  map.stepKind({3, 5}, {3, 4}, {true}) == StepKind::Walk,
+        check(map.stepKind({3, 3}, {3, 4}, {}) == StepKind::LedgeDrop && map.stepKind({3, 4}, {3, 3}, {}) == StepKind::Blocked &&
+                  map.stepKind({3, 4}, {3, 3}, {true}) == StepKind::Walk,
               "North Entrance must retain southbound jumps, uphill walls and flying exceptions.");
-        check(map.stepKind({6, 4}, {6, 5}, {}) == StepKind::Walk && map.stepKind({6, 5}, {6, 4}, {}) == StepKind::Walk &&
-                  map.stepKind({0, 5}, {1, 5}, {}) == StepKind::Walk,
-              "The eastern ramp and cleared spur must support ordinary walking.");
+        check(map.stepKind({0, 4}, {1, 4}, {}) == StepKind::Walk && map.stepKind({7, 3}, {8, 3}, {}) == StepKind::Blocked,
+              "The cleared lower lawn must be walkable and the backdrop ramp must stay outside the playable board.");
         Actor open{.id = 1, .team = 0, .cell = {1, 2}}, hidden{.id = 2, .team = 1, .cell = {4, 6}}, samePatch{.id = 3, .team = 0, .cell = {5, 6}};
         check(map.coverGroup(open) < 0 && map.coverGroup(hidden) >= 0 && map.coverGroup(hidden) == map.coverGroup(samePatch) &&
                   !map.canPerceive(open, hidden) && map.canPerceive(hidden, open) && map.canPerceive(samePatch, hidden),

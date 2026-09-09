@@ -7633,64 +7633,17 @@
       }
     },
     {
-      "id": "authored-prefab/north-entrance/north-entrance-east-grass-return",
-      "display_name": "North Entrance east grass return",
+      "id": "authored-prefab/north-entrance/north-entrance-main-grass",
+      "display_name": "North Entrance main grass",
       "parent_id": "folder/environment/props",
       "sibling_order": 159,
       "enabled": true,
       "components": {
         "transform": {
           "translation": [
-            2750.0,
-            250.0,
-            -2862.5
-          ],
-          "rotation_degrees": [
-            0,
-            0.0,
-            0
-          ],
-          "scale": [
-            0.1428571492433548,
-            1.0,
-            0.25
-          ]
-        },
-        "prefab_instance": {
-          "prototype_node_id": "encounter-grass/enc_grass01/record-5",
-          "prefab_asset_id": "route1/encounter_grass_01",
-          "creation_transform": {
-            "rotation_degrees": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "scale": [
-              1.0,
-              1.0,
-              1.0
-            ],
-            "translation": [
-              2450.0,
-              250.0,
-              -3050.0
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "authored-prefab/north-entrance/north-entrance-main-grass",
-      "display_name": "North Entrance main grass",
-      "parent_id": "folder/environment/props",
-      "sibling_order": 160,
-      "enabled": true,
-      "components": {
-        "transform": {
-          "translation": [
             2450.0,
             250.0,
-            -3087.5
+            -3050.0
           ],
           "rotation_degrees": [
             0,
@@ -7700,7 +7653,7 @@
           "scale": [
             1.0,
             1.0,
-            0.75
+            1.0
           ]
         },
         "prefab_instance": {
@@ -7730,7 +7683,7 @@
       "id": "authored-prefab/north-entrance/encounter-grass-enc_grass01-record-4",
       "display_name": "Source Encounter Grass 01 - source patch 4",
       "parent_id": "folder/environment/props",
-      "sibling_order": 161,
+      "sibling_order": 160,
       "enabled": true,
       "components": {
         "transform": {
@@ -7777,7 +7730,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_001-instance-0",
       "display_name": "Source Tree 001 - source instance 1",
       "parent_id": "folder/environment/props",
-      "sibling_order": 162,
+      "sibling_order": 161,
       "enabled": true,
       "components": {
         "transform": {
@@ -7824,7 +7777,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_001-instance-1",
       "display_name": "Source Tree 001 - source instance 2",
       "parent_id": "folder/environment/props",
-      "sibling_order": 163,
+      "sibling_order": 162,
       "enabled": true,
       "components": {
         "transform": {
@@ -7871,7 +7824,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_001-instance-2",
       "display_name": "Source Tree 001 - source instance 3",
       "parent_id": "folder/environment/props",
-      "sibling_order": 164,
+      "sibling_order": 163,
       "enabled": true,
       "components": {
         "transform": {
@@ -7918,7 +7871,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_001-instance-4",
       "display_name": "Source Tree 001 - source instance 5",
       "parent_id": "folder/environment/props",
-      "sibling_order": 165,
+      "sibling_order": 164,
       "enabled": true,
       "components": {
         "transform": {
@@ -7965,7 +7918,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_001-instance-5",
       "display_name": "Source Tree 001 - source instance 6",
       "parent_id": "folder/environment/props",
-      "sibling_order": 166,
+      "sibling_order": 165,
       "enabled": true,
       "components": {
         "transform": {
@@ -8012,7 +7965,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_002-instance-9",
       "display_name": "Source Tree 002 - source instance 10",
       "parent_id": "folder/environment/props",
-      "sibling_order": 167,
+      "sibling_order": 166,
       "enabled": true,
       "components": {
         "transform": {
@@ -8059,7 +8012,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_002-instance-10",
       "display_name": "Source Tree 002 - source instance 11",
       "parent_id": "folder/environment/props",
-      "sibling_order": 168,
+      "sibling_order": 167,
       "enabled": true,
       "components": {
         "transform": {
@@ -8106,7 +8059,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_002-instance-1",
       "display_name": "Source Tree 002 - source instance 2",
       "parent_id": "folder/environment/props",
-      "sibling_order": 169,
+      "sibling_order": 168,
       "enabled": true,
       "components": {
         "transform": {
@@ -8153,7 +8106,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_003-instance-0",
       "display_name": "Source Tree 003 - source instance 1",
       "parent_id": "folder/environment/props",
-      "sibling_order": 170,
+      "sibling_order": 169,
       "enabled": true,
       "components": {
         "transform": {
@@ -8200,7 +8153,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_003-instance-11",
       "display_name": "Source Tree 003 - source instance 12",
       "parent_id": "folder/environment/props",
-      "sibling_order": 171,
+      "sibling_order": 170,
       "enabled": true,
       "components": {
         "transform": {
@@ -8247,7 +8200,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_003-instance-2",
       "display_name": "Source Tree 003 - source instance 3",
       "parent_id": "folder/environment/props",
-      "sibling_order": 172,
+      "sibling_order": 171,
       "enabled": true,
       "components": {
         "transform": {
@@ -8294,7 +8247,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_003-instance-4",
       "display_name": "Source Tree 003 - source instance 5",
       "parent_id": "folder/environment/props",
-      "sibling_order": 173,
+      "sibling_order": 172,
       "enabled": true,
       "components": {
         "transform": {
@@ -8341,7 +8294,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_004-instance-1",
       "display_name": "Source Tree 004 - source instance 2",
       "parent_id": "folder/environment/props",
-      "sibling_order": 174,
+      "sibling_order": 173,
       "enabled": true,
       "components": {
         "transform": {
@@ -8388,7 +8341,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_005-instance-0",
       "display_name": "Source Tree 005 - source instance 1",
       "parent_id": "folder/environment/props",
-      "sibling_order": 175,
+      "sibling_order": 174,
       "enabled": true,
       "components": {
         "transform": {
@@ -8435,7 +8388,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_005-instance-1",
       "display_name": "Source Tree 005 - source instance 2",
       "parent_id": "folder/environment/props",
-      "sibling_order": 176,
+      "sibling_order": 175,
       "enabled": true,
       "components": {
         "transform": {
@@ -8482,7 +8435,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_006-instance-1",
       "display_name": "Source Tree 006 - source instance 2",
       "parent_id": "folder/environment/props",
-      "sibling_order": 177,
+      "sibling_order": 176,
       "enabled": true,
       "components": {
         "transform": {
@@ -8529,7 +8482,7 @@
       "id": "authored-prefab/north-entrance/canonical-tree-tree_006-instance-7",
       "display_name": "Source Tree 006 - source instance 8",
       "parent_id": "folder/environment/props",
-      "sibling_order": 178,
+      "sibling_order": 177,
       "enabled": true,
       "components": {
         "transform": {
@@ -8576,7 +8529,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-11",
       "display_name": "Source flowers02 - source record 11",
       "parent_id": "folder/environment/props",
-      "sibling_order": 179,
+      "sibling_order": 178,
       "enabled": true,
       "components": {
         "transform": {
@@ -8623,7 +8576,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-14",
       "display_name": "Source flowers02 - source record 14",
       "parent_id": "folder/environment/props",
-      "sibling_order": 180,
+      "sibling_order": 179,
       "enabled": true,
       "components": {
         "transform": {
@@ -8670,7 +8623,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-15",
       "display_name": "Source flowers02 - source record 15",
       "parent_id": "folder/environment/props",
-      "sibling_order": 181,
+      "sibling_order": 180,
       "enabled": true,
       "components": {
         "transform": {
@@ -8717,7 +8670,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-17",
       "display_name": "Source flowers02 - source record 17",
       "parent_id": "folder/environment/props",
-      "sibling_order": 182,
+      "sibling_order": 181,
       "enabled": true,
       "components": {
         "transform": {
@@ -8764,7 +8717,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-18",
       "display_name": "Source flowers02 - source record 18",
       "parent_id": "folder/environment/props",
-      "sibling_order": 183,
+      "sibling_order": 182,
       "enabled": true,
       "components": {
         "transform": {
@@ -8811,7 +8764,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-19",
       "display_name": "Source flowers02 - source record 19",
       "parent_id": "folder/environment/props",
-      "sibling_order": 184,
+      "sibling_order": 183,
       "enabled": true,
       "components": {
         "transform": {
@@ -8858,7 +8811,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-26",
       "display_name": "Source flowers02 - source record 26",
       "parent_id": "folder/environment/props",
-      "sibling_order": 185,
+      "sibling_order": 184,
       "enabled": true,
       "components": {
         "transform": {
@@ -8905,7 +8858,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-28",
       "display_name": "Source flowers02 - source record 28",
       "parent_id": "folder/environment/props",
-      "sibling_order": 186,
+      "sibling_order": 185,
       "enabled": true,
       "components": {
         "transform": {
@@ -8952,7 +8905,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-30",
       "display_name": "Source flowers02 - source record 30",
       "parent_id": "folder/environment/props",
-      "sibling_order": 187,
+      "sibling_order": 186,
       "enabled": true,
       "components": {
         "transform": {
@@ -8999,7 +8952,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-31",
       "display_name": "Source flowers02 - source record 31",
       "parent_id": "folder/environment/props",
-      "sibling_order": 188,
+      "sibling_order": 187,
       "enabled": true,
       "components": {
         "transform": {
@@ -9046,7 +8999,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-32",
       "display_name": "Source flowers02 - source record 32",
       "parent_id": "folder/environment/props",
-      "sibling_order": 189,
+      "sibling_order": 188,
       "enabled": true,
       "components": {
         "transform": {
@@ -9093,7 +9046,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-34",
       "display_name": "Source flowers02 - source record 34",
       "parent_id": "folder/environment/props",
-      "sibling_order": 190,
+      "sibling_order": 189,
       "enabled": true,
       "components": {
         "transform": {
@@ -9140,7 +9093,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-35",
       "display_name": "Source flowers02 - source record 35",
       "parent_id": "folder/environment/props",
-      "sibling_order": 191,
+      "sibling_order": 190,
       "enabled": true,
       "components": {
         "transform": {
@@ -9187,7 +9140,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-37",
       "display_name": "Source flowers02 - source record 37",
       "parent_id": "folder/environment/props",
-      "sibling_order": 192,
+      "sibling_order": 191,
       "enabled": true,
       "components": {
         "transform": {
@@ -9234,7 +9187,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-43",
       "display_name": "Source flowers02 - source record 43",
       "parent_id": "folder/environment/props",
-      "sibling_order": 193,
+      "sibling_order": 192,
       "enabled": true,
       "components": {
         "transform": {
@@ -9281,7 +9234,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers02-record-44",
       "display_name": "Source flowers02 - source record 44",
       "parent_id": "folder/environment/props",
-      "sibling_order": 194,
+      "sibling_order": 193,
       "enabled": true,
       "components": {
         "transform": {
@@ -9328,7 +9281,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers04-record-51",
       "display_name": "Source flowers04 - source record 51",
       "parent_id": "folder/environment/props",
-      "sibling_order": 195,
+      "sibling_order": 194,
       "enabled": true,
       "components": {
         "transform": {
@@ -9375,7 +9328,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers04-record-52",
       "display_name": "Source flowers04 - source record 52",
       "parent_id": "folder/environment/props",
-      "sibling_order": 196,
+      "sibling_order": 195,
       "enabled": true,
       "components": {
         "transform": {
@@ -9422,7 +9375,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers04-record-53",
       "display_name": "Source flowers04 - source record 53",
       "parent_id": "folder/environment/props",
-      "sibling_order": 197,
+      "sibling_order": 196,
       "enabled": true,
       "components": {
         "transform": {
@@ -9469,7 +9422,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers04-record-56",
       "display_name": "Source flowers04 - source record 56",
       "parent_id": "folder/environment/props",
-      "sibling_order": 198,
+      "sibling_order": 197,
       "enabled": true,
       "components": {
         "transform": {
@@ -9516,14 +9469,14 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers04-record-57",
       "display_name": "Source flowers04 - source record 57",
       "parent_id": "folder/environment/props",
-      "sibling_order": 199,
+      "sibling_order": 198,
       "enabled": true,
       "components": {
         "transform": {
           "translation": [
             1679.9999237060547,
             349.54676628112793,
-            -3779.9999237060547
+            -3829.9999237060547
           ],
           "rotation_degrees": [
             0,
@@ -9563,7 +9516,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers04-record-58",
       "display_name": "Source flowers04 - source record 58",
       "parent_id": "folder/environment/props",
-      "sibling_order": 200,
+      "sibling_order": 199,
       "enabled": true,
       "components": {
         "transform": {
@@ -9610,7 +9563,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-flowers04-record-59",
       "display_name": "Source flowers04 - source record 59",
       "parent_id": "folder/environment/props",
-      "sibling_order": 201,
+      "sibling_order": 200,
       "enabled": true,
       "components": {
         "transform": {
@@ -9657,7 +9610,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-grass02-record-21",
       "display_name": "Source grass02 - source record 21",
       "parent_id": "folder/environment/props",
-      "sibling_order": 202,
+      "sibling_order": 201,
       "enabled": true,
       "components": {
         "transform": {
@@ -9704,7 +9657,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-grass02-record-38",
       "display_name": "Source grass02 - source record 38",
       "parent_id": "folder/environment/props",
-      "sibling_order": 203,
+      "sibling_order": 202,
       "enabled": true,
       "components": {
         "transform": {
@@ -9751,7 +9704,7 @@
       "id": "authored-prefab/north-entrance/buildmodel-vegetation-grass02-record-39",
       "display_name": "Source grass02 - source record 39",
       "parent_id": "folder/environment/props",
-      "sibling_order": 204,
+      "sibling_order": 203,
       "enabled": true,
       "components": {
         "transform": {
@@ -9798,7 +9751,7 @@
       "id": "authored-prefab/north-entrance/western-border-1",
       "display_name": "Western border 1",
       "parent_id": "folder/environment/props",
-      "sibling_order": 205,
+      "sibling_order": 204,
       "enabled": true,
       "components": {
         "transform": {
@@ -9845,7 +9798,7 @@
       "id": "authored-prefab/north-entrance/western-border-2",
       "display_name": "Western border 2",
       "parent_id": "folder/environment/props",
-      "sibling_order": 206,
+      "sibling_order": 205,
       "enabled": true,
       "components": {
         "transform": {
@@ -9892,7 +9845,7 @@
       "id": "authored-prefab/north-entrance/woodland-tree_001-02",
       "display_name": "Woodland tree_001 02",
       "parent_id": "folder/environment/props",
-      "sibling_order": 207,
+      "sibling_order": 206,
       "enabled": true,
       "components": {
         "transform": {
@@ -9939,7 +9892,7 @@
       "id": "authored-prefab/north-entrance/woodland-tree_001-04",
       "display_name": "Woodland tree_001 04",
       "parent_id": "folder/environment/props",
-      "sibling_order": 208,
+      "sibling_order": 207,
       "enabled": true,
       "components": {
         "transform": {
@@ -9986,7 +9939,7 @@
       "id": "authored-prefab/north-entrance/woodland-tree_001-06",
       "display_name": "Woodland tree_001 06",
       "parent_id": "folder/environment/props",
-      "sibling_order": 209,
+      "sibling_order": 208,
       "enabled": true,
       "components": {
         "transform": {
@@ -10033,7 +9986,7 @@
       "id": "authored-prefab/north-entrance/woodland-tree_001-08",
       "display_name": "Woodland tree_001 08",
       "parent_id": "folder/environment/props",
-      "sibling_order": 210,
+      "sibling_order": 209,
       "enabled": true,
       "components": {
         "transform": {
@@ -10080,7 +10033,7 @@
       "id": "authored-prefab/north-entrance/woodland-tree_001-09",
       "display_name": "Woodland tree_001 09",
       "parent_id": "folder/environment/props",
-      "sibling_order": 211,
+      "sibling_order": 210,
       "enabled": true,
       "components": {
         "transform": {
@@ -10127,7 +10080,7 @@
       "id": "authored-prefab/north-entrance/woodland-tree_002-01",
       "display_name": "Woodland tree_002 01",
       "parent_id": "folder/environment/props",
-      "sibling_order": 212,
+      "sibling_order": 211,
       "enabled": true,
       "components": {
         "transform": {
@@ -10174,7 +10127,7 @@
       "id": "authored-prefab/north-entrance/woodland-tree_002-03",
       "display_name": "Woodland tree_002 03",
       "parent_id": "folder/environment/props",
-      "sibling_order": 213,
+      "sibling_order": 212,
       "enabled": true,
       "components": {
         "transform": {
@@ -10221,7 +10174,7 @@
       "id": "authored-prefab/north-entrance/woodland-tree_002-05",
       "display_name": "Woodland tree_002 05",
       "parent_id": "folder/environment/props",
-      "sibling_order": 214,
+      "sibling_order": 213,
       "enabled": true,
       "components": {
         "transform": {
@@ -10268,7 +10221,7 @@
       "id": "authored-prefab/north-entrance/woodland-tree_002-07",
       "display_name": "Woodland tree_002 07",
       "parent_id": "folder/environment/props",
-      "sibling_order": 215,
+      "sibling_order": 214,
       "enabled": true,
       "components": {
         "transform": {
@@ -10315,7 +10268,7 @@
       "id": "authored-prefab/north-entrance/woodland-tree_002-10",
       "display_name": "Woodland tree_002 10",
       "parent_id": "folder/environment/props",
-      "sibling_order": 216,
+      "sibling_order": 215,
       "enabled": true,
       "components": {
         "transform": {
@@ -10362,7 +10315,7 @@
       "id": "authored-prefab/north-entrance/woodland-tree_002-11",
       "display_name": "Woodland tree_002 11",
       "parent_id": "folder/environment/props",
-      "sibling_order": 217,
+      "sibling_order": 216,
       "enabled": true,
       "components": {
         "transform": {

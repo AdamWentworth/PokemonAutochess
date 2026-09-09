@@ -14,8 +14,8 @@
     "status": "gameplay_footprint_terrain_grid_bound",
     "terrain_elevation_level": 0,
     "terrain_grid_origin": [
-      19,
-      -37
+      17,
+      -36
     ],
     "terrain_tile_size_cm": 100.0
   },

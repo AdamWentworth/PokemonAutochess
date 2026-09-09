@@ -35,9 +35,10 @@ locations are explicitly marked **Legacy**; unfinished routes are under
 
 **Current Map** also includes the independently authored **Route 1 - South
 Clearing**, **Route 1 - North Terraces**, and **Route 1 - North Entrance**, each
-with Planning, Battle and Grass Test setups. These advance the board nine source
-tiles north per arena; North Entrance also shifts two tiles east to include the
-original ramp. See their `BLENDER_*.md` runbooks for editing and recovery.
+with Planning, Battle and Grass Test setups. South Clearing and North Terraces
+advance the board nine source tiles north per arena; North Entrance advances
+eight more and keeps the same east-west alignment. See their `BLENDER_*.md`
+runbooks for editing and recovery.
 
 The editor executable must be restarted once after installing these engine UI
 changes. The existing gameplay reload workflow still handles game-code changes.

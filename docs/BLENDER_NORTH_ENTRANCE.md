@@ -36,31 +36,34 @@ require a C++ rebuild. The saved blend is authoritative after initial seeding.
 
 ## Layout and fidelity
 
-The board occupies **X=19..26, Z=-37..-30**, with reserve rows Z=-38 and Z=-29.
-This is nine source tiles north and two east of North Terraces. The eastern
-alignment keeps the original X=25..27 ramp inside the playable board. All 80
-board/reserve centres match the rendered floor.
+The board occupies **X=17..24, Z=-36..-29**, with reserve rows Z=-37 and Z=-28.
+It is eight source tiles north of North Terraces and shares the earlier arenas'
+east-west alignment. This moves it one tile south and two west of the initial
+North Entrance pass. All 80 board/reserve centres match the rendered floor.
 
-The upper terrace is 3 m high and the lower terrace is 2.5 m. The ledge permits
-southbound jumps and blocks uphill movement; the eastern ramp remains walkable
-in both directions. The narrow raised spur at X=18..20, Z=-32..-30 is flattened
+The upper terrace is 3 m high and the lower terrace is 2.5 m, with four playable
+rows on each. The ledge permits southbound jumps and blocks uphill movement.
+The original eastern ramp at X=25..27 remains in the backdrop, outside the
+playable board. The narrow raised spur at X=18..20, Z=-32..-30 is flattened
 into the lower lawn. Solid plants and canopies are excluded from the board and
-reserves. The north bench's bank cells are lowered to the entrance lane's height;
-both bench rows use dirt and remain free of encounter grass and decorative plants.
+reserves. The lower terrace extends beneath the south bench. Both bench rows use
+dirt and remain free of encounter grass and decorative plants. Former bench
+locations return to their source lawn, raised northern bank and encounter grass.
 
 The backdrop uses original LGPE terrain and prop positions, preserving the
 southern island and dirt pockets that were adapted for North Terraces gameplay.
 Original geometry probes establish the eastern ramp and corner ramps farther
-south. There are 750 editable metre tiles, X=6..35 and Z=-44..-20. The northern
+south; the new south bench replaces the western part of the next downhill ramp.
+There are 750 editable metre tiles, X=6..35 and Z=-44..-20. The northern
 lane and woodland continue beyond the source cutoff, with a short dirt trail at
 X=19..22, Z=-44..-40 marking the route exit. Six rocks keep their source colours;
 rounded closed ledges, dark inaccessible banks and perimeter foliage match the
 other authored arenas. No fences are introduced.
 
 Grass uses full-size Grass01 clumps from source records 4 and 5. Record 4 remains
-at its original position in the southern backdrop. Record 5 is split into a
-7 by 3 m main bed and a 1 by 1 m east return, keeping its southern edge outside
-the player bench. These are separate editable props with stable IDs. Shared
+at its original position in the southern backdrop. Record 5 restores its full
+7 by 4 m source footprint and placement, with its southern edge outside the
+relocated player bench. These are separate editable props with stable IDs. Shared
 rustling, concealment, attack reveals, unit memory and movement rules apply.
 The other three scene sources and archives remain independent, and campaign
 progression is unchanged.
@@ -95,7 +98,7 @@ their export settings.
 
 `PAC_Tests.route1_north_entrance_contract` checks scene selection, all board and
 reserve floor heights, dirt benches without cover, solid/plant clearance,
-two-way ramp movement, one-way ledges, flying, concealment, original backdrop
+one-way ledges, flying, concealment, the restored bench locations, original backdrop
 terrain/grass, shadows and switching among all four arenas. The shared grass
 rendering test checks rooted blades, local contacts and recovery here too.
 
