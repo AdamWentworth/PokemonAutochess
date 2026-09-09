@@ -13,6 +13,7 @@
 #include "PhlosionCookManifest.h"
 #include "PhlosionForgeManifest.h"
 #include "PhlosionNativeModelIr.h"
+#include "Route1AuthoringKit.h"
 
 #include <nlohmann/json.hpp>
 
@@ -2773,6 +2774,8 @@ void usage() {
         << "       PhlosionForge inspect-route1-source-tile <x> <z>\n"
         << "       PhlosionForge inspect-route1-source-junction <x> <z> <output.json>\n"
         << "       PhlosionForge compile-environment-patch <source.patch.json> <output.phpatch>\n"
+        << "       PhlosionForge export-route1-authoring-kit <output.json>\n"
+        << "       PhlosionForge validate-authored-environment <scene.json>\n"
         << "       PhlosionForge refresh-route1-manifest\n"
         << "       PhlosionForge author-route1-board <scene-id> <board-layout.json> <scene.json> [--replace]\n";
 }
@@ -2780,6 +2783,15 @@ void usage() {
 } // namespace
 
 int main(int argc, char** argv) {
+    if (argc == 3 && (std::string_view(argv[1]) == "export-route1-authoring-kit" ||
+                      std::string_view(argv[1]) == "validate-authored-environment")) {
+        std::string error;
+        const bool passed = std::string_view(argv[1]) == "export-route1-authoring-kit"
+            ? tools::route1_authoring::exportKit(argv[2], error)
+            : tools::route1_authoring::validateScene(argv[2], error);
+        if (!passed) std::cerr << "[Phlosion Forge] " << error << '\n';
+        return passed ? 0 : 1;
+    }
     if (argc == 4 &&
         std::string_view(argv[1]) ==
             "compile-environment-patch") {

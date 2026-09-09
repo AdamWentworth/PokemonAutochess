@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "name": "Route 1 - Southern Tiles",
+  "scene_id": "routes/route1-pilot",
+  "composition_pass": 6,
+  "terrain_style": "tile_blueprint",
+  "board_center_blender_m": [21,6],
+  "path_width_m": 1.7,
+  "terrace_height_m": 0.5,
+  "tile_bounds": {"x_min": 6,"x_max": 35,"z_min": -20,"z_max": 7},
+  "tile_size_m": 1,
+  "elevation_step_m": 0.5,
+  "tile_layout_file": "route1_pilot_tile_layout.json",
+  "material_roles": {"ground":19,"ground_uv2_lawn":[0.9501953125,0.66357421875],"ground_uv2_dirt":[0.9501953125,0.66259765625]},
+  "tile_brush": [
+    ["West hooked encounter area","hook",16.5,6.5,0,0.85],
+    ["East hooked encounter area","hook",24.5,6.5,0,0.85],
+    ["Southern encounter threshold","rectangle",20.5,0,0,0.90],
+    ["Northern encounter area","rectangle",24,16,1,0.90]
+  ],
+  "adaptations": [
+    "Keep the existing 8x8 board registration; the northern ledge crosses its northern rows.",
+    "Keep editor cell heights and lawn/dirt assignments. Build coherent north-rising ramp strips at the entrance and northern landings; simplify other slope classifications into flat steps at their recovered level.",
+    "Move hooked brush to the original entrance footprints, scaled to 85 percent to retain room between the beds.",
+    "Keep the central foreground brush south of the reserve row; remove both white fences.",
+    "Continue the southern edge cells beneath the camera foreground."
+  ],
+  "gameplay_intent": {"status":"visual_authoring_only","brush":"Future camouflage areas","ledges":"North-to-south drops and flying exceptions remain future mechanics"}
+}

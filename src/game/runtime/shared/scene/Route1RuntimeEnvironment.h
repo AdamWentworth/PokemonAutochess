@@ -375,7 +375,8 @@ public:
         std::string* outError = nullptr);
     // Samples the visible Route 1 ground at a gameplay-world X/Z position.
     // Authored ramps use their exact profile while untouched source terrain
-    // retains the recovered triangle surface.
+    // retains the recovered triangle surface. Mesh-authored arenas sample the
+    // highest authored floor triangle, excluding brush and cliff materials.
     bool sampleWorldTerrainHeight(
         float worldX,
         float worldZ,

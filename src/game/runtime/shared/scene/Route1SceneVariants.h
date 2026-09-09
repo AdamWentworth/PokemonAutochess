@@ -8,6 +8,7 @@ struct Variant {
     std::string_view sceneId;
     std::string_view boardLayoutManifestPath;
     std::string_view authoredSceneDocumentPath;
+    bool usesSourceTerrain = true;
 };
 
 inline constexpr Variant kRoute1{
@@ -22,6 +23,12 @@ inline constexpr Variant kRoute1_5{
         "config/environment/route1_5_board_layout.json",
     .authoredSceneDocumentPath = "scenes/route1_5.scene.json"};
 
+inline constexpr Variant kRoute1Pilot{
+    .sceneId = "routes/route1-pilot",
+    .boardLayoutManifestPath = "config/environment/route1_pilot_board_layout.json",
+    .authoredSceneDocumentPath = "scenes/route1_pilot.scene.json",
+    .usesSourceTerrain = false};
+
 inline constexpr const Variant* find(
     std::string_view sceneId) noexcept {
     if (sceneId == kRoute1.sceneId) {
@@ -29,6 +36,9 @@ inline constexpr const Variant* find(
     }
     if (sceneId == kRoute1_5.sceneId) {
         return &kRoute1_5;
+    }
+    if (sceneId == kRoute1Pilot.sceneId) {
+        return &kRoute1Pilot;
     }
     return nullptr;
 }
@@ -40,6 +50,9 @@ inline constexpr bool editable(
 
 inline constexpr const Variant& fromStateScriptPath(
     std::string_view stateScriptPath) noexcept {
+    if (stateScriptPath.find("route1_pilot") != std::string_view::npos) {
+        return kRoute1Pilot;
+    }
     return stateScriptPath.find("route1_5") !=
             std::string_view::npos
         ? kRoute1_5

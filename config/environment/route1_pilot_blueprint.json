@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "name": "Route 1 - Garden Clearing",
+  "scene_id": "routes/route1-pilot",
+  "board_center_blender_m": [21.0, 6.0],
+  "terrain_half_width_m": 15.0,
+  "terrain_half_depth_m": 16.0,
+  "clearing_half_width_m": 6.8,
+  "path_width_m": 1.8,
+  "path_points_m": [[-6.4, -16.0], [-6.3, -8.0], [-6.6, 0.0], [-6.0, 5.5], [-4.0, 8.8], [-3.5, 16.0]],
+  "terrace_height_m": 0.75,
+  "terrace_start_m": 8.0,
+  "ramp_center_x_m": -4.4,
+  "ramp_width_m": 2.4,
+  "tree_seed": 142,
+  "tree_spacing_m": 2.8,
+  "tree_cluster_offset_m": 0.0,
+  "material_roles": {
+    "ground": 19,
+    "ground_uv2_lawn": [-0.05, 0.932880402],
+    "ground_uv2_dirt": [-0.05, 0.991155148]
+  }
+}

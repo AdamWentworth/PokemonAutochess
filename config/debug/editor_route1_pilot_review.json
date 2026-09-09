@@ -1,0 +1,112 @@
+{
+  "session": {
+    "combat_active": false,
+    "round_phase": "Planning",
+    "state_kind": "combat",
+    "state_script_path": "scripts/states/route1_pilot.lua"
+  },
+  "world": {
+    "bench_units": [],
+    "board_units": [
+      {
+        "alive": true,
+        "bench_slot": -1,
+        "capture_in_progress": false,
+        "col": 2,
+        "energy": 0,
+        "fainting": false,
+        "hp": 120,
+        "level": 5,
+        "name": "bulbasaur",
+        "row": 5,
+        "side": "player"
+      },
+      {
+        "alive": true,
+        "bench_slot": -1,
+        "capture_in_progress": false,
+        "col": 4,
+        "energy": 0,
+        "fainting": false,
+        "hp": 120,
+        "level": 5,
+        "name": "charmander",
+        "row": 6,
+        "side": "player"
+      },
+      {
+        "alive": true,
+        "bench_slot": -1,
+        "capture_in_progress": false,
+        "col": 5,
+        "energy": 0,
+        "fainting": false,
+        "hp": 120,
+        "level": 5,
+        "name": "squirtle",
+        "row": 5,
+        "side": "player"
+      },
+      {
+        "alive": true,
+        "bench_slot": -1,
+        "capture_in_progress": false,
+        "col": 3,
+        "energy": 0,
+        "fainting": false,
+        "hp": 120,
+        "level": 5,
+        "name": "pikachu",
+        "row": 7,
+        "side": "player"
+      },
+      {
+        "alive": true,
+        "bench_slot": -1,
+        "capture_in_progress": false,
+        "col": 2,
+        "energy": 0,
+        "fainting": false,
+        "hp": 120,
+        "level": 5,
+        "name": "pidgey",
+        "row": 1,
+        "side": "enemy"
+      },
+      {
+        "alive": true,
+        "bench_slot": -1,
+        "capture_in_progress": false,
+        "col": 4,
+        "energy": 0,
+        "fainting": false,
+        "hp": 120,
+        "level": 5,
+        "name": "rattata",
+        "row": 2,
+        "side": "enemy"
+      },
+      {
+        "alive": true,
+        "bench_slot": -1,
+        "capture_in_progress": false,
+        "col": 5,
+        "energy": 0,
+        "fainting": false,
+        "hp": 120,
+        "level": 5,
+        "name": "spearow",
+        "row": 1,
+        "side": "enemy"
+      }
+    ],
+    "classic_loss_streak": 0,
+    "classic_rounds_completed": 0,
+    "classic_shop_cards": [],
+    "classic_win_streak": 0,
+    "items": {},
+    "money": 10,
+    "unit_sell_rewards_enabled": true,
+    "version": 1
+  }
+}

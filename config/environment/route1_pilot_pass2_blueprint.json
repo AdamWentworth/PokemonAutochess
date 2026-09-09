@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "name": "Route 1 - Meadow Bend",
+  "scene_id": "routes/route1-pilot",
+  "terrain_style": "meadow_terraces",
+  "board_center_blender_m": [21.0, 6.0],
+  "terrain_half_width_m": 15.0,
+  "terrain_half_depth_m": 14.0,
+  "path_width_m": 1.6,
+  "path_points_m": [[-8.0,-13.0],[-5.5,-8.3],[-2.8,-6.35],[2.3,-6.4],[5.35,-4.8],[5.7,-1.5],[5.2,2.5],[4.4,5.7],[2.2,8.0],[1.6,14.0]],
+  "terrace_height_m": 0.85,
+  "material_roles": {"ground":19,"ground_uv2_lawn":[-0.05,0.932880402],"ground_uv2_dirt":[-0.05,0.991155148]},
+  "terraces": [
+    {"id":"north-meadow","name":"North meadow","base":0,"height":0.85,"points":[[-14,5.2],[-10.0,4.8],[-7.5,5.5],[-5.4,6.0],[-2.5,6.15],[-0.3,6.5],[0.5,8.7],[-0.1,14],[-14,14]]},
+    {"id":"upper-meadow","name":"Upper meadow","base":0.85,"height":0.7,"points":[[-14,9.2],[-10,8.6],[-7,9.3],[-5.4,10.3],[-3.3,10.5],[-2.6,14],[-14,14]]},
+    {"id":"west-copse","name":"West wooded rise","base":0,"height":0.65,"points":[[-14,-8],[-10,-8.6],[-7.4,-7.2],[-6.1,-4.9],[-5.9,-1.4],[-6.5,1.9],[-8.4,3.2],[-14,2.7]]},
+    {"id":"east-meadow","name":"East wildflower bank","base":0,"height":0.45,"points":[[7.3,-1.7],[10,-2.1],[15,-0.8],[15,9],[9.9,9.3],[7.7,6.4],[6.9,3.4]]}
+  ]
+}

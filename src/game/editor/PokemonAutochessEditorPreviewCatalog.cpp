@@ -8,6 +8,16 @@ namespace {
 
 constexpr Definitions kDefinitions{{
     {
+        "route1-pilot-planning", "Route 1 Arena Pilot - Planning", "Arena Pilots",
+        "Review the Blender-authored Route 1 clearing with the real gameplay board.",
+        "route_planning", "classic", "scripts/states/route1_pilot.lua", "routes/route1-pilot",
+    },
+    {
+        "route1-pilot-battle", "Route 1 Arena Pilot - Battle", "Arena Pilots",
+        "Review combat readability in the Blender-authored Route 1 clearing.",
+        "route_battle", "classic", "scripts/states/route1_pilot.lua", "routes/route1-pilot",
+    },
+    {
         "boot",
         "Boot Sequence",
         "Frontend",

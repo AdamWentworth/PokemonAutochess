@@ -714,6 +714,7 @@ pac_apply_common_target_settings(PokemonAutochess)
 if (PAC_BUILD_TOOLS)
     add_executable(PhlosionForge
         tools/PhlosionForge.cpp
+        tools/Route1AuthoringKit.cpp
         tools/PhlosionAssetCatalog.cpp
         tools/PhlosionAssetCatalog.h
         tools/PhlosionCookManifest.cpp
@@ -890,6 +891,7 @@ if (BUILD_TESTING)
         tests/TestRoute1TerrainContourAssembler.cpp
         tests/TestTerrainContourMesher.cpp
         tests/TestRoute1CookedEnvironment.cpp
+        tests/TestRoute1ArenaPilot.cpp
         tests/TestRenderPrepWorldProjection.cpp
         tests/TestRenderPrepWorldProxyGeometry.cpp
         tests/TestRenderPrepUnitVisuals.cpp
@@ -1112,6 +1114,7 @@ if (BUILD_TESTING)
         ui_image_path_contract
         native_charmander_family_fire_contract
         route1_cooked_environment_contract
+        route1_arena_pilot_contract
         render_prep_unit_visuals_contract
         ui_card_visuals_contract
         ui_card_renderer_contract

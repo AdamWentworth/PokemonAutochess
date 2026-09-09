@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "name": "Route 1 - Southern Entrance",
+  "scene_id": "routes/route1-pilot",
+  "composition_pass": 7,
+  "terrain_style": "tile_blueprint",
+  "board_center_blender_m": [
+    21,
+    6
+  ],
+  "path_width_m": 1.7,
+  "terrace_height_m": 0.5,
+  "tile_bounds": {
+    "x_min": 6,
+    "x_max": 35,
+    "z_min": -20,
+    "z_max": 7
+  },
+  "tile_size_m": 1,
+  "elevation_step_m": 0.5,
+  "tile_layout_file": "route1_pilot_pass7_tile_layout.json",
+  "material_roles": {
+    "ground": 19,
+    "ground_uv2_lawn": [
+      0.9501953125,
+      0.66357421875
+    ],
+    "ground_uv2_dirt": [
+      0.9501953125,
+      0.66259765625
+    ]
+  },
+  "adaptations": [
+    "Retain the 1 m tile blueprint and existing board registration.",
+    "Lower four rear shelf cells from 2 m to 1.5 m so the former 1 m wall becomes two 0.5 m ledges separated by a 1 m grass shelf.",
+    "Use original encounter records 0, 1, 2 and 3, including the northern square grass01 bed. Keep the side and northern records at full scale; shorten the southern threshold to match the editor's cleared southern rows.",
+    "Restore source foliage and path pebbles; keep mossy rocks and shrubs individually editable.",
+    "Keep the foreground fences removed."
+  ],
+  "gameplay_intent": {
+    "status": "visual_authoring_only",
+    "brush": "Future camouflage areas",
+    "ledges": "North-to-south drops and flying exceptions remain future mechanics"
+  },
+  "encounter_records": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "southern_grass_depth_scale": 0.5,
+  "southern_grass_pivot_y_m": 3.275,
+  "shrubs": [
+    [
+      "West entrance shrub",
+      15.7,
+      2.05,
+      0.92
+    ],
+    [
+      "East entrance shrub",
+      26.3,
+      1.9,
+      0.94
+    ],
+    [
+      "West outer shrub",
+      13.76,
+      2.16,
+      0.86
+    ],
+    [
+      "West rear shrub",
+      13.43,
+      13.94,
+      0.86
+    ],
+    [
+      "Rear shelf shrub",
+      19.65,
+      13.4,
+      0.8
+    ]
+  ],
+  "rocks": [
+    [
+      "West bank mossy rock",
+      1,
+      13.1,
+      6.85,
+      1
+    ],
+    [
+      "West bank stone chip",
+      9,
+      13.5,
+      7.67,
+      1
+    ],
+    [
+      "Rear shelf mossy rock",
+      1,
+      17.05,
+      13.5,
+      0.7
+    ],
+    [
+      "Rear shelf stone chip",
+      9,
+      17.8,
+      13.5,
+      0.8
+    ],
+    [
+      "East bank mossy rock",
+      4,
+      28.8,
+      10,
+      1
+    ],
+    [
+      "East bank stone chip",
+      11,
+      28.4,
+      10.8,
+      1
+    ]
+  ],
+  "ledge_corrections": [
+    {
+      "cell": [
+        15,
+        -14
+      ],
+      "before": 4,
+      "after": 3
+    },
+    {
+      "cell": [
+        16,
+        -14
+      ],
+      "before": 4,
+      "after": 3
+    },
+    {
+      "cell": [
+        17,
+        -14
+      ],
+      "before": 4,
+      "after": 3
+    },
+    {
+      "cell": [
+        18,
+        -14
+      ],
+      "before": 4,
+      "after": 3
+    }
+  ]
+}

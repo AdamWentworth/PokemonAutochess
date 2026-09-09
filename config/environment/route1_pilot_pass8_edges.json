@@ -1,0 +1,45 @@
+{
+  "composition_pass": 8,
+  "trees": [
+    ["West approach canopy", "tree_001", 13.7, -2.8, 1.02, 12],
+    ["West inner approach tree", "tree_004", 14.3, -1.1, 0.84, -14],
+    ["West middle canopy", "tree_002", 11.1, 11.1, 0.92, 18],
+    ["West rear canopy", "tree_001", 10.9, 14.5, 0.90, -16],
+    ["West outer lower canopy", "tree_003", 8.8, 1.1, 0.88, 11],
+    ["West outer middle canopy", "tree_003", 8.4, 7.4, 0.90, -21],
+    ["West outer rear canopy", "tree_003", 8.9, 14.0, 0.86, 23],
+    ["West landing tree", "tree_005", 14.4, 10.6, 0.78, 7],
+    ["East approach canopy", "tree_002", 28.6, -2.8, 1.02, -15],
+    ["East inner approach tree", "tree_005", 27.5, -1.3, 0.82, 13],
+    ["East middle canopy", "tree_001", 30.8, 7.5, 0.92, 17],
+    ["East rear canopy", "tree_002", 31.0, 11.6, 0.88, -12],
+    ["East outer lower canopy", "tree_003", 34.0, 0.3, 0.86, -18],
+    ["East outer middle canopy", "tree_003", 34.1, 6.2, 0.88, 16],
+    ["East outer rear canopy", "tree_003", 34.0, 12.0, 0.85, -8],
+    ["Northwest canopy", "tree_001", 17.0, 18.8, 0.90, 9],
+    ["Northern landing tree", "tree_004", 19.3, 17.6, 0.79, -17],
+    ["Northeast canopy", "tree_002", 27.7, 18.8, 0.87, 22]
+  ],
+  "shrubs": [
+    ["West approach undergrowth", 14.8, -1.8, 0.86, 18],
+    ["West middle undergrowth", 13.8, 4.1, 0.71, -14],
+    ["West high undergrowth", 12.6, 11.4, 0.83, 23],
+    ["East approach undergrowth", 27.2, -1.6, 0.88, -22],
+    ["East middle undergrowth", 28.9, 4.7, 0.72, 15],
+    ["East high undergrowth", 28.1, 12.8, 0.82, -9]
+  ],
+  "plants": [
+    ["West approach flowers", "flowers_02", 15.2, -2.4, 0.85, 15],
+    ["West rock grass", "small_grass_02", 14.3, 6.1, 0.80, -20],
+    ["West outer flowers", "flowers_04", 12.8, 4.8, 0.85, 18],
+    ["West landing flowers", "flowers_02", 15.2, 11.3, 0.80, -15],
+    ["West rear grass", "small_grass_02", 14.6, 15.0, 0.78, 25],
+    ["East approach flowers", "flowers_04", 26.9, -2.8, 0.80, -16],
+    ["East bank grass", "small_grass_02", 27.9, 5.0, 0.78, 14],
+    ["East rock grass", "small_grass_02", 29.6, 9.4, 0.78, -12],
+    ["East rear flowers", "flowers_02", 27.5, 12.2, 0.88, 20],
+    ["East rear grass", "small_grass_02", 29.0, 14.1, 0.84, -22],
+    ["North shelf flowers", "flowers_04", 17.4, 15.2, 0.80, 16],
+    ["North bank flowers", "flowers_02", 26.4, 16.9, 0.90, -17]
+  ]
+}

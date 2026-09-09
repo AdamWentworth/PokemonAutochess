@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "name": "Route 1 - Southern Gate",
+  "scene_id": "routes/route1-pilot",
+  "composition_pass": 4,
+  "terrain_style": "south_entrance",
+  "entrance_layout_version": 4,
+  "board_center_blender_m": [21.0, 6.0],
+  "terrain_half_width_m": 15.0,
+  "terrain_half_depth_m": 14.0,
+  "path_width_m": 1.7,
+  "path_points_m": [[-3.8,3.1],[-5.05,3.7],[-5.15,5.0],[-5.15,6.8]],
+  "upper_path_points_m": [[-5.15,6.0],[-5.15,7.35],[-3.7,7.7],[-1.2,7.7],[0.7,8.0],[1.8,9.7],[1.8,11.2]],
+  "upper_path_width_m": 1.65,
+  "entrance_ramp": {"x0":-6.2,"x1":-3.6,"y0":5.4,"y1":6.8,"height":0.5},
+  "terrace_height_m": 0.5,
+  "material_roles": {"ground":19,"ground_uv2_lawn":[0.9501953125,0.66357421875],"ground_uv2_dirt":[0.9501953125,0.66259765625]},
+  "terraces": [
+    {"id":"west-verge","name":"West entrance bank","base":0,"height":0.5,"points":[[-15,-10.0],[-7.1,-10.0],[-7.1,-3.0],[-7.6,-3.0],[-7.6,2.6],[-6.6,2.6],[-6.6,7.1],[-15,7.1]]},
+    {"id":"rear-landing","name":"Rear landing","base":0,"height":0.5,"paint_upper_path":true,"points":[[-3.6,5.65],[14,5.65],[14,11.5],[-6.2,11.5],[-6.2,6.8],[-3.6,6.8]]},
+    {"id":"left-middle-step","name":"Left middle step","base":0,"height":1.0,"points":[[-15,7.3],[-5.95,7.3],[-5.95,9.3],[-15,9.3]]},
+    {"id":"left-upper-step","name":"Left upper step","base":0.5,"height":1.0,"points":[[-15,9.55],[-3.3,9.55],[-3.3,14],[-15,14]]},
+    {"id":"east-verge","name":"East entrance bank","base":0,"height":0.5,"points":[[7.5,-10],[15,-10],[15,5.45],[8.1,5.45],[8.1,-1.0],[7.5,-1.0]]},
+    {"id":"east-upper","name":"East background bank","base":0.5,"height":0.5,"points":[[8.4,8.8],[14,8.8],[14,11.2],[8.4,11.2]]}
+  ],
+  "trees": [
+    ["West foreground tree","tree_001",-9.0,-7.6,0.5,0.76,-5],
+    ["West edge tree","tree_002",-9.5,-3.7,0.5,0.73,8],
+    ["West border tree","tree_001",-9.5,1.4,0.5,0.72,-10],
+    ["Left upper tree","tree_002",-7.0,11.2,1.5,0.73,15],
+    ["Left upper companion","tree_001",-9.7,12.0,1.5,0.68,-10],
+    ["East foreground tree","tree_002",9.5,-7.3,0.5,0.73,12],
+    ["East edge tree","tree_001",10.3,-2.7,0.5,0.76,-12],
+    ["East background tree","tree_002",10.3,10.0,1.0,0.72,10],
+    ["East high companion","tree_001",12.6,10.8,1.0,0.70,-8]
+  ],
+  "brush": [
+    ["Southern grass threshold","encounter_grass_02",0,-7.75,0,0.94,0],
+    ["West hooked brush","encounter_grass_02_hook",-6.65,1.65,0,0.68,0],
+    ["West lower brush","encounter_grass_02",-5.9,-3.6,0,0.84,0],
+    ["East hooked brush","encounter_grass_02_hook",6.2,-0.9,0,0.74,0],
+    ["East entrance brush","encounter_grass_02",5.5,-5.6,0,0.72,0],
+    ["Northern encounter grass","encounter_grass_02",2.25,10.85,0.5,0.94,90]
+  ],
+  "small_plants": [
+    ["West gate flowers","flowers_02",-3.1,-7.25,0,0.82,10],
+    ["West gate white flowers","flowers_04",-3.75,-7.65,0,0.59,-15],
+    ["East gate flowers","flowers_02",3.25,-7.2,0,0.80,20],
+    ["East gate white flowers","flowers_04",3.9,-7.7,0,0.57,8],
+    ["West bank grass","small_grass_02",-7.7,-6.0,0.5,0.49,10],
+    ["West bank flowers","flowers_04",-8.15,-5.6,0.5,0.54,4],
+    ["West step grass","small_grass_02",-7.6,4.8,0.5,0.42,-20],
+    ["Left middle grass","small_grass_02",-6.9,8.0,1.0,0.45,5],
+    ["Rear landing grass","small_grass_02",4.1,7.0,0.5,0.38,5],
+    ["Rear landing flowers","flowers_02",6.6,6.6,0.5,0.63,10],
+    ["Rear right white flowers","flowers_04",7.2,6.8,0.5,0.52,5],
+    ["East bank flowers","flowers_02",8.5,-5.1,0.5,0.72,-10],
+    ["East bank grass","small_grass_02",9.0,2.9,0.5,0.46,15],
+    ["Upper left flowers","flowers_04",-4.2,10.3,1.5,0.56,-10]
+  ],
+  "sign_placement": [-3.65,5.4,0,0.82],
+  "railings": [["West entrance rail",-2.35,-7.75,2.9],["East entrance rail",2.35,-7.75,2.9]]
+}

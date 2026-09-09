@@ -1,8 +1,14 @@
 # Arena Environment Plan
 
-Status: Active
+Status: Historical source-preservation approach; superseded for new arena authoring
 Type: Roadmap
-Last updated: 2026-08-27
+Last updated: 2026-09-07
+
+The new direction is a board-first arena authored in Blender, retaining LGPE
+materials and reusable props. Start with [BLENDER_ARENA_PILOT.md](BLENDER_ARENA_PILOT.md).
+The original Route 1 and Route 1.5 scenes remain reference and comparison scenes.
+The preservation requirements below describe the earlier approach; they do not
+require the new pilot to reproduce LGPE's original route layout.
 
 This roadmap applies the published environment-package rules in
 `EXTERNAL_ASSET_RESEARCH.md` to the PokemonAutochess arena.

@@ -590,6 +590,9 @@ struct PreparedEnvironmentPatch {
     CanonicalScene geometry;
     PreparedScene scene;
     LayoutObject layoutObject;
+    // Source-space floor triangles, indexed once when the patch is mounted.
+    // Vegetation and cliff faces must never become standing surfaces.
+    std::map<GridCell, std::vector<std::array<glm::vec3, 3>>> groundByCell;
 };
 
 std::array<float, 16> sourcePlacementMatrix(
@@ -6707,7 +6710,9 @@ struct RuntimeEnvironment::Impl {
         // regional carrier. Exclude that horizontal family from this scene's
         // depth atlas so retired rectangular topology cannot shadow the
         // rebuilt path. Cliffs, vegetation, and props remain real casters.
+        const auto* shadowVariant = route1_scene_variants::find(authoredScene.sceneId);
         shadowOptions.includeGroundCasters =
+            (shadowVariant && !shadowVariant->usesSourceTerrain) ||
             !route1UsesRegionalTerrainMaterialField(
                 authoredScene.sceneId);
         std::string error;
@@ -6954,6 +6959,7 @@ struct RuntimeEnvironment::Impl {
 
     bool prepareEnvironmentPatchScene(
         PreparedEnvironmentPatch& prepared,
+        bool independentTerrain,
         std::string* outError) {
         auto& geometrySource = prepared.geometry;
         auto& patchScene = prepared.scene;
@@ -6980,10 +6986,22 @@ struct RuntimeEnvironment::Impl {
             if (handle) return handle;
             patchScene.materialStorage[materialIndex]
                 .sourceMaterialIndex = materialIndex;
+            auto material = scene.registry.materials[materialIndex];
+            // Rebuilt arenas have no source terrain to supply occlusion.
+            // Their solid terrain and rocks must cast shadows even when the
+            // recovered material disabled casting in the original map.
+            using MaterialFamily = IRenderBackend::WorldSceneSourceMaterialFamily;
+            if (independentTerrain &&
+                (material.sourceMaterialFamily == MaterialFamily::Ground ||
+                 material.sourceMaterialFamily == MaterialFamily::Cliff ||
+                 material.sourceMaterialFamily == MaterialFamily::Rock)) {
+                material.sourceEnabledSwitchMask |= engine::render::backend::
+                    WorldSceneSourceMaterialSwitchCastShadow;
+            }
             handle = shared_world_scene::ensureMaterial(
                 patchScene.registry,
                 &patchScene.materialStorage[materialIndex],
-                scene.registry.materials[materialIndex]);
+                material);
             return handle;
         };
 
@@ -7277,6 +7295,27 @@ struct RuntimeEnvironment::Impl {
                             .primitiveType = "Triangles",
                             .indices = patchGroup.indices});
                     triangleCount += patchGroup.indices.size() / 3u;
+                    if (patchGroup.materialIndex == 19u) {
+                        const auto transform = glm::make_mat4(mesh.transform.data());
+                        for (std::size_t i = 0; i + 2 < patchGroup.indices.size(); i += 3) {
+                            std::array<glm::vec3, 3> triangle;
+                            for (std::size_t corner = 0; corner < 3; ++corner) {
+                                const auto& p = patchMesh.vertices[patchGroup.indices[i + corner]].position;
+                                triangle[corner] = glm::vec3(transform * glm::vec4(p[0], p[1], p[2], 1.0f));
+                            }
+                            const auto normal = glm::cross(triangle[1] - triangle[0], triangle[2] - triangle[0]);
+                            if (std::abs(normal.y) < 1.0e-5f) continue;
+                            const auto minimum = glm::min(triangle[0], glm::min(triangle[1], triangle[2]));
+                            const auto maximum = glm::max(triangle[0], glm::max(triangle[1], triangle[2]));
+                            for (int x = static_cast<int>(std::floor(minimum.x / kTerrainTileSizeCm));
+                                 x <= static_cast<int>(std::floor(maximum.x / kTerrainTileSizeCm)); ++x) {
+                                for (int z = static_cast<int>(std::floor(minimum.z / kTerrainTileSizeCm));
+                                     z <= static_cast<int>(std::floor(maximum.z / kTerrainTileSizeCm)); ++z) {
+                                    prepared->groundByCell[{x, z}].push_back(triangle);
+                                }
+                            }
+                        }
+                    }
                 }
                 const auto transformedBounds = transformSourceBounds(
                     mesh.boundsMinimum,
@@ -7295,7 +7334,9 @@ struct RuntimeEnvironment::Impl {
             prepared->geometry.triangleRecordCount = triangleCount;
             prepared->geometry.uniqueMaterialIndexedTriangleCount =
                 triangleCount;
-            if (!prepareEnvironmentPatchScene(*prepared, &error)) {
+            const auto* variant = route1_scene_variants::find(document.sceneId);
+            if (!prepareEnvironmentPatchScene(
+                    *prepared, variant && !variant->usesSourceTerrain, &error)) {
                 return fail(
                     outError,
                     "Could not prepare environment patch '" +
@@ -8541,6 +8582,34 @@ bool RuntimeEnvironment::Impl::sampleWorldTerrainHeight(
         std::floor(sourcePoint.x / kTerrainTileSizeCm));
     const std::int32_t gridZ = static_cast<std::int32_t>(
         std::floor(sourcePoint.z / kTerrainTileSizeCm));
+    const auto* variant = route1_scene_variants::find(authoredScene.sceneId);
+    if (variant && !variant->usesSourceTerrain) {
+        float highest = std::numeric_limits<float>::lowest();
+        bool sampled = false;
+        for (const auto& patch : environmentPatches) {
+            if (patch->layoutObject.suppressed) continue;
+            const auto cell = patch->groundByCell.find({gridX, gridZ});
+            if (cell == patch->groundByCell.end()) continue;
+            for (const auto& triangle : cell->second) {
+                const auto& a = triangle[0];
+                const auto& b = triangle[1];
+                const auto& c = triangle[2];
+                const float denominator = (b.z - c.z) * (a.x - c.x) + (c.x - b.x) * (a.z - c.z);
+                if (std::abs(denominator) < 1.0e-5f) continue;
+                const float wa = ((b.z - c.z) * (sourcePoint.x - c.x) + (c.x - b.x) * (sourcePoint.z - c.z)) / denominator;
+                const float wb = ((c.z - a.z) * (sourcePoint.x - c.x) + (a.x - c.x) * (sourcePoint.z - c.z)) / denominator;
+                const float wc = 1.0f - wa - wb;
+                if (wa < -1.0e-5f || wb < -1.0e-5f || wc < -1.0e-5f) continue;
+                highest = std::max(highest, wa * a.y + wb * b.y + wc * c.y);
+                sampled = true;
+            }
+        }
+        if (!sampled) return false;
+        const auto surface = worldFromSourceTransform * glm::vec4(sourcePoint.x, highest, sourcePoint.z, 1.0f);
+        if (!std::isfinite(surface.y)) return false;
+        outWorldY = surface.y;
+        return true;
+    }
     const auto found = std::find_if(
         terrainTiles.begin(),
         terrainTiles.end(),
@@ -22223,6 +22292,16 @@ void RuntimeEnvironment::Impl::applyTerrainMask() {
 }
 
 void RuntimeEnvironment::Impl::rebuildTerrainTileStates() {
+    const auto* variant = route1_scene_variants::find(authoredScene.sceneId);
+    if (variant && !variant->usesSourceTerrain) {
+        // Fully authored mesh arenas have no source tile surface to repair.
+        // Suppressed encounter grass must not regenerate its original lawn,
+        // cliffs, or material transition rings on top of the authored mesh.
+        terrainTiles.clear();
+        terrainSeamResolution = route1_terrain_seams::resolve(terrainTiles);
+        terrainPatchV2Plan = route1_terrain_patch_v2::cook(terrainTiles);
+        return;
+    }
     terrainTiles = sourceTerrainTiles;
     for (const auto& authored : layout.authoredTerrainTiles) {
         auto tile = std::find_if(

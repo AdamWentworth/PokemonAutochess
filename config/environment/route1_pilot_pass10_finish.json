@@ -1,0 +1,11 @@
+{
+  "composition_pass": 10,
+  "ledge_corner_radius_m": 0.18,
+  "ledge_ramp_corner_radius_m": 0.24,
+  "visual_access_paint": {
+    "description": "Light lawn along the connected route and its ramps; dark lawn on enclosed banks and the forest border. This is an authoring seed, not runtime movement rules.",
+    "seed_cell": [21, -1],
+    "route_corridor_x": [14, 27],
+    "preserve_source_dark_lawn_islands": true
+  }
+}
