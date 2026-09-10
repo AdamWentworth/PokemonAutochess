@@ -64,14 +64,14 @@ inline std::vector<Button> buildButtons(const BuildInput& in) {
         // Leave the lab visible above the choices. Both rendering paths and
         // mouse hit testing use this geometry, including narrow editor panes.
         const float scale = std::clamp(std::min(in.uiW / 1000.0f, in.uiH / 600.0f), 0.35f, 1.0f);
-        cardW = static_cast<int>(std::round(220 * scale));
-        cardH = static_cast<int>(std::round(150 * scale));
-        spacing = static_cast<int>(std::round(50 * scale));
+        cardW = static_cast<int>(std::round(176 * scale));
+        cardH = static_cast<int>(std::round(120 * scale));
+        spacing = static_cast<int>(std::round(40 * scale));
         const int availableW = std::max(count, in.uiW - layout.edgeMargin * 2);
         if (count * cardW + (count - 1) * spacing > availableW) {
             spacing = std::min(spacing, availableW / (count * 8));
             cardW = std::max(1, (availableW - (count - 1) * spacing) / count);
-            cardH = std::max(1, cardW * 150 / 220);
+            cardH = std::max(1, cardW * 120 / 176);
         }
         const int totalW = count * (cardW + spacing) - spacing;
         startX = std::max(layout.edgeMargin, (in.uiW - totalW) / 2);

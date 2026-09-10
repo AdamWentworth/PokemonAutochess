@@ -122,11 +122,11 @@ bool test_backend_card_layout_model_contract(std::string& outFail) {
             outFail = "starter mode should place cards in a centered horizontal row";
             return false;
         }
-        if (std::abs(buttons[0].w - 220.0f) > 0.001f || std::abs(buttons[0].h - 150.0f) > 0.001f) {
+        if (std::abs(buttons[0].w - 176.0f) > 0.001f || std::abs(buttons[0].h - 120.0f) > 0.001f) {
             outFail = "starter mode should retain readable card dimensions at normal viewport sizes";
             return false;
         }
-        if (std::abs((buttons[1].x - buttons[0].x) - 270.0f) > 0.001f) {
+        if (std::abs((buttons[1].x - buttons[0].x) - 216.0f) > 0.001f) {
             outFail = "starter mode should retain normal row spacing";
             return false;
         }

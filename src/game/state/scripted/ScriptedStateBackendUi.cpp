@@ -447,7 +447,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
                            header, 1.85f, 0.99f, 0.95f, 0.81f);
         if (!backendMainButtons.empty()) {
             auto choicePanel = titlePanel;
-            choicePanel.y = backendMainButtons.front().y - 20.0f * uiScale;
+            choicePanel.y = backendMainButtons.front().y - 10.0f * uiScale;
             choicePanel.h = uiH - choicePanel.y;
             choicePanel.a = 0.72f;
             baseQuads.push_back(choicePanel);
