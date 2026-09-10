@@ -19,12 +19,15 @@ void ScriptedState::render() {
     const auto* viewport = services.viewport;
     const int uiW = viewport ? viewport->width : 1280;
     const int uiH = viewport ? viewport->height : 720;
+    const auto intro = frontendIntro.frame();
     const std::string backdropPath = S.get_or("frontend_backdrop_image", std::string());
     if (!renderWorld && services.renderer && !backdropPath.empty()) {
         const auto backdrop = game::runtime::ui_frontend::backdropSprite(
-            backdropPath, S.get_or("frontend_backdrop_aspect", 1.6f), uiW, uiH);
+            backdropPath, S.get_or("frontend_backdrop_aspect", 1.6f), uiW, uiH,
+            intro.centerU, intro.centerV, intro.zoom);
         services.renderer->drawDebugSprites(&backdrop, 1, uiW, uiH);
     }
+    if (cardMode == CardMode::Starter && intro.uiAlpha <= 0.0f) return;
     const auto routes = game::runtime::render::routesFromServices(services);
     const bool renderBackendTextMenuPath = game::state::backend_ui::shouldRenderBackendTextMenu(
         routes,

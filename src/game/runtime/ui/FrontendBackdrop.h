@@ -8,12 +8,15 @@
 
 namespace game::runtime::ui_frontend {
 
-// Fill the viewport without stretching the authored camera image. Crop equally
-// at opposing edges so the central selection table stays centered on resize.
+// Fill without stretching. An optional focus and zoom animate the framing of
+// the authored image; clamp the crop so no viewport aspect exposes empty edges.
 inline IRenderBackend::DebugSprite backdropSprite(const std::string &path,
                                                   float imageAspect,
                                                   int width,
-                                                  int height) {
+                                                  int height,
+                                                  float centerU = 0.5f,
+                                                  float centerV = 0.5f,
+                                                  float zoom = 1.0f) {
     IRenderBackend::DebugSprite sprite;
     sprite.texturePath = path;
     sprite.w = static_cast<float>(std::max(1, width));
@@ -29,6 +32,18 @@ inline IRenderBackend::DebugSprite backdropSprite(const std::string &path,
         sprite.v0 = (1.0f - visible) * 0.5f;
         sprite.v1 = 1.0f - sprite.v0;
     }
+    if (!std::isfinite(zoom)) zoom = 1.0f;
+    zoom = std::clamp(zoom, 1.0f, 4.0f);
+    if (!std::isfinite(centerU)) centerU = .5f;
+    if (!std::isfinite(centerV)) centerV = .5f;
+    const float halfU = (sprite.u1 - sprite.u0) / (2.0f * zoom);
+    const float halfV = (sprite.v1 - sprite.v0) / (2.0f * zoom);
+    centerU = std::clamp(centerU, halfU, 1.0f - halfU);
+    centerV = std::clamp(centerV, halfV, 1.0f - halfV);
+    sprite.u0 = centerU - halfU;
+    sprite.u1 = centerU + halfU;
+    sprite.v0 = centerV - halfV;
+    sprite.v1 = centerV + halfV;
     return sprite;
 }
 

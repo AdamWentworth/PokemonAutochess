@@ -15,6 +15,20 @@ appear as an arena in Scenes. The image fills the viewport with center cropping,
 preserving its proportions. The cards stay along the bottom and use the same
 layout for rendering and mouse hit testing.
 
+The screen opens with only the lab for 0.65 seconds, pans and zooms toward the
+original starter table over 1.9 seconds, settles for 0.15 seconds, then fades the
+title, both horizontal panels, card artwork/frames, labels and input hint in
+together over 0.65 seconds. Mouse and number-key selection unlock only after the
+fade completes. Early input is discarded. Re-entering the screen or reloading
+its Lua script replays the sequence; resizing the viewport preserves progress.
+
+In the editor, press **Play** to run the opening sequence. Pause/Step also control
+its presentation time. The timing, image-space table focus and zoom live in the
+`frontend_intro` table in `scripts/states/starter.lua`; press **R** in the game
+viewport after a Lua edit to reload and replay it. The movement animates the crop
+of the existing Blender camera image, with no 3D camera or video decoder involved.
+Starter scripts without `frontend_intro` remain immediately interactive.
+
 ## Editable source and publication
 
 The working source is kept privately at
@@ -50,8 +64,8 @@ copies the editable source and render report to the depot; then replaces the
 runtime PNG. The PNG uses the existing UI sprite asset path,
 `assets/ui/backdrops/oaks_lab.png`. It is restored by `sync_asset_depot.ps1`.
 Meshes, decoded textures and `.blend` files are never tracked in the game repo.
-The authored camera render is static; changing furniture means saving the Blender
-scene and republishing the image. Use editor content reload or relaunch after
+The source camera image is static; its runtime framing is animated. Changing
+furniture means saving the Blender scene and republishing the image. Use editor content reload or relaunch after
 publication to refresh cached textures.
 
 ## Source boundary and validation
@@ -84,13 +98,19 @@ selects the image while retaining `hide_world = true`. No Route 1 arena files ar
 modified by this workflow.
 
 `backend_card_layout_model_contract` covers viewport fit, independent card hit
-rectangles and undistorted centered backdrop cropping.
+rectangles, undistorted backdrop cropping throughout the pan/zoom, and invalid
+intro time inputs.
 `starter_frontend_selection_contract` opens the real frontend, changes the
-embedded viewport without a window resize event, and selects all three starters
-by mouse in Classic and number keys in Adventure, checking level-5 placement.
+embedded viewport without a window resize event, checks the hold/move/fade phases,
+rejects mouse and number-key input before the fade completes, verifies matching
+opacity across UI layers, and checks replay on re-entry. It then selects all three
+starters by mouse in Classic and number keys in Adventure, checking level-5 placement.
 Existing shop, preview catalog and end-to-end tests protect the surrounding flow.
 `config/debug/editor_starter_selection.json` provides an empty-world starter
 snapshot for reproducible renderer captures.
+Snapshot pinning still permits the presentation timer to advance; capture at
+frame 15 for the opening hold, 100 for the move, 180 for the fade, or 240 for the
+completed selection view when using fixed 60 Hz updates.
 
 DirectX uses a 16,384-entry shared texture table: the previous 4,096-entry limit
 was exhausted by full-content startup prewarming, preventing frontend images

@@ -1,7 +1,9 @@
 #include "game/state/BackendCardLayoutModel.h"
 #include "game/runtime/ui/FrontendBackdrop.h"
+#include "game/runtime/ui/FrontendIntro.h"
 
 #include <cmath>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -160,6 +162,30 @@ bool test_backend_card_layout_model_contract(std::string& outFail) {
             outFail = "lab backdrop must preserve proportions and center when cropped";
             return false;
         }
+        for (float zoom : {1.0f, 1.4f, 2.15f}) {
+            const auto focused = game::runtime::ui_frontend::backdropSprite(
+                "lab.png", 1.6f, width, height, .706f, .575f, zoom);
+            const float aspect = 1.6f * (focused.u1 - focused.u0) / (focused.v1 - focused.v0);
+            if (focused.u0 < 0 || focused.u1 > 1 || focused.v0 < 0 || focused.v1 > 1 ||
+                std::abs(aspect - static_cast<float>(width) / height) > .001f) {
+                outFail = "intro pan/zoom must preserve proportions without exposing empty edges";
+                return false;
+            }
+        }
+    }
+
+    game::runtime::ui_frontend::FrontendIntro intro;
+    if (!intro.frame().selectionReady || intro.frame().uiAlpha != 1.0f) {
+        outFail = "frontends without an intro must remain immediately interactive";
+        return false;
+    }
+    intro.reset({.enabled = true});
+    intro.advance(-1.0f);
+    intro.advance(std::numeric_limits<float>::quiet_NaN());
+    intro.advance(std::numeric_limits<float>::infinity());
+    if (intro.frame().uiAlpha != 0.0f || intro.frame().selectionReady) {
+        outFail = "invalid or backward time must not skip the starter intro";
+        return false;
     }
 
     return true;

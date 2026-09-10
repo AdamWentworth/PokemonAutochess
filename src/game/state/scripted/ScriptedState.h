@@ -11,6 +11,7 @@
 #include "game/scripting/LuaScript.h"
 #include "game/state/BackendShopSnapshot.h"
 #include "game/state/BackendCardLayoutModel.h"
+#include "game/runtime/ui/FrontendIntro.h"
 #include "game/systems/CardSystem.h"
 #include "game/ui/ShopUiFacade.h"
 #include "engine/ui/TextRenderer.h"
@@ -38,6 +39,7 @@ public:
 
 private:
     void ensureCardUI();
+    void resetFrontendIntro();
     void rebuildCardRow();
     void rebuildTextMenu();
     void drawShopHud(int uiW, int uiH);
@@ -72,6 +74,7 @@ private:
     bool hasShopItems = false;
     bool hasTextMenu = false;
     bool renderWorld = true;
+    game::runtime::ui_frontend::FrontendIntro frontendIntro;
 
     std::unique_ptr<game::ui::ShopUiFacade> shopUi;
 

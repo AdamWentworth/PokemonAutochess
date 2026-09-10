@@ -45,7 +45,16 @@ class StarterRecordingBackend final : public IRenderBackend {
     void drawDebugSprites(const DebugSprite *values, std::size_t count, int, int) override {
         sprites.insert(sprites.end(), values, values + count);
     }
+    void drawDebugQuads(const DebugQuad *values, std::size_t count, int, int) override {
+        quads.insert(quads.end(), values, values + count);
+    }
+    void drawDebugLines(const DebugLine *values, std::size_t count, int, int) override {
+        lines.insert(lines.end(), values, values + count);
+    }
+    void clear() { sprites.clear(); quads.clear(); lines.clear(); }
     std::vector<DebugSprite> sprites;
+    std::vector<DebugQuad> quads;
+    std::vector<DebugLine> lines;
 };
 
 glm::vec3 gridToWorld(const GameConfigData& cfg, int col, int row) {
@@ -116,6 +125,97 @@ bool test_starter_frontend_selection_contract(std::string &outFail) {
             // Reproduce editor embedding: viewport changes without a Resize event.
             viewport.set(844, 512);
             state->render();
+            if (state->shouldRenderWorld() || renderer.sprites.size() != 1u ||
+                !renderer.quads.empty() || !renderer.lines.empty()) {
+                outFail = "starter intro must begin with just the lab, with no title, cards or hint";
+                return false;
+            }
+            const auto initial = renderer.sprites.front();
+            const auto earlyInputIsBlocked = [&]() {
+                state->handleInput(InputEvent::KeyDownEvent(keys[choice]));
+                if (manager.getCurrentState() != state) return false;
+                InputEvent click;
+                click.type = InputEvent::Type::MouseDown;
+                click.mouseButtonId = InputEvent::MouseButton::Left;
+                // This is inside the eventual middle card in the embedded view.
+                click.mouseX = 422;
+                click.mouseY = 420;
+                state->handleInput(click);
+                return manager.getCurrentState() == state && world.getPokemons().empty() &&
+                       world.getBenchPokemons().empty();
+            };
+            if (!earlyInputIsBlocked()) {
+                outFail = "starter input must be ignored during the opening hold";
+                return false;
+            }
+            state->update(.5f);
+            renderer.clear();
+            state->render();
+            if (renderer.sprites.size() != 1u || renderer.sprites.front().u0 != initial.u0) {
+                outFail = "the opening hold must leave the full lab framing still";
+                return false;
+            }
+            state->update(1.1f);
+            renderer.clear();
+            state->render();
+            const auto moving = renderer.sprites.front();
+            if (renderer.sprites.size() != 1u || moving.u1 - moving.u0 >= initial.u1 - initial.u0 ||
+                !renderer.quads.empty() || !renderer.lines.empty() || !earlyInputIsBlocked()) {
+                outFail = "camera must move before UI appears, with selection still locked";
+                return false;
+            }
+            // Rendering and embedded resizing must not restart or advance time.
+            viewport.set(900, 600);
+            renderer.clear();
+            state->render();
+            viewport.set(844, 512);
+            renderer.clear();
+            state->render();
+            if (renderer.sprites.front().u0 != moving.u0 || renderer.sprites.front().v0 != moving.v0) {
+                outFail = "rendering and viewport changes must preserve intro progress";
+                return false;
+            }
+            state->update(1.425f); // Halfway through the fade, after the camera settles.
+            renderer.clear();
+            state->render();
+            if (renderer.sprites.size() != 7u || renderer.quads.empty() || renderer.lines.empty()) {
+                outFail = "the settled intro must fade in both UI bands and all card layers";
+                return false;
+            }
+            const auto settled = renderer.sprites.front();
+            for (std::size_t i = 1; i < renderer.sprites.size(); ++i) {
+                if (std::abs(renderer.sprites[i].a - .5f) > .01f) {
+                    outFail = "card artwork and gold frames must fade together";
+                    return false;
+                }
+            }
+            if (std::abs(renderer.quads.front().a - .435f) > .01f ||
+                std::abs(renderer.lines.front().a - .5f) > .01f || !earlyInputIsBlocked()) {
+                outFail = "panels and text must fade with cards, and fading cards cannot be selected";
+                return false;
+            }
+            state->update(.5f);
+            renderer.clear();
+            state->render();
+            if (renderer.sprites.front().u0 != settled.u0 || renderer.sprites.front().v0 != settled.v0 ||
+                renderer.sprites[1].a != 1.0f) {
+                outFail = "camera must remain settled while choices become fully visible";
+                return false;
+            }
+            if (mode == "classic" && choice == 0) {
+                state->onExit();
+                state->onEnter();
+                renderer.clear();
+                state->render();
+                if (renderer.sprites.size() != 1u || renderer.sprites.front().u0 != initial.u0 ||
+                    !earlyInputIsBlocked()) {
+                    outFail = "re-entering starter selection must replay the intro";
+                    return false;
+                }
+                state->update(4.0f);
+                renderer.clear();
+                state->render();
+            }
             if (state->shouldRenderWorld() || renderer.sprites.size() != 7u) {
                 outFail = "starter frontend must render only the backdrop and three image/frame pairs";
                 return false;

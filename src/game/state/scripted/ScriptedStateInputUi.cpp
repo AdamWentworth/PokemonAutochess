@@ -101,8 +101,13 @@ void ScriptedState::handleInput(const InputEvent& event) {
         hasShopRerollButton = false;
         clearBackendShopUiCache();
         ensureCardUI();
+        resetFrontendIntro();
         return; // avoid also sending this key into old script state
     }
+
+    // Consume early input, including number keys, without queuing a selection.
+    // Resize and explicit script reload above remain available during the intro.
+    if (cardMode == CardMode::Starter && !frontendIntro.frame().selectionReady) return;
 
     // If your scripts expect the event, you can add bindings later; keep current behavior.
     script.call("handleInput");

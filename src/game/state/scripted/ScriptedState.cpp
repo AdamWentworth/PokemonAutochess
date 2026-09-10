@@ -32,6 +32,7 @@ void ScriptedState::onEnter() {
     script.onEnter();
     const double tScriptEnterEnd = game::logging::flow::nowMs();
     ensureCardUI();
+    resetFrontendIntro();
     const double tUiReadyEnd = game::logging::flow::nowMs();
     game::logging::flow::log(
         "scripted_state_on_enter",
@@ -46,6 +47,7 @@ void ScriptedState::onEnter() {
 
 void ScriptedState::onExit() {
     clearBackendShopUiCache();
+    uiInitialized = false;
     hasShopReadyButton = false;
     hasShopRerollButton = false;
     if (gameWorld) {
@@ -56,10 +58,30 @@ void ScriptedState::onExit() {
 }
 
 void ScriptedState::update(float deltaTime) {
+    // Snapshot pinning suppresses gameplay/script transitions, while this purely
+    // visual sequence still advances for reproducible frontend captures.
+    frontendIntro.advance(deltaTime);
     // Perf/benchmark smoke can pin an auto-loaded snapshot so timed shop/menu scripts
     // do not transition away from the captured scene mid-run.
     if (game::runtime::session_debug_snapshot::pinSnapshotStateEnabled()) {
         return;
     }
     script.onUpdate(deltaTime);
+}
+
+void ScriptedState::resetFrontendIntro() {
+    game::runtime::ui_frontend::IntroConfig config;
+    sol::table S = script.getScriptTable();
+    sol::optional<sol::table> intro = S["frontend_intro"];
+    if (cardMode == CardMode::Starter && intro) {
+        config.enabled = true;
+        config.holdSeconds = intro->get_or("hold_seconds", config.holdSeconds);
+        config.moveSeconds = intro->get_or("move_seconds", config.moveSeconds);
+        config.settleSeconds = intro->get_or("settle_seconds", config.settleSeconds);
+        config.fadeSeconds = intro->get_or("fade_seconds", config.fadeSeconds);
+        config.focusU = intro->get_or("focus_u", config.focusU);
+        config.focusV = intro->get_or("focus_v", config.focusV);
+        config.zoom = intro->get_or("zoom", config.zoom);
+    }
+    frontendIntro.reset(config);
 }
