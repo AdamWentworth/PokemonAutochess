@@ -20,9 +20,11 @@ layout for rendering and mouse hit testing.
 The working source is kept privately at
 `EnvironmentResearch/OaksLab/authoring/OaksLab.blend`. A self-contained copy with
 packed textures is published under the asset depot's
-`pokemon-autochess/authoring/frontends/OaksLab/`. Its collections separate the
-room and starter table, reusable furnishings, camera/lighting, and hidden locked
-source reference. The reference collection does not render.
+`pokemon-autochess/authoring/frontends/OaksLab/`. Named furniture parents and
+collections separate the original room architecture, research machinery, desks,
+whiteboard, library rows, starter table, entrance furnishings, and camera/lighting.
+Move a furniture parent to move its whole assembly. A hidden, locked copy of the
+complete source room provides reference and does not render.
 
 Edit furniture, materials, lights, or the active camera in Blender, save, then
 render and publish from the game repository:
@@ -54,11 +56,23 @@ publication to refresh cached textures.
 
 ## Source boundary and validation
 
-Source decoding and the initial furnishing selection belong to the private
-research companion. The lab uses LGPE laboratory furnishing meshes and texture
-atlases, rearranged into a rectangular interior with a new starter display table.
-The original circular battle-room layout is only hidden reference data in Blender;
-it is not part of the rendered lab or any gameplay environment.
+Source decoding and authoring bootstrap belong to the private research companion.
+The active lab uses the normal LGPE Oak's Lab field interior (`t001r0301`), with
+its original furniture positions, architecture, floor, starter table, posters,
+and complete machinery including glass. It replaces the earlier composition
+made from battle-room furnishings. The selection camera and lighting are adapted
+for this frontend. Three complete source Poké Ball props are reused on the
+original empty starter pads; the room geometry is otherwise preserved.
+
+The builder partitions complete connected pieces into furniture groups, keeping
+all 29,051 source triangle records and all four UV channels. It retains 74 packed
+source textures. Source vertex color and alpha participate in the Blender
+materials, including the translucent machinery and lighting planes. This is a
+static Blender approximation of the source shaders, not a reproduction of the
+LGPE renderer or its animated effects.
+
+The previous authored version is retained privately under
+`EnvironmentResearch/OaksLab/checkpoints/before-field-interior/`.
 
 Decorative artwork must come from LGPE. Keep the workstation's original whiteboard
 posters and omit additional artwork when suitable source art is unavailable.
