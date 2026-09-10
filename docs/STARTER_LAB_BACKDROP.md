@@ -60,6 +60,10 @@ atlases, rearranged into a rectangular interior with a new starter display table
 The original circular battle-room layout is only hidden reference data in Blender;
 it is not part of the rendered lab or any gameplay environment.
 
+Decorative artwork must come from LGPE. Keep the workstation's original whiteboard
+posters and omit additional artwork when suitable source art is unavailable.
+Avoid repeating those posters elsewhere in the room.
+
 The game only consumes the published image. The source-neutral render recipe lives
 at `config/environment/oaks_lab_backdrop.json`; `scripts/states/starter.lua`
 selects the image while retaining `hide_world = true`. No Route 1 arena files are
