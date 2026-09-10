@@ -139,13 +139,15 @@ bool test_backend_card_layout_model_contract(std::string& outFail) {
         }
     }
 
-    for (const auto [width, height] : {std::pair{480, 320}, {800, 600}, {1280, 720}, {2560, 1080}}) {
+    for (const auto [width, height] : {std::pair{480, 320}, {800, 600}, {844, 512}, {1280, 720}, {1440, 1000}, {2560, 1080}}) {
         BuildInput in;
         in.cards = {makeCard("bulbasaur", CardType::Shop), makeCard("charmander", CardType::Shop),
                     makeCard("squirtle", CardType::Shop)};
         in.uiW = width;
         in.uiH = height;
         in.mode = LayoutMode::Starter;
+        in.starterCentersU = {.330508f, .496782f, .669492f};
+        in.starterWidthU = .155f;
         const auto buttons = buildButtons(in);
         for (std::size_t i = 0; i < buttons.size(); ++i) {
             const auto &button = buttons[i];
@@ -156,6 +158,19 @@ bool test_backend_card_layout_model_contract(std::string& outFail) {
             }
         }
         const auto backdrop = game::runtime::ui_frontend::backdropSprite("lab.png", 1.6f, width, height);
+        for (std::size_t i = 0; i < buttons.size(); ++i) {
+            const float ballX = width * (in.starterCentersU[i] - backdrop.u0) / (backdrop.u1 - backdrop.u0);
+            const float tableBottom = height * (.71f - backdrop.v0) / (backdrop.v1 - backdrop.v0);
+            if (std::abs(buttons[i].x + buttons[i].w * .5f - ballX) > .01f ||
+                buttons[i].y < tableBottom || std::abs(buttons[i].w / buttons[i].h - 176.0f/120.0f) > .001f) {
+                outFail = "starter artwork must stay below the table and centered under its ball after viewport cropping";
+                return false;
+            }
+        }
+        if (width == 1440 && buttons[0].w < 240) {
+            outFail = "the head-on lab should use enlarged starter artwork";
+            return false;
+        }
         const float visibleAspect = 1.6f * (backdrop.u1 - backdrop.u0) / (backdrop.v1 - backdrop.v0);
         if (std::abs(visibleAspect - static_cast<float>(width) / height) > 0.001f ||
             std::abs(backdrop.u0 + backdrop.u1 - 1) > 0.001f ||

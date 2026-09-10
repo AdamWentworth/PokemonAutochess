@@ -20,6 +20,11 @@ struct BuildInput {
     int uiH = 720;
     LayoutMode mode = LayoutMode::Shop;
     bool forceItemRow = false;
+    // Optional positions in the final backdrop, before viewport cropping.
+    std::vector<float> starterCentersU;
+    float starterBackdropAspect = 1.6f;
+    float starterWidthU = 0.0f;
+    float starterPanelTopV = 0.71f;
 };
 
 struct Button {
@@ -88,6 +93,38 @@ inline std::vector<Button> buildButtons(const BuildInput& in) {
         b.h = static_cast<float>(cardH);
         b.item = (b.data.type == CardType::Item) || in.forceItemRow;
         out.push_back(std::move(b));
+    }
+    if (in.mode == LayoutMode::Starter && in.starterCentersU.size() == out.size() &&
+        std::isfinite(in.starterWidthU) && in.starterWidthU > 0 &&
+        std::isfinite(in.starterBackdropAspect) && in.starterBackdropAspect > 0 &&
+        std::isfinite(in.starterPanelTopV) && in.starterPanelTopV >= 0 && in.starterPanelTopV <= 1) {
+        // Match the backdrop's aspect-fill transform, including cropped editor views.
+        const float imageW = std::max(static_cast<float>(in.uiW), in.uiH * in.starterBackdropAspect);
+        const float imageH = imageW / in.starterBackdropAspect;
+        const float scale = std::clamp(std::min(in.uiW / 1000.0f, in.uiH / 600.0f), 0.35f, 1.0f);
+        const float footer = std::round(64 * scale);
+        const float panelPadding = std::max(12.0f, 24 * scale);
+        const float panelTop = (in.uiH - imageH) * .5f + in.starterPanelTopV * imageH;
+        float width = std::min(imageW * in.starterWidthU,
+                              (in.uiH - footer - panelPadding - panelTop) * 176 / 120);
+        std::vector<float> centers;
+        for (float u : in.starterCentersU) {
+            if (!std::isfinite(u) || u < 0 || u > 1) return out;
+            const float center = (in.uiW - imageW) * .5f + u * imageW;
+            width = std::min(width, 2 * std::min(center - layout.edgeMargin, in.uiW - layout.edgeMargin - center));
+            if (!centers.empty()) width = std::min(width, center - centers.back() - 12 * scale);
+            centers.push_back(center);
+        }
+        // Fall back to the ordinary fitted row if the backdrop anchors are offscreen.
+        if (width >= 48 * scale) {
+            const float height = width * 120 / 176;
+            for (std::size_t i = 0; i < out.size(); ++i) {
+                out[i].x = centers[i] - width * .5f;
+                out[i].y = in.uiH - footer - height;
+                out[i].w = width;
+                out[i].h = height;
+            }
+        }
     }
     return out;
 }

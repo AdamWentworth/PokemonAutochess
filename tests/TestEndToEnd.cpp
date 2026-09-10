@@ -233,6 +233,15 @@ bool test_starter_frontend_selection_contract(std::string &outFail) {
                     return false;
                 }
             }
+            const float ballCenters[] = {.330508f, .496782f, .669492f};
+            for (int i = 0; i < 3; ++i) {
+                const auto& image = renderer.sprites[1 + i * 2];
+                const float ballX = backdrop.w * (ballCenters[i] - backdrop.u0) / (backdrop.u1 - backdrop.u0);
+                if (std::abs(image.x + image.w * .5f - ballX) > 1.0f) {
+                    outFail = "starter script must align the clickable artwork with each displayed Pokeball";
+                    return false;
+                }
+            }
             InputEvent select;
             if (mode == "classic") {
                 const auto &image = renderer.sprites[1 + choice * 2];

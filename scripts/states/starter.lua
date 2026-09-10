@@ -24,6 +24,12 @@ frontend_backdrop_sequence = {
     frame_height = 500,
     padding = 2,
 }
+-- Ball centers in the final Blender camera image. Cards follow its viewport crop.
+starter_card_layout = {
+    centers_u = { 0.330508, 0.496782, 0.669492 },
+    width_u = 0.155,
+    panel_top_v = 0.71, -- Keep the enlarged choices below the table's front edge.
+}
 
 function get_starter_cards()
     return {

@@ -16,6 +16,12 @@ appear as an arena in Scenes. The image fills the viewport with center cropping,
 preserving its proportions. The cards stay along the bottom and use the same
 layout for rendering and mouse hit testing.
 
+The larger bottom cards align with the three Poké Balls in the final camera view.
+`starter_card_layout` in `scripts/states/starter.lua` stores their centers and
+width in backdrop coordinates. The layout follows the image's viewport crop and
+limits card height to keep the panel below the table's front edge, including in
+wide editor views. The panel grows with the cards.
+
 The screen opens with only the lab for 0.65 seconds, moves toward the
 original starter table over 1.9 seconds, settles for 0.15 seconds, then fades the
 title, both horizontal panels, card artwork/frames, labels and input hint in

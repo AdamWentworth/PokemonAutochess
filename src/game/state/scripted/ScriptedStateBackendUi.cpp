@@ -214,6 +214,20 @@ void ScriptedState::rebuildBackendCardUi(const std::vector<CardData>& cards, int
         ? game::state::backend_cards::LayoutMode::Shop
         : game::state::backend_cards::LayoutMode::Starter;
     in.forceItemRow = isItemRow;
+    if (cardMode == CardMode::Starter) {
+        sol::table S = script.getScriptTable();
+        sol::optional<sol::table> presentation = S["starter_card_layout"];
+        if (presentation) {
+            in.starterBackdropAspect = S.get_or("frontend_backdrop_aspect", 1.6f);
+            in.starterWidthU = presentation->get_or("width_u", 0.0f);
+            in.starterPanelTopV = presentation->get_or("panel_top_v", .71f);
+            sol::optional<sol::table> centers = (*presentation)["centers_u"];
+            if (centers) {
+                for (std::size_t i = 1; i <= centers->size(); ++i)
+                    in.starterCentersU.push_back(centers->get_or(i, -1.0f));
+            }
+        }
+    }
 
     std::vector<game::state::backend_cards::Button>& out = isItemRow ? backendItemButtons : backendMainButtons;
     out = game::state::backend_cards::buildButtons(in);
@@ -448,7 +462,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
                            header, 1.85f, 0.99f, 0.95f, 0.81f);
         if (!backendMainButtons.empty()) {
             auto choicePanel = titlePanel;
-            choicePanel.y = backendMainButtons.front().y - 10.0f * uiScale;
+            choicePanel.y = backendMainButtons.front().y - 14.0f * uiScale;
             choicePanel.h = uiH - choicePanel.y;
             choicePanel.a = 0.72f;
             baseQuads.push_back(choicePanel);
