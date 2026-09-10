@@ -5,16 +5,24 @@ hide_world = true
 -- Presentation only: an editable Blender lab rendered through the UI asset path.
 frontend_backdrop_image = "assets/ui/backdrops/oaks_lab.png"
 frontend_backdrop_aspect = 1.6
--- Image-space focus on the original right-hand starter table. The camera settles
+-- Blender camera move ending squarely in front of the original starter table.
+-- The camera settles
 -- before both UI bands fade in; mouse/number-key selection unlocks after the fade.
 frontend_intro = {
     hold_seconds = 0.65,
     move_seconds = 1.90,
     settle_seconds = 0.15,
     fade_seconds = 0.65,
-    focus_u = 0.706,
-    focus_v = 0.575,
-    zoom = 2.15,
+}
+frontend_backdrop_sequence = {
+    atlas_prefix = "assets/ui/backdrops/oaks_lab_intro_",
+    final_image = "assets/ui/backdrops/oaks_lab_table.png",
+    frame_count = 116,
+    columns = 4,
+    rows = 2,
+    frame_width = 800,
+    frame_height = 500,
+    padding = 2,
 }
 
 function get_starter_cards()

@@ -6,5 +6,16 @@
   "runtime_path": "assets/ui/backdrops/oaks_lab.png",
   "width": 2560,
   "height": 1600,
-  "presentation_role": "starter_selection_backdrop_only"
+  "presentation_role": "starter_selection_backdrop_only",
+  "camera_sequence": {
+    "first_frame": 1,
+    "frame_count": 116,
+    "frame_width": 800,
+    "frame_height": 500,
+    "columns": 4,
+    "rows": 2,
+    "padding": 2,
+    "atlas_prefix": "assets/ui/backdrops/oaks_lab_intro_",
+    "final_image": "assets/ui/backdrops/oaks_lab_table.png"
+  }
 }

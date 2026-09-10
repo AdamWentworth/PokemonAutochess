@@ -84,4 +84,25 @@ void ScriptedState::resetFrontendIntro() {
         config.zoom = intro->get_or("zoom", config.zoom);
     }
     frontendIntro.reset(config);
+    frontendCameraSequence = {};
+    sol::optional<sol::table> sequence = S["frontend_backdrop_sequence"];
+    if (config.enabled && sequence) {
+        auto& camera = frontendCameraSequence;
+        camera.atlasPrefix = sequence->get_or("atlas_prefix", std::string());
+        camera.finalImage = sequence->get_or("final_image", std::string());
+        camera.frameCount = sequence->get_or("frame_count", 0);
+        camera.columns = sequence->get_or("columns", camera.columns);
+        camera.rows = sequence->get_or("rows", camera.rows);
+        camera.frameWidth = sequence->get_or("frame_width", camera.frameWidth);
+        camera.frameHeight = sequence->get_or("frame_height", camera.frameHeight);
+        camera.padding = sequence->get_or("padding", camera.padding);
+        if (!camera.valid()) {
+            camera = {};
+            std::cerr << "[ScriptedState] Invalid frontend camera sequence; using its opening backdrop.\n";
+        } else if (services.renderer) {
+            for (int page = 0; page < camera.pageCount(); ++page)
+                services.renderer->prewarmDebugSpriteTexture(camera.pagePath(page).c_str());
+            services.renderer->prewarmDebugSpriteTexture(camera.finalImage.c_str());
+        }
+    }
 }

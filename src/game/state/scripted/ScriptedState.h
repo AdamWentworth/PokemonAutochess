@@ -12,6 +12,7 @@
 #include "game/state/BackendShopSnapshot.h"
 #include "game/state/BackendCardLayoutModel.h"
 #include "game/runtime/ui/FrontendIntro.h"
+#include "game/runtime/ui/FrontendCameraSequence.h"
 #include "game/systems/CardSystem.h"
 #include "game/ui/ShopUiFacade.h"
 #include "engine/ui/TextRenderer.h"
@@ -75,6 +76,7 @@ private:
     bool hasTextMenu = false;
     bool renderWorld = true;
     game::runtime::ui_frontend::FrontendIntro frontendIntro;
+    game::runtime::ui_frontend::CameraSequence frontendCameraSequence;
 
     std::unique_ptr<game::ui::ShopUiFacade> shopUi;
 

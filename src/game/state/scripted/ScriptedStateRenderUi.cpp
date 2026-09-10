@@ -22,10 +22,16 @@ void ScriptedState::render() {
     const auto intro = frontendIntro.frame();
     const std::string backdropPath = S.get_or("frontend_backdrop_image", std::string());
     if (!renderWorld && services.renderer && !backdropPath.empty()) {
-        const auto backdrop = game::runtime::ui_frontend::backdropSprite(
-            backdropPath, S.get_or("frontend_backdrop_aspect", 1.6f), uiW, uiH,
-            intro.centerU, intro.centerV, intro.zoom);
-        services.renderer->drawDebugSprites(&backdrop, 1, uiW, uiH);
+        const float aspect = S.get_or("frontend_backdrop_aspect", 1.6f);
+        if (frontendCameraSequence.valid()) {
+            const auto sprites = game::runtime::ui_frontend::cameraSequenceSprites(
+                frontendCameraSequence, backdropPath, aspect, uiW, uiH, intro.cameraProgress);
+            services.renderer->drawDebugSprites(sprites.data(), sprites.size(), uiW, uiH);
+        } else {
+            const auto backdrop = game::runtime::ui_frontend::backdropSprite(
+                backdropPath, aspect, uiW, uiH, intro.centerU, intro.centerV, intro.zoom);
+            services.renderer->drawDebugSprites(&backdrop, 1, uiW, uiH);
+        }
     }
     if (cardMode == CardMode::Starter && intro.uiAlpha <= 0.0f) return;
     const auto routes = game::runtime::render::routesFromServices(services);

@@ -159,7 +159,7 @@ bool test_starter_frontend_selection_contract(std::string &outFail) {
             renderer.clear();
             state->render();
             const auto moving = renderer.sprites.front();
-            if (renderer.sprites.size() != 1u || moving.u1 - moving.u0 >= initial.u1 - initial.u0 ||
+            if (renderer.sprites.size() != 1u || moving.texturePath != "assets/ui/backdrops/oaks_lab_intro_7.png" ||
                 !renderer.quads.empty() || !renderer.lines.empty() || !earlyInputIsBlocked()) {
                 outFail = "camera must move before UI appears, with selection still locked";
                 return false;
@@ -221,7 +221,7 @@ bool test_starter_frontend_selection_contract(std::string &outFail) {
                 return false;
             }
             const auto &backdrop = renderer.sprites[0];
-            if (backdrop.texturePath != "assets/ui/backdrops/oaks_lab.png" ||
+            if (backdrop.texturePath != "assets/ui/backdrops/oaks_lab_table.png" ||
                 backdrop.w != 844 || backdrop.h != 512) {
                 outFail = "starter backdrop must follow the embedded surface dimensions";
                 return false;

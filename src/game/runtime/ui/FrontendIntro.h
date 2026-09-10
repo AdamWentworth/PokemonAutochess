@@ -17,6 +17,7 @@ struct IntroConfig {
 };
 
 struct IntroFrame {
+    float cameraProgress = 1.0f;
     float centerU = 0.5f;
     float centerV = 0.5f;
     float zoom = 1.0f;
@@ -57,6 +58,7 @@ class FrontendIntro {
         const float move = ease((elapsed_ - config_.holdSeconds) / config_.moveSeconds);
         const float fadeStart = config_.holdSeconds + config_.moveSeconds + config_.settleSeconds;
         return {
+            .cameraProgress = std::clamp((elapsed_ - config_.holdSeconds) / config_.moveSeconds, 0.0f, 1.0f),
             .centerU = .5f + (config_.focusU - .5f) * move,
             .centerV = .5f + (config_.focusV - .5f) * move,
             .zoom = 1.0f + (config_.zoom - 1.0f) * move,

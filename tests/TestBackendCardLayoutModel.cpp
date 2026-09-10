@@ -1,6 +1,7 @@
 #include "game/state/BackendCardLayoutModel.h"
 #include "game/runtime/ui/FrontendBackdrop.h"
 #include "game/runtime/ui/FrontendIntro.h"
+#include "game/runtime/ui/FrontendCameraSequence.h"
 
 #include <cmath>
 #include <limits>
@@ -172,6 +173,46 @@ bool test_backend_card_layout_model_contract(std::string& outFail) {
                 return false;
             }
         }
+    }
+
+    using game::runtime::ui_frontend::CameraSequence;
+    using game::runtime::ui_frontend::cameraSequenceSprites;
+    CameraSequence sequence{.atlasPrefix = "camera_", .finalImage = "table.png", .frameCount = 116};
+    const auto opening = cameraSequenceSprites(sequence, "lab.png", 1.6f, 844, 512, 0.0f);
+    const auto final = cameraSequenceSprites(sequence, "lab.png", 1.6f, 844, 512, 1.0f);
+    if (sequence.pageCount() != 15 || opening.size() != 1 || opening[0].texturePath != "lab.png" ||
+        final.size() != 1 || final[0].texturePath != "table.png") {
+        outFail = "camera playback must use full-resolution stills at both endpoints";
+        return false;
+    }
+    for (const auto [width, height] : {std::pair{480, 320}, {844, 512}, {2560, 1080}}) {
+        for (int frame = 0; frame < 116; ++frame) {
+            const auto sprites = cameraSequenceSprites(sequence, "lab.png", 1.6f, width, height,
+                                                        (frame + (frame == 115 ? -.25f : .25f)) / 115.0f);
+            if (sprites.size() != 1 || sprites[0].a != 1) {
+                outFail = "camera playback must use one opaque sample without crossfade ghosting";
+                return false;
+            }
+            {
+                const auto& sprite = sprites[0];
+                const int tile = frame % 8;
+                const float x = (tile % 4)*804.0f, y = (tile / 4)*504.0f;
+                const float aspect = (sprite.u1 - sprite.u0)*3216 / ((sprite.v1 - sprite.v0)*1008);
+                if (sprite.texturePath != "camera_" + std::to_string(frame/8) + ".png" ||
+                    sprite.u0*3216 < x+1.9f || sprite.u1*3216 > x+802.1f ||
+                    sprite.v0*1008 < y+1.9f || sprite.v1*1008 > y+502.1f ||
+                    std::abs(aspect - static_cast<float>(width)/height) > .001f) {
+                    outFail = "camera sampling must stay within the padded frame and preserve aspect after resize";
+                    return false;
+                }
+            }
+        }
+    }
+    sequence.columns = 0;
+    const auto fallback = cameraSequenceSprites(sequence, "lab.png", 1.6f, 844, 512, .5f);
+    if (fallback.size() != 1 || fallback[0].texturePath != "lab.png") {
+        outFail = "invalid camera layouts must safely fall back to the opening image";
+        return false;
     }
 
     game::runtime::ui_frontend::FrontendIntro intro;
