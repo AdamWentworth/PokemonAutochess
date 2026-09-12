@@ -13,8 +13,33 @@
 #include "game/config/GameDataDb.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
+#include "game/runtime/shared/capture/SharedCaptureModelBridge.h"
+#include "game/runtime/shared/world/SharedWorldContentSubmit.h"
 
 namespace {
+
+class CapturePassRecordingBackend final : public IRenderBackend {
+public:
+    const char* backendId() const override { return "d3d12"; }
+    void beginFrame(float, float, float, float) override {}
+    void endFrame() override {}
+    void onResize(int, int) override {}
+    bool requiresOpenGLContext() const override { return false; }
+    bool handlesPresentation() const override { return false; }
+    void shutdown() override {}
+    void drawWorldIndexedMeshCached(const char*, const WorldMeshVertex*, std::size_t,
+        const std::uint32_t*, std::size_t, const float*, int, int) override { ++prematureDraws; }
+    void beginWorldSceneColorPass(int, int) override { inScenePass = true; }
+    void endWorldSceneColorPass() override { inScenePass = false; }
+    void drawWorldIndexedMeshTexturedCached(const char*, const WorldMeshVertex*, std::size_t,
+        const std::uint32_t*, std::size_t, const WorldTextureData*, const float*, int, int) override {
+        if (inScenePass) ++sceneDraws;
+        else ++prematureDraws;
+    }
+    bool inScenePass = false;
+    int sceneDraws = 0;
+    int prematureDraws = 0;
+};
 
 bool expect(bool condition, const std::string& message, std::string& outFail) {
     if (condition) return true;
@@ -72,6 +97,77 @@ const GameWorld::CaptureAttemptRenderSnapshot* findSnapByTarget(
 
 bool test_shared_capture_presentation_contract(std::string& outFail) {
     using namespace game::runtime::shared_capture;
+
+    {
+        GameWorld world(GameConfigData{});
+        world.teamTravelVisuals().active = true;
+        game::presentation::TravelUnitVisual ball;
+        ball.id = 15; ball.ballPosition = glm::vec3(1, 2, 3); ball.ballScale = 1;
+        world.teamTravelVisuals().units.push_back(ball);
+        CapturePassRecordingBackend renderer;
+        game::runtime::render_model::MeshData mesh;
+        mesh.vertices.resize(3);
+        mesh.vertices[1].position.x = 1;
+        mesh.vertices[2].position.y = 1;
+        mesh.indices = {0, 1, 2};
+        mesh.submeshIndexOffset = {0}; mesh.submeshIndexCount = {3};
+        mesh.submeshBaseColors = {glm::vec4(1, 0, 0, 1)};
+        mesh.sceneRoots = {0};
+        mesh.bindNodeGlobals = {glm::mat4(1)};
+        mesh.animations.resize(1);
+        mesh.animations[0].durationSec = 1;
+        game::runtime::SharedBackendTextureCacheEntry white;
+        white.valid = true; white.width = white.height = 1;
+        white.rgba = {255, 255, 255, 255};
+        SnapshotCache snapshots;
+        std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> batches;
+        const float viewProjection[16] = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+        game::runtime::shared_capture_model_bridge::Args args;
+        args.gameWorld = &world; args.renderer = &renderer;
+        args.supportsWorldIndexedMeshes = args.hasWorldViewProj = true;
+        args.drawableW = 800; args.drawableH = 600; args.worldViewProj = viewProjection;
+        args.sharedCaptureAttemptCache = &snapshots; args.worldIndexedBatches = &batches;
+        args.ensureBackendMeshLoaded = [&](const std::string&) { return &mesh; };
+        args.ensureBackendTextureLoaded = [&](const std::string&) { return &white; };
+        bool animatedPose = false;
+        args.evaluateScenePoseForClipTime = [&](const auto&, int, float time) {
+            game::runtime::shared_backend_pose::PoseEval pose;
+            if (animatedPose) {
+                pose.hasScenePose = true;
+                pose.nodeGlobals = {glm::mat4(1)};
+                pose.nodeGlobals[0][3].y = time;
+            }
+            return pose;
+        };
+        const bool appended = game::runtime::shared_capture_model_bridge::appendSharedCaptureAttemptModels(args);
+        if (!expect(appended && !batches.empty() && batches[0].hasGeometry() && renderer.prematureDraws == 0,
+                    "D3D12 travel balls must join the queued scene geometry, never draw before the scene color pass opens.", outFail)) return false;
+        if (!expect(!batches[0].geometryCacheKey.empty() && batches[0].vertices.empty() &&
+                    batches[0].sharedVertexCount == 3 && batches[0].sharedIndexCount == 3 &&
+                    nearf(batches[0].modelMatrix[12], 1) && nearf(batches[0].modelMatrix[13], 2),
+                    "Travel must reuse cached ball geometry, preserving its transform without exhausting the dynamic upload ring.", outFail)) return false;
+
+        game::runtime::shared_world_content_submit::Args submit;
+        submit.renderer = &renderer; submit.drawableW = 800; submit.drawableH = 600;
+        submit.hasWorldViewProj = submit.supportsWorldIndexedMeshes = true;
+        submit.worldViewProj = viewProjection; submit.worldIndexedBatches = &batches;
+        game::runtime::shared_world_content_submit::submitOpaqueAndIndexedWorldContent(submit);
+        if (!expect(renderer.sceneDraws == 1 && renderer.prematureDraws == 0 && !renderer.inScenePass,
+                    "Travel ball geometry must actually submit inside the scene color pass.", outFail)) return false;
+
+        animatedPose = true;
+        world.teamTravelVisuals().units[0].ballClip = 0.5f;
+        snapshots.refresh(&world);
+        batches.clear();
+        game::runtime::shared_capture_model_bridge::appendSharedCaptureAttemptModels(args);
+        if (!expect(batches.size() == 1 && !batches[0].geometryCacheKey.empty() &&
+                    batches[0].vertices.empty() && batches[0].hasGeometry() &&
+                    nearf(batches[0].modelMatrix[13], 2.5f),
+                    "Opening the ball must animate its cached shell transform without rewriting vertices.", outFail)) return false;
+        game::runtime::shared_world_content_submit::submitOpaqueAndIndexedWorldContent(submit);
+        if (!expect(renderer.sceneDraws == 2 && renderer.prematureDraws == 0,
+                    "Animated travel ball shells must also submit inside the scene color pass.", outFail)) return false;
+    }
 
     {
         GameWorld::CaptureAttemptRenderSnapshot snap{};

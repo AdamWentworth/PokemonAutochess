@@ -43,6 +43,7 @@ bool appendSharedCaptureAttemptModels(const Args& args) {
     if (!args.ensureBackendTextureLoaded) return false;
     if (!args.evaluateScenePoseForClipTime) return false;
 
+    const bool travelling = args.gameWorld->teamTravelVisuals().active;
     const bool isD3d12Backend =
         args.renderer &&
         args.renderer->backendId() &&
@@ -57,7 +58,7 @@ bool appendSharedCaptureAttemptModels(const Args& args) {
     }
 
     const bool hasActiveCaptureAttempts =
-        args.gameWorld->countActiveCaptureAttempts() > 0u || args.gameWorld->teamTravelVisuals().active;
+        args.gameWorld->countActiveCaptureAttempts() > 0u || travelling;
     if (args.sharedCaptureAttemptCache->snaps.empty() && hasActiveCaptureAttempts) {
         (void)args.sharedCaptureAttemptCache->refresh(args.gameWorld);
     }
@@ -90,6 +91,8 @@ bool appendSharedCaptureAttemptModels(const Args& args) {
     constexpr bool kCapturePokeballTreatAsUntextured = true;
     constexpr bool kCapturePokeballEnableNodeChunkPath = false;
 
+    // Travel models are assembled before the scene color pass opens. Queue their
+    // geometry with the world; immediate D3D12 draws would be covered by that pass.
     if (isD3d12Backend && args.renderer && args.hasWorldViewProj) {
         const auto d3d12FastResult =
             game::runtime::shared_capture_d3d12_fast::tryAppend(
@@ -105,7 +108,8 @@ bool appendSharedCaptureAttemptModels(const Args& args) {
                 kCapturePokeballEnableNodeChunkPath,
                 [&](int animIndex, float animTimeSec) {
                     return args.evaluateScenePoseForClipTime(*mesh, animIndex, animTimeSec);
-                });
+                },
+                travelling ? args.worldIndexedBatches : nullptr);
         if (d3d12FastResult.handled) return d3d12FastResult.appendedAny;
     }
 
@@ -159,6 +163,7 @@ bool appendSharedCaptureAttemptModels(const Args& args) {
 
         const std::size_t batchCount = sCaptureMeshCache.submeshes.size();
         const bool useDirectD3d12CaptureDraw =
+            !travelling &&
             args.renderer &&
             args.renderer->backendId() &&
             args.hasWorldViewProj &&

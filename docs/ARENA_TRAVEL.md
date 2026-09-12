@@ -58,6 +58,10 @@ closed airborne balls, arc height, spin transport and landing before send-out.
 The projected-unit travel presentation
 test checks temporary model scale/tint and restoration without source-material
 mutation. Existing capture and starter tests guard the shared presentation paths.
+The shared capture presentation contract also verifies that D3D12 queues cached
+ball geometry, including animated shells, and submits it inside the scene color
+pass. Drawing immediately during scene assembly puts balls underneath the scene;
+streaming this dense model through the dynamic upload buffer can drop submeshes.
 
 For a deterministic mid-recall screenshot:
 
@@ -68,3 +72,10 @@ powershell.exe -NoProfile -File tools/environment/capture_arena_pilot.ps1 -Snaps
 Use frame 168 for throws, 218 for send-out and 300 for arrival. Build the game first. The editor
 preview ID is `route1-pilot-travel`; rebuild both editor configurations with
 `tools/housekeeping/build_editor_pair.ps1` after C++ changes.
+
+Verify recall and arrival on **D3D12 as well as OpenGL**. The editor uses D3D12
+when selected in its renderer settings, so an OpenGL standalone capture does not
+verify that rendering path. Native backend screenshot frame numbers include
+startup loading frames; the OpenGL frame numbers above are not interchangeable.
+With the current travel snapshot/preload list, D3D12 frame 140 captures recall
+and frame 245 captures the throw. Inspect the captured phase when preloads change.

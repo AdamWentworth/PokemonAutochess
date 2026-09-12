@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <glm/gtc/type_ptr.hpp>
@@ -24,7 +25,8 @@ Result tryAppend(
     bool d3d12CapturePrewarmRequested,
     bool treatPokeballAsUntextured,
     bool enableNodeChunkPath,
-    const std::function<shared_backend_pose::PoseEval(int animIndex, float animTimeSec)>& evaluateScenePoseForClipTime) {
+    const std::function<shared_backend_pose::PoseEval(int animIndex, float animTimeSec)>& evaluateScenePoseForClipTime,
+    std::vector<shared_world_batches::WorldIndexedBatch>* deferredBatches) {
     Result result;
     const char* backendId = renderer.backendId();
     if (!backendId || std::string(backendId) != "d3d12") return result;
@@ -198,6 +200,29 @@ Result tryAppend(
     }
 
     const glm::mat4 viewProjM = glm::make_mat4(worldViewProj);
+    const auto submitModel = [&](const std::string& geometryKey,
+                                 const std::vector<IRenderBackend::WorldMeshVertex>& vertices,
+                                 const std::vector<std::uint32_t>& indices,
+                                 const glm::mat4& model) {
+        if (deferredBatches) {
+            // Keep the immutable mesh on the GPU and queue only its transform.
+            // Copying this dense ball into D3D12's dynamic upload ring can exceed
+            // the per-frame capacity and silently drop entire shell submeshes.
+            shared_world_batches::WorldIndexedBatch batch;
+            batch.geometryCacheKey = geometryKey;
+            batch.sharedVertices = vertices.data();
+            batch.sharedVertexCount = vertices.size();
+            batch.sharedIndices = indices.data();
+            batch.sharedIndexCount = indices.size();
+            std::copy_n(glm::value_ptr(model), 16, batch.modelMatrix.begin());
+            deferredBatches->push_back(std::move(batch));
+        } else {
+            const glm::mat4 mvp = viewProjM * model;
+            renderer.drawWorldIndexedMeshCached(
+                geometryKey.c_str(), vertices.data(), vertices.size(),
+                indices.data(), indices.size(), glm::value_ptr(mvp), drawableW, drawableH);
+        }
+    };
     for (const auto& snap : captureSnaps) {
         if (snap.timeLeftSec <= 0.0f) continue;
 
@@ -217,16 +242,11 @@ Result tryAppend(
         if (!hasCaptureClipPose &&
             !sFastCache.rigidCombinedVertices.empty() &&
             sFastCache.rigidCombinedIndices.size() >= 3u) {
-            const glm::mat4 rigidMvp = viewProjM * modelM;
-            renderer.drawWorldIndexedMeshCached(
+            submitModel(
                 "assets/models/pokeball.glb#geomcombined",
-                sFastCache.rigidCombinedVertices.data(),
-                sFastCache.rigidCombinedVertices.size(),
-                sFastCache.rigidCombinedIndices.data(),
-                sFastCache.rigidCombinedIndices.size(),
-                glm::value_ptr(rigidMvp),
-                drawableW,
-                drawableH);
+                sFastCache.rigidCombinedVertices,
+                sFastCache.rigidCombinedIndices,
+                modelM);
             result.appendedAny = true;
             continue;
         }
@@ -243,16 +263,7 @@ Result tryAppend(
                 static_cast<std::size_t>(sub.nodeIndex) < mesh.bindNodeGlobals.size()) {
                 nodeGlobal = mesh.bindNodeGlobals[static_cast<std::size_t>(sub.nodeIndex)];
             }
-            const glm::mat4 subMvp = viewProjM * modelM * nodeGlobal;
-            renderer.drawWorldIndexedMeshCached(
-                sub.geomKey.c_str(),
-                sub.localVertices.data(),
-                sub.localVertices.size(),
-                sub.localIndices.data(),
-                sub.localIndices.size(),
-                glm::value_ptr(subMvp),
-                drawableW,
-                drawableH);
+            submitModel(sub.geomKey, sub.localVertices, sub.localIndices, modelM * nodeGlobal);
             result.appendedAny = true;
         }
     }
