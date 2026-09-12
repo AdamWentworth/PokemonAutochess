@@ -22,7 +22,10 @@
 namespace {
 constexpr const char* kEntrance = "scripts/states/route1_pilot.lua";
 constexpr const char* kClearing = "scripts/states/route1_south_clearing.lua";
-constexpr float kRecall = .72f, kCover = .22f, kReveal = .25f, kSend = .72f;
+constexpr float kStagger = .18f;
+constexpr float kRecall = 1.0f + kStagger, kCover = .22f, kReveal = .25f;
+constexpr float kThrow = .6f + kStagger, kSend = .72f + kStagger;
+constexpr float kBallRestPitch = -40.0f;
 using game::presentation::travelEase;
 }
 
@@ -198,7 +201,8 @@ void ArenaTravelState::update(float dt) {
     case Phase::Warm:
         if ((warmFrames_ >= 2 || !services_.renderEnabled) && elapsed_ >= .12f) enter(Phase::Reveal);
         break;
-    case Phase::Reveal: if (elapsed_ >= kReveal) enter(Phase::SendOut); break;
+    case Phase::Reveal: if (elapsed_ >= kReveal) enter(Phase::Throw); break;
+    case Phase::Throw: if (elapsed_ >= kThrow) enter(Phase::SendOut); break;
     case Phase::SendOut: if (elapsed_ >= kSend) enter(Phase::Ready); break;
     default: break;
     }
@@ -216,24 +220,56 @@ void ArenaTravelState::updateVisuals() {
         game::presentation::TravelUnitVisual visual;
         visual.id = unit->id;
         visual.sendingOut = sending;
+        // Expose the white hemisphere/band to the overhead camera.
+        visual.ballPitchDeg = kBallRestPitch;
         const float cell = world_.getBoardCellSize();
-        visual.ballPosition = world_.conformPositionToGround(unit->position + glm::vec3(0,0,cell*.38f));
-        visual.ballPosition.y += cell*.23f;
-        const float stagger = formation_.size() > 1 ? .12f * i / (formation_.size()-1) : 0;
-        const float progress = std::clamp((elapsed_-stagger)/.6f, 0.0f, 1.0f);
-        if (phase_ == Phase::Recall || sending) {
-            const float materialize = travelEase((progress-.18f)/.62f);
-            visual.scale = sending ? materialize : 1-materialize;
-            visual.tint = std::sin(materialize*3.14159265f);
-            visual.light = std::sin(materialize*3.14159265f);
-            visual.ballScale = world_.getConfig().captureBallScale * (sending ? 1-travelEase((progress-.8f)/.2f) : travelEase(progress/.15f));
-            // Open toward the unit, hold during materialization, then close.
-            // The full source clip opens past 100 degrees; a smaller opening
-            // keeps the shell readable from the overhead board camera.
-            visual.ballClip = .3f * travelEase(progress/.18f) * (1-travelEase((progress-.78f)/.22f));
-        } else if (phase_ != Phase::Hold) {
+        const float ballScale = world_.getConfig().captureBallScale * 1.4f;
+        const float stagger = formation_.size() > 1 ? kStagger * i / (formation_.size()-1) : 0;
+        const float time = std::max(0.0f, elapsed_-stagger);
+        // Keep recall balls visibly separate from the body, even for bench units.
+        glm::vec3 recallBall = world_.conformPositionToGround(unit->position + glm::vec3(0,0,cell*1.5f));
+        recallBall.y = std::max(recallBall.y, unit->position.y) + cell*.65f;
+        glm::vec3 landing = world_.conformPositionToGround(unit->position + glm::vec3(0,0,cell*.45f));
+        landing.y += cell*.24f;
+        if (phase_ == Phase::Recall) {
+            const float absorb = travelEase((time-.3f)/.5f);
+            visual.ballPosition = recallBall;
+            visual.ballScale = ballScale * travelEase(time/.12f);
+            // Recall uses a closed ball and its beam; opening belongs to send-out.
+            visual.light = travelEase((time-.12f)/.12f) * (1-travelEase((time-.78f)/.12f));
+            visual.tint = travelEase((time-.2f)/.12f);
+            visual.scale = 1-absorb;
+            visual.unitOffset = (recallBall-unit->position) * absorb;
+        } else if (phase_ == Phase::Throw) {
+            const float progress = std::clamp(time/.6f, 0.0f, 1.0f);
+            glm::vec3 launch = world_.travelBenchPosition(0);
+            launch.x = unit->position.x * .4f;
+            launch.z += cell*1.8f;
+            launch = world_.conformPositionToGround(launch);
+            launch.y += cell*.9f;
+            const float distance = glm::length(glm::vec2(landing.x-launch.x, landing.z-launch.z));
+            const float arcHeight = std::clamp(distance*.3f, cell*1.3f, cell*2.6f);
+            visual.ballPosition = glm::mix(launch, landing, progress);
+            visual.ballPosition.y += 4*progress*(1-progress)*arcHeight;
+            visual.ballScale = ballScale * travelEase(time/.06f);
+            visual.ballPitchDeg = kBallRestPitch + 360*progress;
             visual.scale = 0;
-            visual.ballScale = world_.getConfig().captureBallScale;
+        } else if (sending) {
+            const float materialize = travelEase((time-.14f)/.4f);
+            visual.ballPosition = landing;
+            visual.ballScale = ballScale * (1-travelEase((time-.56f)/.16f));
+            visual.ballClip = .3f * travelEase(time/.12f) * (1-travelEase((time-.5f)/.12f));
+            visual.light = travelEase((time-.07f)/.1f) * (1-travelEase((time-.48f)/.12f));
+            visual.tint = 1-materialize;
+            visual.scale = materialize;
+            visual.unitOffset = (landing-unit->position) * (1-materialize);
+        } else if (phase_ == Phase::Cover) {
+            visual.ballPosition = recallBall;
+            visual.scale = 0;
+            visual.ballScale = ballScale;
+        } else if (phase_ != Phase::Hold) {
+            // Reveal the empty destination before any balls are thrown onto it.
+            visual.scale = 0;
         }
         visuals.units.push_back(visual);
     }

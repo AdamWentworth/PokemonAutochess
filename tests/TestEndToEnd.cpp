@@ -124,12 +124,19 @@ bool test_arena_travel_contract(std::string& outFail) {
     };
     ArenaTravelState travel(world, services, "scripts/states/route1_pilot.lua");
     travel.onEnter();
+    const auto sourcePosition = world.findUnitById(first.id)->position;
     auto tick = [&]() { travel.update(1.0f/60); world.update(1.0f/60); };
     for (int i = 0; i < 70; ++i) tick();
     game::runtime::shared_capture::SnapshotCache balls;
     if (!balls.refresh(&world) || balls.snaps.size() != 3 || world.countActiveCaptureAttempts() != 0 ||
         !world.isBoardInteractionLocked() || !services.presentationPausesRounds) {
         outFail = "recall must render all team balls without capture attempts and lock gameplay"; return false;
+    }
+    const auto* recalling = world.teamTravelVisuals().find(first.id);
+    if (!recalling || recalling->light < .9f || recalling->ballScale <= 0 ||
+        glm::length(recalling->ballPosition - sourcePosition) < world.getBoardCellSize() ||
+        recalling->unitOffset == glm::vec3(0) || world.findUnitById(first.id)->position != sourcePosition) {
+        outFail = "recall must connect a separate visible ball to the body and draw the body toward it without moving the gameplay unit"; return false;
     }
     for (int i = 0; i < 200; ++i) tick();
     if (prepared != 1 || travel.phase() != ArenaTravelState::Phase::Load || travel.coverAlpha() != 1 ||
@@ -148,6 +155,26 @@ bool test_arena_travel_contract(std::string& outFail) {
         outFail = "one destination draw must not unlock travel"; return false;
     }
     travel.worldFramePresented(true);
+    for (int i = 0; i < 60 && travel.phase() != ArenaTravelState::Phase::Throw; ++i) tick();
+    if (travel.phase() != ArenaTravelState::Phase::Throw) {
+        outFail = "the destination reveal must lead to a ball throw before send-out"; return false;
+    }
+    const auto launch = world.teamTravelVisuals().find(first.id)->ballPosition;
+    const auto destination = world.findUnitById(first.id)->position;
+    for (int i = 0; i < 18; ++i) tick();
+    const auto airborne = *world.teamTravelVisuals().find(first.id);
+    if (airborne.scale != 0 || airborne.light != 0 || airborne.ballClip != 0 || airborne.ballScale <= 0 ||
+        airborne.ballPitchDeg <= 0 || world.findUnitById(first.id)->position != destination ||
+        !balls.refresh(&world) || balls.findByTarget(first.id)->presentationPitchDeg != airborne.ballPitchDeg) {
+        outFail = "arrival balls must travel closed and spinning while Pokemon remain hidden and their cells stay fixed"; return false;
+    }
+    for (int i = 0; i < 60 && travel.phase() == ArenaTravelState::Phase::Throw; ++i) tick();
+    const auto landing = world.teamTravelVisuals().find(first.id)->ballPosition;
+    if (travel.phase() != ArenaTravelState::Phase::SendOut || glm::length(landing-launch) < world.getBoardCellSize() ||
+        airborne.ballPosition.y <= std::max(launch.y, landing.y) ||
+        glm::length(glm::vec2(landing.x-destination.x, landing.z-destination.z)) > world.getBoardCellSize()) {
+        outFail = "ball throws must arc above both endpoints and arrive at their assigned slot before opening"; return false;
+    }
     for (int i = 0; i < 100; ++i) tick();
     const auto* arrived = world.findUnitById(first.id);
     const auto* reserve = world.findUnitById(bench.id);
@@ -174,7 +201,7 @@ bool test_arena_travel_contract(std::string& outFail) {
     failLoad = false;
     world.findUnitById(second.id)->position = world.findUnitById(first.id)->position;
     travel.onEnter();
-    for (int i = 0; i < 250; ++i) { tick(); travel.render(); travel.worldFramePresented(true); }
+    for (int i = 0; i < 360; ++i) { tick(); travel.render(); travel.worldFramePresented(true); }
     if (travel.phase() != ArenaTravelState::Phase::Ready ||
         world.worldToGrid(world.findUnitById(first.id)->position) != glm::ivec2(1,5) ||
         world.worldToGrid(world.findUnitById(second.id)->position) == glm::ivec2(1,5)) {

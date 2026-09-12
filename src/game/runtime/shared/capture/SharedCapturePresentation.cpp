@@ -32,6 +32,7 @@ bool SnapshotCache::refresh(const GameWorld* gameWorld) {
         snap.ballYawDeg = 180.0f; // Balls sit south of their unit and open toward it.
         snap.ballScale = visual.ballScale;
         snap.presentationClip01 = visual.ballClip;
+        snap.presentationPitchDeg = visual.ballPitchDeg;
         snap.timeLeftSec = 1.0f;
         snaps.push_back(snap);
     }
@@ -91,8 +92,10 @@ glm::mat4 buildBallModelMatrix(const GameWorld::CaptureAttemptRenderSnapshot& sn
         glm::rotate(glm::mat4(1.0f), glm::radians(yawDeg), glm::vec3(0, 1, 0));
     const glm::mat4 rotationZ =
         glm::rotate(glm::mat4(1.0f), glm::radians(rollDeg), glm::vec3(0, 0, 1));
+    const glm::mat4 rotationX =
+        glm::rotate(glm::mat4(1.0f), glm::radians(snap.presentationPitchDeg), glm::vec3(1, 0, 0));
     const glm::mat4 translation = glm::translate(glm::mat4(1.0f), snap.ballPos);
-    return translation * rotationY * rotationZ * scale;
+    return translation * rotationX * rotationY * rotationZ * scale;
 }
 
 int findPokeballAnimIndex(const std::shared_ptr<Model>& model) {

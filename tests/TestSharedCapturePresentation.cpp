@@ -119,6 +119,18 @@ bool test_shared_capture_presentation_contract(std::string& outFail) {
                     outFail)) {
             return false;
         }
+        GameWorld::CaptureAttemptRenderSnapshot snap;
+        snap.phase = 1;
+        snap.ballPos = pos;
+        snap.ballYawDeg = 90;
+        if (!expect(buildBallModelMatrix(snap, 2) == m,
+                    "Capture balls without a presentation spin must retain their existing transform.", outFail)) return false;
+        snap.presentationPitchDeg = 90;
+        const auto spun = buildBallModelMatrix(snap, 2);
+        if (!expect(glm::distance(glm::vec3(spun[3]), pos) < .0001f &&
+                    std::abs(glm::dot(glm::vec3(spun[1]), glm::vec3(m[1]))) < .0001f &&
+                    nearf(glm::length(glm::vec3(spun[1])), 2),
+                    "A thrown ball must tumble about its own center without changing position or size.", outFail)) return false;
     }
 
     {

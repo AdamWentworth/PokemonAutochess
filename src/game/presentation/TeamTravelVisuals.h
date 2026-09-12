@@ -12,9 +12,11 @@ struct TravelUnitVisual {
     float scale = 1.0f;
     float tint = 0.0f;
     bool sendingOut = false;
+    glm::vec3 unitOffset{};
     glm::vec3 ballPosition{};
     float ballScale = 0.0f;
     float ballClip = 0.0f;
+    float ballPitchDeg = 0.0f;
     float light = 0.0f;
 };
 

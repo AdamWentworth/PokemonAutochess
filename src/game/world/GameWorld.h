@@ -149,6 +149,7 @@ public:
         float timeLeftSec = 0.0f;
         // Explicit animation sampling for presentation-only recall/send-out balls.
         float presentationClip01 = -1.0f;
+        float presentationPitchDeg = 0.0f;
     };
 
     explicit GameWorld(const GameConfigData& cfg);

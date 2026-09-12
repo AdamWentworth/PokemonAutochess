@@ -12,7 +12,7 @@ struct GameServices;
 // A replayable environment travel prototype. It owns presentation, not the roster.
 class ArenaTravelState final : public GameState {
 public:
-    enum class Phase { Hold, Recall, Cover, Load, Warm, Reveal, SendOut, Ready, Failed };
+    enum class Phase { Hold, Recall, Cover, Load, Warm, Reveal, Throw, SendOut, Ready, Failed };
     ArenaTravelState(GameWorld& world, GameServices& services, std::string sourceScript);
     ~ArenaTravelState() override;
     void onEnter() override;
