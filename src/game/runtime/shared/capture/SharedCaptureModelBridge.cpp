@@ -1,7 +1,7 @@
 #include "game/runtime/shared/capture/SharedCaptureModelBridge.h"
 
 #include "game/GameWorld.h"
-#include "game/runtime/shared/capture/SharedCaptureD3d12FastPath.h"
+#include "game/runtime/shared/capture/SharedCaptureCachedModels.h"
 #include "game/runtime/shared/capture/SharedCapturePreparedMeshCache.h"
 #include "engine/utils/LogSink.h"
 
@@ -92,10 +92,10 @@ bool appendSharedCaptureAttemptModels(const Args& args) {
     constexpr bool kCapturePokeballEnableNodeChunkPath = false;
 
     // Travel models are assembled before the scene color pass opens. Queue their
-    // geometry with the world; immediate D3D12 draws would be covered by that pass.
-    if (isD3d12Backend && args.renderer && args.hasWorldViewProj) {
-        const auto d3d12FastResult =
-            game::runtime::shared_capture_d3d12_fast::tryAppend(
+    // geometry with the world using the same cached model path on all backends.
+    if ((travelling || isD3d12Backend) && args.renderer && args.hasWorldViewProj) {
+        const auto cachedResult =
+            game::runtime::shared_capture_cached_models::tryAppend(
                 *args.renderer,
                 args.hasWorldViewProj,
                 args.worldViewProj,
@@ -110,7 +110,7 @@ bool appendSharedCaptureAttemptModels(const Args& args) {
                     return args.evaluateScenePoseForClipTime(*mesh, animIndex, animTimeSec);
                 },
                 travelling ? args.worldIndexedBatches : nullptr);
-        if (d3d12FastResult.handled) return d3d12FastResult.appendedAny;
+        if (cachedResult.handled) return cachedResult.appendedAny;
     }
 
     bool appendedAny = false;

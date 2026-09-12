@@ -1,18 +1,20 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('planning','battle','ledges','grass')][string]$Phase = 'planning',
+    [ValidateSet('planning','battle','ledges','grass','travel')][string]$Phase = 'planning',
     [ValidateSet('opengl','d3d12','vulkan')][string]$Backend = 'opengl',
     [string]$OutputDirectory = '',
     [string]$Recipe = 'config/environment/route1_south_entrance.authoring.json',
-    [switch]$Capture
+    [switch]$Capture,
+    [switch]$Play,
+    [ValidateRange(1, 10000)][int]$Frame = 60
 )
 $ErrorActionPreference = 'Stop'
 $taskGameRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $taskRecipe = Get-Content ([IO.Path]::Combine($taskGameRoot, $Recipe)) -Raw | ConvertFrom-Json
 $taskSceneId = $taskRecipe.scene_id
 $taskPreviewPrefix = ($taskSceneId -split '/')[-1]
-if ($Phase -eq 'ledges' -and $taskPreviewPrefix -ne 'route1-pilot') {
-    throw 'The dedicated Ledge Test scenario currently belongs to South Entrance. Use Planning or Battle for this arena.'
+if ($Phase -in @('ledges', 'travel') -and $taskPreviewPrefix -ne 'route1-pilot') {
+    throw 'The dedicated Ledge and Travel scenarios belong to South Entrance.'
 }
 $taskProjects = [IO.Path]::GetFullPath((Join-Path $taskGameRoot '../..'))
 $taskEditor = Join-Path $taskProjects 'Phlosion/PhlosionEngine/build/Release/PhlosionEditor.exe'
@@ -26,6 +28,7 @@ $taskDescriptor.startup_scene.scene_id = $taskSceneId
 $taskDescriptor | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $taskProject
 $taskArguments = @("--project=$taskProject", "--renderer=$Backend",
     "--game-preview=$taskPreviewPrefix-$Phase", "--state-directory=$taskOutput/state")
+if ($Play) { $taskArguments += '--play-game-preview' }
 if (-not $Capture) {
     # Explicit interactive preview launch.
     Start-Process -FilePath $taskEditor -WorkingDirectory $taskGameRoot -ArgumentList ($taskArguments | ForEach-Object { '"' + $_ + '"' })
@@ -33,13 +36,15 @@ if (-not $Capture) {
 }
 $taskPreviousPath = $env:PHLOSION_BACKEND_SCREENSHOT_PATH
 $taskPreviousFrame = $env:PHLOSION_BACKEND_SCREENSHOT_FRAME
+$taskPreviousDefer = $env:PHLOSION_BACKEND_SCREENSHOT_DEFER
 try {
+    $env:PHLOSION_BACKEND_SCREENSHOT_DEFER = $null
     $env:PHLOSION_BACKEND_SCREENSHOT_PATH = Join-Path $taskOutput 'capture.png'
-    $env:PHLOSION_BACKEND_SCREENSHOT_FRAME = '60'
+    $env:PHLOSION_BACKEND_SCREENSHOT_FRAME = [string]$Frame
     if (Test-Path -LiteralPath $env:PHLOSION_BACKEND_SCREENSHOT_PATH) {
         Remove-Item -LiteralPath $env:PHLOSION_BACKEND_SCREENSHOT_PATH
     }
-    $taskArguments += @('--hidden', '--frames=65', '--fixed-delta=0.016666667', "--metrics-output=$taskOutput/metrics.json")
+    $taskArguments += @('--hidden', "--frames=$($Frame + 5)", '--fixed-delta=0.016666667', "--metrics-output=$taskOutput/metrics.json")
     $taskProcess = Start-Process -FilePath $taskEditor -WorkingDirectory $taskGameRoot -WindowStyle Hidden -PassThru `
         -ArgumentList ($taskArguments | ForEach-Object { '"' + $_ + '"' }) `
         -RedirectStandardOutput (Join-Path $taskOutput 'stdout.log') -RedirectStandardError (Join-Path $taskOutput 'stderr.log')
@@ -56,4 +61,5 @@ try {
 } finally {
     $env:PHLOSION_BACKEND_SCREENSHOT_PATH = $taskPreviousPath
     $env:PHLOSION_BACKEND_SCREENSHOT_FRAME = $taskPreviousFrame
+    $env:PHLOSION_BACKEND_SCREENSHOT_DEFER = $taskPreviousDefer
 }

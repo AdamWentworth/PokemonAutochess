@@ -20,7 +20,8 @@ namespace {
 
 class CapturePassRecordingBackend final : public IRenderBackend {
 public:
-    const char* backendId() const override { return "d3d12"; }
+    explicit CapturePassRecordingBackend(const char* id) : id_(id) {}
+    const char* backendId() const override { return id_; }
     void beginFrame(float, float, float, float) override {}
     void endFrame() override {}
     void onResize(int, int) override {}
@@ -39,6 +40,8 @@ public:
     bool inScenePass = false;
     int sceneDraws = 0;
     int prematureDraws = 0;
+private:
+    const char* id_;
 };
 
 bool expect(bool condition, const std::string& message, std::string& outFail) {
@@ -98,13 +101,13 @@ const GameWorld::CaptureAttemptRenderSnapshot* findSnapByTarget(
 bool test_shared_capture_presentation_contract(std::string& outFail) {
     using namespace game::runtime::shared_capture;
 
-    {
+    for (const char* backend : {"opengl", "vulkan", "d3d12"}) {
         GameWorld world(GameConfigData{});
         world.teamTravelVisuals().active = true;
         game::presentation::TravelUnitVisual ball;
         ball.id = 15; ball.ballPosition = glm::vec3(1, 2, 3); ball.ballScale = 1;
         world.teamTravelVisuals().units.push_back(ball);
-        CapturePassRecordingBackend renderer;
+        CapturePassRecordingBackend renderer(backend);
         game::runtime::render_model::MeshData mesh;
         mesh.vertices.resize(3);
         mesh.vertices[1].position.x = 1;
@@ -141,7 +144,7 @@ bool test_shared_capture_presentation_contract(std::string& outFail) {
         };
         const bool appended = game::runtime::shared_capture_model_bridge::appendSharedCaptureAttemptModels(args);
         if (!expect(appended && !batches.empty() && batches[0].hasGeometry() && renderer.prematureDraws == 0,
-                    "D3D12 travel balls must join the queued scene geometry, never draw before the scene color pass opens.", outFail)) return false;
+                    std::string(backend) + " travel balls must join queued scene geometry, never draw before the scene color pass opens.", outFail)) return false;
         if (!expect(!batches[0].geometryCacheKey.empty() && batches[0].vertices.empty() &&
                     batches[0].sharedVertexCount == 3 && batches[0].sharedIndexCount == 3 &&
                     nearf(batches[0].modelMatrix[12], 1) && nearf(batches[0].modelMatrix[13], 2),

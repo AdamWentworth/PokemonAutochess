@@ -1,4 +1,4 @@
-#include "game/runtime/shared/capture/SharedCaptureD3d12FastPath.h"
+#include "game/runtime/shared/capture/SharedCaptureCachedModels.h"
 
 #include "game/GameWorld.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
@@ -12,7 +12,7 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
-namespace game::runtime::shared_capture_d3d12_fast {
+namespace game::runtime::shared_capture_cached_models {
 
 Result tryAppend(
     IRenderBackend& renderer,
@@ -29,13 +29,13 @@ Result tryAppend(
     std::vector<shared_world_batches::WorldIndexedBatch>* deferredBatches) {
     Result result;
     const char* backendId = renderer.backendId();
-    if (!backendId || std::string(backendId) != "d3d12") return result;
+    if (!deferredBatches && (!backendId || std::string(backendId) != "d3d12")) return result;
     if (!hasWorldViewProj || !worldViewProj) return result;
     result.handled = true;
     (void)treatPokeballAsUntextured;
     (void)enableNodeChunkPath;
 
-    struct D3d12CaptureSubmeshCache {
+    struct CaptureSubmeshCache {
         int nodeIndex = -1;
         std::uint8_t alphaMode = 0u;
         float alphaCutoff = 0.5f;
@@ -43,17 +43,17 @@ Result tryAppend(
         std::vector<std::uint32_t> localIndices;
         std::string geomKey;
     };
-    struct D3d12CaptureFastCache {
+    struct CaptureMeshCache {
         const runtime::render_model::MeshData* sourceMesh = nullptr;
         std::size_t sourceVertexCount = 0u;
         std::size_t sourceIndexCount = 0u;
-        std::vector<D3d12CaptureSubmeshCache> submeshes;
+        std::vector<CaptureSubmeshCache> submeshes;
         std::vector<IRenderBackend::WorldMeshVertex> rigidCombinedVertices;
         std::vector<std::uint32_t> rigidCombinedIndices;
         bool rigidCombinedPrewarmed = false;
         bool submeshesPrewarmed = false;
     };
-    static thread_local D3d12CaptureFastCache sFastCache;
+    static thread_local CaptureMeshCache sFastCache;
 
     const bool fastCacheValid =
         (sFastCache.sourceMesh == &mesh) &&
@@ -93,7 +93,7 @@ Result tryAppend(
                 : fallbackNode;
             if (si < mesh.submeshAlphaMode.size()) sub.alphaMode = mesh.submeshAlphaMode[si];
             if (si < mesh.submeshAlphaCutoff.size()) sub.alphaCutoff = mesh.submeshAlphaCutoff[si];
-            sub.geomKey = "assets/models/pokeball.glb#d3d12fastsubmesh:" + std::to_string(si);
+            sub.geomKey = "assets/models/pokeball.glb#cachedsubmesh:" + std::to_string(si);
 
             std::size_t indexOffset = (si < mesh.submeshIndexOffset.size()) ? mesh.submeshIndexOffset[si] : 0u;
             std::size_t indexCount = (si < mesh.submeshIndexCount.size()) ? mesh.submeshIndexCount[si] : 0u;
@@ -271,4 +271,4 @@ Result tryAppend(
     return result;
 }
 
-} // namespace game::runtime::shared_capture_d3d12_fast
+} // namespace game::runtime::shared_capture_cached_models

@@ -22,6 +22,7 @@ $taskVariables = @{
     PAC_AUTO_QUIT_FRAMES = [string]($Frame + 5); PAC_AUTO_QUIT_SECONDS = '180'
     PHLOSION_BACKEND_SCREENSHOT_PATH = (Join-Path $taskOutput "$Backend.png")
     PHLOSION_BACKEND_SCREENSHOT_FRAME = [string]$Frame
+    PHLOSION_BACKEND_SCREENSHOT_DEFER = '1'
 }
 $taskPrevious = @{}
 try {

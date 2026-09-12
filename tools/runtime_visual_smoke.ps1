@@ -149,6 +149,7 @@ function Invoke-RuntimeCapture {
         Set-SmokeEnvVar -Name "PAC_AUTO_QUIT_FRAMES" -Value "$($ScreenshotFrame + 2)" -Backup $backup
         Set-SmokeEnvVar -Name "PHLOSION_BACKEND_SCREENSHOT_PATH" -Value $shotPath -Backup $backup
         Set-SmokeEnvVar -Name "PHLOSION_BACKEND_SCREENSHOT_FRAME" -Value "$ScreenshotFrame" -Backup $backup
+        Set-SmokeEnvVar -Name "PHLOSION_BACKEND_SCREENSHOT_DEFER" -Value "1" -Backup $backup
 
         if (Test-Path $shotPath) { Remove-Item $shotPath -Force }
         if (Test-Path $stdoutPath) { Remove-Item $stdoutPath -Force }

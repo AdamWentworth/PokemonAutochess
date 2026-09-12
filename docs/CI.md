@@ -69,6 +69,10 @@ Optional runtime smoke tests (`PAC_ENABLE_RUNTIME_SMOKE_TESTS`):
 - `PAC_RuntimeSmoke.parity_contract` (compares OpenGL, Vulkan, and D3D12)
 
 ## What CI Does Not Yet Run
+- Visual changes still require local validation on OpenGL, Vulkan, and D3D12.
+  This is a completion requirement even though the GPU matrix is not hosted.
+  Run affected cases with `tools/render_parity_matrix.ps1`; the renderer parity
+  contract defines expected-content and editor-preview requirements.
 - Release benchmark matrix for renderer performance.
 - Hosted-runner perf smoke gate on GitHub Actions. The current hosted Windows
   runners are too non-representative for meaningful perf thresholds.

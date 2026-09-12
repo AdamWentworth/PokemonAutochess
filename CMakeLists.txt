@@ -483,7 +483,7 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/capture/SharedCapturePresentation.cpp
     src/game/runtime/shared/capture/SharedCaptureOverlayVfx.cpp
     src/game/runtime/shared/capture/SharedCaptureModelBridge.cpp
-    src/game/runtime/shared/capture/SharedCaptureD3d12FastPath.cpp
+    src/game/runtime/shared/capture/SharedCaptureCachedModels.cpp
     src/game/runtime/shared/capture/SharedCapturePreparedMeshCache.cpp
     src/game/runtime/shared/world/SharedBoardGridBatches.cpp
     src/game/runtime/shared/world/SharedWorldContentSubmit.cpp

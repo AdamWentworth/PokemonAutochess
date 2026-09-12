@@ -85,6 +85,11 @@ function Import-RenderParitySceneManifest {
         if ($null -ne $scene.autoQuitSeconds -and $scene.autoQuitSeconds -le 0) {
             throw "Render parity scene '$($scene.name)' autoQuitSeconds must be positive."
         }
+        foreach ($dimension in @("width", "height")) {
+            if ($null -ne $scene.$dimension -and $scene.$dimension -le 0) {
+                throw "Render parity scene '$($scene.name)' $dimension must be positive."
+            }
+        }
         if ($null -ne $scene.snapshotPath -and
             -not [string]::IsNullOrWhiteSpace([string]$scene.snapshotPath)) {
             $snapshotAbs = Resolve-RenderParityRepoPath `
@@ -107,6 +112,11 @@ function Import-RenderParitySceneManifest {
         $knownGuardNames = [Collections.Generic.HashSet[string]]::new(
             [StringComparer]::OrdinalIgnoreCase)
         foreach ($guard in $contentGuards) {
+            foreach ($colorThreshold in @("minimumRedPixelRatio", "minimumBrightNeutralPixelRatio")) {
+                if ($null -ne $guard.$colorThreshold) {
+                    Assert-UnitInterval -Name "$($guard.name).$colorThreshold" -Value $guard.$colorThreshold
+                }
+            }
             if ([string]::IsNullOrWhiteSpace([string]$guard.name) -or
                 $guard.name -notmatch '^[a-z0-9][a-z0-9-]*$') {
                 throw "Render parity content guard names must use lowercase letters, numbers, and hyphens."

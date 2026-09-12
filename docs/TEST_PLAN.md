@@ -198,17 +198,26 @@ $env:PAC_ENABLE_RUNTIME_VISUAL_SMOKE_TESTS = "1"
 .\tools\full_check.ps1
 ```
 
-## Optional Screenshot Parity Harness
+## Required Visual Parity Check For Rendering Changes
 ```powershell
 .\tools\render_parity_matrix.ps1 -BuildDir build -Config Debug
 ```
 
 This is the stricter renderer-parity check. Its manifest-driven scene matrix
 covers static PBR/environment rendering, transparent native animated fire, Route 1
-combat presentation, and the startup UI. Every capture uses the same fixed
-frame delta and random seed across `OpenGL`, `Vulkan`, and `D3D12`, then compares
+combat presentation, travel recall/throw/send-out, and the startup UI. Run the
+affected cases on all three APIs for a visual change. Every capture uses the same fixed
+frame delta, gameplay frame origin after loading, and random seed across
+`OpenGL`, `Vulkan`, and `D3D12`, then compares
 each backend to the OpenGL reference without relaxing the established image
 thresholds.
+
+For travel changes, also exercise the moving embedded editor preview using
+`tools/environment/preview_route1_pilot.ps1 -Phase travel -Play -Capture
+-Frame 168 -Backend <opengl|vulkan|d3d12>`. The editor's
+`--play-game-preview` flag starts the named preview automatically; use an isolated
+state directory to preserve the user's workspace. Both editor/plugin configurations
+must be rebuilt together after public renderer-interface changes.
 
 When character inking or material submission changes, force inking on:
 

@@ -95,6 +95,7 @@ function Invoke-BackendScreenshot {
         Set-CaptureEnvVar -Name "PAC_VIDEO_VSYNC" -Value "0" -Backup $backup
         Set-CaptureEnvVar -Name "PAC_VIDEO_FPS_CAP" -Value "0" -Backup $backup
         Set-CaptureEnvVar -Name "PAC_FIXED_FRAME_DT_SECONDS" -Value $fixedFrameDt -Backup $backup
+        Set-CaptureEnvVar -Name "PHLOSION_BACKEND_SCREENSHOT_DEFER" -Value "1" -Backup $backup
         if ([string]::IsNullOrWhiteSpace($SnapshotPath)) {
             Set-CaptureEnvVar -Name "PAC_DEBUG_STATE_PATH" -Value $null -Backup $backup
             Set-CaptureEnvVar -Name "PAC_AUTO_LOAD_DEBUG_SNAPSHOT" -Value $null -Backup $backup
@@ -115,10 +116,13 @@ function Invoke-BackendScreenshot {
         }
 
         $process = Start-Process -FilePath $ExePath `
+            -WindowStyle Hidden `
             -WorkingDirectory (Resolve-Path ".").Path `
             -RedirectStandardOutput $stdoutPath `
             -RedirectStandardError $stderrPath `
             -PassThru
+
+        $null = $process.Handle
 
         if (-not $process.WaitForExit($WaitTimeoutSeconds * 1000)) {
             Stop-Process -Id $process.Id -Force
@@ -127,7 +131,7 @@ function Invoke-BackendScreenshot {
         $process.WaitForExit()
         $process.Refresh()
         $exitCode = $process.ExitCode
-        if ($null -ne $exitCode -and $exitCode -ne 0) {
+        if ($null -eq $exitCode -or $exitCode -ne 0) {
             throw "Screenshot capture for backend '$Backend' exited with code $($process.ExitCode)."
         }
         if (-not (Test-Path $screenshotPath)) {
@@ -135,6 +139,9 @@ function Invoke-BackendScreenshot {
         }
 
         $stdout = @(Get-Content $stdoutPath -ErrorAction SilentlyContinue)
+        if (-not ($stdout | Where-Object { $_ -eq "[CaptureTimeline] backend=$Backend origin=gameplay frame=0" })) {
+            throw "No matching gameplay capture timeline for '$Backend'; wrong backend or outdated executable."
+        }
         $shotLine = $stdout | Where-Object { $_ -match "^\[Screenshot\]" } | Select-Object -Last 1
         if (-not $shotLine) {
             throw "No successful screenshot log line observed for backend '$Backend'."
@@ -225,6 +232,8 @@ foreach ($backend in $Backends) {
             LuminanceStandardDeviation = $metrics.LuminanceStandardDeviation
             NearBlackPixelRatio = $metrics.NearBlackPixelRatio
             MidtonePixelRatio = $metrics.MidtonePixelRatio
+            RedPixelRatio = $metrics.RedPixelRatio
+            BrightNeutralPixelRatio = $metrics.BrightNeutralPixelRatio
             NearBlackLuminanceMaximum = $metrics.NearBlackLuminanceMaximum
             MidtoneLuminanceMinimum = $metrics.MidtoneLuminanceMinimum
             MidtoneLuminanceMaximum = $metrics.MidtoneLuminanceMaximum
@@ -308,6 +317,7 @@ $report = [pscustomobject]@{
     Width = $Width
     Height = $Height
     ScreenshotFrame = $ScreenshotFrame
+    FrameOrigin = "gameplay"
     FixedFrameDtSeconds = $FixedFrameDtSeconds
     Thresholds = [pscustomobject]@{
         MeanAbsoluteError = $MeanAbsoluteErrorThreshold

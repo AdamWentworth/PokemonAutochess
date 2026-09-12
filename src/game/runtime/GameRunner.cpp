@@ -3,6 +3,7 @@
 #include "game/runtime/GameApp.h"
 
 #include "engine/core/EngineServices.h"
+#include "engine/core/Environment.h"
 #include "engine/runtime/FixedStep.h"
 #include "engine/core/GameContext.h"
 #include "engine/core/GameLoop.h"
@@ -376,6 +377,16 @@ namespace {
         ctx.queryVideoMode = [this]() { return presentation.queryVideoMode(); };
 
         game.init(ctx);
+
+        if (engine::env::flagEnabled("PHLOSION_BACKEND_SCREENSHOT_DEFER")) {
+            if (!renderer->beginScreenshotCaptureSequence()) {
+                log_.error("[CaptureTimeline] Could not arm the gameplay screenshot sequence.");
+                game.shutdown();
+                return 1;
+            }
+            log_.info("[CaptureTimeline] backend=" + std::string(renderer->backendId()) +
+                      " origin=gameplay frame=0");
+        }
 
         if (!game::runtime::loop_control::isRunning(loopState)) {
             game.shutdown();

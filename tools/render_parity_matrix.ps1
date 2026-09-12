@@ -92,6 +92,8 @@ foreach ($scene in $scenes) {
         HeatmapScale = [int]$thresholds.heatmapScale
         ReportOnly = $true
     }
+    if ($null -ne $scene.width) { $sceneArgs.Width = [int]$scene.width }
+    if ($null -ne $scene.height) { $sceneArgs.Height = [int]$scene.height }
     if ($SkipCapture) {
         $sceneArgs.SkipCapture = $true
     }

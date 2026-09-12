@@ -20,7 +20,7 @@ function Assert-Condition {
 function Write-SyntheticContentImage {
     param(
         [string]$Path,
-        [ValidateSet("textured", "black", "empty")]
+        [ValidateSet("textured", "black", "empty", "ball", "red-only", "white-only")]
         [string]$ModelMode
     )
 
@@ -36,7 +36,11 @@ function Write-SyntheticContentImage {
         if ($ModelMode -ne "empty") {
             for ($y = 35; $y -lt 65; ++$y) {
                 for ($x = 35; $x -lt 65; ++$x) {
-                    if ($ModelMode -eq "black") {
+                    if ($ModelMode -in @("ball", "red-only", "white-only")) {
+                        $color = $background
+                        if ($y -lt 50 -and $ModelMode -ne "white-only") { $color = [Drawing.Color]::Red }
+                        if ($y -ge 50 -and $ModelMode -ne "red-only") { $color = [Drawing.Color]::White }
+                    } elseif ($ModelMode -eq "black") {
                         $color = [Drawing.Color]::Black
                     } elseif ((($x + $y) % 3) -eq 0) {
                         $color = [Drawing.Color]::FromArgb(255, 48, 132, 74)
@@ -70,6 +74,10 @@ try {
             Where-Object { @($_.coverage) -contains "world" })
     Assert-Condition ($worldScenes.Count -gt 0) (
         "The render parity manifest should contain guarded world scenes.")
+    foreach ($requiredPhase in @("travel-recall", "travel-throw", "travel-sendout")) {
+        Assert-Condition (@($manifest.scenes.name) -contains $requiredPhase) (
+            "The parity matrix must cover $requiredPhase.")
+    }
     foreach ($scene in $worldScenes) {
         Assert-Condition (@($scene.contentGuards).Count -gt 0) (
             "World scene '$($scene.name)' should define expected-content guards.")
@@ -112,6 +120,20 @@ try {
     Assert-Condition (
         $empty.MidtonePixelRatio -lt $guard.minimumMidtonePixelRatio) (
         "The missing-model failure should be attributed to absent visible midtones.")
+
+    $ballGuard = [pscustomobject]@{
+        name = "synthetic-ball-shells"
+        x = 0.25; y = 0.25; width = 0.5; height = 0.5
+        maximumNearBlackPixelRatio = 0.1; minimumMidtonePixelRatio = 0.0
+        minimumRedPixelRatio = 0.1; minimumBrightNeutralPixelRatio = 0.1
+    }
+    foreach ($mode in @("ball", "red-only", "white-only", "empty")) {
+        $path = Join-Path $tempRoot "$mode.png"
+        Write-SyntheticContentImage -Path $path -ModelMode $mode
+        $result = Test-RenderParityImageContent -ImagePath $path -Guard $ballGuard
+        Assert-Condition ($result.Passed -eq ($mode -eq "ball")) (
+            "The ball shell guard must reject missing/partial balls even when every backend matches: $mode")
+    }
 
     Write-Host (
         "[RenderParityContentGuardTest] PASS " +

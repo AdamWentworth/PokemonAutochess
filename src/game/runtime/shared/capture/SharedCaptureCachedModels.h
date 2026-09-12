@@ -9,7 +9,7 @@
 #include <functional>
 #include <vector>
 
-namespace game::runtime::shared_capture_d3d12_fast {
+namespace game::runtime::shared_capture_cached_models {
 
 struct Result {
     bool handled = false;
@@ -32,4 +32,4 @@ Result tryAppend(
     const std::function<shared_backend_pose::PoseEval(int animIndex, float animTimeSec)>& evaluateScenePoseForClipTime,
     std::vector<shared_world_batches::WorldIndexedBatch>* deferredBatches);
 
-} // namespace game::runtime::shared_capture_d3d12_fast
+} // namespace game::runtime::shared_capture_cached_models

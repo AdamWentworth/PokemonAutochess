@@ -58,7 +58,7 @@ closed airborne balls, arc height, spin transport and landing before send-out.
 The projected-unit travel presentation
 test checks temporary model scale/tint and restoration without source-material
 mutation. Existing capture and starter tests guard the shared presentation paths.
-The shared capture presentation contract also verifies that D3D12 queues cached
+The shared capture presentation contract also verifies that all three APIs queue cached
 ball geometry, including animated shells, and submits it inside the scene color
 pass. Drawing immediately during scene assembly puts balls underneath the scene;
 streaming this dense model through the dynamic upload buffer can drop submeshes.
@@ -73,9 +73,14 @@ Use frame 168 for throws, 218 for send-out and 300 for arrival. Build the game f
 preview ID is `route1-pilot-travel`; rebuild both editor configurations with
 `tools/housekeeping/build_editor_pair.ps1` after C++ changes.
 
-Verify recall and arrival on **D3D12 as well as OpenGL**. The editor uses D3D12
-when selected in its renderer settings, so an OpenGL standalone capture does not
-verify that rendering path. Native backend screenshot frame numbers include
-startup loading frames; the OpenGL frame numbers above are not interchangeable.
-With the current travel snapshot/preload list, D3D12 frame 140 captures recall
-and frame 245 captures the throw. Inspect the captured phase when preloads change.
+Verify **OpenGL, Vulkan, and D3D12** for every travel presentation change:
+
+```powershell
+./tools/render_parity_matrix.ps1 -Config Release -Cases travel-recall,travel-throw,travel-sendout
+```
+
+The capture tools arm the screenshot timeline after game/snapshot initialization.
+Frame 64 now means the same gameplay frame on every backend; no loading-frame
+offsets are needed. The matrix checks both image differences and expected content.
+Use `--game-preview=route1-pilot-travel --play-game-preview` with the editor CLI
+to validate the moving embedded preview in an isolated state directory.
