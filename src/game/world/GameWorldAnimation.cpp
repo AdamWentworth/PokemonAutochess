@@ -471,6 +471,13 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
 
 void GameWorld::update(float dt)
 {
+    if (teamTravelVisuals_.active) {
+        // Travel is a pause in gameplay; only idle presentation clocks continue.
+        sharedLoopAnimTimeSec += dt;
+        for (auto& unit : pokemons) unit.animTimeSec += dt;
+        for (auto& unit : benchPokemons) unit.animTimeSec += dt;
+        return;
+    }
     const bool traceWorld = shouldTraceWorldHitch(engineServices);
     const auto updateStart = traceWorld ? WorldTraceClock::now() : WorldTraceClock::time_point{};
     double reconcileMs = 0.0;
@@ -682,4 +689,3 @@ void GameWorld::update(float dt)
         }
     }
 }
-

@@ -166,6 +166,43 @@ bool test_shared_projected_unit_renderer_cached_batch_material_identity_contract
         outFail);
 }
 
+bool test_shared_projected_unit_travel_presentation_contract(std::string& outFail) {
+    namespace prep = game::runtime::shared_projected_unit_backend_mesh_prep;
+    game::runtime::render_model::MeshData mesh;
+    mesh.assetCacheIdentity = "travel-presentation-test";
+    mesh.vertices.resize(3);
+    mesh.indices = {0, 1, 2};
+    mesh.submeshBaseColors = {glm::vec4(.2f, .8f, .3f, 1)};
+    PokemonInstance unit{};
+    IRenderBackend::DebugQuad tint;
+    std::vector<game::runtime::shared_projected_scene::DepthTri> depth;
+    std::vector<game::runtime::shared_projected_scene::DepthWorldTri> worldDepth;
+    std::vector<IRenderBackend::WorldTriangle> triangles;
+    std::size_t budget = 100;
+    prep::Args args;
+    args.unit = &unit; args.meshForUnit = &mesh; args.tint = &tint;
+    args.modelDepthTris = &depth; args.modelDepthWorldTris = &worldDepth;
+    args.world3DTriangles = &triangles; args.remainingModelTrianglesBudget = &budget;
+    args.backendModelTriangleLimit = [] { return 100u; };
+    prep::Result result;
+    prep::PreparedState normal, recalled, restored;
+    if (!prep::prepareProjectedUnitBackendMesh(args, result, normal)) return false;
+    args.renderCaptureScale = .4f;
+    args.captureVisualTintStrength = 1;
+    args.captureTintColor = glm::vec3(1, .1f, .1f);
+    args.presentationTintEnabled = true;
+    if (!prep::prepareProjectedUnitBackendMesh(args, result, recalled)) return false;
+    args.renderCaptureScale = 1;
+    args.captureVisualTintStrength = 0;
+    args.presentationTintEnabled = false;
+    if (!prep::prepareProjectedUnitBackendMesh(args, result, restored)) return false;
+    return expect(std::abs(recalled.modelM[0][0] / normal.modelM[0][0] - .4f) < .0001f &&
+        glm::length(recalled.fastTexturedTint - glm::vec3(1, .1f, .1f)) < .0001f &&
+        restored.fastTexturedTint == normal.fastTexturedTint && restored.modelM == normal.modelM &&
+        mesh.submeshBaseColors[0] == glm::vec4(.2f, .8f, .3f, 1) && !unit.captureInProgress,
+        "Travel must shrink/tint the rendered body even with material parity enabled, then restore it without mutating the source material or capture state.", outFail);
+}
+
 bool test_shared_projected_unit_renderer_segment_scale_compensation_contract(
     std::string& outFail) {
     game::runtime::render_model::MeshData mesh;

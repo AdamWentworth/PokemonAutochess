@@ -628,6 +628,7 @@ add_library(PAC_GameObjects STATIC
     src/game/state/scripted/ScriptedStateRenderUi.cpp
     src/game/state/PlacementState.cpp
     src/game/state/CombatState.cpp
+    src/game/state/ArenaTravelState.cpp
 
     # Game Systems
     src/game/systems/CameraSystem.cpp
@@ -1151,6 +1152,7 @@ if (BUILD_TESTING)
     endforeach()
 
     set(PAC_PRIVATE_ASSET_TEST_NAMES
+        arena_travel_contract
         ledge_jump_asset_roles
         ledge_jump_rendering
         ui_image_path_contract

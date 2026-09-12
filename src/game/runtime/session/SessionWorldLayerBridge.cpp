@@ -3,6 +3,9 @@
 #include "game/GameStateManager.h"
 #include "game/runtime/session/SessionWorldRenderRuntime.h"
 #include "game/state/CombatState.h"
+#include "game/state/ArenaTravelState.h"
+#include "game/runtime/session/SessionWorldBackdrop.h"
+#include "game/runtime/shared/scene/Route1SceneVariants.h"
 #include "game/state/PlacementState.h"
 #include "game/state/scripted/ScriptedState.h"
 
@@ -12,6 +15,7 @@ std::string currentStateScriptPath(GameStateManager* stateManager) {
     if (!stateManager) return {};
     GameState* current = stateManager->getCurrentState();
     if (!current) return {};
+    if (const auto* travel = dynamic_cast<const ArenaTravelState*>(current)) return travel->debugScriptPath();
     if (const auto* combat = dynamic_cast<const CombatState*>(current)) {
         return combat->debugScriptPath();
     }
@@ -32,7 +36,7 @@ std::size_t renderWorldLayer(const Context& context,
                              int drawableH,
                              bool renderWorld,
                              bool prewarmWorldIndexedOnly) {
-    return game::runtime::session_world_render_runtime::render(
+    const auto result = game::runtime::session_world_render_runtime::render(
         {
             .renderer = context.renderer,
             .engineServices = context.engineServices,
@@ -61,6 +65,15 @@ std::size_t renderWorldLayer(const Context& context,
             .ensureBackendMeshLoaded = context.ensureBackendMeshLoaded,
             .ensureBackendTextureLoaded = context.ensureBackendTextureLoaded,
         });
+    if (renderWorld && !prewarmWorldIndexedOnly && stateManager) {
+        if (auto* travel = dynamic_cast<ArenaTravelState*>(stateManager->getCurrentState())) {
+            const auto& scratch = session_render_scratch::threadScratch();
+            const auto& variant = route1_scene_variants::fromStateScriptPath(travel->debugScriptPath());
+            travel->worldFramePresented(scratch.route1RuntimeEnvironment && scratch.route1RuntimeEnvironment->loaded() &&
+                                       scratch.route1RuntimeSceneId == variant.sceneId);
+        }
+    }
+    return result;
 }
 
 } // namespace game::runtime::session_world_layer_bridge

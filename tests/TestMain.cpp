@@ -202,6 +202,7 @@ bool test_gameworld_type_line_counts(std::string& outFail);
 bool test_gameworld_nearest_enemy_position(std::string& outFail);
 bool test_gameworld_heal_player_units_to_full(std::string& outFail);
 bool test_gameworld_capture_restore_player_positions(std::string& outFail);
+bool test_arena_travel_contract(std::string& outFail);
 bool test_gameworld_handle_unit_faint_state_reset(std::string& outFail);
 bool test_gameworld_leechseed_apply_contract(std::string& outFail);
 bool test_gameworld_leechseed_dt_clamp(std::string& outFail);
@@ -221,6 +222,7 @@ bool test_shared_projected_unit_renderer_segment_scale_compensation_contract(std
 bool test_shared_projected_unit_renderer_facial_overlay_base_pose_contract(std::string& outFail);
 bool test_shared_projected_unit_renderer_gastly_tongue_timeline_contract(std::string& outFail);
 bool test_shared_projected_unit_renderer_cached_batch_material_identity_contract(std::string& outFail);
+bool test_shared_projected_unit_travel_presentation_contract(std::string& outFail);
 bool test_shared_projected_unit_renderer_idle_clip_loop_closure_contract(std::string& outFail);
 bool test_shared_projected_unit_renderer_idle_fixed_step_wrap_contract(std::string& outFail);
 bool test_shared_projected_unit_world_scene_native_effect_fallback(std::string& outFail);
@@ -492,6 +494,7 @@ int main(int argc, char** argv) {
         {"gameworld_nearest_enemy_position", &test_gameworld_nearest_enemy_position},
         {"gameworld_heal_player_units_to_full", &test_gameworld_heal_player_units_to_full},
         {"gameworld_capture_restore_player_positions", &test_gameworld_capture_restore_player_positions},
+        {"arena_travel_contract", &test_arena_travel_contract},
         {"gameworld_handle_unit_faint_state_reset", &test_gameworld_handle_unit_faint_state_reset},
         {"gameworld_leechseed_apply_contract", &test_gameworld_leechseed_apply_contract},
         {"gameworld_leechseed_dt_clamp", &test_gameworld_leechseed_dt_clamp},
@@ -508,6 +511,7 @@ int main(int argc, char** argv) {
         {"shared_projected_unit_renderer_scene_pose_cache_contract", &test_shared_projected_unit_renderer_scene_pose_cache_contract},
         {"shared_projected_unit_renderer_bulbasaur_vine_visibility", &test_shared_projected_unit_renderer_bulbasaur_vine_visibility},
         {"shared_projected_unit_renderer_cached_batch_material_identity_contract", &test_shared_projected_unit_renderer_cached_batch_material_identity_contract},
+        {"shared_projected_unit_travel_presentation_contract", &test_shared_projected_unit_travel_presentation_contract},
         {"shared_projected_unit_renderer_segment_scale_compensation_contract", &test_shared_projected_unit_renderer_segment_scale_compensation_contract},
         {"shared_projected_unit_renderer_facial_overlay_base_pose_contract", &test_shared_projected_unit_renderer_facial_overlay_base_pose_contract},
         {"shared_projected_unit_renderer_gastly_tongue_timeline_contract", &test_shared_projected_unit_renderer_gastly_tongue_timeline_contract},

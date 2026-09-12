@@ -8,6 +8,16 @@ namespace {
 
 constexpr Definitions kDefinitions{{
     {
+        "route1-pilot-travel",
+        "Travel Test",
+        "South Entrance",
+        "Press Play: recall the team, travel to South Clearing, then send it out in the same formation. R travels back after arrival. Board and bench placements remain editable after arrival.",
+        "snapshot",
+        "classic",
+        "config/debug/editor_route1_pilot_travel.json",
+        "routes/route1-pilot",
+    },
+    {
         "route1-pilot-grass",
         "Grass Test",
         "South Entrance",

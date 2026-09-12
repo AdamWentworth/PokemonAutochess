@@ -112,6 +112,11 @@ bool handleRoute1BackdropTuningInput(
 
 void handleEvent(const InputEvent& event, const Context& context) {
     if (!context.pauseState) return;
+    // Travel locks inventory and board actions too; keep pause, resize and Escape available.
+    if (context.gameWorld && context.gameWorld->teamTravelVisuals().active &&
+        event.type != InputEvent::Type::Resize &&
+        !(event.type == InputEvent::Type::KeyDown &&
+          (event.keyId == InputEvent::Key::P || event.keyId == InputEvent::Key::O || event.keyId == InputEvent::Key::Escape))) return;
 
     session_loop_runtime::handleEvent(
         event,

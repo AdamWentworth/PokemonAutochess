@@ -2037,6 +2037,24 @@ bool routeThemeUsesAuthoredRoute1Fallback(ArenaBackdropTheme theme) noexcept {
     }
 }
 
+bool prepareTravelScene(const engine::IAssetStore& store, const std::string& scriptPath, std::string& error) {
+    const auto& variant = route1_scene_variants::fromStateScriptPath(scriptPath);
+    auto& scratch = session_render_scratch::threadScratch();
+    if (scratch.preparedTravelEnvironment && scratch.preparedTravelSceneId == variant.sceneId) return true;
+    auto candidate = std::make_shared<route1_environment::RuntimeEnvironment>();
+    if (!route1_environment::loadCookedEnvironment(store, *candidate, nullptr, &error) ||
+        !arena_scene_activation::apply(store, variant, *candidate, false, false, &error)) return false;
+    scratch.preparedTravelEnvironment = std::move(candidate);
+    scratch.preparedTravelSceneId = variant.sceneId;
+    return true;
+}
+
+void discardPreparedTravelScene() {
+    auto& scratch = session_render_scratch::threadScratch();
+    scratch.preparedTravelEnvironment.reset();
+    scratch.preparedTravelSceneId.clear();
+}
+
 float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
                                shared_projected_debug::ProjectedDebugVfxBuilder& projectedDebug,
                                session_render_scratch::RenderScratch& scratch) {
@@ -2053,6 +2071,8 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
     if (wantsCanonicalRoute1 &&
         scratch.route1RuntimeSceneId !=
             route1Variant.sceneId) {
+        auto previous = scratch.route1RuntimeEnvironment;
+        const auto previousId = scratch.route1RuntimeSceneId;
         scratch.route1RuntimeEnvironment.reset();
         scratch.route1RuntimeLoadAttempted = false;
         scratch.route1RuntimeLoadError.clear();
@@ -2061,6 +2081,13 @@ float composeProjectedBackdrop(const ProjectedBackdropArgs& args,
         session_render_scratch::invalidateProjectedBackdrop(
             scratch);
         session_render_scratch::resetSceneCaches(scratch);
+        if (scratch.preparedTravelEnvironment && scratch.preparedTravelSceneId == route1Variant.sceneId) {
+            scratch.route1RuntimeEnvironment = std::move(scratch.preparedTravelEnvironment);
+            // Keep only the previous arena for a quick return trip.
+            scratch.preparedTravelEnvironment = std::move(previous);
+            scratch.preparedTravelSceneId = previousId;
+            scratch.route1RuntimeLoadAttempted = true;
+        }
     }
     if (wantsCanonicalRoute1 &&
         !scratch.route1RuntimeLoadAttempted) {

@@ -23,6 +23,7 @@ role is expressed through metadata rather than deep folder nesting.
 | `BLENDER_NORTH_TERRACES.md` | `Runbook` | Third Route 1 arena farther north, source blueprint, editing, preview and qualification. |
 | `BLENDER_NORTH_ENTRANCE.md` | `Runbook` | Final Route 1 arena, northern ramp and grass layout, editing, preview and qualification. |
 | `STARTER_LAB_BACKDROP.md` | `Runbook` | Editable Oak's Lab frontend backdrop, rendering, publication and starter preview. |
+| `ARENA_TRAVEL.md` | `Runbook` | Replayable team recall, covered arena change and formation-preserving send-out. |
 | `ENCOUNTER_GRASS.md` | `Contract` | Grass sight, attack reveals, search patrols, interaction and editor checks. |
 | `COMBAT_MOVEMENT.md` | `Contract` | Step reservations and deterministic combat movement. |
 | `AUTHORED_ARENA_MAP.md` | `Contract` | Authored cells, directed height connections, and encounter-grass regions. |

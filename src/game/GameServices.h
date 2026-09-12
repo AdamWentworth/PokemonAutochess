@@ -48,6 +48,10 @@ struct GameServices {
     std::function<bool(int, int, bool)> applyVideoMode;
     std::function<VideoMode()> queryVideoMode;
     std::function<void()> requestQuit;
+    // Prepare a destination during setup/planning; travel rechecks it under cover.
+    std::function<bool(const std::string&, std::string&)> prepareArenaScene;
+    std::function<void()> discardPreparedArenaScene;
+    bool presentationPausesRounds = false;
 
     std::string videoPreferencesPath;
     std::string requestedRendererBackend = "auto";

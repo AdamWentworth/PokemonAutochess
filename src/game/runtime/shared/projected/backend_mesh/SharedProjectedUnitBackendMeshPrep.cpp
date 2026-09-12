@@ -1248,8 +1248,8 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
         std::clamp(tint.g * 0.85f + 0.10f, 0.0f, 1.0f),
         std::clamp(tint.b * 0.85f + 0.10f, 0.0f, 1.0f));
     prepared.fastTexturedAlpha = std::clamp(args.modelFadeAlpha, 0.0f, 1.0f);
-    if (strictGltfParityEnabled()) {
-        // Parity mode: keep authored material colors untouched by gameplay tint.
+    if (strictGltfParityEnabled() && !args.presentationTintEnabled) {
+        // Preserve authored colors except for an explicit temporary presentation effect.
         prepared.fastTexturedTint = glm::vec3(1.0f);
     } else {
         prepared.fastTexturedTint = glm::mix(
@@ -1274,4 +1274,3 @@ bool prepareProjectedUnitBackendMeshWorldScene(const Args& args,
 }
 
 } // namespace game::runtime::shared_projected_unit_backend_mesh_prep
-

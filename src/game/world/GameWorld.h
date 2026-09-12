@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include "game/PokemonInstance.h"
+#include "game/presentation/TeamTravelVisuals.h"
 #include "engine/core/IRandom.h"
 
 // Grass impact VFX (shared by grass-type moves)
@@ -146,6 +147,8 @@ public:
         float absorbNorm01 = 0.0f; // normalized absorb progress (0 outside Absorb phase)
         float absorbLateVisual01 = 0.0f; // late absorb ramp for shared capture visuals (red/fade/suck-in)
         float timeLeftSec = 0.0f;
+        // Explicit animation sampling for presentation-only recall/send-out balls.
+        float presentationClip01 = -1.0f;
     };
 
     explicit GameWorld(const GameConfigData& cfg);
@@ -282,6 +285,10 @@ public:
     bool hasBattleStartPositions() const { return !battleStartPositions.empty(); }
     void setBoardInteractionLocked(bool locked) { boardInteractionLocked = locked; }
     bool isBoardInteractionLocked() const { return boardInteractionLocked; }
+    game::presentation::TeamTravelVisuals& teamTravelVisuals() { return teamTravelVisuals_; }
+    const game::presentation::TeamTravelVisuals& teamTravelVisuals() const { return teamTravelVisuals_; }
+    int travelBenchSlot(const glm::vec3& pos) const { return benchSlotFromPosition(pos, getBoardCellSize()); }
+    glm::vec3 travelBenchPosition(int slot) const { return benchSlotToWorld(slot, getBoardCellSize()); }
     bool isBoardResizePauseActive() const { return boardResizePauseSec > 0.0f; }
     void setUnitDragActive(bool active) { unitDragActive = active; }
     bool isUnitDragActive() const { return unitDragActive; }
@@ -313,6 +320,7 @@ private:
 
     CombatBalance combatBalance{};
     bool boardInteractionLocked = false;
+    game::presentation::TeamTravelVisuals teamTravelVisuals_;
     bool unitDragActive = false;
     int uiClickBlockFrames = 0;
     struct BattleStartPose {

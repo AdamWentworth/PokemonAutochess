@@ -93,7 +93,7 @@ bool appendSharedCaptureAttemptModelsIfNeededForProjectedWorld(
         std::transform(id.begin(), id.end(), id.begin(), [](unsigned char c) {
             return static_cast<char>(std::tolower(c));
         });
-        if (id == "opengl") {
+        if (id == "opengl" && (!gameWorld || !gameWorld->teamTravelVisuals().active)) {
             return false;
         }
     }

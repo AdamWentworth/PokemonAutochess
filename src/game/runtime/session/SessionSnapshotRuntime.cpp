@@ -5,6 +5,7 @@
 #include "game/PhaseState.h"
 #include "game/logging/LoggerUtil.h"
 #include "game/state/CombatState.h"
+#include "game/state/ArenaTravelState.h"
 #include "game/state/scripted/ScriptedState.h"
 #include "game/systems/RoundSystem.h"
 #include "engine/core/Environment.h"
@@ -27,6 +28,10 @@ void restoreStateStack(const SessionSnapshotMetadata& session,
                        GameServices* services,
                        LogBus::Logger* log) {
     if (!stateManager || !gameWorld || !services) return;
+    if (session.stateKind == "arena_travel" && !session.stateScriptPath.empty()) {
+        stateManager->clearAndPushState(std::make_unique<ArenaTravelState>(*gameWorld, *services, session.stateScriptPath));
+        return;
+    }
 
     if (preferCombatState || session.stateKind == "combat") {
         std::string combatScript = session.stateScriptPath;
@@ -112,7 +117,10 @@ SessionSnapshotMetadata captureSessionMetadata(GameStateManager* stateManager,
 
     if (stateManager) {
         if (GameState* current = stateManager->getCurrentState()) {
-            if (const auto* combat = dynamic_cast<const CombatState*>(current)) {
+            if (const auto* travel = dynamic_cast<const ArenaTravelState*>(current)) {
+                out.stateKind = "arena_travel";
+                out.stateScriptPath = travel->debugScriptPath();
+            } else if (const auto* combat = dynamic_cast<const CombatState*>(current)) {
                 out.stateKind = "combat";
                 out.stateScriptPath = combat->debugScriptPath();
             } else if (const auto* scripted = dynamic_cast<const ScriptedState*>(current)) {

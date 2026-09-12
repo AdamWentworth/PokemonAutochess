@@ -21,6 +21,7 @@ public:
 private:
     // The Lua script owns the timing/transition logic.
     LuaScript script;
+    GameServices& services_;
 
     // Cached current phase (mirrors Lua state to keep C++ call sites unchanged)
     RoundPhase currentPhase = RoundPhase::Planning;

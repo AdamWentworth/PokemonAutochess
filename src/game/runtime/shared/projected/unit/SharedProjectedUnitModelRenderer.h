@@ -63,6 +63,7 @@ struct Args {
     float renderVisualScale = 1.0f;
     float renderCaptureScale = 1.0f;
     float captureVisualTintStrength = 0.0f;
+    bool presentationTintEnabled = false;
     float modelFadeAlpha = 1.0f;
     glm::vec3 captureTintColor{1.0f};
     glm::vec3 proxyCenter{0.0f};

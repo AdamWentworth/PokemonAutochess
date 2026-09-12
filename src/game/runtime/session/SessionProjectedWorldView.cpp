@@ -242,7 +242,7 @@ Result appendProjectedWorldView(const Args& args) {
     projectedUnitArgs.perfStats = &projectedUnitPerf;
 
     const bool hasActiveCaptureAttempts =
-        args.gameWorld->countActiveCaptureAttempts() > 0u;
+        args.gameWorld->countActiveCaptureAttempts() > 0u || args.gameWorld->teamTravelVisuals().active;
     if (hasActiveCaptureAttempts) {
         (void)args.scratch->sharedCaptureAttemptCache.refresh(args.gameWorld);
     }
@@ -333,4 +333,3 @@ Result appendProjectedWorldView(const Args& args) {
 }
 
 } // namespace game::runtime::session_projected_world_view
-

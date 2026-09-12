@@ -22,6 +22,8 @@
 #include "game/logging/LogBus.h"
 #include "game/scripting/ScriptEventBus.h"
 #include "game/state/CombatState.h"
+#include "game/state/ArenaTravelState.h"
+#include "game/runtime/shared/capture/SharedCapturePresentation.h"
 #include "game/state/PlacementState.h"
 #include "game/state/scripted/ScriptedState.h"
 #include "engine/render/IRenderBackend.h"
@@ -89,6 +91,110 @@ PokemonInstance makeUnit(const GameConfigData& cfg,
     return u;
 }
 } // namespace
+
+bool test_arena_travel_contract(std::string& outFail) {
+    GameConfigData cfg;
+    GameDataDb db;
+    LogBus::Logger log;
+    log.setEchoToStdout(false);
+    ScriptEventBus events;
+    game::assets::DevAssetStore assets(engine::paths::dataRoot());
+    engine::XorShift32 rng(712u);
+    engine::ManualTimeSource time;
+    StarterRecordingBackend renderer;
+    game::ui::UIViewport viewport;
+    viewport.set(844, 512);
+    GameServices services(cfg, db, log, events, assets, rng, time, nullptr, {}, &viewport, true);
+    services.renderer = &renderer;
+    GameWorld world(cfg);
+    auto first = makeUnit(cfg, "bulbasaur", PokemonSide::Player, 1, 5, "tackle");
+    first.level = 5; first.hp = 67; first.energy = 23; first.xp = 19;
+    first.rotation.y = 137;
+    auto second = makeUnit(cfg, "squirtle", PokemonSide::Player, 6, 6, "tackle");
+    auto bench = makeUnit(cfg, "pidgey", PokemonSide::Player, 0, 0, "tackle");
+    bench.position = world.travelBenchPosition(4);
+    world.getPokemons() = {first, second};
+    world.getBenchPokemons() = {bench};
+    int prepared = 0;
+    bool failLoad = false;
+    services.prepareArenaScene = [&](const std::string&, std::string& error) {
+        ++prepared;
+        if (failLoad) error = "Injected load failure";
+        return !failLoad;
+    };
+    ArenaTravelState travel(world, services, "scripts/states/route1_pilot.lua");
+    travel.onEnter();
+    auto tick = [&]() { travel.update(1.0f/60); world.update(1.0f/60); };
+    for (int i = 0; i < 70; ++i) tick();
+    game::runtime::shared_capture::SnapshotCache balls;
+    if (!balls.refresh(&world) || balls.snaps.size() != 3 || world.countActiveCaptureAttempts() != 0 ||
+        !world.isBoardInteractionLocked() || !services.presentationPausesRounds) {
+        outFail = "recall must render all team balls without capture attempts and lock gameplay"; return false;
+    }
+    for (int i = 0; i < 200; ++i) tick();
+    if (prepared != 1 || travel.phase() != ArenaTravelState::Phase::Load || travel.coverAlpha() != 1 ||
+        travel.debugScriptPath() != "scripts/states/route1_pilot.lua") {
+        outFail = "prefetched destination cannot activate before a fully covered frame has actually been drawn"; return false;
+    }
+    travel.render();
+    tick();
+    for (int i = 0; i < 90; ++i) tick();
+    if (prepared != 2 || travel.phase() != ArenaTravelState::Phase::Warm || travel.coverAlpha() != 1) {
+        outFail = "destination must remain covered until world rendering confirms it is ready"; return false;
+    }
+    travel.worldFramePresented(true);
+    tick();
+    if (travel.phase() != ArenaTravelState::Phase::Warm) {
+        outFail = "one destination draw must not unlock travel"; return false;
+    }
+    travel.worldFramePresented(true);
+    for (int i = 0; i < 100; ++i) tick();
+    const auto* arrived = world.findUnitById(first.id);
+    const auto* reserve = world.findUnitById(bench.id);
+    if (travel.phase() != ArenaTravelState::Phase::Ready || world.isBoardInteractionLocked() ||
+        !world.teamTravelVisuals().units.empty() || !arrived || !reserve ||
+        arrived->hp != 67 || arrived->energy != 23 || arrived->xp != 19 || arrived->level != 5 ||
+        arrived->rotation.y != 137 || world.worldToGrid(arrived->position) != glm::ivec2(1,5) ||
+        world.travelBenchSlot(reserve->position) != 4 || world.getPokemons().size() != 2 ||
+        world.getBenchPokemons().size() != 1 || arrived->captureInProgress) {
+        outFail = "arrival must retain identities, stats, facing, board cells and bench slots without duplicates"; return false;
+    }
+    const auto position = arrived->position;
+    failLoad = true;
+    travel.handleInput(InputEvent::KeyDownEvent(InputEvent::Key::R));
+    for (int i = 0; i < 200; ++i) { tick(); travel.render(); }
+    if (travel.phase() != ArenaTravelState::Phase::Failed || world.findUnitById(first.id)->position != position ||
+        world.teamTravelVisuals().active || world.isBoardInteractionLocked() ||
+        travel.debugScriptPath() != "scripts/states/route1_south_clearing.lua") {
+        outFail = "failed scene preparation must leave the team visible and unchanged in the original arena"; return false;
+    }
+    travel.onExit();
+    if (services.presentationPausesRounds) { outFail = "leaving travel must release its round pause"; return false; }
+    // Overlapping source placements get distinct destinations without moving the valid first slot.
+    failLoad = false;
+    world.findUnitById(second.id)->position = world.findUnitById(first.id)->position;
+    travel.onEnter();
+    for (int i = 0; i < 250; ++i) { tick(); travel.render(); travel.worldFramePresented(true); }
+    if (travel.phase() != ArenaTravelState::Phase::Ready ||
+        world.worldToGrid(world.findUnitById(first.id)->position) != glm::ivec2(1,5) ||
+        world.worldToGrid(world.findUnitById(second.id)->position) == glm::ivec2(1,5)) {
+        outFail = "fallback placement must reserve valid cells first and resolve overlaps deterministically"; return false;
+    }
+    engine::ecs::World ecs;
+    auto phaseEntity = ecs.create();
+    RoundSystem rounds(services, phaseEntity);
+    rounds.debugSetPhase(RoundPhase::Planning, .1f);
+    rounds.update(ecs, .2f);
+    if (rounds.getCurrentPhase() != RoundPhase::Planning) {
+        outFail = "travel preview must not consume the planning clock"; return false;
+    }
+    travel.onExit();
+    rounds.update(ecs, .2f);
+    if (rounds.getCurrentPhase() != RoundPhase::Battle) {
+        outFail = "round timing must resume when the travel preview exits"; return false;
+    }
+    return true;
+}
 
 bool test_starter_frontend_selection_contract(std::string &outFail) {
     GameConfigData cfg;

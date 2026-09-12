@@ -57,7 +57,7 @@ bool appendSharedCaptureAttemptModels(const Args& args) {
     }
 
     const bool hasActiveCaptureAttempts =
-        args.gameWorld->countActiveCaptureAttempts() > 0u;
+        args.gameWorld->countActiveCaptureAttempts() > 0u || args.gameWorld->teamTravelVisuals().active;
     if (args.sharedCaptureAttemptCache->snaps.empty() && hasActiveCaptureAttempts) {
         (void)args.sharedCaptureAttemptCache->refresh(args.gameWorld);
     }

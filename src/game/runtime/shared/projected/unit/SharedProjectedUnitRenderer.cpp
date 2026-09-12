@@ -645,7 +645,20 @@ for (const auto& unit : units) {
     float captureVisualTintStrength =
         unit.captureInProgress ? std::clamp(unit.captureTintStrength, 0.0f, 1.0f) : 0.0f;
     float captureVisualAlphaScale = 1.0f;
-    const glm::vec3 captureTintColor(1.0f, 0.1f, 0.1f);
+    glm::vec3 captureTintColor(1.0f, 0.1f, 0.1f);
+    const auto* travelVisual = args.gameWorld ? args.gameWorld->teamTravelVisuals().find(unit.id) : nullptr;
+    if (travelVisual) {
+        const auto color = travelVisual->sendingOut ? glm::vec3(.75f, .9f, 1.0f) : glm::vec3(1.0f, .08f, .12f);
+        if (travelVisual->light > 0.0f) {
+            projectedDebug.appendProjectedLine(travelVisual->ballPosition, worldPos,
+                color.r, color.g, color.b, travelVisual->light, 5.0f);
+            projectedDebug.appendProjectedLine(travelVisual->ballPosition, worldPos,
+                1.0f, .85f, .85f, travelVisual->light, 1.8f);
+            projectedDebug.appendProjectedBurst(worldPos, glm::vec3(0, 0, 1), worldCellSize*.12f,
+                color.r, color.g, color.b, travelVisual->light*.6f, 1.5f, 4);
+        }
+        if (travelVisual->scale <= .001f) continue;
+    }
 
     const float renderVisualScale = (unit.fainting || !unit.alive)
         ? std::max(0.0f, unit.visualScale)
@@ -662,6 +675,12 @@ for (const auto& unit : units) {
     } else if (captureVisualTintStrength > 0.0f) {
         captureVisualAlphaScale =
             std::clamp(1.0f - 0.5f * captureVisualTintStrength, 0.0f, 1.0f);
+    }
+    if (travelVisual) {
+        renderCaptureScale *= travelVisual->scale;
+        captureVisualTintStrength = travelVisual->tint;
+        captureVisualAlphaScale = 1.0f;
+        if (travelVisual->sendingOut) captureTintColor = glm::vec3(.85f, .95f, 1.0f);
     }
     const float faintFadeAlpha =
         (unit.fainting || !unit.alive)
@@ -738,6 +757,7 @@ for (const auto& unit : units) {
                     .renderVisualScale = renderVisualScale,
                     .renderCaptureScale = renderCaptureScale,
                     .captureVisualTintStrength = captureVisualTintStrength,
+                    .presentationTintEnabled = travelVisual != nullptr,
                     .modelFadeAlpha = modelFadeAlpha,
                     .captureTintColor = captureTintColor,
                     .proxyCenter = proxyCenter,
@@ -774,7 +794,6 @@ for (const auto& unit : units) {
         drewModelMesh = modelResult.renderResult.drewModelMesh;
         if (drewModelMesh) ++modelUnits;
     }
-
     if (!drewModelMesh) {
         float topR = std::clamp(tint.r * 0.86f + 0.12f, 0.0f, 1.0f);
         float topG = std::clamp(tint.g * 0.86f + 0.12f, 0.0f, 1.0f);
@@ -852,6 +871,7 @@ for (const auto& unit : units) {
     }
 
     const auto overlayStart = Clock::now();
+    if (travelVisual) continue;
     runtime::shared_projected_unit_overlays::appendProjectedUnitOverlays(
         runtime::shared_projected_unit_overlays::Args{
             .unit = &unit,

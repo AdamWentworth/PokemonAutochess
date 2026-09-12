@@ -22,8 +22,19 @@ bool SnapshotCache::refresh(const GameWorld* gameWorld) {
     snaps.clear();
     byTargetId.clear();
     if (!gameWorld) return false;
-    if (gameWorld->countActiveCaptureAttempts() == 0u) return false;
-    if (!gameWorld->buildCaptureAttemptRenderSnapshots(snaps)) return false;
+    gameWorld->buildCaptureAttemptRenderSnapshots(snaps);
+    for (const auto& visual : gameWorld->teamTravelVisuals().units) {
+        if (visual.ballScale <= 0) continue;
+        GameWorld::CaptureAttemptRenderSnapshot snap;
+        snap.targetId = visual.id;
+        snap.phase = 1; // Sample the shared opening/closing clip, without a capture attempt.
+        snap.ballPos = visual.ballPosition;
+        snap.ballYawDeg = 180.0f; // Balls sit south of their unit and open toward it.
+        snap.ballScale = visual.ballScale;
+        snap.presentationClip01 = visual.ballClip;
+        snap.timeLeftSec = 1.0f;
+        snaps.push_back(snap);
+    }
     byTargetId.reserve(snaps.size());
     for (std::size_t i = 0; i < snaps.size(); ++i) {
         const auto& snap = snaps[i];
@@ -42,6 +53,8 @@ const GameWorld::CaptureAttemptRenderSnapshot* SnapshotCache::findByTarget(int t
 
 float ballClipTimeSec(const GameWorld::CaptureAttemptRenderSnapshot& snap, float clipDurationSec) {
     if (clipDurationSec <= 0.0f) return 0.0f;
+    if (snap.presentationClip01 >= 0.0f)
+        return std::clamp(snap.presentationClip01, 0.0f, 1.0f) * clipDurationSec;
     if (snap.phase != 1) return 0.0f; // Absorb only; keep closed during throw/shake/resolve.
     return std::clamp(snap.absorbNorm01, 0.0f, 1.0f) * clipDurationSec;
 }
@@ -101,6 +114,8 @@ bool drawOpenGlSharedCapturePokeballModels(const GameWorld* gameWorld,
                                            ResourceManager* resources,
                                            const Camera3D* camera) {
     if (!gameWorld || !resources || !camera) return false;
+    // Travel uses the shared indexed material path on every backend.
+    if (gameWorld->teamTravelVisuals().active) return false;
 
     SnapshotCache cache;
     if (!cache.refresh(gameWorld)) return false;

@@ -310,7 +310,7 @@ void appendFallbackTriangles(const Args& args) {
             *mesh, prep.fallbackBase, texturedSubmesh, triIdx, i1, v1);
         glm::vec3 baseColor2 = resolveVertexBaseColor(
             *mesh, prep.fallbackBase, texturedSubmesh, triIdx, i2, v2);
-        if (!args.strictGltfParity && args.captureVisualTintStrength > 0.001f) {
+        if ((!args.strictGltfParity || args.renderArgs->presentationTintEnabled) && args.captureVisualTintStrength > 0.001f) {
             const float tintAmt = std::clamp(args.captureVisualTintStrength, 0.0f, 1.0f);
             baseColor0 = glm::mix(baseColor0, args.captureTintColor, tintAmt);
             baseColor1 = glm::mix(baseColor1, args.captureTintColor, tintAmt);

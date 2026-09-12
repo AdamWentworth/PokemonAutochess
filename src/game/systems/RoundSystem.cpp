@@ -31,6 +31,7 @@ RoundPhase RoundSystem::toPhaseEnum(const std::string& s) {
 
 RoundSystem::RoundSystem(GameServices& services, engine::ecs::Entity phaseEntity_)
     : script(/*world*/ nullptr, /*manager*/ nullptr, services)
+    , services_(services)
     , phaseEntity(phaseEntity_)
 {
     if (!script.loadScript(kRoundSystemScript)) {
@@ -66,6 +67,7 @@ RoundSystem::RoundSystem(GameServices& services, engine::ecs::Entity phaseEntity
 }
 
 void RoundSystem::update(engine::ecs::World& world, float deltaTime) {
+    if (services_.presentationPausesRounds) return;
     sol::table S = script.getScriptTable();
     sol::function fUpdate;
     if (S.valid()) fUpdate = S.get<sol::function>(kFnUpdate);
