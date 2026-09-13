@@ -43,6 +43,7 @@ try {
         $taskCaseOutput = Join-Path $taskOutput $taskCase.name
         $taskContent = @()
         foreach ($taskBackend in @('opengl', 'vulkan', 'd3d12')) {
+            $taskCaptureFrame = if ($taskCase.captureFrame) { [int]$taskCase.captureFrame } else { 164 }
             $taskRunOutput = Join-Path $taskCaseOutput $taskBackend
             $taskState = Join-Path $taskRunOutput 'state'
             New-Item -ItemType Directory -Path $taskState -Force | Out-Null
@@ -56,14 +57,15 @@ try {
                 $env:PAC_RANDOM_SEED = '12345'
                 $env:PHLOSION_BACKEND_SCREENSHOT_DEFER = $null
                 $env:PHLOSION_BACKEND_SCREENSHOT_PATH = $taskScreenshot
-                $env:PHLOSION_BACKEND_SCREENSHOT_FRAME = '164'
+                $env:PHLOSION_BACKEND_SCREENSHOT_FRAME = [string]$taskCaptureFrame
                 foreach ($taskOld in @($taskScreenshot, $taskMetricsPath)) {
                     if (Test-Path -LiteralPath $taskOld) { Remove-Item -LiteralPath $taskOld }
                 }
                 $taskArguments = @("--project=$taskDescriptor", "--renderer=$taskBackend", '--hidden', '--no-auto-reload',
-                    '--frames=169', '--fixed-delta=0.016666667', "--state-directory=$taskState", "--metrics-output=$taskMetricsPath")
+                    "--frames=$($taskCaptureFrame+5)", '--fixed-delta=0.016666667', "--state-directory=$taskState", "--metrics-output=$taskMetricsPath")
                 if ($taskCase.scenario) { $taskArguments += "--game-preview=$($taskCase.scenario)" }
                 if ($taskCase.play) { $taskArguments += '--play-game-preview' }
+                if ($taskCase.stats) { $taskArguments += '--stats' }
                 foreach ($taskOpen in $taskCase.sceneOpens) {
                     $taskArguments += "--open-scene-at=$($taskOpen.frame):$($taskOpen.sceneId)"
                 }
@@ -87,6 +89,11 @@ try {
                 throw "Scene switches did not execute as requested: $($taskCase.name)/$taskBackend"
             }
             $taskContents = $taskMetrics.project.editor_contents
+            if ($taskCase.stats -and (-not $taskMetrics.capture.stats_requested -or
+                $taskMetrics.renderer.live_stats.fps -le 0 -or
+                -not $taskMetrics.renderer.live_stats.gpu_valid)) {
+                throw "The editor performance HUD has no live timing data: $($taskCase.name)/$taskBackend"
+            }
             if ($taskMetrics.renderer.backend -ne $taskBackend -or -not $taskMetrics.capture.hidden -or
                 $taskMetrics.project.active_scene.id -ne $taskCase.sceneId -or $taskMetrics.project.visible_triangles -le 0) {
                 throw "Wrong renderer, location or missing environment: $($taskCase.name)/$taskBackend"

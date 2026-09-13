@@ -18,6 +18,11 @@ inspects published scenes, configures Pokemon starting positions and runs tests.
 3. In **Game** view, place Pokemon while stopped, then press **Play**. Use
    **Pause / Step** to inspect and **Stop** to restore the starting setup.
 
+Use a **Release** editor/plugin pair for everyday iteration. Enable **Stats**
+beside Play for live frame, GPU and viewport timing, including while paused.
+See [editor performance](EDITOR_PERFORMANCE.md) for repeatable three-API
+benchmarks and the distinction between editor and standalone measurements.
+
 **Scene** view shows the published environment with the editor camera. Scenery
 and board registration are read-only. Edit them in Blender and export the arena.
 The read-only board entry remains in the hierarchy, alongside editable Pokemon

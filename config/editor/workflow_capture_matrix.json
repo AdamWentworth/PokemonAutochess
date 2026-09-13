@@ -21,6 +21,12 @@
     {"name": "entrance-roundtrip", "sceneId": "routes/route1-pilot", "startupSceneId": "routes/route1-flat-experiment", "referenceCase": "entrance-scene",
       "sceneOpens": [{"frame": 40, "sceneId": "routes/route1-pilot"}, {"frame": 80, "sceneId": "routes/route1-flat-experiment"}, {"frame": 120, "sceneId": "routes/route1-pilot"}]},
     {"name": "flat-unit-setup", "sceneId": "routes/route1-flat-experiment", "scenario": "route1-flat-experiment-crowded", "unitCount": 12},
+    {"name": "flat-game-stats", "sceneId": "routes/route1-flat-experiment", "scenario": "route1-flat-experiment-crowded", "unitCount": 12, "stats": true, "captureFrame": 600,
+      "contentGuards": [{"name": "readable-performance-hud", "x": 0.61, "y": 0.185, "width": 0.17, "height": 0.055,
+        "maximumNearBlackPixelRatio": 0.98, "minimumMidtonePixelRatio": 0, "minimumBrightNeutralPixelRatio": 0.015}]},
+    {"name": "flat-scene-stats", "sceneId": "routes/route1-flat-experiment", "stats": true, "captureFrame": 600,
+      "contentGuards": [{"name": "readable-performance-hud", "x": 0.61, "y": 0.185, "width": 0.17, "height": 0.055,
+        "maximumNearBlackPixelRatio": 0.98, "minimumMidtonePixelRatio": 0, "minimumBrightNeutralPixelRatio": 0.015}]},
     {"name": "entrance-grass-test", "sceneId": "routes/route1-pilot", "scenario": "route1-pilot-grass", "play": true, "unitCount": 2},
     {"name": "lab-frontend", "sceneId": "routes/route1-pilot", "scenario": "starter-classic", "play": true, "unitCount": 0}
   ]
