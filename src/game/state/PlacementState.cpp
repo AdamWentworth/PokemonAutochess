@@ -9,6 +9,7 @@
 #include "game/runtime/ui/DebugText.h"
 #include "game/runtime/ui/TopBanner.h"
 #include "game/runtime/routes/GameServiceRenderRoutes.h"
+#include "game/runtime/shared/scene/ArenaSceneActivation.h"
 #include "game/state/BackendUiPolicy.h"
 #include "game/ui/UIViewport.h"
 
@@ -18,6 +19,7 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 #include <sol/sol.hpp>
 
@@ -31,7 +33,23 @@ PlacementState::PlacementState(GameStateManager* manager, GameWorld* world, Game
 PlacementState::~PlacementState() = default;
 
 void PlacementState::onEnter() {
-    // no-op: player can drag unit; we only enforce validity + transition when timer expires
+    if (gameWorld) {
+        // Resolve once for this session: placement rendering, terrain rules and
+        // the encounter must all use the same destination after leaving the lab.
+        LuaScript flow(gameWorld, nullptr, services);
+        flow.loadScript("scripts/states/flow.lua");
+        sol::table F = flow.getScriptTable();
+        sol::function nextRoute = F["next_route_after_placement"];
+        if (nextRoute.valid()) {
+            sol::object result = nextRoute(starterName);
+            if (result.is<std::string>()) routeScript = result.as<std::string>();
+        }
+        flow.flushCommands();
+        std::string error;
+        if (!game::runtime::arena_scene_activation::applyGameplay(services.assets,
+                game::runtime::route1_scene_variants::fromStateScriptPath(routeScript), *gameWorld, &error))
+            throw std::runtime_error("Cannot activate starter arena: " + error);
+    }
     game::logging::flow::notePlacementStateEntered(starterName);
 }
 
@@ -66,31 +84,6 @@ void PlacementState::update(float dt) {
 
     const double tTransitionStart = game::logging::flow::nowMs();
 
-    // Ask Lua which combat script to use next
-    static std::unique_ptr<LuaScript> flow;
-    double flowLoadMs = 0.0;
-    if (!flow) {
-        const double tFlowLoadStart = game::logging::flow::nowMs();
-        flow = std::make_unique<LuaScript>(gameWorld,
-                                           nullptr,
-                                           services);
-        flow->loadScript("scripts/states/flow.lua");
-        flowLoadMs = game::logging::flow::nowMs() - tFlowLoadStart;
-    }
-
-    std::string routeScript = "scripts/states/route1.lua";
-    const double tRouteResolveStart = game::logging::flow::nowMs();
-
-    // IMPORTANT: flow script functions live in its environment now.
-    sol::table F = flow->getScriptTable();
-    sol::function next_route = F["next_route_after_placement"];
-    if (next_route.valid()) {
-        sol::object r = next_route(starterName);
-        if (r.is<std::string>()) routeScript = r.as<std::string>();
-    }
-    if (flow) flow->flushCommands();
-    const double tRouteResolveEnd = game::logging::flow::nowMs();
-
     const double tCombatConstructStart = game::logging::flow::nowMs();
     auto combatState = std::make_unique<CombatState>(stateManager, gameWorld, services, routeScript);
     const double tCombatConstructEnd = game::logging::flow::nowMs();
@@ -101,8 +94,6 @@ void PlacementState::update(float dt) {
         "placement_transition_prepare",
         "starter=" + starterName +
         " route=" + routeScript +
-        " flow_load=" + game::logging::flow::formatMs(flowLoadMs) +
-        " route_resolve=" + game::logging::flow::formatMs(tRouteResolveEnd - tRouteResolveStart) +
         " combat_ctor=" + game::logging::flow::formatMs(tCombatConstructEnd - tCombatConstructStart) +
         " total=" + game::logging::flow::formatMs(tTransitionEnd - tTransitionStart));
 }

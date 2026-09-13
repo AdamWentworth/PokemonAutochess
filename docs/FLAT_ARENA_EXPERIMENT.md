@@ -4,8 +4,9 @@ Status: Active
 Type: Runbook
 Last updated: 2026-09-12
 
-This is a separate South Entrance experiment, not a replacement for the four
-approved Route 1 arenas. Its 8x8 combat area and both reserve rows are level dirt,
+Starter selection now enters this arena in both Classic and Adventure mode,
+replacing South Entrance in the opening flow. Placement and the first encounter
+use the same flat map, selected Pokemon and detached benches. Its 8x8 combat area and both reserve rows are level dirt,
 with a one-tile lawn gap between each bench and the battlefield.
 Overlapping props and encounter-grass beds were removed from the copy; the
 surrounding Route 1 scenery remains. The original entrance retains its ledges,

@@ -1,6 +1,6 @@
 -- scripts/states/flow.lua
 
--- Shared combat route entry; mode-specific behavior is resolved inside scripts.
+-- Starter placement and its first encounter share this arena in both modes.
 function next_route_after_placement(starter_name)
-    return "scripts/states/route1.lua"
+    return "scripts/states/route1_flat_experiment.lua"
 end

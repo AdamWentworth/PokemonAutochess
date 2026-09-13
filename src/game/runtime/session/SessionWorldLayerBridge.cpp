@@ -19,10 +19,8 @@ std::string currentStateScriptPath(GameStateManager* stateManager) {
     if (const auto* combat = dynamic_cast<const CombatState*>(current)) {
         return combat->debugScriptPath();
     }
-    if (dynamic_cast<const PlacementState*>(current) != nullptr) {
-        // Placement is the first visible planning state and currently always
-        // previews Route 1 before the player enters combat.
-        return "scripts/states/route1.lua";
+    if (const auto* placement = dynamic_cast<const PlacementState*>(current)) {
+        return placement->debugScriptPath();
     }
     if (const auto* scripted = dynamic_cast<const ScriptedState*>(current)) {
         return scripted->debugScriptPath();

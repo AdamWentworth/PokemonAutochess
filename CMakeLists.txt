@@ -1149,13 +1149,17 @@ if (BUILD_TESTING)
         "${CMAKE_SOURCE_DIR}/assets/models/0001_Bulbasaur_SV.phmodel"
         "${CMAKE_SOURCE_DIR}/assets/meshes/growl_1076_mesh.glb"
         "${CMAKE_SOURCE_DIR}/assets/shaders"
-        "${CMAKE_SOURCE_DIR}/content/phlosion/scenes/route1.phscene")
+        "${CMAKE_SOURCE_DIR}/content/phlosion/scenes/route1.phscene"
+        "${CMAKE_SOURCE_DIR}/content/phlosion/environment/flat-experiment/arena.phscene")
         if (NOT EXISTS "${required_private_asset}")
             set(PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE FALSE)
         endif()
     endforeach()
 
     set(PAC_PRIVATE_ASSET_TEST_NAMES
+        starter_frontend_selection_contract
+        placement_to_combat_headless
+        end_to_end_headless
         arena_travel_contract
         ledge_jump_asset_roles
         ledge_jump_rendering

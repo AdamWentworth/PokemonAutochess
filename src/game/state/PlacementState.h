@@ -21,6 +21,7 @@ public:
     void handleInput(const InputEvent& event) override;
     void update(float deltaTime) override;
     void render() override;
+    const std::string& debugScriptPath() const { return routeScript; }
 
 private:
     GameStateManager* stateManager = nullptr;
@@ -28,6 +29,7 @@ private:
     GameServices& services;
 
     std::string starterName;
+    std::string routeScript = "scripts/states/route1_flat_experiment.lua";
     float timer = 5.0f;
     bool placementDone = false;
 

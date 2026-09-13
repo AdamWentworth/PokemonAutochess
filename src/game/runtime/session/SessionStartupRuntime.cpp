@@ -38,7 +38,7 @@ constexpr std::array<const char*, 9> kStartupScriptPrewarmPaths = {
     "scripts/states/starter.lua",
     "scripts/ui/starter_menu.lua",
     "scripts/states/flow.lua",
-    "scripts/states/route1.lua",
+    "scripts/states/route1_flat_experiment.lua",
     "scripts/states/shared/combat_route_shared.lua",
     "scripts/states/shared/route_catalog.lua",
     "scripts/states/shared/mode_utils.lua",

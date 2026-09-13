@@ -12,6 +12,7 @@
 #include "game/GameServices.h"
 #include "game/GameStateManager.h"
 #include "game/runtime/session/GameUpdateGraph.h"
+#include "game/runtime/session/SessionWorldLayerBridge.h"
 #include "game/GameWorld.h"
 #include "game/PokemonInstance.h"
 #include "game/assets/DevAssetStore.h"
@@ -397,6 +398,27 @@ bool test_starter_frontend_selection_contract(std::string &outFail) {
                 if (unit.name == names[choice] && unit.level == 5 && unit.side == PokemonSide::Player) ++matching;
             if (matching != 1) {
                 outFail = "starter selection must create exactly one chosen level-5 Pokemon";
+                return false;
+            }
+            const auto starterId = world.getPokemons().front().id;
+            const auto starterPosition = world.getPokemons().front().position;
+            const auto usesFlatArena = [&]() {
+                return game::runtime::session_world_layer_bridge::currentStateScriptPath(&manager) ==
+                           "scripts/states/route1_flat_experiment.lua" &&
+                       world.getBenchGapCells() == 1 &&
+                       std::abs(world.conformPositionToGround({0, 10, 0}).y + .04f) < .001f;
+            };
+            if (!usesFlatArena()) {
+                outFail = "starter placement must immediately render and activate the flat dirt arena with detached benches";
+                return false;
+            }
+            manager.update(5.1f);
+            auto* combat = dynamic_cast<CombatState*>(manager.getCurrentState());
+            const auto* selected = world.findUnitById(starterId);
+            if (!combat || !usesFlatArena() || !selected || selected->name != names[choice] ||
+                selected->level != 5 || glm::length(selected->position - starterPosition) > .001f ||
+                services.gameMode != mode) {
+                outFail = "placement must enter the flat arena encounter, preserving the chosen starter, cell and game mode";
                 return false;
             }
         }
