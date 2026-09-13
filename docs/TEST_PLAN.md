@@ -355,6 +355,19 @@ live stats, bench transfers, removal and planning pickup. Local qualification is
 recorded in `debug/unit-inspection-wide/{native,editor}`. The selected captures
 also guard Team Types at its normal anchor, catching selection-driven shifts.
 
+Also check the editor while stopped: layout-edit shortcut banners must not paint
+over the game HUD. These instructions live in the Scene/Game tab tooltips.
+`hud-inspection-stopped` retains the editable unit markers and stats checks, and
+requires the empty header space to stay clear of the old large white banner:
+
+```powershell
+.\tools\housekeeping\check_editor_workflow.ps1 -Cases hud-inspection-stopped,hud-inspection
+```
+
+The stopped capture with the old engine fails the obstruction guard on all three
+APIs. Before/after qualification is in `debug/editor-hints/`.
+
+
 Card artwork follows the 220x150 gold frame's source border with one screen pixel
 of overlap underneath it. The old fixed six-pixel inset exposed the dark backing
 at smaller sizes. `ui_card_visuals_contract` covers fractional sizes and aspect
