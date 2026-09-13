@@ -10,6 +10,8 @@ namespace game::runtime::session_debug_snapshot {
 struct SessionSnapshotMetadata {
     std::string stateKind;
     std::string stateScriptPath;
+    std::string arenaScriptPath;
+    std::string roundNextShopScriptPath;
     bool hasCombatActive = false;
     bool combatActive = false;
     bool hasRoundPhase = false;

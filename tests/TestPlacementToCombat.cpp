@@ -16,6 +16,8 @@
 #include "game/logging/LogBus.h"
 #include "game/scripting/ScriptEventBus.h"
 #include "game/state/CombatState.h"
+#include "game/state/ArenaTravelState.h"
+#include "game/runtime/session/SessionWorldLayerBridge.h"
 #include "game/state/PlacementState.h"
 #include "game/state/scripted/ScriptedState.h"
 
@@ -150,6 +152,13 @@ bool test_combat_route_finishes_headless(std::string& outFail) {
 
     manager.update(3.1f);
 
+    if (!dynamic_cast<ArenaTravelState*>(manager.getCurrentState())) {
+        outFail = "Normal combat completion must enter the shared recall/arrival sequence.";
+        return false;
+    }
+    for (int i = 0; i < 360 && dynamic_cast<ArenaTravelState*>(manager.getCurrentState()); ++i)
+        manager.update(1.0f / 60.0f);
+
     GameState* current = manager.getCurrentState();
     auto* scripted = dynamic_cast<ScriptedState*>(current);
     if (!scripted) {
@@ -166,6 +175,11 @@ bool test_combat_route_finishes_headless(std::string& outFail) {
     }
     if (world.getClassicShopCards().empty()) {
         outFail = "Shop state did not populate classic shop cards after native route finish.";
+        return false;
+    }
+
+    if (scripted->arenaScriptPath() != "scripts/states/route3.lua" || services.presentationPausesRounds) {
+        outFail = "Shop must retain the combat arena and resume planning after arrival.";
         return false;
     }
 

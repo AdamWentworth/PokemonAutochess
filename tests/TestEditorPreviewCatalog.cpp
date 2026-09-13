@@ -15,7 +15,7 @@ bool test_editor_preview_catalog_contract(std::string& outFail) {
 
     const auto& definitions = catalog::all();
     if (definitions.size() != catalog::kDefinitionCount ||
-        definitions.size() != 23u) {
+        definitions.size() != 24u) {
         outFail = "The editor should expose 19 Blender arena setups and four frontend previews.";
         return false;
     }

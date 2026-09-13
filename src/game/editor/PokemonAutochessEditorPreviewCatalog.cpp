@@ -188,6 +188,16 @@ constexpr Definitions kDefinitions{{
         "routes/route1-flat-experiment",
     },
     {
+        "route1-flat-experiment-round-end",
+        "Round Transition Test",
+        "Tests",
+        "Press Play: finish a real round, recall the team, throw their balls back to the saved formation, then open the shop on the retained flat arena.",
+        "snapshot",
+        "classic",
+        "config/debug/editor_route1_flat_round_end.json",
+        "routes/route1-flat-experiment",
+    },
+    {
         "route1-flat-experiment-earthquake",
         "Earthquake Comparison",
         "Tests",

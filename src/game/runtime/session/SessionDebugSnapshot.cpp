@@ -497,6 +497,8 @@ bool writeFile(const GameWorld::DebugStateSnapshot& snapshot,
         if (!session->stateScriptPath.empty()) {
             js["state_script_path"] = session->stateScriptPath;
         }
+        if (!session->arenaScriptPath.empty()) js["arena_script_path"] = session->arenaScriptPath;
+        if (!session->roundNextShopScriptPath.empty()) js["round_next_shop_script_path"] = session->roundNextShopScriptPath;
         if (session->hasCombatActive) {
             js["combat_active"] = session->combatActive;
         }
@@ -555,6 +557,10 @@ bool readFile(const std::string& path,
                 if (const auto scriptIt = it->find("state_script_path"); scriptIt != it->end() && scriptIt->is_string()) {
                     outSession->stateScriptPath = scriptIt->get<std::string>();
                 }
+                if (const auto arena = it->find("arena_script_path"); arena != it->end() && arena->is_string())
+                    outSession->arenaScriptPath = arena->get<std::string>();
+                if (const auto shop = it->find("round_next_shop_script_path"); shop != it->end() && shop->is_string())
+                    outSession->roundNextShopScriptPath = shop->get<std::string>();
                 if (const auto combatIt = it->find("combat_active"); combatIt != it->end() && combatIt->is_boolean()) {
                     outSession->hasCombatActive = true;
                     outSession->combatActive = combatIt->get<bool>();

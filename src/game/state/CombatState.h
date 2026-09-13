@@ -26,7 +26,8 @@ public:
                 GameWorld* world,
                 GameServices& services,
                 const std::string& scriptPath,
-                bool resumeFromSnapshot = false);
+                bool resumeFromSnapshot = false,
+                std::string arenaScriptPath = {});
     ~CombatState() override;
 
     void onEnter() override;
@@ -35,6 +36,7 @@ public:
     void update(float deltaTime) override;
     void render() override;
     const std::string& debugScriptPath() const { return loadedScriptPath; }
+    const std::string& arenaScriptPath() const { return arenaScriptPath_; }
     void configureEditorPreviewPhase(RoundPhase phase);
 
 private:
@@ -88,5 +90,7 @@ private:
     std::string nativeRouteClearMessage;
 
     std::string loadedScriptPath;
+    std::string arenaScriptPath_;
+    bool reuseActiveArena_ = false;
     bool resumeFromSnapshot = false;
 };

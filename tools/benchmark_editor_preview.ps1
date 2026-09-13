@@ -4,6 +4,7 @@ param(
     [ValidateSet('opengl','vulkan','d3d12')][string[]]$Backends = @('opengl','vulkan','d3d12'),
     [string]$SceneId = 'routes/route1-flat-experiment',
     [string]$Scenario = 'route1-flat-experiment-crowded',
+    [switch]$Play,
     [ValidateRange(300,100000)][int]$Frames = 1200,
     [ValidateRange(10,10000)][int]$WarmupSamples = 120,
     [string]$OutputDirectory = 'debug/editor-performance/benchmark'
@@ -44,7 +45,8 @@ try {
                 "--frames=$Frames",'--fixed-delta=0.016666667',"--metrics-warmup-samples=$WarmupSamples",
                 "--state-directory=$taskRun/state","--metrics-output=$taskRun/metrics.json")
             if ($Scenario) { $taskArguments += "--game-preview=$Scenario" }
-            # Keep the setup paused: each backend measures the same roster and pose.
+            if ($Play) { $taskArguments += '--play-game-preview' }
+            # Paused setups compare a fixed roster; Play measures round/gameplay work too.
             # Screenshots belong to the separate visual gate, not the timed run.
             $taskProcess = Start-Process -FilePath (Join-Path $taskEngine "build/$taskConfiguration/PhlosionEditor.exe") `
                 -WorkingDirectory $taskRoot -WindowStyle Hidden -PassThru `
@@ -70,13 +72,16 @@ try {
             }
             $taskUnitCount = @($taskMetrics.project.editor_contents.layout_objects | Where-Object {
                 $_.id -like 'gameplay-preview/*' -and $_.viewport_visible }).Count
-            if ($Scenario -eq 'route1-flat-experiment-crowded' -and $taskUnitCount -ne 12) {
+            if (-not $Play -and $Scenario -eq 'route1-flat-experiment-crowded' -and $taskUnitCount -ne 12) {
                 throw 'The crowded benchmark must retain all twelve visible units.'
             }
             $taskRows += [pscustomobject]@{
-                configuration=$taskConfiguration; backend=$taskBackend; scene=$SceneId; scenario=$Scenario; simulation='paused';
+                configuration=$taskConfiguration; backend=$taskBackend; scene=$SceneId; scenario=$Scenario; simulation=$(if ($Play) { 'playing' } else { 'paused' });
                 viewport="$($taskMetrics.capture.viewport_width)x$($taskMetrics.capture.viewport_height)"; units=$taskUnitCount;
                 frame_mean_ms=$taskCpu.mean_ms; frame_p95_ms=$taskCpu.p95_ms; gpu_mean_ms=$taskGpu.mean_ms;
+                frame_max_ms=$taskCpu.max_ms;
+                simulation_mean_ms=$taskMetrics.renderer.simulation_cpu_steady.mean_ms;
+                simulation_max_ms=$taskMetrics.renderer.simulation_cpu_steady.max_ms;
                 viewport_cpu_mean_ms=$taskMetrics.renderer.viewport_cpu_steady.mean_ms;
                 present_mean_ms=$taskMetrics.renderer.present_wait_steady.mean_ms; samples=$taskCpu.sample_count
             }

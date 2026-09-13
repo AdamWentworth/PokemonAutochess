@@ -165,3 +165,71 @@ Reproduce the integration tests with:
 ./tools/housekeeping/test_editor_gameplay_reload.ps1
 ./tools/housekeeping/test_editor_standalone.ps1
 ```
+
+## Round transitions, September 13
+
+Normal games now use the shared Pokeball recall/throw/send-out presentation
+between combat and the next shop. Previously only Travel Test entered that
+state. The shop's script path also selected a retired source arena, causing
+the world renderer to unpack and rebuild a different environment at round end.
+
+Encounter scripts and arena identity are now carried separately through combat,
+the transition and the shop. A game started in the flat dirt arena retains that
+arena for subsequent rounds. Its geometry, shadows, GPU resources and gameplay
+map are reused. The team is recalled at its final battle positions; restoration
+to the saved formation, healing and enemy cleanup happen under a rendered cover.
+Two destination world draws are required before revealing the arena and throwing
+the balls. Planning opens after send-out completes. Snapshot metadata preserves
+the arena and pending shop, including when restoring a round transition.
+
+In the flat scene, select **Round Transition Test** and press Play. This starts
+at the end of a real combat round, then follows normal shop and next-encounter
+progression. **Travel Test** remains the separate replayable scene-change fixture.
+
+The editor benchmark now accepts `-Play` for active simulation, reports maximum
+frame and simulation times, and retains paused measurement as its default:
+
+```powershell
+./tools/benchmark_editor_preview.ps1 -Scenario route1-flat-experiment-round-end -Play -Frames 2400 -WarmupSamples 120 -OutputDirectory debug/round-transition/performance
+```
+
+Performance runs omit screenshot capture: writing a PNG can itself take hundreds
+of milliseconds and must not be mistaken for a gameplay stall. Visual evidence
+is collected separately under `debug/round-transition/{native,editor}`. The
+native `round-*` cases and editor workflow cases check recall, airborne balls,
+materialization, the shop, and retention of the flat arena into the next battle.
+
+Isolated profiling then identified two first-use stalls: constructing/uploading
+the Pokeball's cached geometry at the first visible recall, and preparing the
+shop's card-art proxy textures on its first update in the embedded viewport.
+Both now happen during initial warmup. The existing ball geometry, articulated
+shells, card images and presentation timing are unchanged; embedded texture
+warmup does not draw startup frames into the editor's backbuffer.
+
+GTX 1070, Development, 845x513, VSync off, 2,400 active simulation frames with
+120 warmup samples. The fixture covers the round transition, shop, and next
+battle countdown. The initial measurement already retained the flat arena;
+the comparison below isolates the subsequent warmup fixes, not the removal
+of the retired arena load. Values are milliseconds.
+
+| API | Before max frame | After max frame | After mean frame | After p95 frame | After max simulation |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| OpenGL | 445.04 | 84.09 | 13.20 | 15.35 | 7.88 |
+| Vulkan | 451.99 | 35.29 | 9.75 | 17.38 | 11.03 |
+| D3D12 | 413.85 | 29.56 | 4.58 | 21.99 | 7.90 |
+
+The half-second first-recall stall and the Vulkan first-shop texture stall are
+removed in this workload. There are still frame-time outliers, particularly
+on OpenGL; this is not a full-combat performance guarantee. Measurements live
+under `debug/round-transition/{performance,performance-final}`; the per-frame
+OpenGL trace is under `debug/round-transition/hitch-trace`.
+
+The full 271-test Debug suite passed after the round-flow change. Nine affected
+startup, presentation, snapshot and transition contracts passed in both Debug
+and Development after the warmup changes. Native recall, throw, send-out and
+shop captures, plus the editor's next-battle case, passed on all three APIs.
+Final warmup verification repeats native recall/shop and all five editor cases
+under `debug/round-transition/{native-final,editor-final}`.
+The editor environment comparison regions match exactly before and after warmup
+for recall, throw, send-out and shop on each API; results are recorded in
+`debug/round-transition/warmup-image-comparison.json`.

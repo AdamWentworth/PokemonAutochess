@@ -1165,6 +1165,7 @@ if (BUILD_TESTING)
         placement_to_combat_headless
         end_to_end_headless
         arena_travel_contract
+        arena_round_transition_contract
         ledge_jump_asset_roles
         ledge_jump_rendering
         ui_image_path_contract

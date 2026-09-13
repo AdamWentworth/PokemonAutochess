@@ -21,6 +21,7 @@
 #include "game/state/BackendUiPolicy.h"
 #include "game/state/ShopCardConversion.h"
 #include "game/state/scripted/ScriptedState.h"
+#include "game/state/ArenaTravelState.h"
 #include "game/ui/ShopLayout.h"
 #include "game/ui/SellOverlayUiPolicy.h"
 #include "game/ui/UIViewport.h"
@@ -503,13 +504,16 @@ CombatState::CombatState(GameStateManager* manager,
                          GameWorld* world,
                          GameServices& svc,
                          const std::string& path,
-                         bool resumeFromSnapshotMode)
+                         bool resumeFromSnapshotMode,
+                         std::string arenaScriptPath)
     : stateManager(manager)
     , gameWorld(world)
     , services(svc)
     , script(world, manager, svc)
     , combatMessage()
     , loadedScriptPath(path)
+    , arenaScriptPath_(arenaScriptPath.empty() ? path : arenaScriptPath)
+    , reuseActiveArena_(!arenaScriptPath.empty() && !resumeFromSnapshotMode)
     , resumeFromSnapshot(resumeFromSnapshotMode)
 {
     const double tConstructStart = game::logging::flow::nowMs();
@@ -643,15 +647,16 @@ bool CombatState::tryFinishNativeRouteFlow() {
     nativeRouteTransitionQueued = true;
     stateManager->popState();
     stateManager->pushState(
-        std::make_unique<ScriptedState>(stateManager, gameWorld, services, nativeRouteNextShopScriptPath));
+        std::make_unique<ArenaTravelState>(*gameWorld, services, arenaScriptPath_,
+                                          *stateManager, nativeRouteNextShopScriptPath));
     return true;
 }
 
 void CombatState::onEnter() {
-    if (gameWorld) {
+    if (gameWorld && !reuseActiveArena_) {
         std::string error;
         if (!game::runtime::arena_scene_activation::applyGameplay(services.assets,
-                                                                  game::runtime::route1_scene_variants::fromStateScriptPath(loadedScriptPath), *gameWorld, &error))
+                                                                  game::runtime::route1_scene_variants::fromStateScriptPath(arenaScriptPath_), *gameWorld, &error))
             throw std::runtime_error("Cannot activate arena gameplay: " + error);
     }
     const double tEnterStart = game::logging::flow::nowMs();
@@ -807,9 +812,13 @@ void CombatState::onEnter() {
 void CombatState::onExit() {
     setCombatActiveFlag(false);
     if (gameWorld) {
-        gameWorld->restorePlayerPositionsAfterBattle();
-        gameWorld->setBoardInteractionLocked(false);
-        gameWorld->healPlayerUnitsToFull();
+        // The round transition recalls units where they finished fighting and
+        // restores/heals them only after the screen is covered.
+        if (!nativeRouteTransitionQueued) {
+            gameWorld->restorePlayerPositionsAfterBattle();
+            gameWorld->setBoardInteractionLocked(false);
+            gameWorld->healPlayerUnitsToFull();
+        }
         gameWorld->resetCombatBalance();
     }
     if (shopUi) shopUi->clear();

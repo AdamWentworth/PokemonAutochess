@@ -17,13 +17,13 @@ std::string currentStateScriptPath(GameStateManager* stateManager) {
     if (!current) return {};
     if (const auto* travel = dynamic_cast<const ArenaTravelState*>(current)) return travel->debugScriptPath();
     if (const auto* combat = dynamic_cast<const CombatState*>(current)) {
-        return combat->debugScriptPath();
+        return combat->arenaScriptPath();
     }
     if (const auto* placement = dynamic_cast<const PlacementState*>(current)) {
         return placement->debugScriptPath();
     }
     if (const auto* scripted = dynamic_cast<const ScriptedState*>(current)) {
-        return scripted->debugScriptPath();
+        return scripted->arenaScriptPath().empty() ? scripted->debugScriptPath() : scripted->arenaScriptPath();
     }
     return {};
 }

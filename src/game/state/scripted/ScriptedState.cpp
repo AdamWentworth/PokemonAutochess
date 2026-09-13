@@ -6,10 +6,12 @@
 #include <iostream>
 
 
-ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path)
+ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path,
+                             std::string arenaScriptPath)
     : stateManager(manager)
     , gameWorld(world)
     , services(svc)
+    , arenaScriptPath_(std::move(arenaScriptPath))
     , scriptPath(path)
     , script(world, manager, svc)
 {

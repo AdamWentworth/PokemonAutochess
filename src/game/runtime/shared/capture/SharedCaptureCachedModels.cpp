@@ -14,6 +14,14 @@
 
 namespace game::runtime::shared_capture_cached_models {
 
+void prewarmRoundTravelMesh(IRenderBackend& renderer, const runtime::render_model::MeshData& mesh) {
+    const glm::mat4 identity(1.0f);
+    const std::vector<GameWorld::CaptureAttemptRenderSnapshot> noBalls;
+    std::vector<shared_world_batches::WorldIndexedBatch> noDraws;
+    (void)tryAppend(renderer, true, glm::value_ptr(identity), 1, 1, mesh, noBalls,
+                    true, true, false, [](int, float) { return shared_backend_pose::PoseEval{}; }, &noDraws);
+}
+
 Result tryAppend(
     IRenderBackend& renderer,
     bool hasWorldViewProj,
@@ -44,6 +52,8 @@ Result tryAppend(
         std::string geomKey;
     };
     struct CaptureMeshCache {
+        const IRenderBackend* renderer = nullptr;
+        std::string backendId;
         const runtime::render_model::MeshData* sourceMesh = nullptr;
         std::size_t sourceVertexCount = 0u;
         std::size_t sourceIndexCount = 0u;
@@ -56,12 +66,16 @@ Result tryAppend(
     static thread_local CaptureMeshCache sFastCache;
 
     const bool fastCacheValid =
+        (sFastCache.renderer == &renderer) &&
+        (sFastCache.backendId == (backendId ? backendId : "")) &&
         (sFastCache.sourceMesh == &mesh) &&
         (sFastCache.sourceVertexCount == mesh.vertices.size()) &&
         (sFastCache.sourceIndexCount == mesh.indices.size()) &&
         !sFastCache.submeshes.empty();
     if (!fastCacheValid) {
         sFastCache = {};
+        sFastCache.renderer = &renderer;
+        sFastCache.backendId = backendId ? backendId : "";
         sFastCache.sourceMesh = &mesh;
         sFastCache.sourceVertexCount = mesh.vertices.size();
         sFastCache.sourceIndexCount = mesh.indices.size();
@@ -187,6 +201,8 @@ Result tryAppend(
         }
         if (didPrewarmAny) return result;
     }
+
+    if (captureSnaps.empty()) return result;
 
     int captureAnimIndex = -1;
     float captureAnimDurationSec = 0.0f;

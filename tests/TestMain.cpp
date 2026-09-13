@@ -206,6 +206,7 @@ bool test_gameworld_nearest_enemy_position(std::string& outFail);
 bool test_gameworld_heal_player_units_to_full(std::string& outFail);
 bool test_gameworld_capture_restore_player_positions(std::string& outFail);
 bool test_arena_travel_contract(std::string& outFail);
+bool test_arena_round_transition_contract(std::string& outFail);
 bool test_gameworld_handle_unit_faint_state_reset(std::string& outFail);
 bool test_gameworld_leechseed_apply_contract(std::string& outFail);
 bool test_gameworld_leechseed_dt_clamp(std::string& outFail);
@@ -501,6 +502,7 @@ int main(int argc, char** argv) {
         {"gameworld_heal_player_units_to_full", &test_gameworld_heal_player_units_to_full},
         {"gameworld_capture_restore_player_positions", &test_gameworld_capture_restore_player_positions},
         {"arena_travel_contract", &test_arena_travel_contract},
+        {"arena_round_transition_contract", &test_arena_round_transition_contract},
         {"gameworld_handle_unit_faint_state_reset", &test_gameworld_handle_unit_faint_state_reset},
         {"gameworld_leechseed_apply_contract", &test_gameworld_leechseed_apply_contract},
         {"gameworld_leechseed_dt_clamp", &test_gameworld_leechseed_dt_clamp},

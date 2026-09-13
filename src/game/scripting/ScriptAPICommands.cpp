@@ -442,7 +442,10 @@ void ScriptAPI::applyCommand(const Command& cmd) {
     if (std::holds_alternative<PushCombatStateCommand>(cmd)) {
         const auto& c = std::get<PushCombatStateCommand>(cmd);
         if (manager_) {
-            manager_->pushState(std::make_unique<CombatState>(manager_, world_, services_, c.scriptPath));
+            // A shop changes the encounter script, not the retained arena.
+            const auto* shop = dynamic_cast<const ScriptedState*>(manager_->getCurrentState());
+            const std::string arena = shop ? shop->arenaScriptPath() : std::string{};
+            manager_->pushState(std::make_unique<CombatState>(manager_, world_, services_, c.scriptPath, false, arena));
         }
         return;
     }

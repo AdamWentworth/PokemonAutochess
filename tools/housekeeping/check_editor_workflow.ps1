@@ -113,7 +113,7 @@ try {
                 $taskMetrics.project.active_scene.id -ne $taskCase.sceneId -or $taskMetrics.project.visible_triangles -le 0) {
                 throw "Wrong renderer, location or missing environment: $($taskCase.name)/$taskBackend"
             }
-            if ($taskContents.scenes.Count -ne 5 -or $taskContents.scenarios.Count -ne 23 -or
+            if ($taskContents.scenes.Count -ne 5 -or $taskContents.scenarios.Count -ne 24 -or
                 @($taskContents.scenes | Where-Object { $_.category -notin @('Route 1', 'Experiments') }).Count) {
                 throw 'The editor exposed retired scenes or scenarios.'
             }

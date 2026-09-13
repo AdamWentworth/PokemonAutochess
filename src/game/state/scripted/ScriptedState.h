@@ -26,7 +26,8 @@ class GameStateManager;
 // this state will build and drive a simple card UI for selection.
 class ScriptedState : public GameState {
 public:
-    ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& services, const std::string& scriptPath);
+    ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& services, const std::string& scriptPath,
+                  std::string arenaScriptPath = {});
 
     ~ScriptedState() override;
 
@@ -37,6 +38,7 @@ public:
     void render() override;
     bool shouldRenderWorld() const override { return renderWorld; }
     const std::string& debugScriptPath() const { return scriptPath; }
+    const std::string& arenaScriptPath() const { return arenaScriptPath_; }
 
 private:
     void ensureCardUI();
@@ -62,6 +64,7 @@ private:
     GameStateManager* stateManager = nullptr;
     GameWorld* gameWorld = nullptr;
     GameServices& services;
+    std::string arenaScriptPath_;
 
     std::string scriptPath;
     LuaScript script;

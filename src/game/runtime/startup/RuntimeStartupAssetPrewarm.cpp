@@ -287,7 +287,10 @@ Summary run(const Options& options,
              std::to_string(summary.uiSpritesRequested) +
              " time=" + formatMs(uiSpriteMs) + "ms");
 
-    if (backendCardUiWillPrewarm) {
+    // Texture preparation is safe in an embedded viewport even when drawing
+    // startup frames to the host backbuffer is forbidden. Warm the actual card
+    // proxies too, so opening the first shop does not decode/upload them on tick.
+    {
         if (callbacks.setTitle) callbacks.setTitle("PokemonAutochess - Loading card art...");
         if (callbacks.renderBootLoading) callbacks.renderBootLoading(0.975f);
         const std::vector<std::string> cardArtProxyPaths =

@@ -3,6 +3,7 @@
 
 #include "game/runtime/render_prep/WorldProjection.h"
 #include "game/runtime/session/SessionRenderConfig.h"
+#include "game/runtime/shared/capture/SharedCaptureCachedModels.h"
 #include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/runtime/shared/projected/core/SharedProjectedDebugVfx.h"
 #include "game/runtime/shared/projected/unit/SharedProjectedUnitRenderer.h"
@@ -39,6 +40,13 @@ Result appendProjectedWorldView(const Args& args) {
     }
 
     const float worldCellSize = std::max(0.05f, args.gameWorld->getBoardCellSize());
+    // Every round uses these balls, including Classic games with no capture
+    // items. Build/upload their cache in the initial world warmup instead of
+    // blocking the editor when the first recall ball becomes visible.
+    if (args.renderer && args.supportsWorldIndexedMeshes) {
+        if (const auto* ball = args.ensureBackendMeshLoaded("assets/models/pokeball.glb"))
+            shared_capture_cached_models::prewarmRoundTravelMesh(*args.renderer, *ball);
+    }
     const runtime::render_prep_projection::BoardBounds boardBounds =
         runtime::render_prep_projection::computeBoardBounds(
             args.cols,

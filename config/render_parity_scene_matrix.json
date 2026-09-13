@@ -541,6 +541,241 @@
           "minimumMidtonePixelRatio": 0.3
         }
       ]
+    },
+    {
+      "coverage": [
+        "world",
+        "travel",
+        "round-flow",
+        "capture"
+      ],
+      "snapshotPath": "config/debug/editor_route1_flat_round_end.json",
+      "width": 1440,
+      "height": 1000,
+      "autoQuitSeconds": 12,
+      "name": "round-recall",
+      "focus": "real combat completion: Pokeballs and connected recall beams on the retained flat arena",
+      "screenshotFrame": 244,
+      "contentGuards": [
+        {
+          "name": "visible-flat-arena",
+          "x": 0.3,
+          "y": 0.3,
+          "width": 0.4,
+          "height": 0.35,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "recall-ball-1",
+          "x": 0.34305555555555556,
+          "y": 0.575,
+          "width": 0.025,
+          "height": 0.038,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumRedPixelRatio": 0.06,
+          "minimumBrightNeutralPixelRatio": 0.04
+        },
+        {
+          "name": "recall-ball-2",
+          "x": 0.4597222222222222,
+          "y": 0.512,
+          "width": 0.025,
+          "height": 0.038,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumRedPixelRatio": 0.06,
+          "minimumBrightNeutralPixelRatio": 0.04
+        },
+        {
+          "name": "recall-ball-3",
+          "x": 0.6395833333333333,
+          "y": 0.644,
+          "width": 0.025,
+          "height": 0.038,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumRedPixelRatio": 0.06,
+          "minimumBrightNeutralPixelRatio": 0.04
+        },
+        {
+          "name": "recall-ball-4",
+          "x": 0.30972222222222223,
+          "y": 0.899,
+          "width": 0.025,
+          "height": 0.038,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumRedPixelRatio": 0.06,
+          "minimumBrightNeutralPixelRatio": 0.04
+        },
+        {
+          "name": "recall-ball-5",
+          "x": 0.5944444444444444,
+          "y": 0.899,
+          "width": 0.025,
+          "height": 0.038,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumRedPixelRatio": 0.06,
+          "minimumBrightNeutralPixelRatio": 0.04
+        }
+      ]
+    },
+    {
+      "coverage": [
+        "world",
+        "travel",
+        "round-flow",
+        "capture"
+      ],
+      "snapshotPath": "config/debug/editor_route1_flat_round_end.json",
+      "width": 1440,
+      "height": 1000,
+      "autoQuitSeconds": 12,
+      "name": "round-throw",
+      "focus": "real round arrival: closed Pokeballs thrown to the saved formation",
+      "screenshotFrame": 348,
+      "contentGuards": [
+        {
+          "name": "visible-flat-arena",
+          "x": 0.3,
+          "y": 0.3,
+          "width": 0.4,
+          "height": 0.35,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "airborne-ball-1",
+          "x": 0.3659722222222222,
+          "y": 0.601,
+          "width": 0.027777777777777776,
+          "height": 0.042,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumRedPixelRatio": 0.06,
+          "minimumBrightNeutralPixelRatio": 0.03
+        },
+        {
+          "name": "airborne-ball-2",
+          "x": 0.46319444444444446,
+          "y": 0.586,
+          "width": 0.027777777777777776,
+          "height": 0.042,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumRedPixelRatio": 0.06,
+          "minimumBrightNeutralPixelRatio": 0.03
+        },
+        {
+          "name": "airborne-ball-3",
+          "x": 0.5958333333333333,
+          "y": 0.718,
+          "width": 0.027777777777777776,
+          "height": 0.042,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumRedPixelRatio": 0.06,
+          "minimumBrightNeutralPixelRatio": 0.03
+        }
+      ]
+    },
+    {
+      "coverage": [
+        "world",
+        "travel",
+        "round-flow",
+        "capture"
+      ],
+      "snapshotPath": "config/debug/editor_route1_flat_round_end.json",
+      "width": 1440,
+      "height": 1000,
+      "autoQuitSeconds": 12,
+      "name": "round-sendout",
+      "focus": "real round arrival: opening Pokeballs and materializing Pokemon",
+      "screenshotFrame": 420,
+      "contentGuards": [
+        {
+          "name": "visible-flat-arena",
+          "x": 0.3,
+          "y": 0.3,
+          "width": 0.4,
+          "height": 0.35,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "opening-bench-ball-1",
+          "x": 0.3236111111111111,
+          "y": 0.817,
+          "width": 0.02361111111111111,
+          "height": 0.034,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumRedPixelRatio": 0.06,
+          "minimumBrightNeutralPixelRatio": 0.04
+        },
+        {
+          "name": "opening-bench-ball-2",
+          "x": 0.5854166666666667,
+          "y": 0.813,
+          "width": 0.02638888888888889,
+          "height": 0.038,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumRedPixelRatio": 0.06,
+          "minimumBrightNeutralPixelRatio": 0.04
+        },
+        {
+          "name": "opening-squirtle-ball",
+          "x": 0.6326388888888889,
+          "y": 0.599,
+          "width": 0.016666666666666666,
+          "height": 0.024,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumRedPixelRatio": 0.06,
+          "minimumBrightNeutralPixelRatio": 0.04
+        }
+      ]
+    },
+    {
+      "coverage": [
+        "world",
+        "travel",
+        "round-flow",
+        "capture"
+      ],
+      "snapshotPath": "config/debug/editor_route1_flat_round_end.json",
+      "width": 1440,
+      "height": 1000,
+      "autoQuitSeconds": 12,
+      "name": "round-shop",
+      "focus": "planning shop opens after arrival and retains the flat arena",
+      "screenshotFrame": 450,
+      "contentGuards": [
+        {
+          "name": "visible-flat-arena",
+          "x": 0.3,
+          "y": 0.3,
+          "width": 0.4,
+          "height": 0.35,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "planning-shop-cards",
+          "x": 0.215,
+          "y": 0.88,
+          "width": 0.57,
+          "height": 0.08,
+          "maximumNearBlackPixelRatio": 0.5,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.04
+        }
+      ]
     }
   ]
 }

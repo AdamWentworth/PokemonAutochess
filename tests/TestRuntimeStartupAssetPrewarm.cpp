@@ -190,6 +190,19 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             outFail = "run should preserve the startup asset prewarm summary logs.";
             return false;
         }
+
+        spritePrewarmCalls.clear();
+        const auto embedded = game::runtime::startup_asset_prewarm::run(
+            Options{.usesBackendRenderPath = true, .uiSpritePrewarmEnabled = true},
+            {"assets/ui/frame_gold.png", bigPortrait},
+            Callbacks{.prewarmSpriteTextures = [&](const auto& paths) { spritePrewarmCalls.push_back(paths); }},
+            log);
+        if (embedded.cardUiPrewarmed || embedded.cardArtRequested == 0 || spritePrewarmCalls.size() != 2 ||
+            std::find(spritePrewarmCalls.back().begin(), spritePrewarmCalls.back().end(),
+                      engine::render::sprite_card_art::makeProxyPath(bigPortrait)) == spritePrewarmCalls.back().end()) {
+            outFail = "Embedded preview must warm card-art textures without drawing a startup frame to the host backbuffer.";
+            return false;
+        }
     }
 
     {

@@ -16,6 +16,10 @@ struct Result {
     bool appendedAny = false;
 };
 
+// Prepare the same immutable geometry used by recall and animated send-out,
+// without submitting a visible ball. Safe to repeat during world warmup.
+void prewarmRoundTravelMesh(IRenderBackend& renderer, const runtime::render_model::MeshData& mesh);
+
 // Non-null deferredBatches queues cached geometry for the caller's scene pass.
 // Its borrowed mesh pointers remain valid until this thread prepares another mesh.
 Result tryAppend(

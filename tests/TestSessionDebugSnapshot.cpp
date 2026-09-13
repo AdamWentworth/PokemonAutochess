@@ -151,6 +151,8 @@ bool test_session_debug_snapshot_contract(std::string& outFail) {
         SessionSnapshotMetadata session;
         session.stateKind = "scripted";
         session.stateScriptPath = "scripts/states/starter.lua";
+        session.arenaScriptPath = "scripts/states/route1_flat_experiment.lua";
+        session.roundNextShopScriptPath = "scripts/states/route1_shop.lua";
         session.hasCombatActive = true;
         session.combatActive = false;
         session.hasRoundPhase = true;
@@ -205,7 +207,9 @@ bool test_session_debug_snapshot_contract(std::string& outFail) {
             return false;
         }
 
-        if (loadedSession.stateKind != "scripted" ||
+        if (loadedSession.arenaScriptPath != session.arenaScriptPath ||
+            loadedSession.roundNextShopScriptPath != session.roundNextShopScriptPath ||
+            loadedSession.stateKind != "scripted" ||
             loadedSession.stateScriptPath != "scripts/states/starter.lua" ||
             !loadedSession.hasCombatActive ||
             loadedSession.combatActive ||

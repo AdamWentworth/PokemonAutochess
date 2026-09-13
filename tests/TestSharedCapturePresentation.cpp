@@ -13,6 +13,7 @@
 #include "game/config/GameDataDb.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
+#include "game/runtime/shared/capture/SharedCaptureCachedModels.h"
 #include "game/runtime/shared/capture/SharedCaptureModelBridge.h"
 #include "game/runtime/shared/world/SharedWorldContentSubmit.h"
 
@@ -28,6 +29,8 @@ public:
     bool requiresOpenGLContext() const override { return false; }
     bool handlesPresentation() const override { return false; }
     void shutdown() override {}
+    void prewarmWorldIndexedMeshCached(const char*, const WorldMeshVertex*, std::size_t,
+        const std::uint32_t*, std::size_t) override { ++prewarmedMeshes; }
     void drawWorldIndexedMeshCached(const char*, const WorldMeshVertex*, std::size_t,
         const std::uint32_t*, std::size_t, const float*, int, int) override { ++prematureDraws; }
     void beginWorldSceneColorPass(int, int) override { inScenePass = true; }
@@ -40,6 +43,7 @@ public:
     bool inScenePass = false;
     int sceneDraws = 0;
     int prematureDraws = 0;
+    int prewarmedMeshes = 0;
 private:
     const char* id_;
 };
@@ -119,6 +123,12 @@ bool test_shared_capture_presentation_contract(std::string& outFail) {
         mesh.bindNodeGlobals = {glm::mat4(1)};
         mesh.animations.resize(1);
         mesh.animations[0].durationSec = 1;
+        game::runtime::shared_capture_cached_models::prewarmRoundTravelMesh(renderer, mesh);
+        if (!expect(renderer.prewarmedMeshes == 2 && renderer.prematureDraws == 0 && renderer.sceneDraws == 0,
+                    std::string(backend) + " must warm both closed and articulated ball meshes without a visible draw.", outFail)) return false;
+        game::runtime::shared_capture_cached_models::prewarmRoundTravelMesh(renderer, mesh);
+        if (!expect(renderer.prewarmedMeshes == 2,
+                    "Warmup must reuse existing geometry instead of uploading it every frame.", outFail)) return false;
         game::runtime::SharedBackendTextureCacheEntry white;
         white.valid = true; white.width = white.height = 1;
         white.rgba = {255, 255, 255, 255};

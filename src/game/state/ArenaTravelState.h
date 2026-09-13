@@ -7,13 +7,17 @@
 #include <vector>
 
 class GameWorld;
+class GameStateManager;
 struct GameServices;
 
-// A replayable environment travel prototype. It owns presentation, not the roster.
+// Shared recall/arrival presentation for real rounds and the replayable Travel Test.
 class ArenaTravelState final : public GameState {
 public:
     enum class Phase { Hold, Recall, Cover, Load, Warm, Reveal, Throw, SendOut, Ready, Failed };
     ArenaTravelState(GameWorld& world, GameServices& services, std::string sourceScript);
+    // Normal rounds retain their current arena while encounter scripts advance.
+    ArenaTravelState(GameWorld& world, GameServices& services, std::string sourceScript,
+                     GameStateManager& manager, std::string nextShopScript);
     ~ArenaTravelState() override;
     void onEnter() override;
     void onExit() override;
@@ -21,6 +25,7 @@ public:
     void render() override;
     void handleInput(const InputEvent& event) override;
     const std::string& debugScriptPath() const { return currentScript_; }
+    const std::string& nextShopScriptPath() const { return nextShopScript_; }
     Phase phase() const { return phase_; }
     float coverAlpha() const;
     // Called only after a real destination world draw, not by fixed updates/prewarming.
@@ -35,12 +40,15 @@ private:
         glm::vec3 rotation{};
     };
     void begin();
+    void captureFormation();
     void enter(Phase phase);
     void updateVisuals();
     bool loadDestination();
     void planningFlags();
     GameWorld& world_;
     GameServices& services_;
+    GameStateManager* manager_ = nullptr;
+    std::string nextShopScript_;
     std::string currentScript_, destinationScript_, error_;
     std::vector<Slot> formation_;
     Phase phase_ = Phase::Hold;

@@ -292,6 +292,22 @@ information, absence of scenery handles, and retained gameplay unit controls on
 all three APIs. Use `-Cases entrance-scene,flat-unit-setup` for focused checks or
 `-SkipCapture` to evaluate an existing capture set.
 
+Normal round completion has a separate fixture from the replayable Travel Test.
+It starts at the end of combat in the flat dirt arena, recalls the team, restores
+its formation under cover, throws the balls, opens the shop and advances to the
+next encounter. Check the real state handoff with:
+
+```powershell
+.\tools\render_parity_matrix.ps1 -Config RelWithDebInfo -Cases round-recall,round-throw,round-sendout,round-shop
+.\tools\housekeeping\check_editor_workflow.ps1 -Cases round-recall,round-throw,round-sendout,round-shop,round-next-battle
+```
+
+These cases guard visible Pokeballs, the shop and the retained flat arena.
+The `arena_round_transition_contract` CPU test additionally verifies that
+restoration waits for a covered frame, arrival waits for destination world draws,
+and the next encounter reuses the same arena rules. For isolated timing without
+screenshot writes, see [editor performance](EDITOR_PERFORMANCE.md).
+
 Scene-history regressions additionally compare stopped environment pixels with
 a fresh load of the same destination on the same API (exact match required).
 The entrance and flat board share a registration but have different shadow

@@ -2,6 +2,8 @@
 
 #include "game/GameServices.h"
 #include "game/GameStateManager.h"
+#include "game/runtime/shared/scene/ArenaSceneActivation.h"
+#include <stdexcept>
 #include "game/PhaseState.h"
 #include "game/logging/LoggerUtil.h"
 #include "game/state/CombatState.h"
@@ -29,7 +31,16 @@ void restoreStateStack(const SessionSnapshotMetadata& session,
                        LogBus::Logger* log) {
     if (!stateManager || !gameWorld || !services) return;
     if (session.stateKind == "arena_travel" && !session.stateScriptPath.empty()) {
-        stateManager->clearAndPushState(std::make_unique<ArenaTravelState>(*gameWorld, *services, session.stateScriptPath));
+        if (session.roundNextShopScriptPath.empty()) {
+            stateManager->clearAndPushState(std::make_unique<ArenaTravelState>(*gameWorld, *services, session.stateScriptPath));
+        } else {
+            std::string error;
+            if (!arena_scene_activation::applyGameplay(services->assets,
+                    route1_scene_variants::fromStateScriptPath(session.stateScriptPath), *gameWorld, &error))
+                throw std::runtime_error("Cannot restore round arena: " + error);
+            stateManager->clearAndPushState(std::make_unique<ArenaTravelState>(*gameWorld, *services, session.stateScriptPath,
+                                                                             *stateManager, session.roundNextShopScriptPath));
+        }
         return;
     }
 
@@ -50,20 +61,26 @@ void restoreStateStack(const SessionSnapshotMetadata& session,
             gameWorld,
             *services,
             combatScript,
-            true));
+            true, session.arenaScriptPath));
         return;
     }
 
     if (session.stateKind == "scripted" && !session.stateScriptPath.empty()) {
         const auto* scripted = dynamic_cast<ScriptedState*>(stateManager->getCurrentState());
-        if (scripted && scripted->debugScriptPath() == session.stateScriptPath) {
+        if (scripted && scripted->debugScriptPath() == session.stateScriptPath && scripted->arenaScriptPath() == session.arenaScriptPath) {
             return;
+        }
+        if (!session.arenaScriptPath.empty()) {
+            std::string error;
+            if (!arena_scene_activation::applyGameplay(services->assets,
+                    route1_scene_variants::fromStateScriptPath(session.arenaScriptPath), *gameWorld, &error))
+                throw std::runtime_error("Cannot restore shop arena: " + error);
         }
         stateManager->clearAndPushState(std::make_unique<ScriptedState>(
             stateManager,
             gameWorld,
             *services,
-            session.stateScriptPath));
+            session.stateScriptPath, session.arenaScriptPath));
     }
 }
 
@@ -120,12 +137,15 @@ SessionSnapshotMetadata captureSessionMetadata(GameStateManager* stateManager,
             if (const auto* travel = dynamic_cast<const ArenaTravelState*>(current)) {
                 out.stateKind = "arena_travel";
                 out.stateScriptPath = travel->debugScriptPath();
+                out.roundNextShopScriptPath = travel->nextShopScriptPath();
             } else if (const auto* combat = dynamic_cast<const CombatState*>(current)) {
                 out.stateKind = "combat";
                 out.stateScriptPath = combat->debugScriptPath();
+                out.arenaScriptPath = combat->arenaScriptPath();
             } else if (const auto* scripted = dynamic_cast<const ScriptedState*>(current)) {
                 out.stateKind = "scripted";
                 out.stateScriptPath = scripted->debugScriptPath();
+                out.arenaScriptPath = scripted->arenaScriptPath();
             }
         }
     }

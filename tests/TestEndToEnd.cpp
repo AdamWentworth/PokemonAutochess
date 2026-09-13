@@ -224,6 +224,91 @@ bool test_arena_travel_contract(std::string& outFail) {
     return true;
 }
 
+bool test_arena_round_transition_contract(std::string& outFail) {
+    GameConfigData cfg;
+    GameDataDb db;
+    LogBus::Logger log;
+    log.setEchoToStdout(false);
+    ScriptEventBus events;
+    game::assets::DevAssetStore assets(engine::paths::dataRoot());
+    engine::XorShift32 rng(712u);
+    engine::ManualTimeSource time;
+    StarterRecordingBackend renderer;
+    game::ui::UIViewport viewport;
+    viewport.set(844, 512);
+    GameServices services(cfg, db, log, events, assets, rng, time, nullptr, {}, &viewport, false);
+    services.renderer = &renderer;
+    GameWorld world(cfg);
+    world.setRenderEnabled(false);
+    auto unit = makeUnit(cfg, "bulbasaur", PokemonSide::Player, 1, 5, "tackle");
+    auto fainted = makeUnit(cfg, "squirtle", PokemonSide::Player, 6, 6, "tackle");
+    auto bench = makeUnit(cfg, "pidgey", PokemonSide::Player, 0, 0, "tackle");
+    bench.position = world.travelBenchPosition(4);
+    world.getPokemons() = {unit, fainted};
+    world.getBenchPokemons() = {bench};
+    GameStateManager manager;
+    const std::string arena = "scripts/states/route1_flat_experiment.lua";
+    manager.pushState(std::make_unique<CombatState>(&manager, &world, services, arena, true));
+    const auto* arenaRules = world.combatMap().rules;
+    const auto original = world.findUnitById(unit.id)->position;
+    world.findUnitById(unit.id)->position = world.gridToWorld(3, 1);
+    world.findUnitById(unit.id)->hp = 31;
+    world.findUnitById(fainted.id)->alive = false;
+    const auto battlePosition = world.findUnitById(unit.id)->position;
+    // Scene preparation is forbidden for a round that retains its loaded arena.
+    int loads = 0;
+    services.prepareArenaScene = [&](const auto&, auto&) { ++loads; return false; };
+    manager.update(3.1f);
+    auto* travel = dynamic_cast<ArenaTravelState*>(manager.getCurrentState());
+    if (!travel || world.findUnitById(unit.id)->position != battlePosition || world.findUnitById(unit.id)->hp != 31) {
+        outFail = "Round completion must recall at the battle position before restoring or healing."; return false;
+    }
+    services.renderEnabled = true;
+    for (int i = 0; i < 80; ++i) manager.update(1.0f/60);
+    const auto* visual = world.teamTravelVisuals().find(unit.id);
+    if (!visual || visual->ballScale <= 0 || visual->light <= 0 || !world.isBoardInteractionLocked()) {
+        outFail = "Real round flow must show the ball/beam and keep placement locked during recall."; return false;
+    }
+    for (int i = 0; i < 180; ++i) manager.update(1.0f/60);
+    if (travel->phase() != ArenaTravelState::Phase::Load || world.findUnitById(unit.id)->position != battlePosition) {
+        outFail = "Simulation ticks must not restore the team before a covered frame is rendered."; return false;
+    }
+    manager.render();
+    manager.update(1.0f/60);
+    if (travel->phase() != ArenaTravelState::Phase::Warm || world.findUnitById(unit.id)->position != original ||
+        !world.findUnitById(fainted.id)->alive || world.findUnitById(unit.id)->hp != 100 || loads != 0) {
+        outFail = "Covered round reset must restore the saved formation, heal fainted units and retain the loaded arena."; return false;
+    }
+    for (int i = 0; i < 180; ++i) manager.update(1.0f/60);
+    if (travel->phase() != ArenaTravelState::Phase::Warm) {
+        outFail = "Arrival must wait for real destination draws, including in the editor."; return false;
+    }
+    travel->worldFramePresented(true);
+    travel->worldFramePresented(true);
+    bool sawThrow = false, sawSend = false;
+    for (int i = 0; i < 200 && dynamic_cast<ArenaTravelState*>(manager.getCurrentState()); ++i) {
+        manager.update(1.0f/60);
+        if (const auto* active = dynamic_cast<ArenaTravelState*>(manager.getCurrentState())) {
+            sawThrow |= active->phase() == ArenaTravelState::Phase::Throw;
+            sawSend |= active->phase() == ArenaTravelState::Phase::SendOut;
+        }
+    }
+    auto* shop = dynamic_cast<ScriptedState*>(manager.getCurrentState());
+    if (!shop || !sawThrow || !sawSend || services.presentationPausesRounds || world.teamTravelVisuals().active ||
+        shop->arenaScriptPath() != arena || world.travelBenchSlot(world.findUnitById(bench.id)->position) != 4) {
+        outFail = "Both arrival phases must finish before opening the shop, preserving arena and bench slots."; return false;
+    }
+    services.renderEnabled = false;
+    manager.update(31.0f);
+    const auto* next = dynamic_cast<CombatState*>(manager.getCurrentState());
+    if (!next || next->debugScriptPath() != "scripts/states/route1_5.lua" || next->arenaScriptPath() != arena ||
+        game::runtime::session_world_layer_bridge::currentStateScriptPath(&manager) != arena || loads != 0 ||
+        world.combatMap().rules != arenaRules) {
+        outFail = "The next encounter must advance its script while retaining the flat arena instead of loading source terrain."; return false;
+    }
+    return true;
+}
+
 bool test_starter_frontend_selection_contract(std::string &outFail) {
     GameConfigData cfg;
     GameDataDb db;

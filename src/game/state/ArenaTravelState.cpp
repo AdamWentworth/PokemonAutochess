@@ -1,5 +1,7 @@
 #include "game/state/ArenaTravelState.h"
 #include "game/GameServices.h"
+#include "game/GameStateManager.h"
+#include "game/state/scripted/ScriptedState.h"
 #include "game/GameWorld.h"
 #include "game/PhaseState.h"
 #include "game/runtime/shared/scene/ArenaSceneActivation.h"
@@ -31,6 +33,10 @@ using game::presentation::travelEase;
 
 ArenaTravelState::ArenaTravelState(GameWorld& world, GameServices& services, std::string source)
     : world_(world), services_(services), currentScript_(std::move(source)) {}
+ArenaTravelState::ArenaTravelState(GameWorld& world, GameServices& services, std::string source,
+                                 GameStateManager& manager, std::string nextShop)
+    : world_(world), services_(services), manager_(&manager), nextShopScript_(std::move(nextShop)),
+      currentScript_(std::move(source)) {}
 ArenaTravelState::~ArenaTravelState() { onExit(); }
 
 void ArenaTravelState::planningFlags() {
@@ -46,12 +52,12 @@ void ArenaTravelState::onEnter() {
     services_.presentationPausesRounds = true;
     planningFlags();
     std::string error;
-    if (!game::runtime::arena_scene_activation::applyGameplay(services_.assets,
+    if (!manager_ && !game::runtime::arena_scene_activation::applyGameplay(services_.assets,
             game::runtime::route1_scene_variants::fromStateScriptPath(currentScript_), world_, &error))
         throw std::runtime_error("Travel source arena: " + error);
     // The prototype knows its destination when the scenario opens. Prepare it
     // before Play; production round flow can make the same request during planning.
-    if (services_.prepareArenaScene)
+    if (!manager_ && services_.prepareArenaScene)
         services_.prepareArenaScene(currentScript_ == kClearing ? kEntrance : kClearing, error);
     // Capture after snapshot application / stopped-editor placement, on the first Play tick.
     phase_ = Phase::Hold;
@@ -75,6 +81,17 @@ void ArenaTravelState::begin() {
         enter(Phase::Failed);
         return;
     }
+    captureFormation();
+    destinationScript_ = manager_ ? currentScript_ : (currentScript_ == kClearing ? kEntrance : kClearing);
+    error_.clear();
+    relocated_ = 0;
+    world_.setBoardInteractionLocked(true);
+    world_.teamTravelVisuals().active = true;
+    started_ = true;
+    enter(Phase::Hold);
+}
+
+void ArenaTravelState::captureFormation() {
     formation_.clear();
     auto capture = [&](const auto& units, bool bench) {
         for (const auto& unit : units) {
@@ -86,13 +103,6 @@ void ArenaTravelState::begin() {
     };
     capture(world_.getPokemons(), false);
     capture(world_.getBenchPokemons(), true);
-    destinationScript_ = currentScript_ == kClearing ? kEntrance : kClearing;
-    error_.clear();
-    relocated_ = 0;
-    world_.setBoardInteractionLocked(true);
-    world_.teamTravelVisuals().active = true;
-    started_ = true;
-    enter(Phase::Hold);
 }
 
 void ArenaTravelState::enter(Phase phase) {
@@ -120,6 +130,19 @@ void ArenaTravelState::worldFramePresented(bool ready) {
 
 bool ArenaTravelState::loadDestination() {
     const auto started = std::chrono::steady_clock::now();
+    if (manager_) {
+        // The active flat arena already has the right geometry, rules, shadows
+        // and GPU resources. Do not unpack/rebuild it at every shop or round.
+        world_.restorePlayerPositionsAfterBattle();
+        world_.healPlayerUnitsToFull();
+        auto& units = world_.getPokemons();
+        std::erase_if(units, [](const auto& unit) { return unit.side == PokemonSide::Enemy; });
+        captureFormation();
+        std::clog << "[ArenaTravel] Round formation restored in retained arena=" << currentScript_
+                  << " units=" << formation_.size() << " prepare_ms="
+                  << std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now()-started).count() << '\n';
+        return true;
+    }
     using namespace game::runtime;
     const auto& variant = route1_scene_variants::fromStateScriptPath(destinationScript_);
     authored_arena::Bundle bundle;
@@ -204,6 +227,12 @@ void ArenaTravelState::update(float dt) {
     case Phase::Reveal: if (elapsed_ >= kReveal) enter(Phase::Throw); break;
     case Phase::Throw: if (elapsed_ >= kThrow) enter(Phase::SendOut); break;
     case Phase::SendOut: if (elapsed_ >= kSend) enter(Phase::Ready); break;
+    case Phase::Ready:
+        if (manager_) {
+            manager_->popState();
+            manager_->pushState(std::make_unique<ScriptedState>(manager_, &world_, services_, nextShopScript_, currentScript_));
+        }
+        break;
     default: break;
     }
     updateVisuals();
@@ -276,7 +305,7 @@ void ArenaTravelState::updateVisuals() {
 }
 
 void ArenaTravelState::handleInput(const InputEvent& event) {
-    if (event.type == InputEvent::Type::KeyDown && !event.repeat && event.keyId == InputEvent::Key::R &&
+    if (!manager_ && event.type == InputEvent::Type::KeyDown && !event.repeat && event.keyId == InputEvent::Key::R &&
         (phase_ == Phase::Ready || phase_ == Phase::Failed)) begin();
 }
 
@@ -293,6 +322,7 @@ void ArenaTravelState::render() {
         if (phase_ == Phase::Load) coverPresented_ = true;
     }
     if (cover >= 1 || (phase_ != Phase::Ready && phase_ != Phase::Failed && phase_ != Phase::Hold)) return;
+    if (manager_ && phase_ != Phase::Failed) return;
     std::string label = currentScript_ == kClearing ? "SOUTH CLEARING" : "SOUTH ENTRANCE";
     if (phase_ == Phase::Ready) label += "  -  Formation restored. R: travel back";
     else if (phase_ == Phase::Failed) label = "Travel failed; team preserved. R: retry";
