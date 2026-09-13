@@ -88,6 +88,7 @@ float GameWorld::resolveModelScaleCorrection(const std::shared_ptr<Model>& model
 GameWorld::GameWorld(const GameConfigData& cfg)
     : config(cfg) {
     money = std::max(0, config.startingCash);
+    benchGapCells_ = std::max(0, config.benchGapCells);
 }
 
 float GameWorld::getBoardCellSize() const {
@@ -187,6 +188,21 @@ void GameWorld::conformPokemonToGround() {
     }
 }
 
+void GameWorld::setBenchGapCells(int gapCells) {
+    gapCells = std::clamp(gapCells, 0, 64);
+    if (benchGapCells_ == gapCells) return;
+    benchGapCells_ = gapCells;
+    const float cellSize = getBoardCellSize();
+    for (auto& unit : benchPokemons) {
+        const int slot = benchSlotFromPosition(unit.position, cellSize);
+        unit.position = benchSlotToWorld(slot, cellSize);
+        unit.moveFrom = unit.moveTo = unit.position;
+        if (auto pose = battleStartPositions.find(unit.id); pose != battleStartPositions.end()) {
+            pose->second.position = unit.position;
+        }
+    }
+}
+
 void GameWorld::setEditorBoardCellSize(float cellSize) {
     const float oldCell = getBoardCellSize();
     const float newCell = std::clamp(cellSize, 0.25f, 4.0f);
@@ -252,7 +268,7 @@ glm::vec3 GameWorld::benchSlotToWorld(int slot, float cellSize) const {
     const float totalWidth = benchSlots * cellSize;
     const float startX = -totalWidth * 0.5f;
     const float benchGap =
-        static_cast<float>(std::max(0, config.benchGapCells)) *
+        static_cast<float>(getBenchGapCells()) *
         cellSize;
     const float startZ =
         (config.rows * cellSize) * 0.5f + benchGap;
@@ -437,4 +453,3 @@ bool GameWorld::setEditorPreviewUnitTransform(
 
 std::vector<PokemonInstance>& GameWorld::getPokemons() { return pokemons; }
 std::vector<PokemonInstance>& GameWorld::getBenchPokemons() { return benchPokemons; }
-

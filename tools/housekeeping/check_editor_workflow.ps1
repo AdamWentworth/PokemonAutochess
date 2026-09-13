@@ -108,6 +108,16 @@ try {
                 maximumNearBlackPixelRatio=.12; minimumMidtonePixelRatio=.3
             })
             if (-not $taskGuard.Passed) { throw "Missing scene content: $($taskCase.name)/$taskBackend" }
+            $taskFeatureGuards = @()
+            foreach ($taskFeature in $taskCase.contentGuards) {
+                $taskFeatureResult = Test-RenderParityImageContent -ImagePath $taskScreenshot -Guard $taskFeature
+                if (-not $taskFeatureResult.Passed -or
+                    $taskFeatureResult.LuminanceStandardDeviation -lt $taskFeature.minimumLuminanceStandardDeviation -or
+                    $taskFeatureResult.MeanLuminance -lt $taskFeature.minimumMeanLuminance) {
+                    throw "Missing expected scene feature '$($taskFeature.name)': $($taskCase.name)/$taskBackend"
+                }
+                $taskFeatureGuards += $taskFeatureResult
+            }
             $taskEnvironmentImage = Join-Path $taskRunOutput 'environment.png'
             Export-EnvironmentComparisonImage $taskScreenshot $taskEnvironmentImage
             $taskHistoryDiff = $null
@@ -121,7 +131,7 @@ try {
                 $taskHistoryPassed = $taskHistoryDiff.MaxChannelError -eq 0
             }
             $taskContent += [pscustomobject]@{ backend=$taskBackend; unitCount=$taskUnits.Count; passed=$taskHistoryPassed;
-                imageGuard=$taskGuard; sceneSwitches=$taskSwitchLines; sceneHistoryDiff=$taskHistoryDiff }
+                imageGuard=$taskGuard; featureGuards=$taskFeatureGuards; sceneSwitches=$taskSwitchLines; sceneHistoryDiff=$taskHistoryDiff }
         }
         $taskPairs = foreach ($taskBackend in @('vulkan', 'd3d12')) {
             $taskDiff = Compare-RenderParityImages -ReferencePath (Join-Path $taskCaseOutput 'opengl/capture.png') `

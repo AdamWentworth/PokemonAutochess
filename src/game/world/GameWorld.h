@@ -196,6 +196,8 @@ public:
     void conformPokemonToGround();
     float getBoardCellSize() const;
     void setEditorBoardCellSize(float cellSize);
+    int getBenchGapCells() const { return benchGapCells_; }
+    void setBenchGapCells(int gapCells);
 
     // Advances animation clocks + VFX emitters
     void update(float dt);
@@ -468,6 +470,7 @@ private:
     int classicRoundsCompleted = 0;
     float boardScaleMul = 1.0f;
     float editorBoardCellSize = 0.0f;
+    int benchGapCells_ = 0;
     float boardResizePauseSec = 0.0f;
 
     glm::mat4 lastViewMatrix = glm::mat4(1.0f);

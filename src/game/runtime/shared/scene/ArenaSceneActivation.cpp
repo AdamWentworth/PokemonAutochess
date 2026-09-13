@@ -12,6 +12,7 @@ bool applyGameplay(const engine::IAssetStore &host, const route1_scene_variants:
     if (variant.arenaBundlePath.empty()) {
         world.setCombatMapRules({});
         world.clearGroundHeightResolver();
+        world.setBenchGapCells(world.getConfig().benchGapCells);
         return true;
     }
     authored_arena::Bundle bundle;
@@ -35,6 +36,7 @@ bool applyGameplay(const engine::IAssetStore &host, const route1_scene_variants:
         y = (tile->heightAt(sourceX, sourceZ) - layout.sourceAnchorCm[1]) * layout.sourceUnitsToWorld + layout.worldAnchor[1];
         return true;
     });
+    world.setBenchGapCells(static_cast<int>(layout.benchGapCells));
     return true;
 }
 

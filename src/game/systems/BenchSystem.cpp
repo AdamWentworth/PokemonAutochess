@@ -33,6 +33,13 @@ bool BenchSystem::isInBenchZone(const glm::vec3& pos) const {
     return pos.z >= benchStartZ && pos.z <= zEnd;
 }
 
+void BenchSystem::setGapCells(int newGapCells) {
+    newGapCells = std::clamp(newGapCells, 0, 64);
+    if (benchGapCells == newGapCells) return;
+    benchGapCells = newGapCells;
+    refreshBenchStart();
+}
+
 glm::vec3 BenchSystem::getSnappedBenchPosition(const glm::vec3& worldPos) const {
     float totalBenchWidth = maxSlots * cellSize;
     float startX = -totalBenchWidth / 2.0f;

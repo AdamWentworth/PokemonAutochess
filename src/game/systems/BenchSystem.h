@@ -15,6 +15,7 @@ public:
     bool isInBenchZone(const glm::vec3& pos) const;
     glm::vec3 getSnappedBenchPosition(const glm::vec3& worldPos) const;
     void setCellSize(float newCellSize);
+    void setGapCells(int newGapCells);
 
     int getMaxSlots() const { return maxSlots; }
     glm::vec3 getSlotPosition(int index) const;

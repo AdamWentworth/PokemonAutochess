@@ -5,7 +5,8 @@ Type: Runbook
 Last updated: 2026-09-12
 
 This is a separate South Entrance experiment, not a replacement for the four
-approved Route 1 arenas. Its 8x8 combat area and both reserve rows are level dirt.
+approved Route 1 arenas. Its 8x8 combat area and both reserve rows are level dirt,
+with a one-tile lawn gap between each bench and the battlefield.
 Overlapping props and encounter-grass beds were removed from the copy; the
 surrounding Route 1 scenery remains. The original entrance retains its ledges,
 ramps, grass, movement rules, and existing preview scenarios.
@@ -41,8 +42,18 @@ The source is a separate file at
 The ordinary Autochess tile and prop controls remain available.
 
 The recipe is `config/environment/route1_flat_experiment.authoring.json`.
-Board cells are source X=17..24, Z=-10..-3; reserves are Z=-11 and Z=-2.
-Dirt ends at the reserve boundaries; the row below the south bench (Z=-1) is lawn.
+Board cells are source X=17..24, Z=-10..-3; reserves are Z=-12 and Z=-1.
+Z=-11 and Z=-2 are lawn separators outside both gameplay footprints. Dirt ends
+at the board and reserve boundaries; the row below the south bench (Z=0) is lawn.
+The orange editor lines mark 0.35-tile clearance around each footprint.
+Gameplay placement, reserve positions and rendered grids use the active arena's
+bench spacing. Returning to an older arena restores that arena's spacing.
+
+A three-tile-wide grassy ramp at X=22..24, Z=-13..-14 rises smoothly by one metre
+to join the upper route behind the enemy bench. Four independently editable
+encounter-grass beds sit on the west, east, upper-east and rear verges. Their
+full-size LGPE blades and cover footprints stay outside the board and benches;
+the rear bed is moved aside to leave the route exit open.
 The adjacent lawn strip was lowered with the dirt floor to provide some visual
 space around the board. Scenery beyond that band retains its elevations.
 The bootstrap `create_route1_flat_experiment.py` refuses an existing output or
@@ -95,6 +106,8 @@ Missing preview assets fail explicitly; they do not substitute a generated effec
 ```powershell
 ctest --test-dir build -C Release -R 'sampled_effect_clip_contract|flat_arena_experiment_contract|editor_preview_catalog_contract|authored_arena_bundle_contract|movement_collision_regressions|arena_travel_contract' --output-on-failure
 ./tools/environment/check_flat_arena_experiment.ps1
+./tools/housekeeping/check_editor_workflow.ps1 -Cases flat-unit-setup,flat-roundtrip
+./tools/render_parity_matrix.ps1 -Config Release -Cases flat-detached-benches
 ```
 
 The visual check includes both terrain layouts, ordinary combat at the matched
@@ -105,7 +118,8 @@ three missing effects cannot pass just by looking identical.
 
 The new native tests reject malformed sampled geometry and unsafe texture paths,
 check delayed/retired geometry, require all board/reserve floor probes to be dirt
-without cover, verify two-way walking, and switch back to the unchanged entrance.
+without cover, verify two-way walking, detached bench placement and hit regions,
+continuous ramp heights, and switch back to the unchanged entrance.
 The paired editor/plugin build and moving embedded preview captures are required
 in addition to standalone screenshots. The comparison command checks both editor
 scenes at a fixed seed as well. Local evidence is in `debug/flat-experiment/qualified`.

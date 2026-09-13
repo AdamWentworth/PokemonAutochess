@@ -25,7 +25,7 @@ bool near3(const glm::vec3& a, const glm::vec3& b, float eps = 0.0001f) {
 
 bool test_gameworld_spawn_bench_flow(std::string& outFail) {
     {
-        const BenchSystem adjacentBench(1.0f, 8, 8, 0);
+        BenchSystem adjacentBench(1.0f, 8, 8, 0);
         const BenchSystem oneCellGapBench(1.0f, 8, 8, 1);
         if (!near3(adjacentBench.getSlotPosition(0), glm::vec3(-3.5f, 0.0f, 4.5f)) ||
             !adjacentBench.isInBenchZone(glm::vec3(0.0f, 0.0f, 4.1f)) ||
@@ -35,8 +35,19 @@ bool test_gameworld_spawn_bench_flow(std::string& outFail) {
                 "BenchSystem must place a zero-gap bench directly against the board edge.";
             return false;
         }
+        adjacentBench.setGapCells(1);
+        if (adjacentBench.isInBenchZone({0,0,4.5f}) ||
+            !adjacentBench.isInBenchZone({0,0,5.5f}) ||
+            !near3(adjacentBench.getSlotPosition(0), oneCellGapBench.getSlotPosition(0))) {
+            outFail = "Bench interaction did not follow a scene's changed gap.";
+            return false;
+        }
+        adjacentBench.setGapCells(0);
+        if (!adjacentBench.isInBenchZone({0,0,4.5f}) || adjacentBench.isInBenchZone({0,0,5.5f})) {
+            outFail = "Bench interaction retained the previous scene's gap.";
+            return false;
+        }
     }
-
     GameConfigData cfg;
     GameDataDb db;
 

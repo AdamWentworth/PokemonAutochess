@@ -28,7 +28,7 @@ UnitInteractionSystem::UnitInteractionSystem(Camera3D* cam, GameWorld* world, un
       benchSystem(world ? world->getBoardCellSize() : 1.2f,
                   world ? world->getConfig().benchSlots : 8,
                   world ? world->getConfig().rows : 8,
-                  world ? world->getConfig().benchGapCells : 0) {
+                  world ? world->getBenchGapCells() : 0) {
     cellSize = world ? world->getBoardCellSize() : 1.2f;
 
     // Input is routed through GameApp via InputEvent (engine-owned).
@@ -36,6 +36,7 @@ UnitInteractionSystem::UnitInteractionSystem(Camera3D* cam, GameWorld* world, un
 
 void UnitInteractionSystem::syncBoardCellSize() {
     if (!gameWorld) return;
+    benchSystem.setGapCells(gameWorld->getBenchGapCells());
     const float newCell = gameWorld->getBoardCellSize();
     if (std::abs(newCell - cellSize) < 0.0001f) return;
     cellSize = newCell;

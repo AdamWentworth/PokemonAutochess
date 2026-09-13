@@ -261,6 +261,9 @@ std::size_t render(const Args& args) {
     float cameraTarget3[3] = {0.0f, -1.0f, 0.0f};
     const auto layout =
         game::runtime::session_render_layout::build(*args.config, args.drawableW, args.drawableH);
+    const int benchGapCells = args.gameWorld
+        ? args.gameWorld->getBenchGapCells()
+        : args.config->benchGapCells;
 
     const bool showWorldBackdrop = runtime::render::shouldRenderBackendWorldBackdrop(
         args.routes,
@@ -313,7 +316,7 @@ std::size_t render(const Args& args) {
                         .rows = layout.rows,
                         .cols = layout.cols,
                         .benchSlots = args.config->benchSlots,
-                        .benchGapCells = args.config->benchGapCells,
+                        .benchGapCells = benchGapCells,
                         .minDim = layout.minDim,
                         .boardX = layout.boardX,
                         .boardY = layout.boardY,
@@ -375,7 +378,7 @@ std::size_t render(const Args& args) {
                         .rows = layout.rows,
                         .cols = layout.cols,
                         .benchSlots = args.config->benchSlots,
-                        .benchGapCells = args.config->benchGapCells,
+                        .benchGapCells = benchGapCells,
                         .minDim = layout.minDim,
                         .boardX = layout.boardX,
                         .boardY = layout.boardY,

@@ -8573,10 +8573,104 @@
       }
     },
     {
+      "id": "authored-prefab/flat-experiment/east-upper-verge-grass",
+      "display_name": "East upper verge encounter grass",
+      "parent_id": "folder/environment/props",
+      "sibling_order": 179,
+      "enabled": true,
+      "components": {
+        "transform": {
+          "translation": [
+            2672.5000381469727,
+            50.0,
+            -1039.9999618530273
+          ],
+          "rotation_degrees": [
+            0,
+            0.0,
+            0
+          ],
+          "scale": [
+            0.3499999940395355,
+            1.0,
+            0.4000000059604645
+          ]
+        },
+        "prefab_instance": {
+          "prototype_node_id": "encounter-grass/enc_grass01/record-3",
+          "prefab_asset_id": "route1/encounter_grass_01",
+          "creation_transform": {
+            "rotation_degrees": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "translation": [
+              2350.0,
+              100.0,
+              -1550.0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "authored-prefab/flat-experiment/east-verge-grass",
+      "display_name": "East verge encounter grass",
+      "parent_id": "folder/environment/props",
+      "sibling_order": 180,
+      "enabled": true,
+      "components": {
+        "transform": {
+          "translation": [
+            2602.4999618530273,
+            0.0,
+            -669.9999809265137
+          ],
+          "rotation_degrees": [
+            0,
+            0.0,
+            0
+          ],
+          "scale": [
+            0.3499999940395355,
+            1.0,
+            0.6000000238418579
+          ]
+        },
+        "prefab_instance": {
+          "prototype_node_id": "encounter-grass/enc_grass01/record-3",
+          "prefab_asset_id": "route1/encounter_grass_01",
+          "creation_transform": {
+            "rotation_degrees": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "translation": [
+              2350.0,
+              100.0,
+              -1550.0
+            ]
+          }
+        }
+      }
+    },
+    {
       "id": "authored-prefab/pilot/left-upper-companion",
       "display_name": "Left upper companion",
       "parent_id": "folder/environment/props",
-      "sibling_order": 179,
+      "sibling_order": 181,
       "enabled": true,
       "components": {
         "transform": {
@@ -8623,7 +8717,7 @@
       "id": "authored-prefab/pilot/left-upper-tree",
       "display_name": "Left upper tree",
       "parent_id": "folder/environment/props",
-      "sibling_order": 180,
+      "sibling_order": 182,
       "enabled": true,
       "components": {
         "transform": {
@@ -8670,7 +8764,7 @@
       "id": "authored-prefab/pilot/north-bank-flowers",
       "display_name": "North bank flowers",
       "parent_id": "folder/environment/props",
-      "sibling_order": 181,
+      "sibling_order": 183,
       "enabled": true,
       "components": {
         "transform": {
@@ -8714,10 +8808,57 @@
       }
     },
     {
+      "id": "authored-prefab/flat-experiment/north-verge-grass",
+      "display_name": "North route verge encounter grass",
+      "parent_id": "folder/environment/props",
+      "sibling_order": 184,
+      "enabled": true,
+      "components": {
+        "transform": {
+          "translation": [
+            2650.0,
+            100.0,
+            -1654.9999237060547
+          ],
+          "rotation_degrees": [
+            0,
+            0.0,
+            0
+          ],
+          "scale": [
+            0.4000000059604645,
+            1.0,
+            0.699999988079071
+          ]
+        },
+        "prefab_instance": {
+          "prototype_node_id": "encounter-grass/enc_grass01/record-3",
+          "prefab_asset_id": "route1/encounter_grass_01",
+          "creation_transform": {
+            "rotation_degrees": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "translation": [
+              2350.0,
+              100.0,
+              -1550.0
+            ]
+          }
+        }
+      }
+    },
+    {
       "id": "authored-prefab/pilot/north-shelf-flowers",
       "display_name": "North shelf flowers",
       "parent_id": "folder/environment/props",
-      "sibling_order": 182,
+      "sibling_order": 185,
       "enabled": true,
       "components": {
         "transform": {
@@ -8764,7 +8905,7 @@
       "id": "authored-prefab/pilot/northeast-canopy",
       "display_name": "Northeast canopy",
       "parent_id": "folder/environment/props",
-      "sibling_order": 183,
+      "sibling_order": 186,
       "enabled": true,
       "components": {
         "transform": {
@@ -8811,7 +8952,7 @@
       "id": "authored-prefab/pilot/northern-landing-tree",
       "display_name": "Northern landing tree",
       "parent_id": "folder/environment/props",
-      "sibling_order": 184,
+      "sibling_order": 187,
       "enabled": true,
       "components": {
         "transform": {
@@ -8855,57 +8996,10 @@
       }
     },
     {
-      "id": "authored-prefab/pilot/northern-square-encounter-grass",
-      "display_name": "Northern square encounter grass",
-      "parent_id": "folder/environment/props",
-      "sibling_order": 185,
-      "enabled": true,
-      "components": {
-        "transform": {
-          "translation": [
-            2350.0,
-            100.0,
-            -1550.0
-          ],
-          "rotation_degrees": [
-            0,
-            0.0,
-            0
-          ],
-          "scale": [
-            1.0,
-            1.0,
-            1.0
-          ]
-        },
-        "prefab_instance": {
-          "prototype_node_id": "encounter-grass/enc_grass01/record-3",
-          "prefab_asset_id": "route1/encounter_grass_01",
-          "creation_transform": {
-            "rotation_degrees": [
-              0.0,
-              0.0,
-              0.0
-            ],
-            "scale": [
-              1.0,
-              1.0,
-              1.0
-            ],
-            "translation": [
-              2350.0,
-              100.0,
-              -1550.0
-            ]
-          }
-        }
-      }
-    },
-    {
       "id": "authored-prefab/pilot/northwest-canopy",
       "display_name": "Northwest canopy",
       "parent_id": "folder/environment/props",
-      "sibling_order": 186,
+      "sibling_order": 188,
       "enabled": true,
       "components": {
         "transform": {
@@ -8952,7 +9046,7 @@
       "id": "authored-prefab/pilot/rear-shelf-shrub",
       "display_name": "Rear shelf shrub",
       "parent_id": "folder/environment/props",
-      "sibling_order": 187,
+      "sibling_order": 189,
       "enabled": true,
       "components": {
         "transform": {
@@ -8999,7 +9093,7 @@
       "id": "authored-prefab/pilot/source-flowers02---source-record-10",
       "display_name": "Source flowers02 - source record 10",
       "parent_id": "folder/environment/props",
-      "sibling_order": 188,
+      "sibling_order": 190,
       "enabled": true,
       "components": {
         "transform": {
@@ -9046,7 +9140,7 @@
       "id": "authored-prefab/pilot/source-flowers02---source-record-24",
       "display_name": "Source flowers02 - source record 24",
       "parent_id": "folder/environment/props",
-      "sibling_order": 189,
+      "sibling_order": 191,
       "enabled": true,
       "components": {
         "transform": {
@@ -9093,7 +9187,7 @@
       "id": "authored-prefab/pilot/source-flowers02---source-record-25",
       "display_name": "Source flowers02 - source record 25",
       "parent_id": "folder/environment/props",
-      "sibling_order": 190,
+      "sibling_order": 192,
       "enabled": true,
       "components": {
         "transform": {
@@ -9140,7 +9234,7 @@
       "id": "authored-prefab/pilot/source-flowers02---source-record-33",
       "display_name": "Source flowers02 - source record 33",
       "parent_id": "folder/environment/props",
-      "sibling_order": 191,
+      "sibling_order": 193,
       "enabled": true,
       "components": {
         "transform": {
@@ -9187,7 +9281,7 @@
       "id": "authored-prefab/pilot/source-flowers02---source-record-6",
       "display_name": "Source flowers02 - source record 6",
       "parent_id": "folder/environment/props",
-      "sibling_order": 192,
+      "sibling_order": 194,
       "enabled": true,
       "components": {
         "transform": {
@@ -9234,7 +9328,7 @@
       "id": "authored-prefab/pilot/source-flowers02---source-record-7",
       "display_name": "Source flowers02 - source record 7",
       "parent_id": "folder/environment/props",
-      "sibling_order": 193,
+      "sibling_order": 195,
       "enabled": true,
       "components": {
         "transform": {
@@ -9281,7 +9375,7 @@
       "id": "authored-prefab/pilot/source-flowers02---source-record-8",
       "display_name": "Source flowers02 - source record 8",
       "parent_id": "folder/environment/props",
-      "sibling_order": 194,
+      "sibling_order": 196,
       "enabled": true,
       "components": {
         "transform": {
@@ -9328,7 +9422,7 @@
       "id": "authored-prefab/pilot/source-flowers02---source-record-9",
       "display_name": "Source flowers02 - source record 9",
       "parent_id": "folder/environment/props",
-      "sibling_order": 195,
+      "sibling_order": 197,
       "enabled": true,
       "components": {
         "transform": {
@@ -9375,7 +9469,7 @@
       "id": "authored-prefab/pilot/source-flowers04---source-record-45",
       "display_name": "Source flowers04 - source record 45",
       "parent_id": "folder/environment/props",
-      "sibling_order": 196,
+      "sibling_order": 198,
       "enabled": true,
       "components": {
         "transform": {
@@ -9422,7 +9516,7 @@
       "id": "authored-prefab/pilot/source-flowers04---source-record-46",
       "display_name": "Source flowers04 - source record 46",
       "parent_id": "folder/environment/props",
-      "sibling_order": 197,
+      "sibling_order": 199,
       "enabled": true,
       "components": {
         "transform": {
@@ -9469,7 +9563,7 @@
       "id": "authored-prefab/pilot/source-flowers04---source-record-47",
       "display_name": "Source flowers04 - source record 47",
       "parent_id": "folder/environment/props",
-      "sibling_order": 198,
+      "sibling_order": 200,
       "enabled": true,
       "components": {
         "transform": {
@@ -9516,7 +9610,7 @@
       "id": "authored-prefab/pilot/source-flowers04---source-record-48",
       "display_name": "Source flowers04 - source record 48",
       "parent_id": "folder/environment/props",
-      "sibling_order": 199,
+      "sibling_order": 201,
       "enabled": true,
       "components": {
         "transform": {
@@ -9563,7 +9657,7 @@
       "id": "authored-prefab/pilot/source-flowers04---source-record-49",
       "display_name": "Source flowers04 - source record 49",
       "parent_id": "folder/environment/props",
-      "sibling_order": 200,
+      "sibling_order": 202,
       "enabled": true,
       "components": {
         "transform": {
@@ -9610,7 +9704,7 @@
       "id": "authored-prefab/pilot/source-grass02---source-record-20",
       "display_name": "Source grass02 - source record 20",
       "parent_id": "folder/environment/props",
-      "sibling_order": 201,
+      "sibling_order": 203,
       "enabled": true,
       "components": {
         "transform": {
@@ -9657,7 +9751,7 @@
       "id": "authored-prefab/pilot/source-grass02---source-record-42",
       "display_name": "Source grass02 - source record 42",
       "parent_id": "folder/environment/props",
-      "sibling_order": 202,
+      "sibling_order": 204,
       "enabled": true,
       "components": {
         "transform": {
@@ -9704,7 +9798,7 @@
       "id": "authored-prefab/pilot/west-approach-canopy",
       "display_name": "West approach canopy",
       "parent_id": "folder/environment/props",
-      "sibling_order": 203,
+      "sibling_order": 205,
       "enabled": true,
       "components": {
         "transform": {
@@ -9751,7 +9845,7 @@
       "id": "authored-prefab/pilot/west-approach-flowers",
       "display_name": "West approach flowers",
       "parent_id": "folder/environment/props",
-      "sibling_order": 204,
+      "sibling_order": 206,
       "enabled": true,
       "components": {
         "transform": {
@@ -9798,7 +9892,7 @@
       "id": "authored-prefab/pilot/west-approach-undergrowth",
       "display_name": "West approach undergrowth",
       "parent_id": "folder/environment/props",
-      "sibling_order": 205,
+      "sibling_order": 207,
       "enabled": true,
       "components": {
         "transform": {
@@ -9845,7 +9939,7 @@
       "id": "authored-prefab/pilot/west-border-tree",
       "display_name": "West border tree",
       "parent_id": "folder/environment/props",
-      "sibling_order": 206,
+      "sibling_order": 208,
       "enabled": true,
       "components": {
         "transform": {
@@ -9892,7 +9986,7 @@
       "id": "authored-prefab/pilot/west-edge-tree",
       "display_name": "West edge tree",
       "parent_id": "folder/environment/props",
-      "sibling_order": 207,
+      "sibling_order": 209,
       "enabled": true,
       "components": {
         "transform": {
@@ -9939,7 +10033,7 @@
       "id": "authored-prefab/pilot/west-entrance-shrub",
       "display_name": "West entrance shrub",
       "parent_id": "folder/environment/props",
-      "sibling_order": 208,
+      "sibling_order": 210,
       "enabled": true,
       "components": {
         "transform": {
@@ -9986,7 +10080,7 @@
       "id": "authored-prefab/pilot/west-foreground-tree",
       "display_name": "West foreground tree",
       "parent_id": "folder/environment/props",
-      "sibling_order": 209,
+      "sibling_order": 211,
       "enabled": true,
       "components": {
         "transform": {
@@ -10033,7 +10127,7 @@
       "id": "authored-prefab/pilot/west-high-undergrowth",
       "display_name": "West high undergrowth",
       "parent_id": "folder/environment/props",
-      "sibling_order": 210,
+      "sibling_order": 212,
       "enabled": true,
       "components": {
         "transform": {
@@ -10080,7 +10174,7 @@
       "id": "authored-prefab/pilot/west-inner-approach-tree",
       "display_name": "West inner approach tree",
       "parent_id": "folder/environment/props",
-      "sibling_order": 211,
+      "sibling_order": 213,
       "enabled": true,
       "components": {
         "transform": {
@@ -10127,7 +10221,7 @@
       "id": "authored-prefab/pilot/west-landing-flowers",
       "display_name": "West landing flowers",
       "parent_id": "folder/environment/props",
-      "sibling_order": 212,
+      "sibling_order": 214,
       "enabled": true,
       "components": {
         "transform": {
@@ -10174,7 +10268,7 @@
       "id": "authored-prefab/pilot/west-landing-tree",
       "display_name": "West landing tree",
       "parent_id": "folder/environment/props",
-      "sibling_order": 213,
+      "sibling_order": 215,
       "enabled": true,
       "components": {
         "transform": {
@@ -10221,7 +10315,7 @@
       "id": "authored-prefab/pilot/west-middle-canopy",
       "display_name": "West middle canopy",
       "parent_id": "folder/environment/props",
-      "sibling_order": 214,
+      "sibling_order": 216,
       "enabled": true,
       "components": {
         "transform": {
@@ -10268,7 +10362,7 @@
       "id": "authored-prefab/pilot/west-middle-undergrowth",
       "display_name": "West middle undergrowth",
       "parent_id": "folder/environment/props",
-      "sibling_order": 215,
+      "sibling_order": 217,
       "enabled": true,
       "components": {
         "transform": {
@@ -10315,7 +10409,7 @@
       "id": "authored-prefab/pilot/west-outer-flowers",
       "display_name": "West outer flowers",
       "parent_id": "folder/environment/props",
-      "sibling_order": 216,
+      "sibling_order": 218,
       "enabled": true,
       "components": {
         "transform": {
@@ -10362,7 +10456,7 @@
       "id": "authored-prefab/pilot/west-outer-lower-canopy",
       "display_name": "West outer lower canopy",
       "parent_id": "folder/environment/props",
-      "sibling_order": 217,
+      "sibling_order": 219,
       "enabled": true,
       "components": {
         "transform": {
@@ -10409,7 +10503,7 @@
       "id": "authored-prefab/pilot/west-outer-middle-canopy",
       "display_name": "West outer middle canopy",
       "parent_id": "folder/environment/props",
-      "sibling_order": 218,
+      "sibling_order": 220,
       "enabled": true,
       "components": {
         "transform": {
@@ -10456,7 +10550,7 @@
       "id": "authored-prefab/pilot/west-outer-rear-canopy",
       "display_name": "West outer rear canopy",
       "parent_id": "folder/environment/props",
-      "sibling_order": 219,
+      "sibling_order": 221,
       "enabled": true,
       "components": {
         "transform": {
@@ -10503,7 +10597,7 @@
       "id": "authored-prefab/pilot/west-outer-shrub",
       "display_name": "West outer shrub",
       "parent_id": "folder/environment/props",
-      "sibling_order": 220,
+      "sibling_order": 222,
       "enabled": true,
       "components": {
         "transform": {
@@ -10550,7 +10644,7 @@
       "id": "authored-prefab/pilot/west-rear-canopy",
       "display_name": "West rear canopy",
       "parent_id": "folder/environment/props",
-      "sibling_order": 221,
+      "sibling_order": 223,
       "enabled": true,
       "components": {
         "transform": {
@@ -10597,7 +10691,7 @@
       "id": "authored-prefab/pilot/west-rear-grass",
       "display_name": "West rear grass",
       "parent_id": "folder/environment/props",
-      "sibling_order": 222,
+      "sibling_order": 224,
       "enabled": true,
       "components": {
         "transform": {
@@ -10644,7 +10738,7 @@
       "id": "authored-prefab/pilot/west-rear-shrub",
       "display_name": "West rear shrub",
       "parent_id": "folder/environment/props",
-      "sibling_order": 223,
+      "sibling_order": 225,
       "enabled": true,
       "components": {
         "transform": {
@@ -10691,7 +10785,7 @@
       "id": "authored-prefab/pilot/west-rock-grass",
       "display_name": "West rock grass",
       "parent_id": "folder/environment/props",
-      "sibling_order": 224,
+      "sibling_order": 226,
       "enabled": true,
       "components": {
         "transform": {
@@ -10729,6 +10823,53 @@
               2900.0,
               100.0,
               -1170.0
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "authored-prefab/flat-experiment/west-verge-grass",
+      "display_name": "West verge encounter grass",
+      "parent_id": "folder/environment/props",
+      "sibling_order": 227,
+      "enabled": true,
+      "components": {
+        "transform": {
+          "translation": [
+            1562.5,
+            0.0,
+            -682.4999809265137
+          ],
+          "rotation_degrees": [
+            0,
+            0.0,
+            0
+          ],
+          "scale": [
+            0.3499999940395355,
+            1.0,
+            0.6499999761581421
+          ]
+        },
+        "prefab_instance": {
+          "prototype_node_id": "encounter-grass/enc_grass01/record-3",
+          "prefab_asset_id": "route1/encounter_grass_01",
+          "creation_transform": {
+            "rotation_degrees": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "translation": [
+              2350.0,
+              100.0,
+              -1550.0
             ]
           }
         }

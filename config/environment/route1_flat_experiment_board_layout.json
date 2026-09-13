@@ -1,6 +1,6 @@
 {
   "board_registration": {
-    "bench_gap_cells": 0,
+    "bench_gap_cells": 1,
     "bench_sides": [
       "north",
       "south"

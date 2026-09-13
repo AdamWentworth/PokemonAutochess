@@ -5,7 +5,13 @@
     {"name": "clearing-scene", "sceneId": "routes/route1-south-clearing"},
     {"name": "terraces-scene", "sceneId": "routes/route1-north-terraces"},
     {"name": "north-entrance-scene", "sceneId": "routes/route1-north-entrance"},
-    {"name": "flat-scene", "sceneId": "routes/route1-flat-experiment"},
+    {"name": "flat-scene", "sceneId": "routes/route1-flat-experiment", "contentGuards": [
+      {"name": "west-encounter-grass", "x": 0.31, "y": 0.36, "width": 0.045, "height": 0.07, "minimumLuminanceStandardDeviation": 18},
+      {"name": "east-encounter-grass", "x": 0.65, "y": 0.36, "width": 0.035, "height": 0.07, "minimumLuminanceStandardDeviation": 16},
+      {"name": "north-lawn-separator", "x": 0.4, "y": 0.271, "width": 0.23, "height": 0.008, "minimumMeanLuminance": 150},
+      {"name": "south-lawn-separator", "x": 0.4, "y": 0.62, "width": 0.23, "height": 0.017, "minimumMeanLuminance": 160},
+      {"name": "open-grass-ramp", "x": 0.547, "y": 0.18, "width": 0.045, "height": 0.038, "minimumMeanLuminance": 150}
+    ]},
     {"name": "entrance-to-flat", "sceneId": "routes/route1-flat-experiment", "startupSceneId": "routes/route1-pilot", "referenceCase": "flat-scene",
       "sceneOpens": [{"frame": 40, "sceneId": "routes/route1-flat-experiment"}]},
     {"name": "flat-to-entrance", "sceneId": "routes/route1-pilot", "startupSceneId": "routes/route1-flat-experiment", "referenceCase": "entrance-scene",

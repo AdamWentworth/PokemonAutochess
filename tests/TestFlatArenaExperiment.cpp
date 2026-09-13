@@ -90,7 +90,38 @@ bool test_flat_arena_experiment_contract(std::string &error) {
             }
         GameConfigData config;
         GameWorld world(config);
+        PokemonInstance reserveUnit;
+        reserveUnit.id = 9001;
+        reserveUnit.position = world.travelBenchPosition(3);
+        world.getBenchPokemons().push_back(reserveUnit);
+        const float originalBenchZ = reserveUnit.position.z;
         check(activation::applyGameplay(store, variant, world, &error), error);
+        check(world.getBenchGapCells() == 1 &&
+                  std::abs(world.getBenchPokemons()[0].position.z - originalBenchZ - world.getBoardCellSize()) < .001f &&
+                  world.travelBenchSlot(world.getBenchPokemons()[0].position) == 3,
+              "Scene activation must move reserves to the detached bench while preserving their slots");
+        for (int x = 17; x <= 24; ++x) {
+            check(bundle.map.reserveCells.contains({x, -12}) && bundle.map.reserveCells.contains({x, -1}),
+                  "Detached bench cells disagree with the dirt pads");
+            for (int z : {-11, -2}) {
+                const auto* gap = bundle.map.tileAt(x, z);
+                check(gap && gap->height == 0 && gap->ramp == 0 && gap->surface == 0 &&
+                          !bundle.map.playableCells.contains({x,z}) && !bundle.map.reserveCells.contains({x,z}),
+                      "Benches need a lawn gap outside the board and reserve cells");
+            }
+        }
+        check(bundle.map.cover.size() >= 3, "The flat arena lost its surrounding encounter grass");
+        // Check actual height continuity along the route behind the enemy bench.
+        float lastHeight = 0;
+        for (int z : {-12, -13, -14, -15}) {
+            const auto* ramp = bundle.map.tileAt(23,z);
+            check(ramp != nullptr, "The route behind the north bench has a missing tile");
+            check(std::abs(ramp->heightAt(2350, (z+1)*100) - lastHeight) < .001f,
+                  "The route exit contains an impassable vertical step");
+            lastHeight = ramp->heightAt(2350, z*100);
+            check(bundle.map.coverAt(2350, (z+.5f)*100).empty(), "Encounter grass blocks the route exit");
+        }
+        check(std::abs(lastHeight-100) < .001f, "The grass ramp does not join the upper route");
         for (int row = 0; row < 8; ++row)
             for (int col = 0; col < 8; ++col) {
                 using game::arena::Cell;
@@ -105,6 +136,8 @@ bool test_flat_arena_experiment_contract(std::string &error) {
         check(original.load(store, std::string(variants::kRoute1Pilot.arenaBundlePath), &error), error);
         check(!original.map.cover.empty(), "Original entrance lost its encounter grass");
         check(activation::applyGameplay(store, variants::kRoute1Pilot, world, &error), error);
+        check(world.getBenchGapCells() == 0 && std::abs(world.getBenchPokemons()[0].position.z-originalBenchZ) < .001f,
+              "Returning to the entrance did not restore its original bench placement");
         check(activation::applyGameplay(store, variant, world, &error), error);
         game::vfx::SampledEffectClip clip;
         check(clip.load(store, "content/phlosion/vfx/earthquake-experiment", error), error);

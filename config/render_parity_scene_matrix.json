@@ -16,6 +16,20 @@
   },
   "scenes": [
     {
+      "name": "flat-detached-benches",
+      "focus": "flat dirt battlefield, separated reserve pads with two Pokemon, grassy route exit and surrounding encounter grass",
+      "coverage": ["world", "environment", "bench", "combat"],
+      "snapshotPath": "config/debug/editor_route1_flat_experiment_benches.json",
+      "screenshotFrame": 164,
+      "width": 1440,
+      "height": 1000,
+      "contentGuards": [
+        {"name": "visible-flat-arena", "x": 0.3, "y": 0.2, "width": 0.4, "height": 0.5, "maximumNearBlackPixelRatio": 0.12, "minimumMidtonePixelRatio": 0.3},
+        {"name": "pidgey-on-detached-bench", "x": 0.32, "y": 0.727, "width": 0.045, "height": 0.029, "maximumNearBlackPixelRatio": 0.3, "minimumMidtonePixelRatio": 0.1, "minimumBrightNeutralPixelRatio": 0.005},
+        {"name": "rattata-on-detached-bench", "x": 0.575, "y": 0.727, "width": 0.045, "height": 0.029, "maximumNearBlackPixelRatio": 0.3, "minimumMidtonePixelRatio": 0.1, "minimumBrightNeutralPixelRatio": 0.005}
+      ]
+    },
+    {
       "name": "travel-recall",
       "focus": "five visible Pokeballs connected to recalling board and bench units",
       "coverage": [
