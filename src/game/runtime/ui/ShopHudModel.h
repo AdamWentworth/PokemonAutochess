@@ -52,6 +52,30 @@ struct LayoutInput {
     bool showReroll = false;
 };
 
+struct DockRect {
+    float x = 0, y = 0, w = 0, h = 0;
+};
+struct DockLayout {
+    DockRect panel, reroll, ready;
+    float moneyX = 0, moneyY = 0, scale = 1;
+};
+
+inline DockLayout computeDock(int width, int height, float cardsX, float cardsY, float cardsRight) {
+    DockLayout out;
+    out.scale = std::clamp(std::min(width / 1280.0f, height / 720.0f), .6f, 1.4f);
+    const float s = out.scale, margin = 12 * s;
+    const float contentW = std::max(cardsRight - cardsX, 440 * s);
+    out.panel.w = std::min(width - 2 * margin, contentW + 28 * s);
+    out.panel.x = (width - out.panel.w) * .5f;
+    out.panel.y = std::max(0.0f, cardsY - 49 * s);
+    out.panel.h = height - out.panel.y;
+    out.ready = {out.panel.x + out.panel.w - 126 * s, out.panel.y + 10 * s, 112 * s, 30 * s};
+    out.reroll = {out.ready.x - 138 * s, out.ready.y, 126 * s, 30 * s};
+    out.moneyX = out.panel.x + 14 * s;
+    out.moneyY = out.panel.y + 20 * s;
+    return out;
+}
+
 inline game::ui::ClassicHudLayout computeLayout(const LayoutInput& in) {
     game::ui::ClassicHudLayoutInput hudIn;
     hudIn.uiW = in.uiW;

@@ -308,6 +308,34 @@ restoration waits for a covered frame, arrival waits for destination world draws
 and the next encounter reuses the same arena rules. For isolated timing without
 screenshot writes, see [editor performance](EDITOR_PERFORMANCE.md).
 
+HUD and card scaling checks:
+
+```powershell
+.\tools\render_parity_matrix.ps1 -Config RelWithDebInfo -Cases round-shop,hud-shop-compact,hud-starter-wide
+.\tools\housekeeping\check_editor_workflow.ps1 -Cases round-shop,round-next-battle,hud-starter-cards
+```
+
+The shop dock groups Gold, Reroll and Ready above the cards; rendering and hit
+testing share `ShopHudModel::computeDock`. The round-transition CPU contract
+resizes the viewport and clicks the actual Ready callback. Type icons use shared,
+retained vector geometry in `TypeRosterHud.h`. Counts retain the existing distinct
+evolution-line rule across the board and bench, and represented types are no
+longer truncated after six rows.
+
+Card artwork follows the 220x150 gold frame's source border with one screen pixel
+of overlap underneath it. The old fixed six-pixel inset exposed the dark backing
+at smaller sizes. `ui_card_visuals_contract` covers fractional sizes and aspect
+ratios; narrow image guards check the actual inner edge. The known prior editor
+capture fails this guard and the corrected capture passes, recorded locally in
+`debug/hud-pass/card-gap-regression.json`. Native and editor qualification is in
+`debug/hud-pass/{native,editor}`. Original card artwork and frame textures are
+unchanged.
+
+The fully visible editor starter case also catches UI alpha being multiplied
+twice. OpenGL and Vulkan now accumulate source-over alpha like D3D12, preserving
+opaque coverage beneath translucent panels and preventing a second darkening
+when the editor composites its preview.
+
 Scene-history regressions additionally compare stopped environment pixels with
 a fresh load of the same destination on the same API (exact match required).
 The entrance and flat board share a registration but have different shadow

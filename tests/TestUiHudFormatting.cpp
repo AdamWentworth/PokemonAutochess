@@ -1,10 +1,28 @@
 #include "game/runtime/ui/HudFormatting.h"
+#include "game/runtime/ui/TypeRosterHud.h"
 
 #include <string>
 #include <utility>
 #include <vector>
 
 bool test_ui_hud_formatting_contract(std::string& outFail) {
+    for (const auto &style : game::runtime::type_roster_hud::styles) {
+        std::vector<IRenderBackend::DebugQuad> quads;
+        std::vector<IRenderBackend::DebugLine> lines;
+        game::runtime::type_roster_hud::icon(quads, lines, style.id, 10, 20, 21);
+        if (lines.empty() || quads.empty()) {
+            outFail = "Every Pokemon type needs a visible symbol and colored badge.";
+            return false;
+        }
+    }
+    for (const auto size : {std::pair{640, 360}, std::pair{845, 513}, std::pair{1920, 1080}}) {
+        const auto layout = game::runtime::type_roster_hud::layout(size.first, size.second, 18);
+        if (layout.columns * layout.rowsPerColumn < 18 || layout.x + layout.w > size.first ||
+            layout.y + layout.h > size.second * .76f) {
+            outFail = "The type panel must display all represented types without clipping into the bottom shop.";
+            return false;
+        }
+    }
     using game::runtime::hud::formatInventoryEntry;
     using game::runtime::hud::formatShopCardEntry;
     using game::runtime::hud::formatTypeLineEntry;

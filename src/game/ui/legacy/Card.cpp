@@ -1,6 +1,7 @@
 // Card.cpp
 
 #include "game/ui/legacy/Card.h"
+#include "game/runtime/ui/CardVisuals.h"
 #include "engine/utils/Shader.h"
 #include <glad/glad.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -157,12 +158,10 @@ void Card::draw(Shader* uiShader) const {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    const float padding = 6.0f;
-    float imgW = rect.w - 2 * padding;
-    float imgH = rect.h - 2 * padding;
-
-    glm::mat4 imgModel = glm::translate(glm::mat4(1.0f), glm::vec3(rect.x + padding, rect.y + padding, 0.0f));
-    imgModel = glm::scale(imgModel, glm::vec3(imgW, imgH, 1.0f));
+    const auto art = game::runtime::ui_cards::computeCardVisualLayout(
+        {.x = static_cast<float>(rect.x), .y = static_cast<float>(rect.y), .w = static_cast<float>(rect.w), .h = static_cast<float>(rect.h)});
+    glm::mat4 imgModel = glm::translate(glm::mat4(1.0f), glm::vec3(art.artX, art.artY, 0.0f));
+    imgModel = glm::scale(imgModel, glm::vec3(art.artW, art.artH, 1.0f));
 
     glUniformMatrix4fv(glGetUniformLocation(uiShader->getID(), "u_Model"), 1, GL_FALSE, glm::value_ptr(imgModel));
     uiShader->setUniform("u_UVMin", cardData.uvMin);

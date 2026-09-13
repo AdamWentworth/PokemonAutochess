@@ -55,7 +55,7 @@ void ScriptedState::render() {
         }
     }
 
-    if (cardMode == CardMode::Shop && hasShopReadyButton && titleText) {
+    if (!renderBackendCards && cardMode == CardMode::Shop && hasShopReadyButton && titleText) {
         const std::string readyLabel = "[ Ready ]";
         const float readyScale = 0.95f;
         shopReadyW = titleText->measureTextWidth(readyLabel, readyScale);

@@ -13,6 +13,7 @@
 #include "game/GameStateManager.h"
 #include "game/runtime/session/GameUpdateGraph.h"
 #include "game/runtime/session/SessionWorldLayerBridge.h"
+#include "game/runtime/ui/ShopHudModel.h"
 #include "game/GameWorld.h"
 #include "game/PokemonInstance.h"
 #include "game/assets/DevAssetStore.h"
@@ -298,13 +299,29 @@ bool test_arena_round_transition_contract(std::string& outFail) {
         shop->arenaScriptPath() != arena || world.travelBenchSlot(world.findUnitById(bench.id)->position) != 4) {
         outFail = "Both arrival phases must finish before opening the shop, preserving arena and bench slots."; return false;
     }
+    // The editor can resize its embedded viewport without a window event.
+    // Render the resized shop, then exercise the real Ready callback at its
+    // new lower-screen position instead of advancing the planning timer.
+    viewport.set(640, 360);
+    manager.render();
+    const auto row = game::ui::computeShopRowLayout(640, 360, false);
+    const auto cards = game::ui::computeShopRowPlacement(640, 360, 5, row);
+    const auto dock = game::runtime::ui_shop_hud::computeDock(640, 360,
+                                                              static_cast<float>(cards.startX), static_cast<float>(cards.y), static_cast<float>(cards.startX + cards.totalWidth));
+    InputEvent ready;
+    ready.type = InputEvent::Type::MouseDown;
+    ready.mouseButtonId = InputEvent::MouseButton::Left;
+    ready.mouseX = static_cast<int>(dock.ready.x + dock.ready.w * .5f);
+    ready.mouseY = static_cast<int>(dock.ready.y + dock.ready.h * .5f);
+    manager.handleInput(ready);
     services.renderEnabled = false;
-    manager.update(31.0f);
-    const auto* next = dynamic_cast<CombatState*>(manager.getCurrentState());
+    manager.update(1.0f / 60);
+    const auto *next = dynamic_cast<CombatState *>(manager.getCurrentState());
     if (!next || next->debugScriptPath() != "scripts/states/route1_5.lua" || next->arenaScriptPath() != arena ||
         game::runtime::session_world_layer_bridge::currentStateScriptPath(&manager) != arena || loads != 0 ||
         world.combatMap().rules != arenaRules) {
-        outFail = "The next encounter must advance its script while retaining the flat arena instead of loading source terrain."; return false;
+        outFail = "The next encounter must advance its script while retaining the flat arena instead of loading source terrain.";
+        return false;
     }
     return true;
 }

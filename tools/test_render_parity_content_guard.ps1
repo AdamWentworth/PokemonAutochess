@@ -121,6 +121,20 @@ try {
         $empty.MidtonePixelRatio -lt $guard.minimumMidtonePixelRatio) (
         "The missing-model failure should be attributed to absent visible midtones.")
 
+    # A missing portrait can leave a uniformly colored panel that passes simple
+    # brightness checks. Require actual image variation when the case asks for it.
+    $portraitGuard = [pscustomobject]@{
+        name = "synthetic-portrait-detail"
+        x = 0.25; y = 0.25; width = 0.5; height = 0.5
+        maximumNearBlackPixelRatio = 1.0; minimumMidtonePixelRatio = 0.0
+        minimumLuminanceStandardDeviation = 25.0
+    }
+    Assert-Condition (Test-RenderParityImageContent -ImagePath $texturedPath -Guard $portraitGuard).Passed (
+        "A detailed portrait should pass the image-variation guard.")
+    $flatPortrait = Test-RenderParityImageContent -ImagePath $emptyPath -Guard $portraitGuard
+    Assert-Condition (-not $flatPortrait.Passed -and $flatPortrait.FailureReasons[0] -like 'luminance variation*') (
+        "A uniformly colored missing portrait must fail even when its brightness is allowed.")
+
     $ballGuard = [pscustomobject]@{
         name = "synthetic-ball-shells"
         x = 0.25; y = 0.25; width = 0.5; height = 0.5

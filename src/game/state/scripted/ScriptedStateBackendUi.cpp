@@ -9,6 +9,7 @@
 #include "game/runtime/routes/GameServiceRenderRoutes.h"
 #include "game/runtime/ui/SellOverlayModel.h"
 #include "game/runtime/ui/ShopHudModel.h"
+#include "game/runtime/ui/HudPrimitives.h"
 #include "game/runtime/ui/UiScale.h"
 #include "game/state/BackendInputSlots.h"
 #include "game/state/PlacementState.h"
@@ -277,6 +278,21 @@ void ScriptedState::refreshBackendShopSnapshot() {
         });
     }
 
+    if (isShopMode && backendCardUiWidth > 0 && backendCardUiHeight > 0) {
+        const auto dock = game::runtime::ui_shop_hud::computeDock(
+            backendCardUiWidth, backendCardUiHeight,
+            backendMainButtons.empty() ? 18.0f : backendMainButtons.front().x,
+            backendMainButtons.empty() ? backendCardUiHeight - 90.0f : backendMainButtons.front().y,
+            backendMainButtons.empty() ? backendCardUiWidth - 18.0f : backendMainButtons.back().x + backendMainButtons.back().w);
+        backendRerollX = dock.reroll.x;
+        backendRerollY = dock.reroll.y;
+        backendRerollW = dock.reroll.w;
+        backendRerollH = dock.reroll.h;
+        shopReadyX = dock.ready.x;
+        shopReadyY = dock.ready.y;
+        shopReadyW = dock.ready.w;
+        shopReadyH = dock.ready.h;
+    }
     game::state::backend_shop::PlacementInput placement;
     placement.mainRects = &mainRects;
     placement.itemRects = includeItemRow ? &itemRects : nullptr;
@@ -378,8 +394,6 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
         rebuildBackendCardUi(itemCards, uiW, uiH, true);
     }
     const float uiScale = game::runtime::ui_scale::viewportScale(uiW, uiH);
-    const float edgePad = game::runtime::ui_scale::edgePad(uiW, uiH);
-    const float lineStep = game::runtime::ui_scale::lineStep(uiW, uiH);
 
     std::vector<IRenderBackend::DebugQuad> baseQuads;
     baseQuads.reserve(4096);
@@ -388,6 +402,15 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     std::vector<IRenderBackend::DebugSprite> sprites;
     sprites.reserve(1024);
     const bool isShopMode = (cardMode == CardMode::Shop);
+    const auto dock = game::runtime::ui_shop_hud::computeDock(uiW, uiH,
+                                                              backendMainButtons.empty() ? 18.0f : backendMainButtons.front().x,
+                                                              backendMainButtons.empty() ? uiH - 90.0f : backendMainButtons.front().y,
+                                                              backendMainButtons.empty() ? uiW - 18.0f : backendMainButtons.back().x + backendMainButtons.back().w);
+    if (isShopMode) {
+        game::runtime::hud_paint::panel(baseQuads, dock.panel.x, dock.panel.y, dock.panel.w, dock.panel.h, 10 * dock.scale);
+        game::runtime::hud_paint::quad(baseQuads, dock.panel.x + 14 * dock.scale, dock.panel.y + 43 * dock.scale,
+                                       dock.panel.w - 28 * dock.scale, 1, {.24f, .34f, .29f});
+    }
     const bool hasWorld = (gameWorld != nullptr);
     const int dropZoneCardCount = hasWorld ? gameWorld->getUnitDropZoneCardCount() : 0;
     const bool useItemLayout = hasWorld ? gameWorld->getUnitDropZoneUsesItemLayout() : false;
@@ -400,37 +423,6 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
 
     refreshBackendShopSnapshot();
 
-    const auto addButton = [&](float x,
-                               float y,
-                               const std::string& label,
-                               float scale,
-                               float r,
-                               float g,
-                               float b,
-                               float* outW,
-                               float* outH) {
-        const float textScale = std::max(0.1f, scale) * kBackendTextScaleBase * uiScale;
-        const float textW = std::max(1.0f, game::runtime::ui_text::measureTextWidth(label, textScale));
-        const float textH = std::max(1.0f, game::runtime::ui_text::measureTextHeight(label, textScale));
-        const float padX = std::max(8.0f, textScale * 4.0f);
-        const float padY = std::max(5.0f, textScale * 2.5f);
-
-        IRenderBackend::DebugQuad bg;
-        bg.x = x - padX;
-        bg.y = y - padY;
-        bg.w = textW + padX * 2.0f;
-        bg.h = textH + padY * 2.0f;
-        bg.r = r;
-        bg.g = g;
-        bg.b = b;
-        bg.a = 0.92f;
-        baseQuads.push_back(bg);
-
-        game::runtime::ui_text::appendTextLines(
-            textLines, x, y, label, textScale, 0.98f, 0.98f, 0.98f, 1.0f, 0.88f);
-        if (outW) *outW = bg.w;
-        if (outH) *outH = bg.h;
-    };
     const auto appendCenteredText = [&](float centerX,
                                         float y,
                                         const std::string& text,
@@ -467,17 +459,16 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             choicePanel.a = 0.72f;
             baseQuads.push_back(choicePanel);
         }
-    } else game::runtime::ui_text::appendTextLines(
-        textLines,
-        edgePad,
-        std::max(10.0f, edgePad - lineStep * 0.15f),
-        header,
-        std::clamp(2.6f * uiScale, 1.6f, 3.3f),
-        0.95f,
-        0.95f,
-        0.98f,
-        1.0f,
-        0.88f);
+    } else {
+        const float headerScale = std::min(1.45f * dock.scale,
+                                           uiW * .58f / std::max(1.0f, game::runtime::ui_text::measureTextWidth(header, 1)));
+        const float headerW = game::runtime::ui_text::measureTextWidth(header, headerScale);
+        const float x = (uiW - headerW) * .5f;
+        const float y = 16 * dock.scale;
+        game::runtime::hud_paint::panel(baseQuads, x - 16 * dock.scale, y - 9 * dock.scale,
+                                        headerW + 32 * dock.scale, 31 * dock.scale, 7 * dock.scale);
+        game::runtime::hud_paint::text(textLines, x, y, header, headerScale, {.93f, .89f, .71f});
+    }
 
     resetBackendShopActionRects();
 
@@ -504,7 +495,8 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             renderIn.v1 = card.data.uvMax.y;
             renderIn.keyboardSlot = slot;
             renderIn.item = itemRow || card.item;
-            renderIn.textScale = std::clamp(1.0f * uiScale, 0.70f, 1.35f);
+            renderIn.textScale = isShopMode ? std::clamp(1.1f * uiScale, 0.95f, 1.45f)
+                                            : std::clamp(1.0f * uiScale, 0.70f, 1.35f);
             renderIn.spriteAlpha = 1.0f;
             game::runtime::ui_card_renderer::appendCardLayered(
                 baseQuads,
@@ -591,69 +583,23 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
             0);
         const std::string rerollLabel = game::runtime::ui_shop_hud::rerollLabel(rerollSlot);
 
-        int cardsX = 18;
-        int cardsY = std::max(0, uiH - 120);
-        int cardsH = 96;
-        if (!backendMainButtons.empty()) {
-            cardsX = game::runtime::ui_shop_hud::cardsAnchorX(backendMainButtons.front().x);
-            cardsY = game::runtime::ui_shop_hud::cardsAnchorY(backendMainButtons.front().y, uiH);
-            cardsH = game::runtime::ui_shop_hud::cardsAnchorH(backendMainButtons.front().h);
-        }
-
-        const float moneyScale = 1.0f * kBackendTextScaleBase * uiScale;
-        const float rerollScale = 1.0f * kBackendTextScaleBase * uiScale;
-        const float moneyW = game::runtime::ui_text::measureTextWidth(moneyLabel, moneyScale);
-        const float moneyH = game::runtime::ui_text::measureTextHeight(moneyLabel, moneyScale);
-        const float rerollW = game::runtime::ui_text::measureTextWidth(rerollLabel, rerollScale);
-        const float rerollH = game::runtime::ui_text::measureTextHeight(rerollLabel, rerollScale);
-
-        game::runtime::ui_shop_hud::LayoutInput hudIn;
-        hudIn.uiW = uiW;
-        hudIn.uiH = uiH;
-        hudIn.cardsX = cardsX;
-        hudIn.cardsY = cardsY;
-        hudIn.cardsH = cardsH;
-        hudIn.moneyTextW = moneyW;
-        hudIn.moneyTextH = moneyH;
-        hudIn.rerollTextW = rerollW;
-        hudIn.rerollTextH = rerollH;
-        hudIn.showReroll = hasShopRerollButton;
-        const game::ui::ClassicHudLayout hud = game::runtime::ui_shop_hud::computeLayout(hudIn);
-
-        game::runtime::ui_text::appendTextLines(
-            textLines, hud.textX, hud.textY, moneyLabel, moneyScale, 0.95f, 0.88f, 0.50f, 1.0f, 0.88f);
-
-        if (hasShopRerollButton) {
-            const float buttonTextX = hud.rerollX;
-            const float buttonTextY = hud.rerollY;
-            float buttonW = 0.0f;
-            float buttonH = 0.0f;
-            addButton(buttonTextX, buttonTextY, rerollLabel, 1.0f,
-                      0.20f, 0.16f, 0.08f, &buttonW, &buttonH);
-            backendRerollX = buttonTextX - std::max(8.0f, kBackendTextScaleBase * 4.0f * uiScale);
-            backendRerollY = buttonTextY - std::max(5.0f, kBackendTextScaleBase * 2.5f * uiScale);
-            backendRerollW = buttonW;
-            backendRerollH = buttonH;
-        }
+        game::runtime::hud_paint::text(textLines, dock.moneyX, dock.moneyY,
+                                       moneyLabel, std::max(1.05f, 1.3f * dock.scale), {.96f, .81f, .40f});
+        const auto button = [&](const game::runtime::ui_shop_hud::DockRect &rect,
+                                const std::string &label, glm::vec3 color) {
+            game::runtime::hud_paint::panel(baseQuads, rect.x, rect.y, rect.w, rect.h, 5 * dock.scale, color, 1);
+            const float textScale = std::max(.9f, 1.15f * dock.scale);
+            const float textW = game::runtime::ui_text::measureTextWidth(label, textScale);
+            const float textH = game::runtime::ui_text::measureTextHeight(label, textScale);
+            game::runtime::hud_paint::text(textLines, rect.x + (rect.w - textW) * .5f,
+                                           rect.y + (rect.h - textH) * .5f, label, textScale);
+        };
+        if (hasShopRerollButton) button(dock.reroll, rerollLabel, {.18f, .23f, .20f});
         if (hasShopReadyButton) {
             const int readySlot = game::state::backend_shop::keyboardSlotFor(
-                backendShopSnapshot,
-                game::state::backend_shop::ActionType::ShopReady,
-                0);
-            const std::string readyLabel = game::runtime::ui_shop_hud::keyboardPrefixedLabel(readySlot, "Ready");
-            const float textScale = 1.0f * kBackendTextScaleBase * uiScale;
-            const float textW = std::max(1.0f, game::runtime::ui_text::measureTextWidth(readyLabel, textScale));
-            const float padX = std::max(8.0f, textScale * 4.0f);
-            const float padY = std::max(5.0f, textScale * 2.5f);
-            const float textX = static_cast<float>(uiW) - textW - padX * 2.0f - edgePad + padX;
-            const float textY = edgePad + lineStep * 0.95f;
-            float buttonW = 0.0f;
-            float buttonH = 0.0f;
-            addButton(textX, textY, readyLabel, 1.0f, 0.12f, 0.25f, 0.14f, &buttonW, &buttonH);
-            shopReadyX = textX - padX;
-            shopReadyY = textY - padY;
-            shopReadyW = buttonW;
-            shopReadyH = buttonH;
+                backendShopSnapshot, game::state::backend_shop::ActionType::ShopReady, 0);
+            button(dock.ready, game::runtime::ui_shop_hud::keyboardPrefixedLabel(readySlot, "Ready"),
+                   {.18f, .43f, .30f});
         }
     }
 
@@ -663,17 +609,7 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
     if (!isShopMode) {
         appendCenteredText(uiW * 0.5f, uiH - 23.0f * uiScale,
                            "Click a card or press 1, 2 or 3", 0.80f, 0.86f, 0.91f, 0.84f);
-    } else game::runtime::ui_text::appendTextLines(
-        textLines,
-        edgePad,
-        std::max(4.0f, static_cast<float>(uiH) - edgePad - lineStep * 0.8f),
-        game::runtime::ui_shop_hud::interactionHint(),
-        std::clamp(1.0f * uiScale, 0.80f, 1.30f),
-        0.72f,
-        0.82f,
-        0.93f,
-        1.0f,
-        0.88f);
+    }
 
     if (!isShopMode) {
         const float alpha = frontendIntro.frame().uiAlpha;

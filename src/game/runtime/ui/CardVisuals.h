@@ -61,11 +61,16 @@ inline CardVisualLayout computeCardVisualLayout(const CardVisualInput& input) {
     CardVisualLayout layout;
     if (input.w <= 0.0f || input.h <= 0.0f) return layout;
 
-    layout.imagePad = 6.0f;
-    layout.artX = input.x + layout.imagePad;
-    layout.artY = input.y + layout.imagePad;
-    layout.artW = std::max(0.0f, input.w - layout.imagePad * 2.0f);
-    layout.artH = std::max(0.0f, input.h - layout.imagePad * 2.0f);
+    // frame_gold.png is 220x150 with an approximately eight-texel border.
+    // Scale each axis with that asset and bleed one screen pixel underneath
+    // its opaque edge. A fixed inset exposes the backing on small cards.
+    const float padX = std::max(0.0f, input.w * (7.0f / 220.0f) - 1.0f);
+    const float padY = std::max(0.0f, input.h * (7.0f / 150.0f) - 1.0f);
+    layout.imagePad = std::min(padX, padY);
+    layout.artX = input.x + padX;
+    layout.artY = input.y + padY;
+    layout.artW = input.w - padX * 2.0f;
+    layout.artH = input.h - padY * 2.0f;
     return layout;
 }
 
@@ -212,7 +217,7 @@ inline void appendStylizedCardLayered(std::vector<IRenderBackend::DebugQuad>& ba
         const float labelScale = std::max(0.1f, textScale * 0.80f);
         const float labelW = runtime::ui_text::measureTextWidth(input.title, labelScale);
         const float x = input.x + (input.w - labelW) * 0.5f;
-        const float y = input.y + input.h + 6.0f;
+        const float y = input.y + input.h + std::clamp(input.h * 0.04f, 2.0f, 6.0f);
         appendText(x, y, input.title, labelScale, 1.0f, 1.0f, 1.0f, 1.0f);
     }
 }

@@ -5,6 +5,27 @@
 #include <vector>
 
 bool test_ui_card_visuals_contract(std::string& outFail) {
+    // The frame's transparent opening starts near (8,8) in its 220x150
+    // source. Portraits must cover that opening even at fractional UI sizes.
+    for (float width : {56.0f, 82.0f, 90.25f, 136.0f, 220.0f, 307.5f, 512.0f}) {
+        for (float aspect : {1.0f, 220.0f / 150.0f, 1.8f}) {
+            game::runtime::ui_cards::CardVisualInput card;
+            card.x = 12.25f;
+            card.y = 33.7f;
+            card.w = width;
+            card.h = width / aspect;
+            const auto art = game::runtime::ui_cards::computeCardVisualLayout(card);
+            if (art.artX > card.x + card.w * 8 / 220 || art.artY > card.y + card.h * 8 / 150 ||
+                art.artX + art.artW < card.x + card.w * 212 / 220 ||
+                art.artY + art.artH < card.y + card.h * 142 / 150 ||
+                art.artX < card.x || art.artY < card.y ||
+                art.artX + art.artW > card.x + card.w + .001f ||
+                art.artY + art.artH > card.y + card.h + .001f) {
+                outFail = "Card artwork must fill the frame opening without escaping its outer bounds at any scale.";
+                return false;
+            }
+        }
+    }
     using game::runtime::ui_cards::CardVisualInput;
     using game::runtime::ui_cards::appendStylizedCard;
     using game::runtime::ui_cards::appendStylizedCardLayered;

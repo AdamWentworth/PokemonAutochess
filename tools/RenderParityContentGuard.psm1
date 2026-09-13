@@ -285,7 +285,13 @@ function Test-RenderParityImageContent {
         [object]$Guard
     )
 
-    return [PokemonAutochess.Tools.RenderParity.ContentGuard]::Analyze(
+    $minimumVariation = [double](Get-RenderParityGuardValue `
+        -Guard $Guard -Name "minimumLuminanceStandardDeviation" -DefaultValue 0.0)
+    if ([double]::IsNaN($minimumVariation) -or [double]::IsInfinity($minimumVariation) -or
+        $minimumVariation -lt 0.0 -or $minimumVariation -gt 255.0) {
+        throw 'minimumLuminanceStandardDeviation must be finite and between 0 and 255.'
+    }
+    $result = [PokemonAutochess.Tools.RenderParity.ContentGuard]::Analyze(
         $ImagePath,
         [string](Get-RenderParityGuardValue -Guard $Guard -Name "name" -DefaultValue ""),
         [double](Get-RenderParityGuardValue -Guard $Guard -Name "x" -DefaultValue 0.0),
@@ -314,6 +320,12 @@ function Test-RenderParityImageContent {
             -DefaultValue 0.1),
         [double](Get-RenderParityGuardValue -Guard $Guard -Name "minimumRedPixelRatio" -DefaultValue 0.0),
         [double](Get-RenderParityGuardValue -Guard $Guard -Name "minimumBrightNeutralPixelRatio" -DefaultValue 0.0))
+    if ($result.LuminanceStandardDeviation -lt $minimumVariation) {
+        $result.Passed = $false
+        $result.FailureReasons = @($result.FailureReasons) + @(
+            "luminance variation $($result.LuminanceStandardDeviation) is below minimum $minimumVariation")
+    }
+    return $result
 }
 
 Export-ModuleMember -Function Test-RenderParityImageContent

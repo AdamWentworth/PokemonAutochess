@@ -774,6 +774,130 @@
           "maximumNearBlackPixelRatio": 0.5,
           "minimumMidtonePixelRatio": 0.1,
           "minimumBrightNeutralPixelRatio": 0.04
+        },
+        {
+          "name": "fire-type-symbol",
+          "x": 0.025694444444444443,
+          "y": 0.208,
+          "width": 0.014583333333333334,
+          "height": 0.021,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumRedPixelRatio": 0.12,
+          "minimumBrightNeutralPixelRatio": 0.06
+        },
+        {
+          "name": "ready-button-label",
+          "x": 0.7138888888888889,
+          "y": 0.83,
+          "width": 0.06111111111111111,
+          "height": 0.021,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.3,
+          "minimumBrightNeutralPixelRatio": 0.04
+        }
+      ]
+    },
+    {
+      "name": "hud-shop-compact",
+      "focus": "responsive shop dock, type icons and card-frame fill in a compact 4:3 viewport",
+      "coverage": [
+        "world",
+        "ui",
+        "shop",
+        "types"
+      ],
+      "snapshotPath": "config/debug/editor_route1_flat_round_end.json",
+      "screenshotFrame": 450,
+      "width": 800,
+      "height": 600,
+      "autoQuitSeconds": 12,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.2,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "fire-type-symbol",
+          "x": 0.02625,
+          "y": 0.19166666666666668,
+          "width": 0.015,
+          "height": 0.02,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumRedPixelRatio": 0.12,
+          "minimumBrightNeutralPixelRatio": 0.06
+        },
+        {
+          "name": "ready-button-label",
+          "x": 0.71,
+          "y": 0.84,
+          "width": 0.07,
+          "height": 0.02666666666666667,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.3,
+          "minimumBrightNeutralPixelRatio": 0.04
+        },
+        {
+          "name": "card-art-fills-inner-frame",
+          "x": 0.21625,
+          "y": 0.9,
+          "width": 0.0025,
+          "height": 0.05,
+          "nearBlackLuminanceMaximum": 48,
+          "maximumNearBlackPixelRatio": 0.1,
+          "minimumMidtonePixelRatio": 0.2
+        }
+      ]
+    },
+    {
+      "name": "hud-starter-wide",
+      "focus": "starter card-frame fill after the lab intro at 1080p",
+      "coverage": [
+        "ui",
+        "starter",
+        "cards"
+      ],
+      "snapshotPath": "config/debug/editor_starter_selection.json",
+      "screenshotFrame": 240,
+      "width": 1920,
+      "height": 1080,
+      "autoQuitSeconds": 8,
+      "contentGuards": [
+        {
+          "name": "bulbasaur-card",
+          "x": 0.265625,
+          "y": 0.7731481481481481,
+          "width": 0.125,
+          "height": 0.14814814814814814,
+          "maximumNearBlackPixelRatio": 0.1,
+          "minimumMidtonePixelRatio": 0.2,
+          "minimumLuminanceStandardDeviation": 25
+        },
+        {
+          "name": "charmander-card",
+          "x": 0.4348958333333333,
+          "y": 0.7731481481481481,
+          "width": 0.125,
+          "height": 0.14814814814814814,
+          "maximumNearBlackPixelRatio": 0.1,
+          "minimumMidtonePixelRatio": 0.2,
+          "minimumLuminanceStandardDeviation": 25
+        },
+        {
+          "name": "squirtle-card",
+          "x": 0.6041666666666666,
+          "y": 0.7731481481481481,
+          "width": 0.125,
+          "height": 0.14814814814814814,
+          "maximumNearBlackPixelRatio": 0.1,
+          "minimumMidtonePixelRatio": 0.2,
+          "minimumLuminanceStandardDeviation": 25
         }
       ]
     }

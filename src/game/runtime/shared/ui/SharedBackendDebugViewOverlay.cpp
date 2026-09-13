@@ -10,6 +10,7 @@
 #include "game/logging/LogBus.h"
 #include "game/runtime/ui/DebugText.h"
 #include "game/runtime/ui/HudFormatting.h"
+#include "game/runtime/ui/TypeRosterHud.h"
 #include "game/runtime/ui/InventoryOverlay.h"
 #include "game/runtime/ui/StatusText.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
@@ -218,7 +219,6 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         const auto& cachedTypeCounts =
             gameWorld ? gameWorld->getPlayerTypeLineCountsCached() : kEmptyTypeCounts;
         const auto* cachedBenchUnits = gameWorld ? &gameWorld->getBenchPokemons() : nullptr;
-        const auto* cachedShopCards = gameWorld ? &gameWorld->getClassicShopCards() : nullptr;
         const bool cachedClassicMode = (cachedMode == "classic");
         const std::uint64_t recentMainRevision = log.recentMainRevision();
         const std::uint64_t recentCatchRevision = log.recentCatchRevision();
@@ -352,11 +352,6 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         hashLayoutKeyBase(rosterKey);
         support::hashString(rosterKey, cachedMode);
         support::hashBytes(rosterKey, &rosterRevision, sizeof(rosterRevision));
-        const std::size_t cachedTypeRows = std::min<std::size_t>(6u, cachedTypeCounts.size());
-        const std::size_t cachedBenchRows =
-            (cachedBenchUnits != nullptr) ? std::min<std::size_t>(5u, cachedBenchUnits->size()) : 0u;
-        const std::size_t cachedShopRows =
-            (cachedShopCards != nullptr) ? std::min<std::size_t>(5u, cachedShopCards->size()) : 0u;
 
         support::OverlayHash logKey = support::kOverlayHashOffset;
         hashLayoutKeyBase(logKey);
@@ -767,53 +762,8 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
             const std::size_t spritesStart = sprites.size();
             const std::size_t hitRegionsStart = backendInventoryPanel.hitRegions.size();
 
-            if (!cachedTypeCounts.empty()) {
-                float typeY = edgePad + lineStep * 6.6f;
-                appendText(edgePad, typeY, "Type Lines", std::clamp(1.0f * uiScale, 0.80f, 1.30f), glm::vec3(0.98f, 0.90f, 0.60f));
-                typeY += lineStep;
-                for (std::size_t i = 0; i < cachedTypeRows; ++i) {
-                    appendText(edgePad,
-                               typeY,
-                               runtime::hud::formatTypeLineEntry(
-                                   cachedTypeCounts[i].type,
-                                   cachedTypeCounts[i].uniqueLineCount),
-                               0.95f,
-                               glm::vec3(0.92f, 0.94f, 0.98f));
-                    typeY += lineStep * 0.93f;
-                }
-            }
-
-            if (cachedBenchUnits != nullptr && !cachedBenchUnits->empty()) {
-                float benchY = edgePad + lineStep * 13.6f;
-                appendText(edgePad, benchY, "Bench", std::clamp(1.0f * uiScale, 0.80f, 1.30f), glm::vec3(0.86f, 0.94f, 0.98f));
-                benchY += lineStep;
-                for (std::size_t i = 0; i < cachedBenchRows; ++i) {
-                    appendText(edgePad,
-                               benchY,
-                               runtime::hud::formatUnitEntry(
-                                   (*cachedBenchUnits)[i].name,
-                                   (*cachedBenchUnits)[i].level),
-                               0.95f,
-                               glm::vec3(0.80f, 0.88f, 0.96f));
-                    benchY += lineStep * 0.93f;
-                }
-            }
-
-            if (cachedShopCards != nullptr && !cachedShopCards->empty()) {
-                float shopY = edgePad + lineStep * 13.6f;
-                appendRightText(shopY, "Shop Offers", std::clamp(1.0f * uiScale, 0.80f, 1.30f), glm::vec3(0.98f, 0.90f, 0.60f));
-                shopY += lineStep;
-                for (std::size_t i = 0; i < cachedShopRows; ++i) {
-                    appendRightText(shopY,
-                                    runtime::hud::formatShopCardEntry(
-                                        (*cachedShopCards)[i].name,
-                                        (*cachedShopCards)[i].level,
-                                        (*cachedShopCards)[i].cost),
-                                    0.95f,
-                                    glm::vec3(0.92f, 0.94f, 0.98f));
-                    shopY += lineStep * 0.93f;
-                }
-            }
+            type_roster_hud::append(worldQuads, textLines, drawableW, drawableH,
+                                    cachedTypeCounts, cachedBenchUnits ? static_cast<int>(cachedBenchUnits->size()) : 0);
 
             captureRetainedRegion(
                 rosterCache,
@@ -997,7 +947,5 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
 }
 
 } // namespace game::runtime::shared_backend_debug_view
-
-
 
 
