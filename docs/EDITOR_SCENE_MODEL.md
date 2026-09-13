@@ -2,590 +2,90 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-09-09
+Last updated: 2026-09-12
 
-## Current workflow
+## Scenes and scenarios
 
-The Blender-authored maps are **Route 1 - South Entrance** (`routes/route1-pilot`)
-and **Route 1 - South Clearing** (`routes/route1-south-clearing`). South Entrance
-remains the startup map. Use **Scene / location** above the viewport to choose the
-map, then **Scenario / starting setup** to choose **Ledge Test**, **Planning**, or
-**Battle**. Press **Play** to simulate. Loading a scenario leaves the game stopped.
-South Clearing provides **Planning** and **Battle** starting setups. The expanded
-scenario panel is named **Scenarios** (formerly **Game Preview**).
+A **scene** is a location. A **scenario** is a starting setup at that location:
+Pokemon placements, game phase, or a prepared mechanic test. Selecting another
+scenario does not create another environment asset.
 
-**Scene** view inspects the environment; **Game** view shows the gameplay setup
-and editable Pokemon starting positions. The current map's scenery is edited
-in Blender. The original imported South Entrance and South Clearing remain
-available as **Legacy Maps** for reference. The detailed imported-environment
-model below applies to those legacy locations.
+The editor scene catalog contains the four Blender-authored Route 1 arenas,
+followed by the separate flat-board experiment:
 
-## Semantic model
+| Location | Stable scene ID |
+| --- | --- |
+| South Entrance (startup) | `routes/route1-pilot` |
+| South Clearing | `routes/route1-south-clearing` |
+| North Terraces | `routes/route1-north-terraces` |
+| North Entrance | `routes/route1-north-entrance` |
+| Flat Dirt Experiment | `routes/route1-flat-experiment` |
 
-Pokemon Autochess keeps game scenes, reusable environment backdrops, UI flow,
-and session state distinct:
+The Scenes panel and **Scene / location** selector expose the same catalog.
+One click opens a location. The open location is highlighted. Archived imported
+maps, the published source reference, and unbuilt route placeholders are absent
+from this working catalog. Their runtime scripts and private assets have not
+been deleted; future locations can return when they have an authored environment.
 
-```text
-Application lifecycle
-`-- Boot / loading presentation
+The Scenarios panel and **Scenario / starting setup** selector expose the same
+setups for the open location. **Starting setups** contains Planning, Battle and,
+where provided, Crowded Battle. **Tests** contains the location's grass, ledge,
+travel or Earthquake fixtures. Planning is first and is the default when opening
+a location. Only scenarios supported by that location appear.
 
-Frontend runtime state
-|-- Main Menu
-`-- Starter Selection
+Clicking a scenario loads it in Game view with simulation stopped. **Play** runs
+it, **Pause / Step** inspects it, and **Stop** restores the starting setup.
+**Reload Starting Setup** reloads the chosen fixture with saved unit placements.
+Scenario IDs remain stable for the retained setups.
 
-Game scenes
-|-- Route 1 - South Entrance --.
-|-- Route 1 - South Clearing --+--> Route 1 Environment (shared cooked backdrop)
-|-- Route 22 ----------> Route 22 Foothills (runtime-generated backdrop)
-|-- Route 2 -----------> Route 2 Forest Edge (runtime-generated backdrop)
-|-- Viridian Forest ---> Viridian Forest (runtime-generated backdrop)
-`-- Route 3 -----------> Route 3 Mountain Pass (runtime-generated backdrop)
+## Environment authoring and preview
 
-Per-scene runtime state
-|-- mode: Classic | Adventure
-`-- phase/state: Planning | Battle | route-specific script
-```
+Blender owns scenery, terrain, vegetation, ledges, material assignment and the
+board registration. The authoring recipe publishes the terrain, scene, gameplay
+map and board registration into one validated arena archive. See
+[the Blender pilot workflow](BLENDER_ARENA_PILOT.md) and the individual arena
+runbooks for authoring and recovery.
 
-Boot is not a `.phscene`. It initializes the application and presents loading
-progress. The editor's Boot preview replays that presentation over the already
-initialized runtime.
+**Scene** view inspects the published environment with the editor camera and
+optional board guides. It has no imported-prefab markers, source suppression
+handles, scenery transform gizmos or tile-repair tools. The hierarchy retains
+read-only **Autochess Board + Benches** information. The old hidden-source tree
+and one-to-one source-prefab asset aliases are not exposed for Blender arenas.
 
-Main Menu and Starter Selection are frontend states. Starter Selection uses the
-[editable Oak's Lab camera backdrop](STARTER_LAB_BACKDROP.md) in both modes. It
-has no battlefield or combat, and is not a route game scene.
+**Game** view shows the real game camera and runtime. While stopped, Pokemon
+starting positions and rotations remain editable. Legal board/bench snapping,
+terrain grounding, runtime-owned scale and per-scenario saved placements still
+apply. Removing scenery handles must not remove or renumber units incorrectly.
 
-A **game scene** is a playable location/state container. It references an
-environment backdrop and may also identify a route runtime script. The
-environment is a separate reusable asset, so multiple game scenes may share
-one backdrop without becoming the same scene. Route 1 - South Entrance and
-Route 1 - South Clearing are the important current example: they remain
-separate game scenes while both reference the cooked Route 1 environment.
+All five arenas currently reuse the cooked Route 1 asset package for materials
+and prefab geometry. This is an asset dependency, not an instruction to display
+or edit the original imported layout. Keep those cooked dependencies available
+when publishing or syncing the private asset depot.
 
-Route 1 is currently the only source-faithful cooked environment `.phscene`.
-Route 22, Route 2, Viridian Forest, and Route 3 remain important game scenes
-even though their present backdrops are generated by the game runtime. Their
-`in_progress` status and runtime-generated environment kind make that
-limitation explicit. As each backdrop is authored and cooked, its game scene
-identity and preview ownership stay stable; only the environment dependency
-changes from runtime-generated to cooked.
+## Frontend
 
-Classic/Adventure rules, Planning/Battle phases, and deterministic snapshots
-are runtime state layered over a game scene. They do not create duplicate
-environment assets.
+**Frontend / menus** is separate from route scenarios. It contains Boot Sequence,
+Main Menu, and the Classic and Adventure starter-selection setups under
+**Oak's Lab**. The lab is a Blender-authored frontend backdrop. It has no board,
+benches or battle. See [Starter Lab Backdrop](STARTER_LAB_BACKDROP.md).
 
-## Editor surfaces
+Boot replays the loading presentation over the warm runtime. Classic/Adventure
+are game rules and frontend modes, not duplicate environment assets.
 
-- **Scenes** is the game scene catalog. It includes every established route,
-  including unfinished ones, and shows each scene's status and referenced
-  environment.
-- **Scene Hierarchy** follows the active game scene. Its root is the game scene
-  and its first child is the reusable environment backdrop. A cooked backdrop
-  exposes coarse, read-only source groups; a runtime-generated backdrop reports
-  that its visual representation currently lives in Game view.
-- **Inspector** reports the properties of the selected hierarchy object,
-  scene, or asset. Route 1 imported objects and authored prefab instances can
-  be transformed, suppressed, duplicated, deleted, renamed, reparented,
-  undone, and redone while simulation is stopped. Commits atomically save the
-  generic project-owned authored-scene document. Ctrl/Shift selection and a
-  Scene-viewport drag rectangle select several objects; Delete commits the
-  selection as one undoable transaction.
-- **Assets** is the cooked runtime asset registry. It discovers `.phscene`
-  environments and `.phlo` prefabs as useful top-level entries. PHLO manifests
-  place those entries in Character Prefabs, Object Prefabs, or Environment
-  Prefabs; the project plugin contributes VFX Prefabs. A prefab's mesh,
-  skeleton, animations, materials, and textures remain owned dependencies
-  within that prefab rather than separate peer rows.
-  Route 1 additionally contributes a `Scene Prefabs` view with exactly one
-  entry for every editable hierarchy object. These are source-bound asset
-  aliases: their identities and placement targets are one-to-one, while
-  repeated instances still share immutable `.phlo` bytes. `Add Prefab To
-  Scene` creates a project-owned instance through the normal undo/autosave
-  transaction.
-- **Scene** in the central Viewport is the frozen/editor-camera view of the
-  active scene's inspectable environment dependency. Both current Route 1
-  locations therefore show the same Route 1 backdrop. A runtime-generated environment
-  stays blank here until it gains a cooked Scene-view adapter.
-- **Game** in the central Viewport is the real game renderer and state.
-- **Game Preview** selects a named state in the embedded runtime. Route
-  previews belong to their game scene. Every route exposes Planning and Battle
-  previews for both Classic and Adventure modes; application previews such as
-  Boot and Main Menu remain scene-independent.
+## Ownership and persistence
 
-Selecting a Pokemon `.phlo` opens an embedded 3D Inspector preview decoded
-from that cooked prefab. It supports orbit, pan, zoom, animation playback,
-material and texture isolation, wireframe, and a cooked-skeleton overlay.
-Move-only auxiliary geometry remains in the cooked object but is omitted from
-the ordinary idle preview until a matching move-state preview exists. The
-viewer is deliberately read-only; Blender remains the source inspection and
-authoring tool.
+- `phlosion.project.json` owns the active location catalog.
+- `PokemonAutochessEditorPreviewCatalog` owns scenario definitions and groups.
+- Each `config/environment/*.authoring.json` recipe identifies its Blender
+  source, board registration, scene document, gameplay map and arena archive.
+- `config/editor/game_preview_layouts.json` owns saved Pokemon starting-position
+  and rotation overrides. Opening a location does not rewrite those placements.
+- Reusable Phlosion UI draws the catalogs and available object capabilities;
+  the game plugin decides which objects and operations it exposes.
 
-Selecting a Route 1 environment `.phlo` opens the same Inspector surface with
-its exact LGPE material families and declared motion driver. These previews are
-decoded from the cooked prefab itself and centered at a floor-aligned local
-origin; placement remains owned by the environment and game scene.
+The source-terrain mutation modules remain available for compatibility tests and
+historical content. They are outside the current editor authoring workflow. The
+project no longer loads the legacy tile-tools editor package.
 
-Route 1's seven source terrain batches are decomposed into 23 exact connected
-body/cap assemblies before they reach the hierarchy. Selecting or duplicating
-one therefore moves its cliff body, lawn cap, transition stripe, and fringe as
-one unit instead of transforming a route-wide material batch.
-
-## Route 1 board layout and clearing
-
-When Route 1 is active, **Gameplay > Board > Autochess Board + Benches** is a
-first-class layout object in the Scene Hierarchy. Its Move gizmo changes the
-saved source-to-game registration live while simulation is stopped, so the
-board can be placed visually instead of by editing JSON coordinates. Dragging
-uses a lightweight preview; the full Route 1 layout and projected-shadow rebuild
-happens once when the gizmo is released. The Inspector edits an integer terrain
-cell origin and integer elevation level, and reports the inclusive 8x8 cell
-range. The saved schema-6 manifest contains no independently editable board
-center, yaw, cell size, or scale. Those values are derived from the integer
-footprint, the recovered 100 cm horizontal module, and the recovered 50 cm
-elevation step.
-
-Board cells are therefore owned Route 1 terrain cells, not a second grid that
-is merely snapped nearby. The board, both benches, gameplay unit placement,
-clearing footprint, and editor overlays all consume that registration. The two
-bench rows are derived as explicit one-tile-deep cell ranges and use an integer
-gap. Both promoted layouts use zero gap. **Route 1 - South Entrance** owns cells
-`x=17..24, z=-10..-3`, with benches at `z=-2` and `z=-11`.
-**Route 1 - South Clearing** owns cells `x=17..24, z=-19..-12`, with benches
-at `z=-11` and `z=-20`. The Inspector reports the board, north-bench, and
-south-bench ranges separately. In terrain-tile mode the editor outlines exact
-board-owned terrain quads in orange and exact bench-owned quads in blue, using
-the same projected corners as tile selection.
-
-The board object owns the 8x8 play grid and two eight-slot bench rows, one on
-each side. The benches therefore move and scale with the board instead of being
-unrelated scene props. The saved registration is consumed by both the editor
-preview and normal game startup. A zero-cell gap places each bench's terrain
-row directly against the corresponding outer board row; gameplay bench-unit
-placement consumes that same zero-gap value rather than clamping it back to one.
-
-The Inspector also exposes an **Autochess Board Clearing** tool. It intersects
-the visible board and both bench footprints, plus configurable padding, with
-source-derived bounds for every editable object. The operation can clear
-terrain, vegetation, and props independently, retain source ramps as entrances,
-and add lawn infill beneath all three footprints. The infill flattens every
-covered cell to the board's registered elevation and uses the same one-metre
-terrain cells as manual terrain authoring, rather than one stretched quad. One
-click is one autosaved undo step.
-
-Clearing is non-destructive. Imported terrain and objects receive authored
-visibility overrides; project-created instances are removed normally. The
-optional infill uses the recovered Route 1 ground material and one continuous
-source-world UV field. It also masks only the intersecting pieces of broad
-ground overlays and baked floor foliage, so cleanup does not leave floating
-cards or erase those layers elsewhere on the route. It is not a guessed
-flat-color surface. **Reset Entire Scene To Imported Source**
-removes every authored node and returns to the empty promoted baseline.
-
-## Route 1 terrain tiles
-
-Enable **Tiles** in Scene view to select Route 1 cells directly. The complete
-route grid uses the recovered 100 cm horizontal module and 50 cm elevation
-step. Click-drag selects a rectangle; Ctrl/Shift add cells. The Inspector can
-fill empty cells, raise/lower one level, paint light or dark lawn, apply flat or
-directional ramp shapes, and restore selected cells to imported source. A
-multi-selection **Flatten + Tidy Selected** operation accepts an exact target
-level, turns every selected top into a mathematical plane, rebuilds continuous
-ground UVs, and locally removes source floor fragments made invalid by the
-height change.
-
-The **Projected Terrain Shadow** section can remove or restore projected-shadow
-receiving for the selected terrain tops. This is an authored per-cell material
-property: it leaves the shadow-casting trees and props active and is preserved
-by tile copy/paste.
-
-The separate **Imported Source Tint** section controls source vertex-color
-cleanup. **Normalize Selected Source Tint** replaces overlay-specific ground
-paint, including the blue-green tint baked beneath removed encounter grass,
-with a continuous clean-lawn field reconstructed from the nearest ordinary
-same-level light lawn. The source material's clean control remains the fallback
-when no compatible donor exists. Copy/paste retains this per-cell setting.
-Normalized cells retain recovered lawn UV2, rebuild UV0/UV1 continuously in
-world space, and match an adjoining ordinary lawn's color and generated height
-at their shared boundary, so a connected cleaned area cannot become a bright
-rectangular island, texture delimiter, or terrain crack. Projected-shadow
-receiving remains the independent per-cell property described above.
-
-The **Encounter Grass** section adds a separate cell-scoped vegetation mask.
-**Remove Encounter Grass From Selected** suppresses the independently skinned
-blade clusters whose source-weighted rendered vertices are centered inside
-the selected source-grid cells and enables source-tint normalization in the
-same undoable edit. Animation pivots do not reliably identify the visible
-cluster's cell. Source modules are centered on tile corners, so this
-geometry-derived ownership is required to clear a complete cell without also
-clearing half of its neighbors. Suppressed clusters are removed with filtered
-source-triangle index buffers; they are not translated below the terrain, so
-mixed root/cluster skin weights cannot stretch a blade into a long seam or
-spike. Authored copies of a grass prefab are not coupled to their prototype's
-terrain-cell mask. **Restore Encounter Grass On Selected** clears only the
-vegetation mask; it intentionally retains tint normalization so restoration
-cannot reintroduce an unwanted baked dark patch. Tile copy/paste preserves
-both settings.
-
-Lowering or reshaping an imported light-lawn cell rebuilds UV0 continuously in
-world space and resolves UV2 from compatible lawn at the authored elevation.
-It must not resample either field from the old jagged raised surface: doing so
-can preserve the former ledge as narrow texture and lawn-mask lines across the
-replacement floor. Topology-preserving edits still retain their exact source
-fields. Dirt-path cells remain independent: their connection mask and
-source-style boundary ribbon replace the lawn selector on only the authored
-path footprint.
-
-Every terrain preview and committed edit now passes through one terrain-seam
-resolver. A cell whose topology, surface, or imported tint changed starts a
-continuous material-field component. That field propagates through adjacent
-authored cells only when their surface and two shared corner heights agree; it
-stops at ramps with an incompatible profile, surface transitions, exact source
-references, and untouched imported terrain. Geometry height/normals, UV0/UV1,
-the component-level dirt UV2 contour, and reconstructed vertex color therefore
-consume the same resolved neighbor graph instead of making unrelated per-tile
-decisions. Compatible authored/source lawn boundaries retain the narrow source
-overlap carrier, preserving the imported side without exposing a crack.
-
-The project-level **Terrain Seam Diagnostics** command toggles these diagnostics
-without changing or saving the scene. With project layout guides enabled,
-resolved material-field components are outlined in cyan. A magenta shared edge
-means two otherwise compatible same-surface cells disagree about
-projected-shadow receipt. The resolver intentionally does not overwrite that
-authored property, because a shadowless tile can be deliberate. Diagnostics
-start hidden so normal scene review remains uncluttered.
-
-The Scene toolbar and **Viewport Grid Overlay** Inspector section expose two
-independent overlays. **Levels** labels a flat cell `L#` and a recovered or
-authored directional profile `L#-L#+1`; **Coordinates** labels the exact
-source-grid address `(X,Z)`. Hovering a cell always shows its coordinate,
-profile, and surface in the viewport. A selected cell or rectangular selection
-also gets a copyable reference in the Inspector, so a problem can be reported as
-`Cell (16,-13)` without relying on a screenshot or object name.
-
-The Inspector separates **Ground**, **Ramps**, and **Platforms** into explicit
-authoring modes. Platform mode is an exact footprint builder rather than only a
-collection of `+1` buttons:
-
-- the optional Levels overlay labels flat cells as `L#` and directional
-  profiles as ranges such as `L2-L3`;
-- the working level projects a cyan per-corner ghost without changing the
-  scene, so a half-level tile remains visibly sloped before it is committed;
-- **Connected Same-Level Top**, **Fill Selection Bounds**, **Grow 1 Tile**, and
-  **Remove Outer Ring** edit only the footprint selection;
-- the working level can be sampled from the anchor, stepped in exact 50 cm
-  increments, typed directly, or set one level above the selection;
-- **Tile profile** can preserve every selected cell's current flat/ramp shape,
-  restore every cell's recovered LGPE source shape, force a genuinely flat
-  top, or apply one explicit ramp direction;
-- **Build / Replace Profiled Platform** atomically assigns the low/base level,
-  top surface, chosen per-cell profile policy, and regenerated ledge boundary
-  to the complete footprint.
-
-Light-lawn, dark-lawn, and dirt-path `+1` prefab cards remain available as quick
-presets. A connected selection becomes one platform: internal walls disappear,
-while the recovered material-13 leafy fringe, bowed cliff bands, and outside
-corners derive only around its exposed boundary. Source ledge/fringe geometry
-is retained when the authored topology remains compatible; changed boundaries
-receive reconstructed detail. Ground and ramp prefab swaps continue to preserve
-the selected elevation.
-
-Ledge adjacency is resolved at both endpoints of every shared tile edge, not as
-one scalar level. A flat `L2` platform beside the sloping side of an `L1-L2`
-ramp therefore produces a tapered cliff and tapered leafy lip: full height at
-the ramp's `L1` corner and zero height at its `L2` corner. This prevents
-full-width walls from being misplaced beside perpendicular ramps.
-
-Every active drop edge, including retained source edges, is chained into a
-deterministic clockwise contour. Only changed edges are regenerated, but their
-endpoint classification therefore inherits the real source continuation at a
-handoff instead of treating that handoff as an open strip end.
-Cliff and leafy-fringe UV fields advance by cumulative contour distance, so a
-four-cell side wall cannot restart or reverse its texture at every tile. The
-material-distance contour measures the rendered carrier rather than the metre
-grid: a convex endpoint removes its reserved 32 cm from the straight run and
-the rounded handoff contributes its physical 50.27 cm quarter-arc. Eight
-angular segments advance that same field through the turn. The separate
-logical-grid distance still drives the per-cell organic wander, allowing the
-silhouette to return exactly to zero at each endpoint without stretching one
-texture column around the corner.
-generated material-18 cliff retains the source's separately duplicated lower
-and upper bands, 48 cm crown profile, lower green `Color0`, and UV2 transition.
-Its material-13 lip retains all three decoded source rows: the dark-green
-near-horizontal crown plus both sloped carrier bands. Lowering a connected
-strip therefore repairs one continuous source-style ledge rather than placing
-independent placeholder walls. The `0.495` repeats-per-metre field beginning at
-repeat-equivalent phase `0.2841` is only the fallback for a genuinely new
-contour. When a rebuilt edge replaces a decoded source ledge, the complete
-orientation-matched source assembly field is inherited instead: its unwrapped
-geometry, normals, UV1 phase/rate, and `Color0` remain together for all three
-rows. The raised ground cap consumes the same recovered crown samples rather
-than approximating the neighboring material-13 silhouette. This matters
-because the original terrain assemblies do not share one universal rate (for
-example, the mesh-31 run advances about `0.53` repeats per metre). Partial
-inheritance is rejected for the whole edge so a missing source sample cannot
-create a geometry, normal, or UV jump halfway through a tile. The source test
-uses all 21 five-centimetre samples before enabling inheritance. Convex and
-concave leafy turns inherit their complete decoded positions and normals under
-the same all-or-nothing rule. Each changed metre uses the same
-twenty-segment, five-centimetre contour lattice as both adjoining lawn
-carriers, plus a continuous small source-scale wander rather than one
-ruler-straight quad. Recovered mesh-32 measurements place the cliff bands
-approximately 2,
-7, 12, and 27 cm inside the logical boundary from foot to crown. The leafy
-carrier shares that 27 cm crown, then bows through measured 15.92 and 4.71 cm
-insets toward the foot. The cliff foot remains on the source's nominal level
-(plus a 0.02 cm downward safety epsilon), while replacement lawn stays only
-`+0.02 cm` above that decoded plane. The fringe's near-horizontal crown remains
-on its decoded `0.00 cm` source plane. The source cap and crown share one
-contour and one edge normal; rebuilt caps reproduce that normal at the join and
-ease back to their ordinary lawn normal across the crown-to-interior span. A
-two-centimetre horizontal underlap beneath the alpha-tested crown closes raster
-gaps without covering either sloped leafy row. The raised
-`dark_lawn` cap keeps its source-wide material-19 `UV2=(-0.05,0.95)` selector
-and `Color0=(0.180392,0.482353,0.431373,1)` instead of inventing a boundary
-fade. A raised `light_lawn` cap retains its independently resolved source/target
-lawn fields—including normalized brightness when requested—and samples those
-fields at the post-deformation world position while using the same crown
-underlap geometry.
-Rebuilt upper ground remaps its complete metre interval onto the
-crown-to-interior span, preserving a well-spaced grid instead of collapsing six
-textured columns into one dark lip. Paired drop edges clamp it to the generated
-convex crown arc rather than retaining a square tile corner beyond the ledge.
-This dependency is resolved across the shared edge: lowering only the low cell
-automatically masks and rebuilds the adjacent raised source cap. The canonical
-material-19 rectangle cannot remain layered under the new cliff/fringe crown.
-Broad baked foliage and cleanup cards from source meshes 16-28 are retired when
-they intersect the invalidated 25.5 cm edge band, even when another vertex lies
-deep inside the raised cell. Canonical terrain assemblies retain conservative
-ownership, so repairing one edge cannot erase an unrelated source cliff. Source
-mesh 28 contains two stacked storeys in one carrier; cleanup at a lower boundary
-therefore preserves any triangle that rises above that boundary's highest
-current/source profile instead of making the independent upper wall transparent.
-On the low side, the rebuilt ground edge follows the cliff foot's recovered
-two-centimetre inset and the same organic contour, with a narrow 1.50 cm
-depth-safety underlap. The complete contact carrier remains planar at
-`+0.02 cm`; the horizontal underlap prevents it from rasterizing as a straight
-line against the cliff's `-0.02 cm` foot. It retains that tile's own material and
-continuous world-space UV field. The light-lawn Color0 field also fades from
-the cliff foot's recovered dark-green control to its normal donor color across
-three five-centimetre rows, avoiding a hard brightness boundary immediately
-beneath the alpha-tested leaves. When a dirt path reaches the ledge, the same
-fade is weighted by the decoded ground-mask alpha: its surrounding lawn ribbon
-inherits the ledge-foot blend while exposed soil retains its dirt Color0.
-A constant-width overlap is forbidden because its horizontal surface becomes a
-visible rectangular shelf when the ledge is viewed from above. All contact
-samples use the same five-centimetre contour lattice as the cliff and fringe.
-Convex endpoints reserve the same 32 cm turn as their corner arcs. Concave
-turns retain a compact 20 cm matching-lawn carrier strictly beneath the
-ordinary surface. A convex turn instead splits the low junction into three
-quarter repairs owned by the two side tiles and the diagonal tile, plus two
-donor halves beneath the wall's recessed fourth quadrant. Each part therefore
-inherits its donor's exact UV fields and projected-shadow policy; one
-shadowless neighbor can no longer turn the whole junction into a pale wedge.
-The outer repairs cover a 52 cm half-tile source-triangle footprint rather than
-stopping at the 32 cm wall radius. Every repair uses an opaque lawn selector,
-sits at `+0.03 cm` (one hundredth above the rebuilt top), and is clipped from
-the same five-centimetre lattice as the terrain. It is therefore authoritative
-over retained material-19 atlas-void pixels without replacing them with a
-different long-triangle interpolation seam.
-The raised carrier follows the rounded crown footprint itself rather than using
-a circular disk, so it closes the independently tessellated cap without
-protruding beyond the wall. It samples the crown's source UV0 field and keeps
-both UV1 and UV2 on the raised-lawn selector with the matching Color0; a raw
-light-lawn selector can no longer interpolate through the atlas void as a
-diagonal stripe. The carrier uses the same five-centimetre lattice as the
-terrain top, while collapsed, zero-area, or reversed-winding cap triangles are
-retired or repaired after contour deformation. When a generated cap meets
-untouched source lawn, a one-centimetre source-material ribbon sits at
-`+0.03 cm`, just above the generated `+0.02 cm` plane. Transitively promoted
-source caps own this handoff even when they have no explicit authored tile,
-sealing their non-coincident triangulations without stretching either atlas
-field.
-
-The contour resolver classifies straight, convex, and concave joins. Concave
-joins use the native asymmetric four-sample cliff and three-row leafy handoff
-decoded from mesh 35, plus a source-sampled lawn underlay tying the turn back to
-its three raised caps; perpendicular metre strips no longer intersect into a
-tapered wall spear or stacked foliage sheets. A convex join reserves a 32 cm
-turn before either straight carrier reaches the logical corner, then
-fills that footprint with paired cliff and three-row leafy quarter-arcs. Both
-arcs are required to stay inside the owning tile; a full-width ledge can no
-longer continue through the corner with a rounded fan attached beyond it.
-At a ramp endpoint, the recovered inset and contour wander now taper with the
-actual drop height and collapse to the shared top when the drop reaches zero.
-
-Flat dirt and dirt ramps touching a matching-profile lawn use the recovered
-material-19 ground ribbon rather than a hard tile boundary. Dirt samples the
-adjacent lawn's continuous source-family vertex color at the seam, joins
-through the clean lawn atlas endpoint on the outer 5 cm row, and resolves to
-the appropriate flat-dirt or sign-ramp color field over 30 cm. Lawn tiles use
-the same world-coordinate target-family field across shared sides, preventing
-independent square tint islands. Terrain-grid and board-footprint guides remain
-editor-only.
-
-Same-height boundaries between generated authored ground and untouched source
-lawn receive a hidden 1 cm top-surface overlap. The recovered source ground is
-triangulated across nominal metre-cell boundaries and can vary slightly in
-height, so an exact mathematical cut can otherwise expose a thin dark crack.
-The overlap applies only to compatible lawn seams: elevation changes remain
-owned by ledge geometry, while generated dirt transitions and exact donor
-patches retain their separate seam rules.
-
-The Route 1 gameplay height field is derived from this same terrain state.
-Untouched cells sample the recovered source triangles, authored flat cells use
-their exact elevation level, and authored ramps interpolate continuously in
-their declared cardinal direction. Board and bench spawns, restored rosters,
-drag/drop positions, and every intermediate combat movement sample conform to
-that field. The interaction ray also intersects the height field, so selecting
-or moving a Pokemon remains accurate above L0 rather than projecting through
-the route onto an assumed `Y=0` plane.
-
-A flat dirt edit that replaces another source surface also replaces that
-surface's `Color0` paint with the exact modal clean level-2 dirt control. This
-prevents an old lawn or encounter-grass lighting footprint from remaining as a
-dark patch after the topology becomes a path. Texture variation and projected
-lighting are preserved, so this is not a flat-color editor preview override.
-
-Suppressing an imported encounter-grass record also retires its source ground
-paint. The runtime derives the affected terrain cells from that record's
-collision core and reconstructs the cleaned area's `Color0` from nearby
-ordinary same-level lawn. Its exposed boundary converges to the adjoining
-lawn's exact rendered control, while UV0/UV1 use the same continuous world-space
-field as other rebuilt terrain and UV2 retains the recovered lawn detail. Dirt
-transitions consume that same reconstructed lawn value at their seam, and
-unrelated lawn cells are not recolored. On the Route 1 board this is the east
-strip `(25,-18)` through `(25,-14)`, including both diagonal corner cells.
-
-Some recovered Route cells are not reducible to one flat/ramp label. Authored
-scene schema 4 therefore permits an optional `source_reference` on a terrain
-tile. The Route runtime clips the donor's original LGPE ground, cliff,
-leafy-fringe, and cleanup triangles from the immutable source geometry and
-places those exact material carriers at the destination. It does not generate
-a generic ramp underneath them. Adjacent references with the same translation
-are first unioned into one connected donor patch. A triangle touching an
-internal tile boundary is consequently cloned only once, preserving the source
-seams without duplicate alpha carriers or z-fighting.
-
-The board-side repair maps source `(19..21,-13..-15)` to target
-`(14..16,-13..-15)` as one coherent exact-source patch. Source cleanup and
-leafy carriers may overhang a height-changing destination edge. At a
-same-profile edge, both canonical and donor cleanup carriers are trimmed to the
-shared source-grid plane so they cannot overlap. An exact reference inherits its donor's elevation, surface, and ramp
-profile before those edges are classified; the three front-row cells are the
-source's `L2 dark_lawn ramp_south` transitions, not flat approximations. At the
-continuous west side, the donor patch remains on the source `(19,-13)` side of
-the `x=1900 cm` plane (target `x=1400 cm` after translation). Canonical target
-`(13,-13)` remains on the other side. No geometry from source `(18,-13)` or its
-lower dirt neighbor `(18,-12)` is transplanted, so the western ledge beside
-target `(12,-13)` and the turn into `(13,-12)` retain their correct orientation.
-Perimeter ownership is determined by centroid before crossing vertices are
-trimmed to the shared plane.
-A height-changing edge instead transfers the complete crossing cleanup strip
-to the exact donor patch. For example, the north cliff of source-referenced
-target `(15,-13)` includes the external carrier centered in source `(20,-12)`.
-Its paired material-18 triangle is also retained even though all three of that
-triangle's vertices lie 2-7 cm inside source `(20,-12)`; together they form
-the source's complete lower cliff band.
-The competing canonical carrier centered in target `(15,-12)` is removed.
-Neither strip is collapsed onto `z=-1200 cm`, which preserves the source cliff
-silhouette without producing degenerate green slivers below it.
-Ordinary destructive terrain edits retain the stricter any-vertex cleanup.
-If an edit changes the canonical endpoint profile of a shared edge, cleanup
-also retires the source ledge's paired material-12/13/18 carrier within the
-decoded 25 cm band on the neighboring side. This removes small surviving
-source wedges whose vertices never cross the cell plane; matching source
-profiles and exact-reference donor bands remain untouched.
-This retains the donor front row and removes the rectangular split created by
-mixing one canonical target cell into that row. The Inspector identifies each
-donor coordinate.
-
-Terrain selection also has an editor-local stamp clipboard. **Copy Selected**
-or Ctrl+C captures every selected tile's surface, flat/ramp shape, explicit
-dirt variant, optional exact source reference, footprint offset, original
-elevation, and elevation relative to one real copied anchor cell. Select
-exactly one destination cell and choose:
-
-- **Paste Exact Height** or Ctrl+V restores the copied Route elevations. This
-  is the safe choice for repairing a clipped source platform.
-- **Paste Relative to Anchor** or Ctrl+Shift+V maps the copied anchor height to
-  the selected cell while preserving signed height differences inside the
-  entire stamp.
-
-Using one actual tile as both the positional and height anchor keeps sparse and
-multi-tier selections coherent. Both paste modes validate every target against
-Route bounds before saving and enter undo/redo history as one atomic scene edit.
-
-Each operation is atomically saved to the active scene's authored document and
-is undoable as one command. Route 1 - South Entrance writes
-`scenes/route1.scene.json`; Route 1 - South Clearing writes
-`scenes/route1_5.scene.json`. Board movement likewise writes only the
-active scene's board-layout manifest. Authored cells mask their corresponding
-immutable source triangles, then derive top/ramp geometry and exposed ledge
-walls from neighbor elevations. **Restore Source** removes authored tile nodes
-rather than rewriting the imported records.
-
-The runtime classifies each authored terrain node by semantic delta before it
-touches source geometry. Merely serializing a tile, changing projected-shadow
-reception, or changing vegetation ownership does not make its source ledges
-dirty. A source-identical shadowless tile reuses the original decoded ground
-triangles in a shadowless batch; an ordinary source-identical tile stays in its
-original batch. Height, shape, surface, path-boundary, and normalized-tint
-changes create a bounded dirty region. The ledge resolver reconstructs only
-that region plus the directly intersected half of a convex or concave turn,
-then splices back into the first straight source continuation. Untouched source
-corners therefore remain source-owned even when another part of the same long
-ledge is edited.
-
-## Route 1 environment variants
-
-The cooked `environments/route1` asset remains the immutable LGPE-derived
-source environment. The finished **Route 1 - South Entrance** location is
-pinned in `scenes/route1.scene.json` at the southern board registration. The
-independent **Route 1 - South Clearing** location remains in
-`scenes/route1_5.scene.json`; neither scene can overwrite the other's board
-registration or authored terrain. The legacy `route1-5` internal identifier is
-retained for script and save compatibility and is not its player-facing name.
-Any future Route 1 edits remain project-owned overrides on top of the shared
-source.
-The editor also exposes **Route 1 - Published Environment** through
-`scenes/route1.reference.scene.json`. That authored document intentionally
-contains no overrides, so opening it always presents the untouched cooked
-source without duplicating the large private environment payload.
-
-Future Route 1 stage variants should follow the same pattern: add an authored
-scene plus a board-layout manifest that references `environments/route1`, then
-register the scene in `phlosion.project.json` and the variant catalog in
-`Route1SceneVariants.h`. `PhlosionForge author-route1-board` bootstraps a
-source-identical editable scene from an integer grid registration; clearing is
-an explicit later editor operation. This keeps the source immutable while
-allowing every gameplay stage to own an independently versioned layout.
-
-## Runtime lifetime
-
-Opening the project mounts and prewarms only the editable Scene view. The first
-switch to Game initializes the embedded runtime once, but deliberately defers
-the all-Pokemon model-cache prewarm; visible models load on demand while the
-small shared VFX and UI resource set is prepared. Standalone UI-card and
-world/board frame prewarms are deferred until the Game viewport owns a render
-surface, preventing a temporary full-window frame from escaping the embedded
-preview. A normal standalone game launch keeps the full preload policy.
-
-Selecting the Game tab automatically opens the first preview associated with
-the active scene (the Classic planning preview by catalog order). If a planning
-or battle preview for that same scene is already active, switching between
-Scene and Game preserves it instead of resetting to another preview.
-Mouse-wheel camera zoom remains available over the Game viewport in Edit mode;
-gameplay clicks and keys remain gated behind Play mode.
-
-Afterward, selecting Main Menu, Starter Selection, a Route 1 planning/battle
-snapshot, or another route preview changes scripts or restores a deterministic
-snapshot in the same runtime. It does not start another process, create another
-window, or replay the boot sequence unless the explicit Boot preview is
-selected.
-
-This is the intended long-term pattern:
-
-1. Open the Engine editor.
-2. Open a game project.
-3. Open a game scene from Scenes for inspection and authoring.
-4. Choose one of that scene's Game Previews for a warm gameplay state.
-5. Use Play, Pause, Step, and Stop without rebuilding or rebooting the game.
+OpenGL, Vulkan and D3D12 must expose the same scene/scenario content, unit editing
+and scenery presentation. Follow the [renderer parity contract](RENDERER_PARITY_CONTRACT.md).

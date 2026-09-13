@@ -17,7 +17,7 @@ struct Definition {
     const char* sceneId = "";
 };
 
-inline constexpr std::size_t kDefinitionCount = 47u;
+inline constexpr std::size_t kDefinitionCount = 23u;
 using Definitions = std::array<Definition, kDefinitionCount>;
 
 const Definitions& all() noexcept;

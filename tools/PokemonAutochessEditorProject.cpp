@@ -1004,9 +1004,11 @@ public:
     }
 
     std::size_t layoutObjectCount() const noexcept override {
+        // Blender arenas still reuse cooked prefab resources, but their source
+        // placement/suppression records are not editor objects or pick targets.
         return editor_hierarchy::objectCount(
             sceneViewReady_,
-            environment_.layoutObjects().size(),
+            environmentEditingAvailable() ? environment_.layoutObjects().size() : 0u,
             previewUnitLayoutObjects_.size());
     }
 
@@ -1017,7 +1019,7 @@ public:
         const auto address =
             editor_hierarchy::resolveObjectAddress(
                 sceneViewReady_,
-                objects.size(),
+                environmentEditingAvailable() ? objects.size() : 0u,
                 previewUnitLayoutObjects_.size(),
                 index);
         if (address.domain ==
@@ -1103,7 +1105,10 @@ public:
                         kTerrainElevationStepCm});
             if (!environmentEditingAvailable()) {
                 view.capabilities = 0;
+                view.viewportMask = 0;
                 view.inspectorSummary = "Board registration is published with the Blender arena.";
+                view.viewportHint = "Inspect the environment in Scene view. Edit Pokemon starting positions in Game view; edit scenery and board registration in Blender.";
+                return view;
             }
             if (!layoutProjectionReady_) {
                 return view;
@@ -2608,7 +2613,7 @@ private:
 
     void refreshEnvironmentPrefabAssets() {
         environmentPrefabCatalog_.clear();
-        if (!sceneViewReady_ || projectRoot_.empty()) {
+        if (!environmentEditingAvailable() || projectRoot_.empty()) {
             return;
         }
         const auto& objects = environment_.layoutObjects();

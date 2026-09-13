@@ -50,6 +50,14 @@ bool test_editor_hierarchy_contract(std::string& outFail) {
         outFail = "An unavailable scene should not resolve hierarchy indexes.";
         return false;
     }
+    const auto firstBlenderUnit = hierarchy::resolveObjectAddress(true, 0u, 12u, 1u);
+    const auto lastBlenderUnit = hierarchy::resolveObjectAddress(true, 0u, 12u, 12u);
+    if (hierarchy::objectCount(true, 0u, 12u) != 13u ||
+        firstBlenderUnit.domain != hierarchy::ObjectDomain::GameplayPreviewUnit || firstBlenderUnit.index != 0u ||
+        lastBlenderUnit.domain != hierarchy::ObjectDomain::GameplayPreviewUnit || lastBlenderUnit.index != 11u) {
+        outFail = "Removing source scenery handles must preserve every gameplay unit's hierarchy address.";
+        return false;
+    }
 
     hierarchy::Selection selection;
     if (!selection.empty()) {

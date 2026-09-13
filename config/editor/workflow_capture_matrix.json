@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "cases": [
+    {"name": "entrance-scene", "sceneId": "routes/route1-pilot"},
+    {"name": "clearing-scene", "sceneId": "routes/route1-south-clearing"},
+    {"name": "terraces-scene", "sceneId": "routes/route1-north-terraces"},
+    {"name": "north-entrance-scene", "sceneId": "routes/route1-north-entrance"},
+    {"name": "flat-scene", "sceneId": "routes/route1-flat-experiment"},
+    {"name": "flat-unit-setup", "sceneId": "routes/route1-flat-experiment", "scenario": "route1-flat-experiment-crowded", "unitCount": 12},
+    {"name": "entrance-grass-test", "sceneId": "routes/route1-pilot", "scenario": "route1-pilot-grass", "play": true, "unitCount": 2},
+    {"name": "lab-frontend", "sceneId": "routes/route1-pilot", "scenario": "starter-classic", "play": true, "unitCount": 0}
+  ]
+}

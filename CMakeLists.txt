@@ -191,7 +191,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "6cf6d1f955a1089fbfeba9482dd1a145853a796d"
+    "b35e782e670f5117cfce0415bb4303efdd33d3b3"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 

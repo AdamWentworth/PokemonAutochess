@@ -344,7 +344,7 @@ foreach ($backend in $Backends) {
                 $expectedLighting) {
                 throw "Inspector lighting contract failed for $backend $AssetPreviewLighting."
             }
-        } elseif ([string]$editorMetrics.project.active_scene.id -ne 'routes/route1') {
+        } elseif ([string]$editorMetrics.project.active_scene.id -ne 'routes/route1-pilot') {
             throw "Route 1 baseline opened '$($editorMetrics.project.active_scene.id)' instead."
         }
 

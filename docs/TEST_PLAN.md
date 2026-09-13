@@ -279,6 +279,19 @@ List or select focused cases with:
 .\tools\render_parity_matrix.ps1 -Cases combat,ui
 ```
 
+The Blender editor workflow has a separate local GPU matrix covering all five
+Scene views, stopped Pokemon placement, a running grass test and Oak's Lab:
+
+```powershell
+.\tools\housekeeping\check_editor_workflow.ps1
+```
+
+Cases live in `config/editor/workflow_capture_matrix.json`. The runner uses the
+standard image thresholds and checks expected editor catalogs, read-only board
+information, absence of scenery handles, and retained gameplay unit controls on
+all three APIs. Use `-Cases entrance-scene,flat-unit-setup` for focused checks or
+`-SkipCapture` to evaluate an existing capture set.
+
 For an ad-hoc single snapshot comparison, use the atomic scene runner directly:
 
 ```powershell

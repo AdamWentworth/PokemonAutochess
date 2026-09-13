@@ -23,36 +23,43 @@
       "kind": "cooked",
       "mount": "cooked",
       "path": "scenes/route1.phscene"
-    },
-    {
-      "asset_id": "environments/route22",
-      "display_name": "Route 22 Foothills",
-      "kind": "runtime_generated"
-    },
-    {
-      "asset_id": "environments/route2",
-      "display_name": "Route 2 Forest Edge",
-      "kind": "runtime_generated"
-    },
-    {
-      "asset_id": "environments/viridian-forest",
-      "display_name": "Viridian Forest",
-      "kind": "runtime_generated"
-    },
-    {
-      "asset_id": "environments/route3",
-      "display_name": "Route 3 Mountain Pass",
-      "kind": "runtime_generated"
     }
   ],
   "scenes": [
     {
       "scene_id": "routes/route1-pilot",
       "display_name": "Route 1 - South Entrance",
-      "category": "Current Map",
+      "category": "Route 1",
       "environment_asset_id": "environments/route1",
       "authored_scene_path": "scenes/route1_pilot.scene.json",
       "runtime_path": "scripts/states/route1_pilot.lua",
+      "status": "in_progress"
+    },
+    {
+      "scene_id": "routes/route1-south-clearing",
+      "display_name": "Route 1 - South Clearing",
+      "category": "Route 1",
+      "environment_asset_id": "environments/route1",
+      "authored_scene_path": "scenes/route1_south_clearing.scene.json",
+      "runtime_path": "scripts/states/route1_south_clearing.lua",
+      "status": "in_progress"
+    },
+    {
+      "scene_id": "routes/route1-north-terraces",
+      "display_name": "Route 1 - North Terraces",
+      "category": "Route 1",
+      "environment_asset_id": "environments/route1",
+      "authored_scene_path": "scenes/route1_north_terraces.scene.json",
+      "runtime_path": "scripts/states/route1_north_terraces.lua",
+      "status": "in_progress"
+    },
+    {
+      "scene_id": "routes/route1-north-entrance",
+      "display_name": "Route 1 - North Entrance",
+      "category": "Route 1",
+      "environment_asset_id": "environments/route1",
+      "authored_scene_path": "scenes/route1_north_entrance.scene.json",
+      "runtime_path": "scripts/states/route1_north_entrance.lua",
       "status": "in_progress"
     },
     {
@@ -62,90 +69,6 @@
       "environment_asset_id": "environments/route1",
       "authored_scene_path": "scenes/route1_flat_experiment.scene.json",
       "runtime_path": "scripts/states/route1_flat_experiment.lua",
-      "status": "in_progress"
-    },
-    {
-      "scene_id": "routes/route1-south-clearing",
-      "display_name": "Route 1 - South Clearing",
-      "category": "Current Map",
-      "environment_asset_id": "environments/route1",
-      "authored_scene_path": "scenes/route1_south_clearing.scene.json",
-      "runtime_path": "scripts/states/route1_south_clearing.lua",
-      "status": "in_progress"
-    },
-    {
-      "scene_id": "routes/route1-north-terraces",
-      "display_name": "Route 1 - North Terraces",
-      "category": "Current Map",
-      "environment_asset_id": "environments/route1",
-      "authored_scene_path": "scenes/route1_north_terraces.scene.json",
-      "runtime_path": "scripts/states/route1_north_terraces.lua",
-      "status": "in_progress"
-    },
-    {
-      "scene_id": "routes/route1-north-entrance",
-      "display_name": "Route 1 - North Entrance",
-      "category": "Current Map",
-      "environment_asset_id": "environments/route1",
-      "authored_scene_path": "scenes/route1_north_entrance.scene.json",
-      "runtime_path": "scripts/states/route1_north_entrance.lua",
-      "status": "in_progress"
-    },
-    {
-      "scene_id": "reference/route1-published-environment",
-      "display_name": "Route 1 - Published Environment",
-      "category": "Reference Environments",
-      "environment_asset_id": "environments/route1",
-      "authored_scene_path": "scenes/route1.reference.scene.json",
-      "status": "reference"
-    },
-    {
-      "scene_id": "routes/route1",
-      "display_name": "Route 1 - South Entrance (Legacy)",
-      "category": "Legacy Maps",
-      "environment_asset_id": "environments/route1",
-      "authored_scene_path": "scenes/route1.scene.json",
-      "status": "implemented"
-    },
-    {
-      "scene_id": "routes/route1-5",
-      "display_name": "Route 1 - South Clearing (Legacy)",
-      "category": "Legacy Maps",
-      "environment_asset_id": "environments/route1",
-      "authored_scene_path": "scenes/route1_5.scene.json",
-      "runtime_path": "scripts/states/route1_5.lua",
-      "status": "implemented"
-    },
-    {
-      "scene_id": "routes/route22",
-      "display_name": "Route 22",
-      "category": "Future Maps",
-      "environment_asset_id": "environments/route22",
-      "runtime_path": "scripts/states/route22.lua",
-      "status": "in_progress"
-    },
-    {
-      "scene_id": "routes/route2",
-      "display_name": "Route 2",
-      "category": "Future Maps",
-      "environment_asset_id": "environments/route2",
-      "runtime_path": "scripts/states/route2.lua",
-      "status": "in_progress"
-    },
-    {
-      "scene_id": "routes/viridian-forest",
-      "display_name": "Viridian Forest",
-      "category": "Future Maps",
-      "environment_asset_id": "environments/viridian-forest",
-      "runtime_path": "scripts/states/viridian_forest.lua",
-      "status": "in_progress"
-    },
-    {
-      "scene_id": "routes/route3",
-      "display_name": "Route 3",
-      "category": "Future Maps",
-      "environment_asset_id": "environments/route3",
-      "runtime_path": "scripts/states/route3.lua",
       "status": "in_progress"
     }
   ],
@@ -164,14 +87,7 @@
     "library": "PokemonAutochessEditorProject",
     "directory": ".phlosion/editor/{config}"
   },
-  "editor_packages": [
-    {
-      "id": "phlosion.tile-tools",
-      "version": "0.1.0",
-      "library": "PhlosionTileTools",
-      "directory": ".phlosion/packages/{config}/phlosion.tile-tools"
-    }
-  ],
+  "editor_packages": [],
   "private_asset_depot": {
     "environment": "PHLOSION_ASSET_DEPOT",
     "required": false
