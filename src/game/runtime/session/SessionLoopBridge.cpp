@@ -208,7 +208,7 @@ void handleEvent(const InputEvent& event, const Context& context) {
                         const auto &viewport = *context.viewport;
                         const bool inspecting = context.gameWorld->inspectedUnit() != nullptr;
                         const auto types = type_roster_hud::layout(viewport.width, viewport.height,
-                                                                   static_cast<int>(context.gameWorld->getPlayerTypeLineCountsCached().size()), inspecting);
+                                                                   static_cast<int>(context.gameWorld->getPlayerTypeLineCountsCached().size()));
                         if ((inspecting && unit_details_hud::layout(viewport.width, viewport.height).contains(inputEvent.mouseX, inputEvent.mouseY)) ||
                             (!context.gameWorld->getPlayerTypeLineCountsCached().empty() && inputEvent.mouseX >= types.x && inputEvent.mouseX < types.x + types.w &&
                              inputEvent.mouseY >= types.y && inputEvent.mouseY < types.y + types.h)) return true;

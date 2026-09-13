@@ -15,15 +15,17 @@ bool test_ui_hud_formatting_contract(std::string& outFail) {
             return false;
         }
     }
-    for (const auto size : {std::pair{640, 360}, std::pair{845, 513}, std::pair{1920, 1080}}) {
-        for (bool inspected : {false, true}) {
-            const auto layout = game::runtime::type_roster_hud::layout(size.first, size.second, 18, inspected);
-            const auto details = game::runtime::unit_details_hud::layout(size.first, size.second);
-            if (layout.columns * layout.rowsPerColumn < 18 || layout.x + layout.w > size.first ||
-                layout.y + layout.h > size.second * .80f || (inspected && details.y + details.h >= layout.y)) {
-                outFail = "Selected-unit stats and all represented types must fit above the shop without overlapping.";
-                return false;
-            }
+    for (const auto size : {std::pair{640, 360}, std::pair{800, 600}, std::pair{845, 513}, std::pair{1920, 1080}}) {
+        // The roster has no selection-dependent layout. The horizontal inspector
+        // must fit above its original anchor, even at compact viewport sizes.
+        const auto layout = game::runtime::type_roster_hud::layout(size.first, size.second, 18);
+        const auto details = game::runtime::unit_details_hud::layout(size.first, size.second);
+        if (layout.columns * layout.rowsPerColumn < 18 || layout.x + layout.w > size.first ||
+            layout.y + layout.h > size.second * .80f || details.y + details.h >= layout.y ||
+            layout.y != std::round(104 * layout.scale) || layout.rowH != 30 * layout.scale ||
+            details.w < details.h * 5 || details.x != layout.x || details.x + details.w > size.first) {
+            outFail = "The wide inspector must fit above Team Types without moving or compressing its fixed layout.";
+            return false;
         }
     }
     using game::runtime::hud::formatInventoryEntry;

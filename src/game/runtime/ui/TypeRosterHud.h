@@ -37,20 +37,19 @@ struct Layout {
     float x = 0, y = 0, w = 0, h = 0, scale = 1, rowH = 0, columnW = 0;
     int rowsPerColumn = 1, columns = 1;
 };
-inline Layout layout(int width, int height, int count, bool inspecting = false) {
+inline Layout layout(int width, int height, int count) {
     Layout out;
     out.scale = std::clamp(std::min(width / 1280.0f, height / 720.0f), .6f, 1.4f);
     out.x = std::round(18 * out.scale);
-    out.y = std::round((inspecting ? 288 : 104) * out.scale);
-    out.rowH = (inspecting ? 22 : 30) * out.scale;
+    out.y = std::round(104 * out.scale);
+    out.rowH = 30 * out.scale;
     out.columnW = 172 * out.scale;
-    const float chromeH = inspecting ? 61.0f : 73.0f;
+    const float chromeH = 73.0f;
     const float available = std::max(out.rowH, height * .76f - out.y - chromeH * out.scale);
     out.rowsPerColumn = std::max(1, static_cast<int>(available / out.rowH));
     out.columns = std::max(1, (count + out.rowsPerColumn - 1) / out.rowsPerColumn);
     out.rowsPerColumn = std::max(1, (count + out.columns - 1) / out.columns);
-    if (inspecting && out.columns == 1) out.columnW = 240 * out.scale;
-    out.w = std::max(out.columnW * out.columns + 20 * out.scale, inspecting ? 260 * out.scale : 0);
+    out.w = out.columnW * out.columns + 20 * out.scale;
     out.h = out.rowsPerColumn * out.rowH + chromeH * out.scale;
     return out;
 }
@@ -59,9 +58,9 @@ template <class Rows>
 inline void append(std::vector<IRenderBackend::DebugQuad> &quads,
                    std::vector<IRenderBackend::DebugLine> &lines,
                    std::vector<IRenderBackend::DebugSprite> &sprites,
-                   int width, int height, const Rows &types, int benchCount, bool inspecting = false) {
+                   int width, int height, const Rows &types, int benchCount) {
     if (types.empty()) return;
-    const auto l = layout(width, height, static_cast<int>(types.size()), inspecting);
+    const auto l = layout(width, height, static_cast<int>(types.size()));
     const float s = l.scale;
     hud_paint::panel(quads, l.x + 2 * s, l.y + 3 * s, l.w, l.h, 9 * s, {.01f, .025f, .02f}, .25f);
     hud_paint::panel(quads, l.x, l.y, l.w, l.h, 9 * s);
@@ -70,15 +69,15 @@ inline void append(std::vector<IRenderBackend::DebugQuad> &quads,
     for (std::size_t i = 0; i < types.size(); ++i) {
         const auto &row = types[i];
         const float x = l.x + 10 * s + static_cast<int>(i / l.rowsPerColumn) * l.columnW;
-        const float y = l.y + (inspecting ? 40 : 46) * s + static_cast<int>(i % l.rowsPerColumn) * l.rowH;
+        const float y = l.y + 46 * s + static_cast<int>(i % l.rowsPerColumn) * l.rowH;
         const auto *style = styleFor(row.type);
         const glm::vec3 color = style ? style->color : glm::vec3(.5f);
         hud_paint::panel(quads, x, y, l.columnW - 2 * s, l.rowH - 3 * s, 4 * s, color * .16f + glm::vec3(.045f), 1);
-        icon(sprites, row.type, x + 4 * s, y + 2 * s, (inspecting ? 16 : 21) * s);
-        hud_paint::text(lines, x + 33 * s, y + (inspecting ? 5 : 8) * s, hud::humanizeToken(row.type), std::max(.95f, 1.06f * s));
+        icon(sprites, row.type, x + 4 * s, y + 2 * s, 21 * s);
+        hud_paint::text(lines, x + 33 * s, y + 8 * s, hud::humanizeToken(row.type), std::max(.95f, 1.06f * s));
         const std::string count = std::to_string(row.uniqueLineCount);
         const float countScale = std::max(1.0f, 1.16f * s);
-        hud_paint::text(lines, x + l.columnW - 14 * s - ui_text::measureTextWidth(count, countScale), y + (inspecting ? 4 : 7) * s, count, countScale, color * .35f + glm::vec3(.65f));
+        hud_paint::text(lines, x + l.columnW - 14 * s - ui_text::measureTextWidth(count, countScale), y + 7 * s, count, countScale, color * .35f + glm::vec3(.65f));
     }
     hud_paint::text(lines, l.x + 12 * s, l.y + l.h - 17 * s,
                     "Board + bench  |  Bench: " + std::to_string(benchCount), std::max(.68f, .81f * s), {.59f, .70f, .66f});

@@ -328,7 +328,8 @@ depot and under ignored `assets/ui/types/home/`. Restore missing originals with
 `tools/assets/restore_type_icons.ps1`, or check existing files with `-VerifyOnly`.
 The importer verifies every original and refuses to replace a modified image.
 
-The selected-unit panel appears above Team Types. Left-click keeps the existing
+The selected-unit panel is a wide horizontal strip above Team Types. Selection
+never changes the roster's position, width or row spacing. Left-click keeps the existing
 planning pickup behavior while inspecting the unit; right-click inspects without
 moving it, including during combat. An empty click or `0` clears inspection.
 Right-drag still orbits the camera. Selection follows the unit's ID between the
@@ -351,7 +352,8 @@ replacing the previous custom badge's red check at the same coverage threshold.
 The image cases guard the original type symbols and selected-unit text and bars;
 `unit_inspection_contract` covers actual picking during combat, hidden enemies,
 live stats, bench transfers, removal and planning pickup. Local qualification is
-recorded in `debug/unit-inspection/{native,editor}`.
+recorded in `debug/unit-inspection-wide/{native,editor}`. The selected captures
+also guard Team Types at its normal anchor, catching selection-driven shifts.
 
 Card artwork follows the 220x150 gold frame's source border with one screen pixel
 of overlap underneath it. The old fixed six-pixel inset exposed the dark backing

@@ -89,6 +89,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
             std::chrono::duration<double, std::milli>(end - start).count());
     };
     const auto composeStart = clock::now();
+    const auto *inspected = renderWorld && gameWorld ? gameWorld->inspectedUnit() : nullptr;
         if (showPerfOverlay && engineServices) {
             const EngineFramePerfStats& perf = engineServices->framePerf;
             if (perf.fps > 0.0f) {
@@ -172,7 +173,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                                   << " i" << perf.projectedIndexedBatchesQueued;
                     }
                 }
-                appendRightText(edgePad + lineStep * 0.55f,
+                appendRightText(edgePad + lineStep * (inspected ? 7.7f : 0.55f),
                                 buildLine.str(),
                                 std::clamp(0.82f * uiScale, 0.68f, 1.05f),
                                 glm::vec3(0.72f, 0.86f, 0.96f));
@@ -180,7 +181,9 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         }
 
         if (renderWorld && gameWorld && gameWorld->showConcealedUnits()) {
-            appendText(edgePad, edgePad + lineStep * 2.0f,
+            const auto details = unit_details_hud::layout(drawableW, drawableH);
+            const float labelY = inspected ? details.y + details.h + 2 * uiScale : edgePad + lineStep * 2.0f;
+            appendText(edgePad, labelY,
                 "SHOW CONCEALED UNITS - F10: player vision", 0.85f * uiScale, glm::vec3(1.0f, 0.80f, 0.35f));
         }
         const std::string cachedMode = (services ? services->gameMode : std::string("classic"));
@@ -349,11 +352,9 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         support::hashBytes(inventoryKey, &inventoryRevision, sizeof(inventoryRevision));
         support::hashInt(inventoryKey, cachedInventoryModel.offset);
 
-        const auto *inspected = renderWorld && gameWorld ? gameWorld->inspectedUnit() : nullptr;
         support::OverlayHash rosterKey = support::kOverlayHashOffset;
         hashLayoutKeyBase(rosterKey);
         support::hashString(rosterKey, cachedMode);
-        support::hashBool(rosterKey, inspected != nullptr);
         support::hashBytes(rosterKey, &rosterRevision, sizeof(rosterRevision));
 
         support::OverlayHash logKey = support::kOverlayHashOffset;
@@ -766,7 +767,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
             const std::size_t hitRegionsStart = backendInventoryPanel.hitRegions.size();
 
             type_roster_hud::append(worldQuads, textLines, sprites, drawableW, drawableH,
-                                    cachedTypeCounts, cachedBenchUnits ? static_cast<int>(cachedBenchUnits->size()) : 0, inspected != nullptr);
+                                    cachedTypeCounts, cachedBenchUnits ? static_cast<int>(cachedBenchUnits->size()) : 0);
 
             captureRetainedRegion(
                 rosterCache,
