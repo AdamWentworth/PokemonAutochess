@@ -101,19 +101,39 @@ bool test_flat_arena_experiment_contract(std::string &error) {
                   world.travelBenchSlot(world.getBenchPokemons()[0].position) == 3,
               "Scene activation must move reserves to the detached bench while preserving their slots");
         for (int x = 17; x <= 24; ++x) {
-            check(bundle.map.reserveCells.contains({x, -12}) && bundle.map.reserveCells.contains({x, -1}),
+            check(bundle.map.reserveCells.contains({x, -11}) && bundle.map.reserveCells.contains({x, 0}),
                   "Detached bench cells disagree with the dirt pads");
-            for (int z : {-11, -2}) {
+            for (int z : {-10, -1}) {
                 const auto* gap = bundle.map.tileAt(x, z);
                 check(gap && gap->height == 0 && gap->ramp == 0 && gap->surface == 0 &&
                           !bundle.map.playableCells.contains({x,z}) && !bundle.map.reserveCells.contains({x,z}),
                       "Benches need a lawn gap outside the board and reserve cells");
             }
         }
+        for (int x = 17; x <= 21; ++x) {
+            const auto* shelf = bundle.map.tileAt(x,-12);
+            check(shelf && shelf->height == 1 && shelf->ramp == 0 && shelf->surface == 0,
+                  "The rear bench needs a full grass shelf halfway up the bank");
+        }
+        // Measure both ends and the midpoint of shared edges, so a ramp's side
+        // cannot hide a full-height rock face behind a correct centre sample.
+        for (int z = -17; z <= 1; ++z)
+            for (int x = 13; x <= 28; ++x)
+                for (auto delta : {game::arena::Cell{1,0}, game::arena::Cell{0,1}}) {
+                    const auto* cell = bundle.map.tileAt(x,z);
+                    const auto* neighbor = bundle.map.tileAt(x+delta.x,z+delta.z);
+                    check(cell && neighbor, "The arena surroundings have a missing terrain tile");
+                    for (float t : {0.f,.5f,1.f}) {
+                        const float px = (x + (delta.x ? 1.f : t)) * 100;
+                        const float pz = (z + (delta.z ? 1.f : t)) * 100;
+                        check(std::abs(cell->heightAt(px,pz)-neighbor->heightAt(px,pz)) <= 50.001f,
+                              "Arena ledges must not expose more than one half-metre rock face");
+                    }
+                }
         check(bundle.map.cover.size() >= 3, "The flat arena lost its surrounding encounter grass");
         // Check actual height continuity along the route behind the enemy bench.
         float lastHeight = 0;
-        for (int z : {-12, -13, -14, -15}) {
+        for (int z : {-11, -12, -13, -14}) {
             const auto* ramp = bundle.map.tileAt(23,z);
             check(ramp != nullptr, "The route behind the north bench has a missing tile");
             check(std::abs(ramp->heightAt(2350, (z+1)*100) - lastHeight) < .001f,

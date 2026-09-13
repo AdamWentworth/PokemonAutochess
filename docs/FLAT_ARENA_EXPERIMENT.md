@@ -42,16 +42,20 @@ The source is a separate file at
 The ordinary Autochess tile and prop controls remain available.
 
 The recipe is `config/environment/route1_flat_experiment.authoring.json`.
-Board cells are source X=17..24, Z=-10..-3; reserves are Z=-12 and Z=-1.
-Z=-11 and Z=-2 are lawn separators outside both gameplay footprints. Dirt ends
-at the board and reserve boundaries; the row below the south bench (Z=0) is lawn.
+Board cells are source X=17..24, Z=-9..-2; reserves are Z=-11 and Z=0.
+The complete arena footprint sits one tile south of its earlier placement.
+Z=-10 and Z=-1 are lawn separators outside both gameplay footprints. Dirt ends
+at the board and reserve boundaries; the row below the south bench (Z=1) is lawn.
 The orange editor lines mark 0.35-tile clearance around each footprint.
 Gameplay placement, reserve positions and rendered grids use the active arena's
 bench spacing. Returning to an older arena restores that arena's spacing.
 
-A three-tile-wide grassy ramp at X=22..24, Z=-13..-14 rises smoothly by one metre
-to join the upper route behind the enemy bench. Four independently editable
-encounter-grass beds sit on the west, east, upper-east and rear verges. Their
+A three-tile-wide grassy ramp at X=22..24, Z=-12..-13 rises smoothly by one metre
+to join the upper route behind the enemy bench. A full grass shelf at Z=-12
+splits the rear bank into half-metre ledges. The farther rocky bank is also
+lowered by half a metre, keeping its back face within the same height limit.
+Four independently editable encounter-grass beds sit on the west, east,
+upper-east and rear verges. Their
 full-size LGPE blades and cover footprints stay outside the board and benches;
 the rear bed is moved aside to leave the route exit open.
 The adjacent lawn strip was lowered with the dirt floor to provide some visual
@@ -119,10 +123,18 @@ three missing effects cannot pass just by looking identical.
 The new native tests reject malformed sampled geometry and unsafe texture paths,
 check delayed/retired geometry, require all board/reserve floor probes to be dirt
 without cover, verify two-way walking, detached bench placement and hit regions,
-continuous ramp heights, and switch back to the unchanged entrance.
+continuous ramp heights, half-metre perimeter faces (including ramp sides),
+and switch back to the unchanged entrance.
 The paired editor/plugin build and moving embedded preview captures are required
 in addition to standalone screenshots. The comparison command checks both editor
 scenes at a fixed seed as well. Local evidence is in `debug/flat-experiment/qualified`.
+
+The southward placement and shorter rear terraces are qualified separately in
+`debug/flat-south-shift`: eight relevant contracts pass in both Debug and Release;
+Scene view, populated Game preview and repeated scene switches pass on all three
+native APIs. Switching back matches a fresh scene load with zero changed pixels
+in the environment comparison region. The standalone `flat-detached-benches`
+case also passes on all three APIs with its reserve-unit content guards.
 
 The experiment exposed a completed-view opacity bug in the engine's editor
 composition. OpenGL, Vulkan and D3D12 now present the finished world image as
