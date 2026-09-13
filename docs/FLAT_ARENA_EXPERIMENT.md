@@ -42,6 +42,7 @@ The ordinary Autochess tile and prop controls remain available.
 
 The recipe is `config/environment/route1_flat_experiment.authoring.json`.
 Board cells are source X=17..24, Z=-10..-3; reserves are Z=-11 and Z=-2.
+Dirt ends at the reserve boundaries; the row below the south bench (Z=-1) is lawn.
 The adjacent lawn strip was lowered with the dirt floor to provide some visual
 space around the board. Scenery beyond that band retains its elevations.
 The bootstrap `create_route1_flat_experiment.py` refuses an existing output or

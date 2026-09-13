@@ -29,7 +29,8 @@ def main():
         # lawn cells. Both reserve rows remain outside combat navigation.
         if 16 <= cell['x'] <= 25 and -11 <= cell['z'] <= -1:
             cell.update(height=0, ramp=0)
-            if 17 <= cell['x'] <= 24:
+            # Dirt ends at the south reserve; Z=-1 is the lawn margin.
+            if 17 <= cell['x'] <= 24 and cell['z'] <= -2:
                 cell['surface'] = 1
             else:
                 cell['surface'] = 0
