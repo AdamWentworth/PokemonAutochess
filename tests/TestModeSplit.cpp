@@ -75,8 +75,8 @@ bool test_mode_split_flow(std::string& outFail) {
             return false;
         }
         const std::string route = rr.get<std::string>();
-        if (route != "scripts/states/route1.lua") {
-            outFail = "classic mode did not route to shared route1 state path.";
+        if (route != "scripts/states/route1_flat_experiment.lua") {
+            outFail = "classic mode did not route to the shared flat arena.";
             return false;
         }
     }
@@ -90,8 +90,8 @@ bool test_mode_split_flow(std::string& outFail) {
             return false;
         }
         const std::string route = rr.get<std::string>();
-        if (route != "scripts/states/route1.lua") {
-            outFail = "adventure mode did not route to shared route1 state path.";
+        if (route != "scripts/states/route1_flat_experiment.lua") {
+            outFail = "adventure mode did not route to the shared flat arena.";
             return false;
         }
     }

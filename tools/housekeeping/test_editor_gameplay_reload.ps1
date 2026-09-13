@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$OutputDirectory = 'debug/editor-gameplay-reload',
-    [string]$EditorPath = 'D:/Projects/Phlosion/PhlosionEngine/build/Release/PhlosionEditor.exe'
+    [string]$EditorPath = 'D:/Projects/Phlosion/PhlosionEngine/build/RelWithDebInfo/PhlosionEditor.exe'
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -63,10 +63,11 @@ try {
     $taskProcess = Start-Process -FilePath $EditorPath -WorkingDirectory $taskRoot -WindowStyle Hidden -PassThru `
         -ArgumentList ($arguments | ForEach-Object { '"' + $_ + '"' }) `
         -RedirectStandardOutput $taskStdout -RedirectStandardError $taskStderr
+    $null = $taskProcess.Handle
     Write-Output "Reload test editor PID: $($taskProcess.Id)"
     Wait-EditorLog '\[PhlosionEditor\]\[GamePreviewWarmup\] total='
 
-    $markerText = $taskOriginalText.Replace('Route 1 Arena Pilot - Battle', 'Route 1 Arena Pilot - Battle [reload probe]')
+    $markerText = [regex]::Replace($taskOriginalText, '("route1-pilot-battle",\s*)"Battle"', '$1"Battle [reload probe]"')
     if ($markerText -ceq $taskOriginalText) { throw 'The expected battle preview label was not found.' }
     Set-ProbeSource $markerText
     Write-Output 'Saved a compiled preview-label change; waiting for automatic reload.'

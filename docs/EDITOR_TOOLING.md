@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-09-12
+Last updated: 2026-09-13
 
 PokemonAutochess extends the reusable Phlosion Editor through
 `PokemonAutochessEditorProject`. Blender owns environment authoring; the editor
@@ -18,8 +18,9 @@ inspects published scenes, configures Pokemon starting positions and runs tests.
 3. In **Game** view, place Pokemon while stopped, then press **Play**. Use
    **Pause / Step** to inspect and **Stop** to restore the starting setup.
 
-Use a **Release** editor/plugin pair for everyday iteration. Enable **Stats**
-beside Play for live frame, GPU and viewport timing, including while paused.
+Open **Open Phlosion Editor.cmd** for the optimized **Development** editor and
+matching gameplay module. Stats starts enabled. **Record 30s** saves a report;
+**Play > Run Game (Standalone)** builds and opens the current game separately.
 See [editor performance](EDITOR_PERFORMANCE.md) for repeatable three-API
 benchmarks and the distinction between editor and standalone measurements.
 

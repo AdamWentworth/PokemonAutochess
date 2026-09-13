@@ -16,6 +16,11 @@ $taskPreviewPrefix = ($taskSceneId -split '/')[-1]
 if ($Phase -in @('ledges', 'travel') -and $taskPreviewPrefix -ne 'route1-pilot') {
     throw 'The dedicated Ledge and Travel scenarios belong to South Entrance.'
 }
+if (-not $Capture) {
+    & (Join-Path $taskGameRoot 'tools/launch_editor.ps1') -SceneId $taskSceneId -Backend $Backend `
+        -Scenario "$taskPreviewPrefix-$Phase" -Play:$Play
+    return
+}
 $taskProjects = [IO.Path]::GetFullPath((Join-Path $taskGameRoot '../..'))
 $taskEditor = Join-Path $taskProjects 'Phlosion/PhlosionEngine/build/Release/PhlosionEditor.exe'
 if (-not (Test-Path -LiteralPath $taskEditor)) { throw 'Build the editor pair with tools/housekeeping/build_editor_pair.ps1 first.' }
@@ -29,11 +34,6 @@ $taskDescriptor | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $taskProje
 $taskArguments = @("--project=$taskProject", "--renderer=$Backend",
     "--game-preview=$taskPreviewPrefix-$Phase", "--state-directory=$taskOutput/state")
 if ($Play) { $taskArguments += '--play-game-preview' }
-if (-not $Capture) {
-    # Explicit interactive preview launch.
-    Start-Process -FilePath $taskEditor -WorkingDirectory $taskGameRoot -ArgumentList ($taskArguments | ForEach-Object { '"' + $_ + '"' })
-    return
-}
 $taskPreviousPath = $env:PHLOSION_BACKEND_SCREENSHOT_PATH
 $taskPreviousFrame = $env:PHLOSION_BACKEND_SCREENSHOT_FRAME
 $taskPreviousDefer = $env:PHLOSION_BACKEND_SCREENSHOT_DEFER

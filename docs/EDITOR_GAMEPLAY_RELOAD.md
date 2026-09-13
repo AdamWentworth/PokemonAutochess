@@ -2,7 +2,11 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-09-08
+Last updated: 2026-09-13
+
+The daily launcher uses Development (`RelWithDebInfo`): optimized code, symbols
+and assertions. Automatic gameplay builds use that same configuration; switching
+to Debug or Release requires reopening the matching editor.
 
 Saving C++ gameplay source now starts an incremental build while the editor
 stays open. Auto Reload is enabled in `phlosion.project.json`, including the

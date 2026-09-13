@@ -3,6 +3,10 @@
 cmake_minimum_required(VERSION 3.22)
 project(PokemonAutochess LANGUAGES CXX)
 
+# Everyday Development profile: optimized symbols, release runtime ABI, assertions.
+string(REPLACE "/DNDEBUG" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+
 option(PAC_VERBOSE_STARTUP "Enable verbose startup/model-load logging" OFF)
 option(PAC_BUILD_TOOLS "Build developer tools (data cooker, VFX previewer)" ON)
 option(PAC_BUILD_EDITOR "Build the Pokemon Autochess project plugin for Phlosion Editor" ON)
@@ -191,7 +195,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "f070c2583483deeb152e975abd750cb5807a7486"
+    "7e6d2419f9854213d1ae5c83b286a4b32b827c1b"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 

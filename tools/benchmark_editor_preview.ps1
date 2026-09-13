@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Debug','Release')][string[]]$Configurations = @('Release'),
+    [ValidateSet('Debug','Release','RelWithDebInfo')][string[]]$Configurations = @('RelWithDebInfo'),
     [ValidateSet('opengl','vulkan','d3d12')][string[]]$Backends = @('opengl','vulkan','d3d12'),
     [string]$SceneId = 'routes/route1-flat-experiment',
     [string]$Scenario = 'route1-flat-experiment-crowded',
@@ -13,9 +13,10 @@ $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $taskEngine = [IO.Path]::GetFullPath((Join-Path $taskRoot '../../Phlosion/PhlosionEngine'))
 $taskOutput = [IO.Path]::GetFullPath([IO.Path]::Combine($taskRoot,$OutputDirectory))
 if ($Frames - $WarmupSamples -lt 150) { throw 'Keep at least 150 scored frames after warmup.' }
-# A second live renderer would invalidate the comparison.
-if (Get-Process PhlosionEditor,PokemonAutochess -ErrorAction SilentlyContinue) {
-    throw 'Close the interactive editor/game before benchmarking so they do not compete for the GPU.'
+# Competing renderers, compiler jobs or contract tests distort the comparison.
+# MSBuild keeps idle reusable worker processes after a finished build.
+if (Get-Process PhlosionEditor,PokemonAutochess,PAC_Tests,PhlosionEngineTests,cl,link -ErrorAction SilentlyContinue) {
+    throw 'Close the editor/game and wait for builds and contract tests to finish before benchmarking.'
 }
 $taskProject = Get-Content (Join-Path $taskRoot 'phlosion.project.json') -Raw | ConvertFrom-Json
 if ($SceneId -notin $taskProject.scenes.scene_id) { throw "Unknown scene: $SceneId" }

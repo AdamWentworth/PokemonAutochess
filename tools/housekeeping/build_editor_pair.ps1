@@ -4,7 +4,7 @@ param(
     [string]$EngineRoot = "",
     [string]$GameBuildDirectory = "",
     [string]$EngineBuildDirectory = "",
-    [ValidateSet('Debug', 'Release', 'All')]
+    [ValidateSet('Debug', 'Release', 'RelWithDebInfo', 'All')]
     [string]$Configuration = 'All',
     [string]$OutputDirectory = "",
     [switch]$VerifyOnly
@@ -208,7 +208,7 @@ if ($configuredEngineRoot.TrimEnd('\') -ne $EngineRoot.TrimEnd('\')) {
 }
 
 $configurations = if ($Configuration -eq 'All') {
-    @('Debug', 'Release')
+    @('Debug', 'Release', 'RelWithDebInfo')
 } else {
     @($Configuration)
 }

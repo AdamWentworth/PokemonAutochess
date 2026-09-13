@@ -976,13 +976,14 @@ std::vector<EncounterGrassPlacement> expandedEncounterGrassPlacements(
     return placements;
 }
 
-std::vector<float> encounterGrassSkinPalette(
+void encounterGrassSkinPalette(
     engine::render::route1_field_encounter_grass::SourceVariant variant,
     std::size_t jointCount,
     float placementPhaseCycles,
     float windPhaseCycles,
-    const std::array<game::render::encounter_grass_motion::State, 6>& contactMotion) {
-    std::vector<float> palette(jointCount * 16u, 0.0f);
+    const std::array<game::render::encounter_grass_motion::State, 6>& contactMotion,
+    std::vector<float>& palette) {
+    palette.resize(jointCount * 16u);
     for (std::size_t joint = 0u; joint < jointCount; ++joint) {
         const auto rotation =
             engine::render::route1_field_encounter_grass::
@@ -1016,12 +1017,12 @@ std::vector<float> encounterGrassSkinPalette(
             glm::value_ptr(jointMatrix) + 16u,
             palette.data() + joint * 16u);
     }
-    return palette;
 }
 
 void placeEncounterGrassLayer(
     EncounterGrassLayer& layer,
-    float windPhaseCycles) {
+    float windPhaseCycles,
+    bool rebuildInstances = true) {
     const auto variant =
         layer.logicalName == "enc_grass02"
         ? engine::render::route1_field_encounter_grass::SourceVariant::Grass02
@@ -1070,8 +1071,10 @@ void placeEncounterGrassLayer(
             "shadow");
     }
 
-    shared_world_scene::beginWorldSceneFrame(layer.scene.frame);
-    shared_world_scene::beginWorldSceneFrame(layer.scene.shadowFrame);
+    if (rebuildInstances) {
+        shared_world_scene::beginWorldSceneFrame(layer.scene.frame);
+        shared_world_scene::beginWorldSceneFrame(layer.scene.shadowFrame);
+    }
     layer.skinPalettes.resize(layer.placements.size());
     std::uint32_t instanceId = 1u;
     std::size_t visiblePlacementCount = 0u;
@@ -1101,18 +1104,17 @@ void placeEncounterGrassLayer(
         }
         ++visiblePlacementCount;
         visibleClusterCount += placementVisibleClusterCount;
-        const auto nextPalette = encounterGrassSkinPalette(
+        encounterGrassSkinPalette(
             variant,
             layer.source.bones.size(),
             placement.phaseCycles,
             windPhaseCycles,
-            placement.contactMotion);
+            placement.contactMotion,
+            layer.skinPalettes[placementIndex]);
+        // Animation writes into stable palettes referenced by the cached batches.
+        // Placement/edit paths rebuild visible and shadow instances explicitly.
+        if (!rebuildInstances) continue;
         auto& palette = layer.skinPalettes[placementIndex];
-        palette.resize(nextPalette.size());
-        std::copy(
-            nextPalette.begin(),
-            nextPalette.end(),
-            palette.begin());
         for (std::size_t drawIndex = 0u;
              drawIndex < layer.sourceDraws.size();
              ++drawIndex) {
@@ -1573,10 +1575,11 @@ std::string canonicalMeshPrefabAssetId(
     return "route1/source_mesh_" + number;
 }
 
-std::vector<float> vegetationSkinPalette(
+void vegetationSkinPalette(
     const CanonicalScene& source,
-    float windPhaseCycles) {
-    std::vector<float> palette(source.bones.size() * 16u, 0.0f);
+    float windPhaseCycles,
+    std::vector<float>& palette) {
+    palette.resize(source.bones.size() * 16u);
     std::vector<glm::mat4> restWorld(
         source.bones.size(),
         glm::mat4(1.0f));
@@ -1647,12 +1650,12 @@ std::vector<float> vegetationSkinPalette(
             glm::value_ptr(jointMatrix) + 16u,
             palette.data() + index * 16u);
     }
-    return palette;
 }
 
 void placeVegetationLayer(
     PlacedVegetationLayer& layer,
-    float windPhaseCycles) {
+    float windPhaseCycles,
+    bool rebuildInstances = true) {
     if (layer.sourceDraws.empty()) {
         layer.sourceDraws.reserve(layer.scene.frame.drawClasses.size());
         for (const auto& drawClass : layer.scene.frame.drawClasses) {
@@ -1693,15 +1696,10 @@ void placeVegetationLayer(
         }
     }
 
+    vegetationSkinPalette(layer.source, windPhaseCycles, layer.skinPalette);
+    if (!rebuildInstances) return;
     shared_world_scene::beginWorldSceneFrame(layer.scene.frame);
     shared_world_scene::beginWorldSceneFrame(layer.scene.shadowFrame);
-    const auto nextPalette =
-        vegetationSkinPalette(layer.source, windPhaseCycles);
-    layer.skinPalette.resize(nextPalette.size());
-    std::copy(
-        nextPalette.begin(),
-        nextPalette.end(),
-        layer.skinPalette.begin());
     std::uint32_t instanceId = 1u;
     std::size_t visiblePlacementCount = 0u;
     for (const auto& placement : layer.placements) {
@@ -5732,12 +5730,12 @@ struct RuntimeEnvironment::Impl {
             }
             placeEncounterGrassLayer(
                 layer,
-                windPhaseCycles);
+                windPhaseCycles, false);
         }
         for (auto &layer : placedVegetation) {
             placeVegetationLayer(
                 layer,
-                windPhaseCycles);
+                windPhaseCycles, false);
         }
     }
 

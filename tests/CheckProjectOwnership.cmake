@@ -52,12 +52,10 @@ foreach(_path IN LISTS _forbidden_engine_paths)
 endforeach()
 
 file(READ "${PAC_ROOT}/phlosion.project.json" _project_descriptor)
-if (NOT _project_descriptor MATCHES
-    "\"id\"[ \t\r\n]*:[ \t\r\n]*\"phlosion.tile-tools\"" OR
-    NOT _project_descriptor MATCHES
-    "\"version\"[ \t\r\n]*:[ \t\r\n]*\"0.1.0\"")
+if (_project_descriptor MATCHES
+    "\"id\"[ \t\r\n]*:[ \t\r\n]*\"phlosion.tile-tools\"")
     message(FATAL_ERROR
-        "Pokemon Autochess must explicitly declare the tested Tile Tools package version")
+        "Blender-authored environments must not load the retired source tile-editing package")
 endif()
 
 file(GLOB_RECURSE _engine_sources LIST_DIRECTORIES false

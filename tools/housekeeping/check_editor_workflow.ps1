@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$OutputDirectory = 'debug/editor-workflow',
-    [ValidateSet('Debug', 'Release')][string]$Configuration = 'Release',
+    [ValidateSet('Debug', 'Release', 'RelWithDebInfo')][string]$Configuration = 'RelWithDebInfo',
     [string[]]$Cases = @(),
     [switch]$SkipCapture
 )
@@ -66,6 +66,10 @@ try {
                 if ($taskCase.scenario) { $taskArguments += "--game-preview=$($taskCase.scenario)" }
                 if ($taskCase.play) { $taskArguments += '--play-game-preview' }
                 if ($taskCase.stats) { $taskArguments += '--stats' }
+                if ($taskCase.recording) {
+                    $taskArguments += @('--record-performance-at=40','--record-performance-seconds=0.25',
+                        '--record-performance-warmup-seconds=0.1',"--performance-output=$taskRunOutput/performance.json")
+                }
                 foreach ($taskOpen in $taskCase.sceneOpens) {
                     $taskArguments += "--open-scene-at=$($taskOpen.frame):$($taskOpen.sceneId)"
                 }
@@ -89,6 +93,17 @@ try {
                 throw "Scene switches did not execute as requested: $($taskCase.name)/$taskBackend"
             }
             $taskContents = $taskMetrics.project.editor_contents
+            if ($taskCase.recording) {
+                $taskRecording = Get-Content (Join-Path $taskRunOutput 'performance.json') -Raw | ConvertFrom-Json
+                if ($taskRecording.schema -ne 'phlosion-performance-recording-v1' -or
+                    $taskRecording.context.backend -ne $taskBackend -or
+                    $taskRecording.context.build_configuration -ne $Configuration -or
+                    $taskRecording.context.scene -ne $taskCase.sceneId -or
+                    $taskRecording.frame.samples -lt 1 -or $taskRecording.gpu.samples -lt 1 -or
+                    $taskRecording.frame.mean_ms -le 0 -or $taskRecording.frames.Count -ne $taskRecording.frame.samples) {
+                    throw "Invalid performance recording: $($taskCase.name)/$taskBackend"
+                }
+            }
             if ($taskCase.stats -and (-not $taskMetrics.capture.stats_requested -or
                 $taskMetrics.renderer.live_stats.fps -le 0 -or
                 -not $taskMetrics.renderer.live_stats.gpu_valid)) {
@@ -110,10 +125,11 @@ try {
                 $taskUnits.Count -ne [int]$taskCase.unitCount) {
                 throw "Scenery handles leaked into the viewport, or Pokemon editing was lost: $($taskCase.name)/$taskBackend"
             }
-            $taskGuard = Test-RenderParityImageContent -ImagePath $taskScreenshot -Guard ([pscustomobject]@{
+            $taskImageGuard = if ($taskCase.imageGuard) { $taskCase.imageGuard } else { [pscustomobject]@{
                 name='visible-environment'; x=.3; y=.23; width=.4; height=.43;
                 maximumNearBlackPixelRatio=.12; minimumMidtonePixelRatio=.3
-            })
+            } }
+            $taskGuard = Test-RenderParityImageContent -ImagePath $taskScreenshot -Guard $taskImageGuard
             if (-not $taskGuard.Passed) { throw "Missing scene content: $($taskCase.name)/$taskBackend" }
             $taskFeatureGuards = @()
             foreach ($taskFeature in $taskCase.contentGuards) {

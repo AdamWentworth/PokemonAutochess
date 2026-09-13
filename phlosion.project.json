@@ -14,7 +14,7 @@
     }
   ],
   "startup_scene": {
-    "scene_id": "routes/route1-pilot"
+    "scene_id": "routes/route1-flat-experiment"
   },
   "environments": [
     {
@@ -70,6 +70,20 @@
       "authored_scene_path": "scenes/route1_flat_experiment.scene.json",
       "runtime_path": "scripts/states/route1_flat_experiment.lua",
       "status": "in_progress"
+    }
+  ],
+  "play_configurations": [
+    {
+      "id": "standalone-game",
+      "display_name": "Run Game (Standalone)",
+      "group": "Game",
+      "description": "Open a fresh game from the main menu using the editor's build profile and native renderer.",
+      "executable": "build/{config}/PokemonAutochess.exe",
+      "build_directory": "build",
+      "build_target": "PokemonAutochess",
+      "working_directory": ".",
+      "arguments": [],
+      "environment": {"PAC_RENDER_BACKEND": "{renderer}"}
     }
   ],
   "gameplay_reload": {
