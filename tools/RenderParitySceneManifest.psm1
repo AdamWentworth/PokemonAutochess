@@ -112,7 +112,7 @@ function Import-RenderParitySceneManifest {
         $knownGuardNames = [Collections.Generic.HashSet[string]]::new(
             [StringComparer]::OrdinalIgnoreCase)
         foreach ($guard in $contentGuards) {
-            foreach ($colorThreshold in @("minimumRedPixelRatio", "minimumBrightNeutralPixelRatio")) {
+            foreach ($colorThreshold in @("minimumRedPixelRatio", "minimumBrightNeutralPixelRatio", "minimumOrangePixelRatio")) {
                 if ($null -ne $guard.$colorThreshold) {
                     Assert-UnitInterval -Name "$($guard.name).$colorThreshold" -Value $guard.$colorThreshold
                 }

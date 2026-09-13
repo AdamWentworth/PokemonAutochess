@@ -18,15 +18,46 @@
     {
       "name": "flat-detached-benches",
       "focus": "flat dirt battlefield, separated reserve pads with two Pokemon, grassy route exit and surrounding encounter grass",
-      "coverage": ["world", "environment", "bench", "combat"],
+      "coverage": [
+        "world",
+        "environment",
+        "bench",
+        "combat"
+      ],
       "snapshotPath": "config/debug/editor_route1_flat_experiment_benches.json",
       "screenshotFrame": 164,
       "width": 1440,
       "height": 1000,
       "contentGuards": [
-        {"name": "visible-flat-arena", "x": 0.3, "y": 0.2, "width": 0.4, "height": 0.5, "maximumNearBlackPixelRatio": 0.12, "minimumMidtonePixelRatio": 0.3},
-        {"name": "pidgey-on-detached-bench", "x": 0.32, "y": 0.727, "width": 0.045, "height": 0.029, "maximumNearBlackPixelRatio": 0.3, "minimumMidtonePixelRatio": 0.1, "minimumBrightNeutralPixelRatio": 0.005},
-        {"name": "rattata-on-detached-bench", "x": 0.575, "y": 0.727, "width": 0.045, "height": 0.029, "maximumNearBlackPixelRatio": 0.3, "minimumMidtonePixelRatio": 0.1, "minimumBrightNeutralPixelRatio": 0.005}
+        {
+          "name": "visible-flat-arena",
+          "x": 0.3,
+          "y": 0.2,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "pidgey-on-detached-bench",
+          "x": 0.32,
+          "y": 0.727,
+          "width": 0.045,
+          "height": 0.029,
+          "maximumNearBlackPixelRatio": 0.3,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.005
+        },
+        {
+          "name": "rattata-on-detached-bench",
+          "x": 0.575,
+          "y": 0.727,
+          "width": 0.045,
+          "height": 0.029,
+          "maximumNearBlackPixelRatio": 0.3,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.005
+        }
       ]
     },
     {
@@ -783,7 +814,7 @@
           "height": 0.021,
           "maximumNearBlackPixelRatio": 0.2,
           "minimumMidtonePixelRatio": 0.1,
-          "minimumRedPixelRatio": 0.12,
+          "minimumOrangePixelRatio": 0.12,
           "minimumBrightNeutralPixelRatio": 0.06
         },
         {
@@ -830,7 +861,7 @@
           "height": 0.02,
           "maximumNearBlackPixelRatio": 0.2,
           "minimumMidtonePixelRatio": 0.1,
-          "minimumRedPixelRatio": 0.12,
+          "minimumOrangePixelRatio": 0.12,
           "minimumBrightNeutralPixelRatio": 0.06
         },
         {
@@ -898,6 +929,146 @@
           "maximumNearBlackPixelRatio": 0.1,
           "minimumMidtonePixelRatio": 0.2,
           "minimumLuminanceStandardDeviation": 25
+        }
+      ]
+    },
+    {
+      "name": "hud-inspection",
+      "focus": "selected Pokemon stats above the original HOME type icons",
+      "coverage": [
+        "world",
+        "ui",
+        "unit-inspection"
+      ],
+      "snapshotPath": "config/debug/editor_hud_inspection.json",
+      "screenshotFrame": 120,
+      "width": 1280,
+      "height": 720,
+      "autoQuitSeconds": 6,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.2,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "selected-pokemon-name",
+          "x": 0.0234375,
+          "y": 0.09444444444444444,
+          "width": 0.13671875,
+          "height": 0.022222222222222223,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.025,
+          "minimumLuminanceStandardDeviation": 20,
+          "midtoneLuminanceMinimum": 200,
+          "midtoneLuminanceMaximum": 255
+        },
+        {
+          "name": "selected-hp-bar",
+          "x": 0.0234375,
+          "y": 0.16111111111111112,
+          "width": 0.184375,
+          "height": 0.019444444444444445,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.025,
+          "minimumLuminanceStandardDeviation": 20
+        },
+        {
+          "name": "selected-energy-bar",
+          "x": 0.0234375,
+          "y": 0.18888888888888888,
+          "width": 0.184375,
+          "height": 0.019444444444444445,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.025,
+          "minimumLuminanceStandardDeviation": 20
+        },
+        {
+          "name": "selected-grass-type-icon",
+          "x": 0.0234375,
+          "y": 0.125,
+          "width": 0.0140625,
+          "height": 0.025,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.08,
+          "minimumLuminanceStandardDeviation": 30
+        }
+      ]
+    },
+    {
+      "name": "hud-inspection-compact",
+      "focus": "selected Pokemon stats above the original HOME type icons",
+      "coverage": [
+        "world",
+        "ui",
+        "unit-inspection"
+      ],
+      "snapshotPath": "config/debug/editor_hud_inspection.json",
+      "screenshotFrame": 120,
+      "width": 800,
+      "height": 600,
+      "autoQuitSeconds": 6,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.2,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "selected-pokemon-name",
+          "x": 0.023125,
+          "y": 0.07041666666666667,
+          "width": 0.13671875,
+          "height": 0.016666666666666666,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.025,
+          "minimumLuminanceStandardDeviation": 20,
+          "midtoneLuminanceMinimum": 200,
+          "midtoneLuminanceMaximum": 255
+        },
+        {
+          "name": "selected-hp-bar",
+          "x": 0.023125,
+          "y": 0.12041666666666667,
+          "width": 0.184375,
+          "height": 0.014583333333333334,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.025,
+          "minimumLuminanceStandardDeviation": 20
+        },
+        {
+          "name": "selected-energy-bar",
+          "x": 0.023125,
+          "y": 0.14125,
+          "width": 0.184375,
+          "height": 0.014583333333333334,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.025,
+          "minimumLuminanceStandardDeviation": 20
+        },
+        {
+          "name": "selected-grass-type-icon",
+          "x": 0.023125,
+          "y": 0.09333333333333334,
+          "width": 0.0140625,
+          "height": 0.01875,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.08,
+          "minimumLuminanceStandardDeviation": 30
         }
       ]
     }

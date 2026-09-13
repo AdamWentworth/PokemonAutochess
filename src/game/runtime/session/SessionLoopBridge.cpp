@@ -13,6 +13,7 @@
 #include "game/systems/CameraSystem.h"
 #include "game/systems/UnitInteractionSystem.h"
 #include "game/ui/UIViewport.h"
+#include "game/runtime/ui/UnitDetailsHud.h"
 
 #include <algorithm>
 #include <memory>
@@ -182,8 +183,7 @@ void handleEvent(const InputEvent& event, const Context& context) {
                 context.gameWorld->setShowConcealedUnits(!context.gameWorld->showConcealedUnits());
                 game::log::info(context.log, context.gameWorld->showConcealedUnits()
                     ? "[Grass View] Show concealed units ON (F10 restores player vision; targeting unchanged)"
-                    : "[Grass View] Player vision (F10 shows concealed units)");
-            },
+                    : "[Grass View] Player vision (F10 shows concealed units)"); },
             .loadDebugSnapshot = context.loadDebugSnapshot,
             .openMainMenu =
                 [&]() {
@@ -196,12 +196,23 @@ void handleEvent(const InputEvent& event, const Context& context) {
                 },
             .clearSelection =
                 [&]() {
-                    if (!context.inventoryDependencies) return false;
-                    return session_backend_inventory_ui::clearSelection(
-                        context.inventoryDependencies());
+                    const bool inspecting = context.gameWorld && context.gameWorld->inspectedUnit();
+                    if (context.gameWorld) context.gameWorld->clearInspectedUnit();
+                    const bool itemCleared = context.inventoryDependencies &&
+                        session_backend_inventory_ui::clearSelection(context.inventoryDependencies());
+                    return inspecting || itemCleared;
                 },
             .handleInventoryInput =
-                [&](const InputEvent& inputEvent) {
+                [&](const InputEvent &inputEvent) {
+                    if (inputEvent.type == InputEvent::Type::MouseDown && context.viewport && context.gameWorld) {
+                        const auto &viewport = *context.viewport;
+                        const bool inspecting = context.gameWorld->inspectedUnit() != nullptr;
+                        const auto types = type_roster_hud::layout(viewport.width, viewport.height,
+                                                                   static_cast<int>(context.gameWorld->getPlayerTypeLineCountsCached().size()), inspecting);
+                        if ((inspecting && unit_details_hud::layout(viewport.width, viewport.height).contains(inputEvent.mouseX, inputEvent.mouseY)) ||
+                            (!context.gameWorld->getPlayerTypeLineCountsCached().empty() && inputEvent.mouseX >= types.x && inputEvent.mouseX < types.x + types.w &&
+                             inputEvent.mouseY >= types.y && inputEvent.mouseY < types.y + types.h)) return true;
+                    }
                     if (!context.backendInventoryPanel || !context.inventoryDependencies) {
                         return false;
                     }
@@ -212,22 +223,22 @@ void handleEvent(const InputEvent& event, const Context& context) {
                         context.inventoryDependencies());
                 },
             .handleRoute1BackdropTuningInput =
-                [&](const InputEvent& inputEvent) {
+                [&](const InputEvent &inputEvent) {
                     return handleRoute1BackdropTuningInput(
                         inputEvent,
                         context.log,
                         context.route1BackdropTuning);
                 },
             .handleCameraInput =
-                [&](const InputEvent& inputEvent) {
+                [&](const InputEvent &inputEvent) {
                     if (context.cameraSystem) context.cameraSystem->handleInput(inputEvent);
                 },
             .handleUnitInput =
-                [&](const InputEvent& inputEvent) {
+                [&](const InputEvent &inputEvent) {
                     if (context.unitSystem) context.unitSystem->handleInput(inputEvent);
                 },
             .handleStateInput =
-                [&](const InputEvent& inputEvent) {
+                [&](const InputEvent &inputEvent) {
                     if (context.stateManager) context.stateManager->handleInput(inputEvent);
                 },
         });

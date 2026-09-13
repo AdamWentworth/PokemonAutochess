@@ -11,6 +11,7 @@
 #include "game/runtime/ui/DebugText.h"
 #include "game/runtime/ui/HudFormatting.h"
 #include "game/runtime/ui/TypeRosterHud.h"
+#include "game/runtime/ui/UnitDetailsHud.h"
 #include "game/runtime/ui/InventoryOverlay.h"
 #include "game/runtime/ui/StatusText.h"
 #include "game/runtime/shared/capture/SharedCapturePresentation.h"
@@ -348,9 +349,11 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         support::hashBytes(inventoryKey, &inventoryRevision, sizeof(inventoryRevision));
         support::hashInt(inventoryKey, cachedInventoryModel.offset);
 
+        const auto *inspected = renderWorld && gameWorld ? gameWorld->inspectedUnit() : nullptr;
         support::OverlayHash rosterKey = support::kOverlayHashOffset;
         hashLayoutKeyBase(rosterKey);
         support::hashString(rosterKey, cachedMode);
+        support::hashBool(rosterKey, inspected != nullptr);
         support::hashBytes(rosterKey, &rosterRevision, sizeof(rosterRevision));
 
         support::OverlayHash logKey = support::kOverlayHashOffset;
@@ -762,8 +765,8 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
             const std::size_t spritesStart = sprites.size();
             const std::size_t hitRegionsStart = backendInventoryPanel.hitRegions.size();
 
-            type_roster_hud::append(worldQuads, textLines, drawableW, drawableH,
-                                    cachedTypeCounts, cachedBenchUnits ? static_cast<int>(cachedBenchUnits->size()) : 0);
+            type_roster_hud::append(worldQuads, textLines, sprites, drawableW, drawableH,
+                                    cachedTypeCounts, cachedBenchUnits ? static_cast<int>(cachedBenchUnits->size()) : 0, inspected != nullptr);
 
             captureRetainedRegion(
                 rosterCache,
@@ -774,6 +777,12 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                 textLinesStart,
                 spritesStart,
                 hitRegionsStart);
+        }
+
+        if (inspected) {
+            const bool onBench = std::any_of(gameWorld->getBenchPokemons().begin(), gameWorld->getBenchPokemons().end(),
+                                             [&](const auto &unit) { return unit.id == inspected->id; });
+            unit_details_hud::append(worldQuads, textLines, sprites, drawableW, drawableH, *inspected, gameWorld->getData(), onBench);
         }
 
         if (logCache.key == logKey) {

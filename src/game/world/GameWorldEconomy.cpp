@@ -45,6 +45,7 @@ void GameWorld::resetForNewGame(int startingMoney) {
     unitSellRewardsEnabled = true;
 
     selectedItemId.clear();
+    clearInspectedUnit();
     items.clear();
     const int resetMoney = (startingMoney >= 0) ? startingMoney : config.startingCash;
     money = std::max(0, resetMoney);
@@ -211,4 +212,3 @@ bool GameWorld::tryUseHealingItem(const std::string& itemId, int targetId) {
     }
     return true;
 }
-

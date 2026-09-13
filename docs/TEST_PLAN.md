@@ -317,10 +317,41 @@ HUD and card scaling checks:
 
 The shop dock groups Gold, Reroll and Ready above the cards; rendering and hit
 testing share `ShopHudModel::computeDock`. The round-transition CPU contract
-resizes the viewport and clicks the actual Ready callback. Type icons use shared,
-retained vector geometry in `TypeRosterHud.h`. Counts retain the existing distinct
+resizes the viewport and clicks the actual Ready callback. Type icons use the
+original 64x64 Pokemon HOME images through the shared, retained sprite path in `TypeRosterHud.h`. Counts retain the existing distinct
 evolution-line rule across the board and bench, and represented types are no
 longer truncated after six rows.
+
+All 18 icon sources and SHA-256 hashes are recorded in
+`config/ui/pokemon_type_icons.json`. Runtime images remain in the private asset
+depot and under ignored `assets/ui/types/home/`. Restore missing originals with
+`tools/assets/restore_type_icons.ps1`, or check existing files with `-VerifyOnly`.
+The importer verifies every original and refuses to replace a modified image.
+
+The selected-unit panel appears above Team Types. Left-click keeps the existing
+planning pickup behavior while inspecting the unit; right-click inspects without
+moving it, including during combat. An empty click or `0` clears inspection.
+Right-drag still orbits the camera. Selection follows the unit's ID between the
+board and bench. The panel reads live HP, energy, attack, movement speed, level,
+XP and configured moves, and disappears for removed, fainted or concealed units.
+It respects the existing explicit F10 visibility debug mode. Snapshots preserve
+the selected unit without depending on IDs surviving restoration.
+
+The flat arena's **HUD Inspection Test** starts a planning shop with Bulbasaur
+selected. Qualify its compact and normal layouts, plus the ordinary type roster:
+
+```powershell
+.\tools\render_parity_matrix.ps1 -Config RelWithDebInfo -Cases hud-inspection,hud-inspection-compact,round-shop
+.\tools\housekeeping\check_editor_workflow.ps1 -Cases hud-inspection,round-shop
+ctest --test-dir build -C RelWithDebInfo -R '(unit_inspection|ui_hud_formatting|session_debug_snapshot|session_snapshot_runtime|session_loop_bridge|editor_preview_catalog|runtime_startup_asset_prewarm)' --output-on-failure
+```
+
+The Fire icon check now requires HOME's orange background and white symbol,
+replacing the previous custom badge's red check at the same coverage threshold.
+The image cases guard the original type symbols and selected-unit text and bars;
+`unit_inspection_contract` covers actual picking during combat, hidden enemies,
+live stats, bench transfers, removal and planning pickup. Local qualification is
+recorded in `debug/unit-inspection/{native,editor}`.
 
 Card artwork follows the 220x150 gold frame's source border with one screen pixel
 of overlap underneath it. The old fixed six-pixel inset exposed the dark backing

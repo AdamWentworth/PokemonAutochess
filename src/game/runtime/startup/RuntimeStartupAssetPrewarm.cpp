@@ -4,6 +4,7 @@
 #include "engine/render/SpriteTextureCardArt.h"
 #include "game/config/GameDataDb.h"
 #include "game/runtime/ui/ImagePath.h"
+#include "game/runtime/ui/TypeRosterHud.h"
 
 #include <algorithm>
 #include <chrono>
@@ -163,6 +164,8 @@ std::vector<std::string> collectUiSpritePrewarmPaths(const GameDataDb& dataDb) {
         paths.push_back(path);
     };
 
+    for (const auto &type : type_roster_hud::styles)
+        addPath("assets/ui/types/home/" + std::string(type.id) + ".png");
     addPath("assets/ui/frame_gold.png");
     addPath("assets/images/item_placeholder.png");
     addPath("assets/images/items_atlas.png");

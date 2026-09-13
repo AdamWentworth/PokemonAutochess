@@ -1,0 +1,153 @@
+{
+  "schema": 1,
+  "game": "Pokemon HOME",
+  "source_collection": "https://www.pokepedia.fr/Cat%C3%A9gorie:Image_de_type_de_Pok%C3%A9mon_HOME",
+  "imported": "2026-09-13",
+  "notes": "Original 64x64 game icons mirrored by Pokepedia; downloaded without image changes. Pokemon artwork remains the property of its respective rights holders.",
+  "icons": [
+    {
+      "type": "normal",
+      "path": "assets/ui/types/home/normal.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Normal_HOME.png",
+      "url": "https://www.pokepedia.fr/images/0/05/Ic%C3%B4ne_Type_Normal_HOME.png",
+      "sha256": "ec1317d5888c14c8d8dbec9c998f3a5eab87fd5c5348417f5246b250663bb74f",
+      "bytes": 3942
+    },
+    {
+      "type": "fire",
+      "path": "assets/ui/types/home/fire.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Feu_HOME.png",
+      "url": "https://www.pokepedia.fr/images/2/23/Ic%C3%B4ne_Type_Feu_HOME.png",
+      "sha256": "858f39da267ee7d38e1844e7968a3bc6bd27b3f19cb2a87e379652e3b98e2dbc",
+      "bytes": 3762
+    },
+    {
+      "type": "water",
+      "path": "assets/ui/types/home/water.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Eau_HOME.png",
+      "url": "https://www.pokepedia.fr/images/3/30/Ic%C3%B4ne_Type_Eau_HOME.png",
+      "sha256": "239d8641002a4c11fcc59096089488496ef161f64b07700bea1f3a1fa138e30c",
+      "bytes": 3585
+    },
+    {
+      "type": "electric",
+      "path": "assets/ui/types/home/electric.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_%C3%89lectrik_HOME.png",
+      "url": "https://www.pokepedia.fr/images/c/c5/Ic%C3%B4ne_Type_%C3%89lectrik_HOME.png",
+      "sha256": "4e983a028f656cb0104c1dc4955610708d8adde37fa38ceed2737ade595762ba",
+      "bytes": 3202
+    },
+    {
+      "type": "grass",
+      "path": "assets/ui/types/home/grass.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Plante_HOME.png",
+      "url": "https://www.pokepedia.fr/images/0/0b/Ic%C3%B4ne_Type_Plante_HOME.png",
+      "sha256": "abbf7b680c1eb141af50568e51d9ed62dbabe7dc4eb078b9b6739e02c7741ba8",
+      "bytes": 3968
+    },
+    {
+      "type": "ice",
+      "path": "assets/ui/types/home/ice.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Glace_HOME.png",
+      "url": "https://www.pokepedia.fr/images/1/19/Ic%C3%B4ne_Type_Glace_HOME.png",
+      "sha256": "011848fb0ba738ba6ad64a3a19549f1b808f74805053af354107565069b878bd",
+      "bytes": 3746
+    },
+    {
+      "type": "fighting",
+      "path": "assets/ui/types/home/fighting.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Combat_HOME.png",
+      "url": "https://www.pokepedia.fr/images/2/25/Ic%C3%B4ne_Type_Combat_HOME.png",
+      "sha256": "169477394e06b5383d83b42fd4066c5d24212512e633c594802ea997e08cca2f",
+      "bytes": 3069
+    },
+    {
+      "type": "poison",
+      "path": "assets/ui/types/home/poison.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Poison_HOME.png",
+      "url": "https://www.pokepedia.fr/images/4/45/Ic%C3%B4ne_Type_Poison_HOME.png",
+      "sha256": "77663ac6506ecd2b2f7424b68bbcd94ba0068dc3f2a4e12448854548a6d8bb0b",
+      "bytes": 3812
+    },
+    {
+      "type": "ground",
+      "path": "assets/ui/types/home/ground.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Sol_HOME.png",
+      "url": "https://www.pokepedia.fr/images/3/37/Ic%C3%B4ne_Type_Sol_HOME.png",
+      "sha256": "61fb4f7618f44870d1f17a40ad7e2c24bfba892d7032c4bab337b07ea0192bee",
+      "bytes": 3230
+    },
+    {
+      "type": "flying",
+      "path": "assets/ui/types/home/flying.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Vol_HOME.png",
+      "url": "https://www.pokepedia.fr/images/8/84/Ic%C3%B4ne_Type_Vol_HOME.png",
+      "sha256": "baf3acc7d62b04a9b4525e31ae6075cfd50a4c611c9bf2fb4db8b175a6b6fae4",
+      "bytes": 3739
+    },
+    {
+      "type": "psychic",
+      "path": "assets/ui/types/home/psychic.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Psy_HOME.png",
+      "url": "https://www.pokepedia.fr/images/4/42/Ic%C3%B4ne_Type_Psy_HOME.png",
+      "sha256": "64aba21750636cfa9ae986724dcc2c366e876d592b6a70063ed14409f0aee53a",
+      "bytes": 4140
+    },
+    {
+      "type": "bug",
+      "path": "assets/ui/types/home/bug.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Insecte_HOME.png",
+      "url": "https://www.pokepedia.fr/images/6/62/Ic%C3%B4ne_Type_Insecte_HOME.png",
+      "sha256": "3a9cf050788718b330235f4da97231d2c7c6eee112516251c2a34c9f3e4536ca",
+      "bytes": 3839
+    },
+    {
+      "type": "rock",
+      "path": "assets/ui/types/home/rock.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Roche_HOME.png",
+      "url": "https://www.pokepedia.fr/images/2/27/Ic%C3%B4ne_Type_Roche_HOME.png",
+      "sha256": "ce96e12da2dee86df43179d234aecd94938762f39ef688910b28f04b0a961bec",
+      "bytes": 3776
+    },
+    {
+      "type": "ghost",
+      "path": "assets/ui/types/home/ghost.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Spectre_HOME.png",
+      "url": "https://www.pokepedia.fr/images/e/e2/Ic%C3%B4ne_Type_Spectre_HOME.png",
+      "sha256": "5654284b772c4c9e4e371bcd8822e290122646ab0cffe435587e84fd6dc5c6e9",
+      "bytes": 3731
+    },
+    {
+      "type": "dragon",
+      "path": "assets/ui/types/home/dragon.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Dragon_HOME.png",
+      "url": "https://www.pokepedia.fr/images/5/5c/Ic%C3%B4ne_Type_Dragon_HOME.png",
+      "sha256": "9dd58b1f62b376fcf92be8a881d8fc0f23e21ddd686d67d68070a23d277f757d",
+      "bytes": 4072
+    },
+    {
+      "type": "dark",
+      "path": "assets/ui/types/home/dark.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_T%C3%A9n%C3%A8bres_HOME.png",
+      "url": "https://www.pokepedia.fr/images/d/d2/Ic%C3%B4ne_Type_T%C3%A9n%C3%A8bres_HOME.png",
+      "sha256": "c79d68cd36559ba012f9cb34fbd3e3d1f7a5c05810ea13c3ff7e4e9952084919",
+      "bytes": 4074
+    },
+    {
+      "type": "steel",
+      "path": "assets/ui/types/home/steel.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_Acier_HOME.png",
+      "url": "https://www.pokepedia.fr/images/0/0e/Ic%C3%B4ne_Type_Acier_HOME.png",
+      "sha256": "89e922fa8b82ab7822e763f974a0d9c92f28fb42eb4a3392691a3b0350ffb31e",
+      "bytes": 3626
+    },
+    {
+      "type": "fairy",
+      "path": "assets/ui/types/home/fairy.png",
+      "source": "https://www.pokepedia.fr/Fichier:Ic%C3%B4ne_Type_F%C3%A9e_HOME.png",
+      "url": "https://www.pokepedia.fr/images/6/62/Ic%C3%B4ne_Type_F%C3%A9e_HOME.png",
+      "sha256": "6026f8f9cf048608b7c663055271e75557fefaec9c9f334f7ee4326ef1b05a0f",
+      "bytes": 3608
+    }
+  ]
+}

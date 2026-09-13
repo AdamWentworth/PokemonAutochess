@@ -27,6 +27,7 @@ namespace PokemonAutochess.Tools.RenderParity
         public double NearBlackPixelRatio { get; set; }
         public double MidtonePixelRatio { get; set; }
         public double RedPixelRatio { get; set; }
+        public double OrangePixelRatio { get; set; }
         public double BrightNeutralPixelRatio { get; set; }
         public int NearBlackLuminanceMaximum { get; set; }
         public int MidtoneLuminanceMinimum { get; set; }
@@ -105,7 +106,8 @@ namespace PokemonAutochess.Tools.RenderParity
             double maximumNearBlackPixelRatio,
             double minimumMidtonePixelRatio,
             double minimumRedPixelRatio,
-            double minimumBrightNeutralPixelRatio)
+            double minimumBrightNeutralPixelRatio,
+            double minimumOrangePixelRatio)
         {
             ValidateUnitInterval("normalizedX", normalizedX);
             ValidateUnitInterval("normalizedY", normalizedY);
@@ -118,6 +120,7 @@ namespace PokemonAutochess.Tools.RenderParity
                 "minimumMidtonePixelRatio",
                 minimumMidtonePixelRatio);
             ValidateUnitInterval("minimumRedPixelRatio", minimumRedPixelRatio);
+            ValidateUnitInterval("minimumOrangePixelRatio", minimumOrangePixelRatio);
             ValidateUnitInterval("minimumBrightNeutralPixelRatio", minimumBrightNeutralPixelRatio);
 
             if (String.IsNullOrWhiteSpace(name))
@@ -170,6 +173,7 @@ namespace PokemonAutochess.Tools.RenderParity
                 long nearBlackPixels = 0;
                 long midtonePixels = 0;
                 long redPixels = 0;
+                long orangePixels = 0;
                 long brightNeutralPixels = 0;
                 double luminanceSum = 0.0;
                 double luminanceSquaredSum = 0.0;
@@ -181,6 +185,7 @@ namespace PokemonAutochess.Tools.RenderParity
                         int pixel = (y * bitmap.Width + x) * 4;
                         int r = pixels[pixel + 2], g = pixels[pixel + 1], b = pixels[pixel];
                         if (r >= 150 && g <= 100 && b <= 100) ++redPixels;
+                        if (r >= 200 && g >= 100 && g <= 200 && b <= 120) ++orangePixels;
                         if (Math.Min(r, Math.Min(g, b)) >= 180 &&
                             Math.Max(r, Math.Max(g, b)) - Math.Min(r, Math.Min(g, b)) <= 40)
                             ++brightNeutralPixels;
@@ -208,6 +213,9 @@ namespace PokemonAutochess.Tools.RenderParity
                 double midtoneRatio = midtonePixels / safePixelCount;
                 List<string> failures = new List<string>();
                 double redRatio = redPixels / safePixelCount;
+                double orangeRatio = orangePixels / safePixelCount;
+                if (orangeRatio < minimumOrangePixelRatio)
+                    failures.Add(String.Format("orange ratio {0:F6} is below minimum {1:F6}", orangeRatio, minimumOrangePixelRatio));
                 double brightNeutralRatio = brightNeutralPixels / safePixelCount;
                 if (redRatio < minimumRedPixelRatio)
                     failures.Add(String.Format("red ratio {0:F6} is below minimum {1:F6}", redRatio, minimumRedPixelRatio));
@@ -243,6 +251,7 @@ namespace PokemonAutochess.Tools.RenderParity
                     NearBlackPixelRatio = nearBlackRatio,
                     MidtonePixelRatio = midtoneRatio,
                     RedPixelRatio = redRatio,
+                    OrangePixelRatio = orangeRatio,
                     BrightNeutralPixelRatio = brightNeutralRatio,
                     NearBlackLuminanceMaximum = nearBlackLuminanceMaximum,
                     MidtoneLuminanceMinimum = midtoneLuminanceMinimum,
@@ -319,7 +328,8 @@ function Test-RenderParityImageContent {
             -Name "minimumMidtonePixelRatio" `
             -DefaultValue 0.1),
         [double](Get-RenderParityGuardValue -Guard $Guard -Name "minimumRedPixelRatio" -DefaultValue 0.0),
-        [double](Get-RenderParityGuardValue -Guard $Guard -Name "minimumBrightNeutralPixelRatio" -DefaultValue 0.0))
+        [double](Get-RenderParityGuardValue -Guard $Guard -Name "minimumBrightNeutralPixelRatio" -DefaultValue 0.0),
+        [double](Get-RenderParityGuardValue -Guard $Guard -Name "minimumOrangePixelRatio" -DefaultValue 0.0))
     if ($result.LuminanceStandardDeviation -lt $minimumVariation) {
         $result.Passed = $false
         $result.FailureReasons = @($result.FailureReasons) + @(

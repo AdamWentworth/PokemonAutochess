@@ -27,6 +27,7 @@ bool GameWorld::buildDebugStateSnapshot(DebugStateSnapshot& out) const {
     out.boardUnits.reserve(pokemons.size());
     for (const auto& unit : pokemons) {
         DebugUnitSnapshot snap;
+        snap.inspected = inspectedUnit() == &unit;
         snap.name = unit.name;
         snap.modelVariant = unit.modelVariant;
         snap.side = unit.side;
@@ -74,6 +75,7 @@ bool GameWorld::buildDebugStateSnapshot(DebugStateSnapshot& out) const {
     for (std::size_t i = 0; i < benchPokemons.size(); ++i) {
         const auto& unit = benchPokemons[i];
         DebugUnitSnapshot snap;
+        snap.inspected = inspectedUnit() == &unit;
         snap.name = unit.name;
         snap.modelVariant = unit.modelVariant;
         snap.side = PokemonSide::Player;
@@ -187,6 +189,7 @@ bool GameWorld::applyDebugStateSnapshot(const DebugStateSnapshot& in, std::strin
         }
         const int newId = inst.id;
         pokemons.push_back(std::move(inst));
+        if (snap.inspected) inspectedUnitId_ = newId;
         if (snap.hasBattleStartPose) {
             BattleStartPose pose;
             pose.position = glm::vec3(snap.battleStartX, snap.battleStartY, snap.battleStartZ);
@@ -255,6 +258,7 @@ bool GameWorld::applyDebugStateSnapshot(const DebugStateSnapshot& in, std::strin
         }
         const int newId = inst.id;
         benchPokemons.push_back(std::move(inst));
+        if (snap.inspected) inspectedUnitId_ = newId;
         if (snap.hasBattleStartPose) {
             BattleStartPose pose;
             pose.position = glm::vec3(snap.battleStartX, snap.battleStartY, snap.battleStartZ);

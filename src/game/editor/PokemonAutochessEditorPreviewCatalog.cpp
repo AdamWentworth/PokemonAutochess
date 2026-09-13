@@ -198,6 +198,16 @@ constexpr Definitions kDefinitions{{
         "routes/route1-flat-experiment",
     },
     {
+        "route1-flat-experiment-hud",
+        "HUD Inspection Test",
+        "Tests",
+        "A planning shop with Bulbasaur selected. Right-click a Pokemon to inspect it without moving it; 0 clears selection.",
+        "snapshot",
+        "classic",
+        "config/debug/editor_hud_inspection.json",
+        "routes/route1-flat-experiment",
+    },
+    {
         "route1-flat-experiment-earthquake",
         "Earthquake Comparison",
         "Tests",

@@ -893,6 +893,7 @@ if (BUILD_TESTING)
         tests/TestRenderPolicyApi.cpp
         tests/TestRenderBackendInterfaceSplit.cpp
         tests/TestUiHudFormatting.cpp
+        tests/TestUnitInspection.cpp
         tests/TestUiDebugText.cpp
         tests/TestUiImagePath.cpp
         tests/TestRenderPrepMaterialShading.cpp

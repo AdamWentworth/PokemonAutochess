@@ -1,5 +1,6 @@
 #include "game/runtime/ui/HudFormatting.h"
 #include "game/runtime/ui/TypeRosterHud.h"
+#include "game/runtime/ui/UnitDetailsHud.h"
 
 #include <string>
 #include <utility>
@@ -7,20 +8,22 @@
 
 bool test_ui_hud_formatting_contract(std::string& outFail) {
     for (const auto &style : game::runtime::type_roster_hud::styles) {
-        std::vector<IRenderBackend::DebugQuad> quads;
-        std::vector<IRenderBackend::DebugLine> lines;
-        game::runtime::type_roster_hud::icon(quads, lines, style.id, 10, 20, 21);
-        if (lines.empty() || quads.empty()) {
-            outFail = "Every Pokemon type needs a visible symbol and colored badge.";
+        std::vector<IRenderBackend::DebugSprite> sprites;
+        game::runtime::type_roster_hud::icon(sprites, style.id, 10, 20, 21);
+        if (sprites.size() != 1 || sprites[0].texturePath != "assets/ui/types/home/" + std::string(style.id) + ".png") {
+            outFail = "Every Pokemon type must use its original HOME icon asset.";
             return false;
         }
     }
     for (const auto size : {std::pair{640, 360}, std::pair{845, 513}, std::pair{1920, 1080}}) {
-        const auto layout = game::runtime::type_roster_hud::layout(size.first, size.second, 18);
-        if (layout.columns * layout.rowsPerColumn < 18 || layout.x + layout.w > size.first ||
-            layout.y + layout.h > size.second * .76f) {
-            outFail = "The type panel must display all represented types without clipping into the bottom shop.";
-            return false;
+        for (bool inspected : {false, true}) {
+            const auto layout = game::runtime::type_roster_hud::layout(size.first, size.second, 18, inspected);
+            const auto details = game::runtime::unit_details_hud::layout(size.first, size.second);
+            if (layout.columns * layout.rowsPerColumn < 18 || layout.x + layout.w > size.first ||
+                layout.y + layout.h > size.second * .80f || (inspected && details.y + details.h >= layout.y)) {
+                outFail = "Selected-unit stats and all represented types must fit above the shop without overlapping.";
+                return false;
+            }
         }
     }
     using game::runtime::hud::formatInventoryEntry;

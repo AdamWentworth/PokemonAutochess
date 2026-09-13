@@ -20,7 +20,7 @@ function Assert-Condition {
 function Write-SyntheticContentImage {
     param(
         [string]$Path,
-        [ValidateSet("textured", "black", "empty", "ball", "red-only", "white-only")]
+        [ValidateSet("textured", "black", "empty", "ball", "red-only", "white-only", "home-fire")]
         [string]$ModelMode
     )
 
@@ -36,9 +36,10 @@ function Write-SyntheticContentImage {
         if ($ModelMode -ne "empty") {
             for ($y = 35; $y -lt 65; ++$y) {
                 for ($x = 35; $x -lt 65; ++$x) {
-                    if ($ModelMode -in @("ball", "red-only", "white-only")) {
+                    if ($ModelMode -in @("ball", "red-only", "white-only", "home-fire")) {
                         $color = $background
                         if ($y -lt 50 -and $ModelMode -ne "white-only") { $color = [Drawing.Color]::Red }
+                        if ($y -lt 50 -and $ModelMode -eq "home-fire") { $color = [Drawing.Color]::FromArgb(255, 255, 156, 76) }
                         if ($y -ge 50 -and $ModelMode -ne "red-only") { $color = [Drawing.Color]::White }
                     } elseif ($ModelMode -eq "black") {
                         $color = [Drawing.Color]::Black
@@ -147,6 +148,22 @@ try {
         $result = Test-RenderParityImageContent -ImagePath $path -Guard $ballGuard
         Assert-Condition ($result.Passed -eq ($mode -eq "ball")) (
             "The ball shell guard must reject missing/partial balls even when every backend matches: $mode")
+    }
+
+    # The original HOME Fire icon is orange and white; the previous custom
+    # red badge must not satisfy this artwork-specific color check.
+    $homeGuard = [pscustomobject]@{
+        name = "home-fire-icon"
+        x = .25; y = .25; width = .5; height = .5
+        maximumNearBlackPixelRatio = .1; minimumMidtonePixelRatio = 0
+        minimumOrangePixelRatio = .1; minimumBrightNeutralPixelRatio = .1
+    }
+    foreach ($mode in @("home-fire", "ball", "red-only", "white-only", "empty")) {
+        $path = Join-Path $tempRoot "$mode.png"
+        Write-SyntheticContentImage -Path $path -ModelMode $mode
+        $result = Test-RenderParityImageContent -ImagePath $path -Guard $homeGuard
+        Assert-Condition ($result.Passed -eq ($mode -eq "home-fire")) (
+            "The HOME icon guard must require orange artwork and its white symbol: $mode")
     }
 
     Write-Host (

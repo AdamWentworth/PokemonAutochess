@@ -21,6 +21,17 @@ std::string lower(std::string s) {
 
 }  // namespace
 
+void GameWorld::inspectUnit(int unitId) {
+    inspectedUnitId_ = unitId;
+    if (!inspectedUnit()) inspectedUnitId_ = -1;
+}
+
+const PokemonInstance *GameWorld::inspectedUnit() const {
+    const auto *unit = findUnitById(inspectedUnitId_);
+    // Inspection must not reveal an enemy that player vision cannot see.
+    return unit && unit->alive && !unit->captureInProgress && isVisibleToPlayer(*unit) ? unit : nullptr;
+}
+
 std::string GameWorld::resolveEvolutionLineRoot(const std::string& species) const {
     std::string current = lower(species);
     if (current.empty() || !data) return current;

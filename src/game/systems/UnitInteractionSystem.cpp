@@ -4,6 +4,7 @@
 #include "game/GameConfig.h"
 #include "game/logging/LogBus.h"
 #include "game/ui/ShopLayout.h"
+#include "game/runtime/ui/UnitDetailsHud.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/common.hpp>
@@ -278,7 +279,28 @@ bool UnitInteractionSystem::isBenchSlotOccupied(const glm::vec3& pos, int ignore
     return false;
 }
 
+void UnitInteractionSystem::inspectAt(int x, int y) {
+    if (!gameWorld || !camera || screenW == 0 || screenH == 0) return;
+    const glm::vec3 position = screenToWorld(x, y);
+    float best = pickRadius;
+    int id = -1;
+    const auto visit = [&](const auto &units) {
+        for (const auto &unit : units) {
+            if (!unit.alive || unit.captureInProgress || !gameWorld->isVisibleToPlayer(unit)) continue;
+            const float distance = horizontalDistance(position, unit.position);
+            if (distance < best) {
+                best = distance;
+                id = unit.id;
+            }
+        }
+    };
+    visit(gameWorld->getPokemons());
+    visit(gameWorld->getBenchPokemons());
+    gameWorld->inspectUnit(id);
+}
+
 void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
+    if (!gameWorld || !camera) return;
     syncBoardCellSize();
     glm::vec3 worldPos = screenToWorld(x, y);
 
@@ -350,6 +372,7 @@ void UnitInteractionSystem::onMouseButtonDown(int x, int y) {
     }
 
     if (!draggingUnit) {
+        inspectAt(x, y);
         // PICKUP
         if (!gameWorld) return;
         const bool boardLocked = gameWorld->isBoardInteractionLocked();
@@ -510,11 +533,15 @@ void UnitInteractionSystem::onMouseMotion(int x, int y) {
 }
 
 void UnitInteractionSystem::handleInput(const InputEvent& event) {
+    if (event.type == InputEvent::Type::MouseDown && gameWorld && gameWorld->inspectedUnit() &&
+        game::runtime::unit_details_hud::layout(screenW, screenH).contains(event.mouseX, event.mouseY)) return;
     switch (event.type) {
         case InputEvent::Type::MouseDown:
             // Only left-click starts pickup/drop in this system.
             if (event.mouseButtonId == InputEvent::MouseButton::Left) {
                 onMouseButtonDown(event.mouseX, event.mouseY);
+            } else if (event.mouseButtonId == InputEvent::MouseButton::Right && !draggingUnit) {
+                inspectAt(event.mouseX, event.mouseY);
             }
             break;
         case InputEvent::Type::MouseMove:

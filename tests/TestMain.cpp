@@ -33,6 +33,7 @@ bool test_renderer_parity_contract_baseline(std::string& outFail);
 bool test_renderer_parity_contract_detects_drift(std::string& outFail);
 bool test_debug_geometry_line_raster_contract(std::string& outFail);
 bool test_ui_hud_formatting_contract(std::string& outFail);
+bool test_unit_inspection_contract(std::string &outFail);
 bool test_ui_debug_text_quads_contract(std::string& outFail);
 bool test_ui_image_path_contract(std::string& outFail);
 bool test_render_prep_material_shading_contract(std::string& outFail);
@@ -329,6 +330,7 @@ int main(int argc, char** argv) {
         {"renderer_parity_contract_detects_drift", &test_renderer_parity_contract_detects_drift},
         {"debug_geometry_line_raster_contract", &test_debug_geometry_line_raster_contract},
         {"ui_hud_formatting_contract", &test_ui_hud_formatting_contract},
+        {"unit_inspection_contract", &test_unit_inspection_contract},
         {"ui_debug_text_quads_contract", &test_ui_debug_text_quads_contract},
         {"ui_image_path_contract", &test_ui_image_path_contract},
         {"render_prep_material_shading_contract", &test_render_prep_material_shading_contract},

@@ -1,0 +1,89 @@
+{
+  "session": {
+    "combat_active": false,
+    "round_phase": "Planning",
+    "state_kind": "scripted",
+    "state_script_path": "scripts/states/route1_shop.lua",
+    "arena_script_path": "scripts/states/route1_flat_experiment.lua"
+  },
+  "world": {
+    "bench_units": [
+      {
+        "alive": true,
+        "bench_slot": 1,
+        "capture_in_progress": false,
+        "col": 1,
+        "energy": 0,
+        "fainting": false,
+        "hp": 100,
+        "level": 5,
+        "name": "pidgey",
+        "row": -1,
+        "side": "player"
+      },
+      {
+        "alive": true,
+        "bench_slot": 5,
+        "capture_in_progress": false,
+        "col": 5,
+        "energy": 0,
+        "fainting": false,
+        "hp": 100,
+        "level": 5,
+        "name": "rattata",
+        "row": -1,
+        "side": "player"
+      }
+    ],
+    "board_units": [
+      {
+        "alive": true,
+        "bench_slot": -1,
+        "capture_in_progress": false,
+        "col": 1,
+        "energy": 35,
+        "fainting": false,
+        "hp": 64,
+        "level": 5,
+        "name": "bulbasaur",
+        "row": 5,
+        "side": "player",
+        "inspected": true
+      },
+      {
+        "alive": true,
+        "bench_slot": -1,
+        "capture_in_progress": false,
+        "col": 3,
+        "energy": 0,
+        "fainting": false,
+        "hp": 100,
+        "level": 5,
+        "name": "charmander",
+        "row": 4,
+        "side": "player"
+      },
+      {
+        "alive": true,
+        "bench_slot": -1,
+        "capture_in_progress": false,
+        "col": 6,
+        "energy": 0,
+        "fainting": false,
+        "hp": 100,
+        "level": 5,
+        "name": "squirtle",
+        "row": 6,
+        "side": "player"
+      }
+    ],
+    "classic_loss_streak": 0,
+    "classic_rounds_completed": 0,
+    "classic_shop_cards": [],
+    "classic_win_streak": 0,
+    "items": {},
+    "money": 16,
+    "unit_sell_rewards_enabled": true,
+    "version": 1
+  }
+}

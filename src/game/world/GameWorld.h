@@ -101,6 +101,7 @@ public:
         float coverRevealRemainingSec = 0.0f;
         game::arena::PatrolState patrol;
         game::arena::TargetMemory targetMemory;
+        bool inspected = false;
     };
 
     struct DebugStateSnapshot {
@@ -208,6 +209,9 @@ public:
 
     PokemonInstance* findUnitById(int unitId);
     const PokemonInstance* findUnitById(int unitId) const;
+    void inspectUnit(int unitId);
+    void clearInspectedUnit() { inspectedUnitId_ = -1; }
+    const PokemonInstance *inspectedUnit() const;
     bool setEditorPreviewUnitTransform(
         int unitId,
         const glm::vec3& position,
@@ -338,6 +342,7 @@ private:
     bool unitSellRewardsEnabled = true;
     std::unordered_map<std::string, int> items;
     std::string selectedItemId;
+    int inspectedUnitId_ = -1;
     std::uint64_t overlayRosterRevision_ = 1;
     std::uint64_t inventoryUiRevision_ = 1;
     mutable std::uint64_t cachedPlayerTypeLineRevision_ = 0;
