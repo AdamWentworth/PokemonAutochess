@@ -292,6 +292,24 @@ information, absence of scenery handles, and retained gameplay unit controls on
 all three APIs. Use `-Cases entrance-scene,flat-unit-setup` for focused checks or
 `-SkipCapture` to evaluate an existing capture set.
 
+Scene-history regressions additionally compare stopped environment pixels with
+a fresh load of the same destination on the same API (exact match required).
+The entrance and flat board share a registration but have different shadow
+casters. Exercise both directions and repeated round trips with:
+
+```powershell
+.\tools\housekeeping\check_editor_workflow.ps1 `
+  -Cases entrance-to-flat,flat-to-entrance,flat-roundtrip,entrance-roundtrip
+```
+
+The runner includes the required fresh-load cases automatically, verifies each
+scheduled scene open in the log, and saves `scene-history-diff.png` heatmaps.
+The editor's repeatable `--open-scene-at=FRAME:SCENE_ID` argument uses its normal
+scene-selection action while retaining GPU caches. A cold-start-only matrix
+cannot detect textures incorrectly reused across scenes. The CPU
+`route1_projected_shadow_cache_contract` covers changed casters, geometry edits,
+receiver rebinding, dimension changes and stable identity when revisiting scenes.
+
 For an ad-hoc single snapshot comparison, use the atomic scene runner directly:
 
 ```powershell

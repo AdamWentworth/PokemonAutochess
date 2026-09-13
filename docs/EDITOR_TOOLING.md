@@ -64,6 +64,11 @@ Phlosion editor UI require an editor restart. Build matching editor/plugin pairs
 ./tools/housekeeping/build_editor_pair.ps1 -Configuration All
 ```
 
+Projected environment shadows use a cache identity derived from the generated
+depth image and its dimensions. Arenas sharing a board position still receive
+their own shadows, and revisiting unchanged content reuses the existing texture.
+The current projection matrix is rebound with the image on each scene load.
+
 Catalog and hierarchy CPU contracts guard scene ownership, default Planning
 setups, frontend separation and unit addressing. Editor captures on OpenGL,
 Vulkan and D3D12 verify both Scene and Game views with expected-content checks;

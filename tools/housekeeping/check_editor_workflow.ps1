@@ -15,8 +15,23 @@ $taskImageLimits = (Get-Content (Join-Path $taskRoot 'config/render_parity_scene
 $taskProject = Get-Content (Join-Path $taskRoot 'phlosion.project.json') -Raw | ConvertFrom-Json
 $taskRuns = @($taskManifest.cases | Where-Object { -not $Cases.Count -or $_.name -in $Cases })
 if (-not $taskRuns.Count -or @($Cases | Where-Object { $_ -notin $taskManifest.cases.name }).Count) { throw 'Unknown editor capture case.' }
+# Transition cases compare against a fresh load of the same destination.
+$taskRequestedNames = @($taskRuns.name) + @($taskRuns | ForEach-Object { $_.referenceCase } | Where-Object { $_ })
+$taskRuns = @($taskManifest.cases | Where-Object { $_.name -in $taskRequestedNames })
 Import-Module (Join-Path $taskRoot 'tools/RenderParityImageDiff.psm1') -Force
 Import-Module (Join-Path $taskRoot 'tools/RenderParityContentGuard.psm1') -Force
+function Export-EnvironmentComparisonImage([string]$Source, [string]$Destination) {
+    $taskBitmap = [Drawing.Bitmap]::new($Source)
+    try {
+        # Same environment interior as the content guard; excludes changing UI
+        # labels/status and keeps the board, grass and surrounding real shadows.
+        $taskRectangle = [Drawing.Rectangle]::new(
+            [int]($taskBitmap.Width * .3), [int]($taskBitmap.Height * .23),
+            [int]($taskBitmap.Width * .4), [int]($taskBitmap.Height * .43))
+        $taskCrop = $taskBitmap.Clone($taskRectangle, [Drawing.Imaging.PixelFormat]::Format32bppArgb)
+        try { $taskCrop.Save($Destination, [Drawing.Imaging.ImageFormat]::Png) } finally { $taskCrop.Dispose() }
+    } finally { $taskBitmap.Dispose() }
+}
 $taskResults = @()
 $taskPrevious = @{}
 foreach ($taskKey in @('PAC_RANDOM_SEED', 'PHLOSION_BACKEND_SCREENSHOT_PATH', 'PHLOSION_BACKEND_SCREENSHOT_FRAME', 'PHLOSION_BACKEND_SCREENSHOT_DEFER')) {
@@ -34,7 +49,7 @@ try {
             $taskScreenshot = Join-Path $taskRunOutput 'capture.png'
             $taskMetricsPath = Join-Path $taskRunOutput 'metrics.json'
             if (-not $SkipCapture) {
-                $taskProject.startup_scene.scene_id = $taskCase.sceneId
+                $taskProject.startup_scene.scene_id = if ($taskCase.startupSceneId) { $taskCase.startupSceneId } else { $taskCase.sceneId }
                 # Keep the descriptor at the project root so content paths resolve normally.
                 $taskDescriptor = Join-Path $taskRoot ".phlosion.workflow.$($taskCase.name).$taskBackend.project.json"
                 $taskProject | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $taskDescriptor
@@ -49,6 +64,9 @@ try {
                     '--frames=169', '--fixed-delta=0.016666667', "--state-directory=$taskState", "--metrics-output=$taskMetricsPath")
                 if ($taskCase.scenario) { $taskArguments += "--game-preview=$($taskCase.scenario)" }
                 if ($taskCase.play) { $taskArguments += '--play-game-preview' }
+                foreach ($taskOpen in $taskCase.sceneOpens) {
+                    $taskArguments += "--open-scene-at=$($taskOpen.frame):$($taskOpen.sceneId)"
+                }
                 Write-Host "[EditorWorkflow] $($taskCase.name)/$taskBackend"
                 $taskProcess = Start-Process -FilePath $taskEditor -WorkingDirectory $taskRoot -WindowStyle Hidden -PassThru `
                     -ArgumentList ($taskArguments | ForEach-Object { '"' + $_ + '"' }) `
@@ -59,6 +77,15 @@ try {
                 if ($taskProcess.ExitCode -ne 0) { throw "Editor exited with $($taskProcess.ExitCode)." }
             }
             $taskMetrics = Get-Content -LiteralPath $taskMetricsPath -Raw | ConvertFrom-Json
+            # Read plain .NET strings: Windows PowerShell's Get-Content adds
+            # provider metadata which ConvertTo-Json recursively serializes.
+            $taskSwitchLines = @([IO.File]::ReadAllLines((Join-Path $taskRunOutput 'stdout.log')) | Where-Object { $_ -match '^\[Phlosion Editor\]\[SceneSwitch\]' })
+            $taskExpectedSwitches = @($taskCase.sceneOpens | Where-Object { $_ } | ForEach-Object {
+                "[Phlosion Editor][SceneSwitch] frame=$($_.frame) scene=$($_.sceneId)"
+            })
+            if (($taskSwitchLines -join "`n") -cne ($taskExpectedSwitches -join "`n")) {
+                throw "Scene switches did not execute as requested: $($taskCase.name)/$taskBackend"
+            }
             $taskContents = $taskMetrics.project.editor_contents
             if ($taskMetrics.renderer.backend -ne $taskBackend -or -not $taskMetrics.capture.hidden -or
                 $taskMetrics.project.active_scene.id -ne $taskCase.sceneId -or $taskMetrics.project.visible_triangles -le 0) {
@@ -81,7 +108,20 @@ try {
                 maximumNearBlackPixelRatio=.12; minimumMidtonePixelRatio=.3
             })
             if (-not $taskGuard.Passed) { throw "Missing scene content: $($taskCase.name)/$taskBackend" }
-            $taskContent += [pscustomobject]@{ backend=$taskBackend; unitCount=$taskUnits.Count; passed=$true; imageGuard=$taskGuard }
+            $taskEnvironmentImage = Join-Path $taskRunOutput 'environment.png'
+            Export-EnvironmentComparisonImage $taskScreenshot $taskEnvironmentImage
+            $taskHistoryDiff = $null
+            $taskHistoryPassed = $true
+            if ($taskCase.referenceCase) {
+                $taskReferenceImage = Join-Path $taskOutput "$($taskCase.referenceCase)/$taskBackend/environment.png"
+                $taskHistoryDiff = Compare-RenderParityImages -ReferencePath $taskReferenceImage -CandidatePath $taskEnvironmentImage `
+                    -PixelChannelTolerance 0 -HeatmapPath (Join-Path $taskRunOutput 'scene-history-diff.png')
+                # The stopped scene, camera and native API are identical. Scene
+                # history must have no effect at all on the rendered environment.
+                $taskHistoryPassed = $taskHistoryDiff.MaxChannelError -eq 0
+            }
+            $taskContent += [pscustomobject]@{ backend=$taskBackend; unitCount=$taskUnits.Count; passed=$taskHistoryPassed;
+                imageGuard=$taskGuard; sceneSwitches=$taskSwitchLines; sceneHistoryDiff=$taskHistoryDiff }
         }
         $taskPairs = foreach ($taskBackend in @('vulkan', 'd3d12')) {
             $taskDiff = Compare-RenderParityImages -ReferencePath (Join-Path $taskCaseOutput 'opengl/capture.png') `
@@ -91,10 +131,11 @@ try {
                 $taskDiff.ChangedPixelRatio -le $taskImageLimits.changedPixelRatio
             [pscustomobject]@{ pair="opengl-$taskBackend"; passed=$taskPassed; metrics=$taskDiff }
         }
-        $taskPassed = @($taskPairs | Where-Object { -not $_.passed }).Count -eq 0
+        $taskPassed = @($taskPairs | Where-Object { -not $_.passed }).Count -eq 0 -and
+            @($taskContent | Where-Object { -not $_.passed }).Count -eq 0
         $taskResults += [pscustomobject]@{ name=$taskCase.name; passed=$taskPassed; content=$taskContent; pairs=$taskPairs }
         $taskResults | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $taskOutput 'report.json')
-        if (-not $taskPassed) { throw "Editor image parity failed: $($taskCase.name)" }
+        if (-not $taskPassed) { throw "Editor image parity or scene-history comparison failed: $($taskCase.name)" }
     }
     Write-Host "[EditorWorkflow] PASS: $($taskResults.Count) cases on all three native APIs."
 } finally {

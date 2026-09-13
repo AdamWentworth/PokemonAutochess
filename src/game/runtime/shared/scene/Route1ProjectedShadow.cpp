@@ -488,15 +488,19 @@ bool Atlas::build(
         rgba_[pixel * 4u + 3u] = 255u;
     }
 
-    std::ostringstream key;
-    key << "published-environment:route1:projected-shadow:source-depth-v1:"
-        << static_cast<int>(std::lround(sourceCenterCm[0])) << ':'
-        << static_cast<int>(std::lround(sourceCenterCm[1])) << ':'
-        << static_cast<int>(std::lround(sourceCenterCm[2]));
-    if (width_ != kNativeAtlasWidth ||
-        height_ != kNativeAtlasHeight) {
-        key << ':' << width_ << 'x' << height_;
+    // All backends treat texture cache entries as immutable. Board coordinates
+    // are not an image identity: different arenas (or edits to one arena) can
+    // share the same center. Hash the final depth bytes so changed casters get
+    // a new texture, while revisiting identical content reuses its GPU entry.
+    // The projection matrix is bound separately by attach(), not cached here.
+    std::uint64_t contentHash = 14695981039346656037ull;
+    for (const unsigned char byte : rgba_) {
+        contentHash ^= byte;
+        contentHash *= 1099511628211ull;
     }
+    std::ostringstream key;
+    key << "published-environment:route1:projected-shadow:source-depth-v2:"
+        << width_ << 'x' << height_ << ':' << std::hex << contentHash;
     textureKey_ = key.str();
     if (outError) outError->clear();
     return true;

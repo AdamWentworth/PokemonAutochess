@@ -191,7 +191,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "b35e782e670f5117cfce0415bb4303efdd33d3b3"
+    "c61e828e9d9b0e8092dae0c598104b57322376be"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 
@@ -906,6 +906,7 @@ if (BUILD_TESTING)
         tests/TestPhlosionSceneArchive.cpp
         tests/TestPublishedEnvironmentScene.cpp
         tests/TestPublishedEnvironmentSceneAdapter.cpp
+        tests/TestRoute1ProjectedShadow.cpp
         tests/TestRoute1RuntimeEnvironment.cpp
         tests/TestRoute1TerrainPatchCooker.cpp
         tests/TestRoute1TerrainContourAssembler.cpp

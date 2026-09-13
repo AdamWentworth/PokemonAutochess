@@ -54,6 +54,7 @@ bool test_phlosion_resource_container_contract(std::string& outFail);
 bool test_phlosion_scene_archive_contract(std::string& outFail);
 bool test_published_environment_scene_contract(std::string& outFail);
 bool test_published_environment_scene_adapter_contract(std::string& outFail);
+bool test_route1_projected_shadow_cache_contract(std::string& outFail);
 bool test_route1_runtime_environment_contract(std::string& outFail);
 bool test_route1_terrain_patch_cooker_contract(std::string& outFail);
 bool test_route1_terrain_contour_assembler_contract(std::string& outFail);
@@ -348,6 +349,7 @@ int main(int argc, char** argv) {
         {"phlosion_scene_archive_contract", &test_phlosion_scene_archive_contract},
         {"published_environment_scene_contract", &test_published_environment_scene_contract},
         {"published_environment_scene_adapter_contract", &test_published_environment_scene_adapter_contract},
+        {"route1_projected_shadow_cache_contract", &test_route1_projected_shadow_cache_contract},
         {"route1_runtime_environment_contract", &test_route1_runtime_environment_contract},
         {"route1_terrain_patch_cooker_contract", &test_route1_terrain_patch_cooker_contract},
         {"route1_terrain_contour_assembler_contract", &test_route1_terrain_contour_assembler_contract},
