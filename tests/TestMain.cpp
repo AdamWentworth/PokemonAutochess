@@ -63,6 +63,8 @@ bool test_route1_arena_pilot_contract(std::string& outFail);
 bool test_route1_south_clearing_contract(std::string& outFail);
 bool test_route1_north_terraces_contract(std::string& outFail);
 bool test_route1_north_entrance_contract(std::string& outFail);
+bool test_flat_arena_experiment_contract(std::string &outFail);
+bool test_sampled_effect_clip_contract(std::string &outFail);
 bool test_encounter_grass_rendering(std::string& outFail);
 bool test_encounter_grass_motion(std::string& outFail);
 bool test_authored_ground_surface_contract(std::string &outFail);
@@ -354,6 +356,8 @@ int main(int argc, char** argv) {
         {"route1_arena_pilot_contract", &test_route1_arena_pilot_contract},
         {"route1_south_clearing_contract", &test_route1_south_clearing_contract},
         {"route1_north_terraces_contract", &test_route1_north_terraces_contract},
+        {"flat_arena_experiment_contract", &test_flat_arena_experiment_contract},
+        {"sampled_effect_clip_contract", &test_sampled_effect_clip_contract},
         {"route1_north_entrance_contract", &test_route1_north_entrance_contract},
         {"encounter_grass_rendering", &test_encounter_grass_rendering},
         {"encounter_grass_motion", &test_encounter_grass_motion},

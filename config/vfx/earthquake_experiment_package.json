@@ -1,0 +1,421 @@
+{
+  "kind": "sampled_effect_experiment_package",
+  "schema": 1,
+  "files": [
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/clip.cbor",
+      "sha256": "d8ac99bf9e3149af519e6cdac811549d46d50023ea731097398ec8bc1f4ce58d",
+      "bytes": 3308501
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/0.png",
+      "sha256": "8dd344a3f6aa61aa1d66cf0145ccf004d6044e2e8348b8d824ffde924379c2e1",
+      "bytes": 27905
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/1.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/10.png",
+      "sha256": "b3048d56e08a84871d1f776ba4e6d305c5edbb68c0741c3dfad371107f16d187",
+      "bytes": 2269
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/11.png",
+      "sha256": "b6976d700d019b8a74aa2aa9e38395c48105158feeb535161399d046ee5508bc",
+      "bytes": 2247
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/12.png",
+      "sha256": "8dd344a3f6aa61aa1d66cf0145ccf004d6044e2e8348b8d824ffde924379c2e1",
+      "bytes": 27905
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/13.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/14.png",
+      "sha256": "b3048d56e08a84871d1f776ba4e6d305c5edbb68c0741c3dfad371107f16d187",
+      "bytes": 2269
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/15.png",
+      "sha256": "b6976d700d019b8a74aa2aa9e38395c48105158feeb535161399d046ee5508bc",
+      "bytes": 2247
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/16.png",
+      "sha256": "8dd344a3f6aa61aa1d66cf0145ccf004d6044e2e8348b8d824ffde924379c2e1",
+      "bytes": 27905
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/17.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/18.png",
+      "sha256": "b3048d56e08a84871d1f776ba4e6d305c5edbb68c0741c3dfad371107f16d187",
+      "bytes": 2269
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/19.png",
+      "sha256": "b6976d700d019b8a74aa2aa9e38395c48105158feeb535161399d046ee5508bc",
+      "bytes": 2247
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/2.png",
+      "sha256": "b3048d56e08a84871d1f776ba4e6d305c5edbb68c0741c3dfad371107f16d187",
+      "bytes": 2269
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/20.png",
+      "sha256": "8dd344a3f6aa61aa1d66cf0145ccf004d6044e2e8348b8d824ffde924379c2e1",
+      "bytes": 27905
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/21.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/22.png",
+      "sha256": "b3048d56e08a84871d1f776ba4e6d305c5edbb68c0741c3dfad371107f16d187",
+      "bytes": 2269
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/23.png",
+      "sha256": "b6976d700d019b8a74aa2aa9e38395c48105158feeb535161399d046ee5508bc",
+      "bytes": 2247
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/24.png",
+      "sha256": "8dd344a3f6aa61aa1d66cf0145ccf004d6044e2e8348b8d824ffde924379c2e1",
+      "bytes": 27905
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/25.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/26.png",
+      "sha256": "b3048d56e08a84871d1f776ba4e6d305c5edbb68c0741c3dfad371107f16d187",
+      "bytes": 2269
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/27.png",
+      "sha256": "b6976d700d019b8a74aa2aa9e38395c48105158feeb535161399d046ee5508bc",
+      "bytes": 2247
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/28.png",
+      "sha256": "8dd344a3f6aa61aa1d66cf0145ccf004d6044e2e8348b8d824ffde924379c2e1",
+      "bytes": 27905
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/29.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/3.png",
+      "sha256": "b6976d700d019b8a74aa2aa9e38395c48105158feeb535161399d046ee5508bc",
+      "bytes": 2247
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/30.png",
+      "sha256": "b3048d56e08a84871d1f776ba4e6d305c5edbb68c0741c3dfad371107f16d187",
+      "bytes": 2269
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/31.png",
+      "sha256": "b6976d700d019b8a74aa2aa9e38395c48105158feeb535161399d046ee5508bc",
+      "bytes": 2247
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/32.png",
+      "sha256": "8dd344a3f6aa61aa1d66cf0145ccf004d6044e2e8348b8d824ffde924379c2e1",
+      "bytes": 27905
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/33.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/34.png",
+      "sha256": "b3048d56e08a84871d1f776ba4e6d305c5edbb68c0741c3dfad371107f16d187",
+      "bytes": 2269
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/35.png",
+      "sha256": "b6976d700d019b8a74aa2aa9e38395c48105158feeb535161399d046ee5508bc",
+      "bytes": 2247
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/36.png",
+      "sha256": "8dd344a3f6aa61aa1d66cf0145ccf004d6044e2e8348b8d824ffde924379c2e1",
+      "bytes": 27905
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/37.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/38.png",
+      "sha256": "b3048d56e08a84871d1f776ba4e6d305c5edbb68c0741c3dfad371107f16d187",
+      "bytes": 2269
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/39.png",
+      "sha256": "b6976d700d019b8a74aa2aa9e38395c48105158feeb535161399d046ee5508bc",
+      "bytes": 2247
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/4.png",
+      "sha256": "8dd344a3f6aa61aa1d66cf0145ccf004d6044e2e8348b8d824ffde924379c2e1",
+      "bytes": 27905
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/40.png",
+      "sha256": "8dd344a3f6aa61aa1d66cf0145ccf004d6044e2e8348b8d824ffde924379c2e1",
+      "bytes": 27905
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/41.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/42.png",
+      "sha256": "b3048d56e08a84871d1f776ba4e6d305c5edbb68c0741c3dfad371107f16d187",
+      "bytes": 2269
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/43.png",
+      "sha256": "b6976d700d019b8a74aa2aa9e38395c48105158feeb535161399d046ee5508bc",
+      "bytes": 2247
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/44.png",
+      "sha256": "8dd344a3f6aa61aa1d66cf0145ccf004d6044e2e8348b8d824ffde924379c2e1",
+      "bytes": 27905
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/45.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/46.png",
+      "sha256": "b3048d56e08a84871d1f776ba4e6d305c5edbb68c0741c3dfad371107f16d187",
+      "bytes": 2269
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/47.png",
+      "sha256": "b6976d700d019b8a74aa2aa9e38395c48105158feeb535161399d046ee5508bc",
+      "bytes": 2247
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/48.png",
+      "sha256": "8dd344a3f6aa61aa1d66cf0145ccf004d6044e2e8348b8d824ffde924379c2e1",
+      "bytes": 27905
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/49.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/5.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/50.png",
+      "sha256": "b3048d56e08a84871d1f776ba4e6d305c5edbb68c0741c3dfad371107f16d187",
+      "bytes": 2269
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/51.png",
+      "sha256": "b6976d700d019b8a74aa2aa9e38395c48105158feeb535161399d046ee5508bc",
+      "bytes": 2247
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/52.png",
+      "sha256": "1c7275c824f2bd105c10f79e78adb65a8abe9006afcc95de23be7ef3450cbbd1",
+      "bytes": 31731
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/53.png",
+      "sha256": "a713e4b7be190e454f35c5f6fd597e1cbcf0f2b555ad3859ff709ec4bba6eadd",
+      "bytes": 16126
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/54.png",
+      "sha256": "a713e4b7be190e454f35c5f6fd597e1cbcf0f2b555ad3859ff709ec4bba6eadd",
+      "bytes": 16126
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/55.png",
+      "sha256": "a713e4b7be190e454f35c5f6fd597e1cbcf0f2b555ad3859ff709ec4bba6eadd",
+      "bytes": 16126
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/56.png",
+      "sha256": "a713e4b7be190e454f35c5f6fd597e1cbcf0f2b555ad3859ff709ec4bba6eadd",
+      "bytes": 16126
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/57.png",
+      "sha256": "a713e4b7be190e454f35c5f6fd597e1cbcf0f2b555ad3859ff709ec4bba6eadd",
+      "bytes": 16126
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/58.png",
+      "sha256": "a713e4b7be190e454f35c5f6fd597e1cbcf0f2b555ad3859ff709ec4bba6eadd",
+      "bytes": 16126
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/59.png",
+      "sha256": "a713e4b7be190e454f35c5f6fd597e1cbcf0f2b555ad3859ff709ec4bba6eadd",
+      "bytes": 16126
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/6.png",
+      "sha256": "b3048d56e08a84871d1f776ba4e6d305c5edbb68c0741c3dfad371107f16d187",
+      "bytes": 2269
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/60.png",
+      "sha256": "a713e4b7be190e454f35c5f6fd597e1cbcf0f2b555ad3859ff709ec4bba6eadd",
+      "bytes": 16126
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/61.png",
+      "sha256": "a713e4b7be190e454f35c5f6fd597e1cbcf0f2b555ad3859ff709ec4bba6eadd",
+      "bytes": 16126
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/62.png",
+      "sha256": "a713e4b7be190e454f35c5f6fd597e1cbcf0f2b555ad3859ff709ec4bba6eadd",
+      "bytes": 16126
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/63.png",
+      "sha256": "a713e4b7be190e454f35c5f6fd597e1cbcf0f2b555ad3859ff709ec4bba6eadd",
+      "bytes": 16126
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/64.png",
+      "sha256": "a713e4b7be190e454f35c5f6fd597e1cbcf0f2b555ad3859ff709ec4bba6eadd",
+      "bytes": 16126
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/65.png",
+      "sha256": "a713e4b7be190e454f35c5f6fd597e1cbcf0f2b555ad3859ff709ec4bba6eadd",
+      "bytes": 16126
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/66.png",
+      "sha256": "8dd344a3f6aa61aa1d66cf0145ccf004d6044e2e8348b8d824ffde924379c2e1",
+      "bytes": 27905
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/67.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/68.png",
+      "sha256": "b3048d56e08a84871d1f776ba4e6d305c5edbb68c0741c3dfad371107f16d187",
+      "bytes": 2269
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/69.png",
+      "sha256": "b6976d700d019b8a74aa2aa9e38395c48105158feeb535161399d046ee5508bc",
+      "bytes": 2247
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/7.png",
+      "sha256": "b6976d700d019b8a74aa2aa9e38395c48105158feeb535161399d046ee5508bc",
+      "bytes": 2247
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/70.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/71.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/72.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/73.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/74.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/75.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/76.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/77.png",
+      "sha256": "56d73f5081be6c7261c6b4dcfb43ba5bac0020747ba304747104d109356961ba",
+      "bytes": 6716
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/78.png",
+      "sha256": "bc0ff5ac0d0c6fdc1102b5d391d6e19eefa8a41bbaf5f7d64fdbf8c6bf9a74ae",
+      "bytes": 1907
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/79.png",
+      "sha256": "031324dc3bffd019c555508118d08992a1767f044e6cc3a0f358425be402a807",
+      "bytes": 3314
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/8.png",
+      "sha256": "8dd344a3f6aa61aa1d66cf0145ccf004d6044e2e8348b8d824ffde924379c2e1",
+      "bytes": 27905
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/80.png",
+      "sha256": "72b581fb527c67b0f36d8e23f88ae2b7fc69970f29a775aee534a975c62ef332",
+      "bytes": 12156
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/81.png",
+      "sha256": "d7e92417b8ed1ac75be89f73119b787e60162247f171203b810635b973778378",
+      "bytes": 10509
+    },
+    {
+      "path": "content/phlosion/vfx/earthquake-experiment/textures/9.png",
+      "sha256": "04db2a813b3116d19698f237f84afaf01395ed25aa680c9adfe05917cec08dde",
+      "bytes": 48622
+    }
+  ]
+}

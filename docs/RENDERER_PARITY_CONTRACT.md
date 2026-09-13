@@ -24,6 +24,8 @@ use different implementations while preserving the same content and behavior.
 - Debug/UI pipeline blending: enabled.
 - Framebuffer sRGB conversion: disabled (shader path handles tone-map + encode).
 - Target anisotropy policy: `16`.
+- A completed world view has output alpha `1`. Materials blend inside the view;
+  the editor must not blend the finished image over its UI background again.
 - Neutral PMREM encoding: linear HDR.
 - Neutral PMREM GPU format: RGBA16F.
 - Neutral PMREM atlas key: `__neutral_room_pmrem_rgba16f_v2__`.

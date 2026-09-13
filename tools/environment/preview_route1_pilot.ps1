@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('planning','battle','ledges','grass','travel')][string]$Phase = 'planning',
+    [ValidateSet('planning','battle','ledges','grass','travel','crowded','earthquake')][string]$Phase = 'planning',
     [ValidateSet('opengl','d3d12','vulkan')][string]$Backend = 'opengl',
     [string]$OutputDirectory = '',
     [string]$Recipe = 'config/environment/route1_south_entrance.authoring.json',
@@ -22,7 +22,7 @@ if (-not (Test-Path -LiteralPath $taskEditor)) { throw 'Build the editor pair wi
 $taskOutput = if ($OutputDirectory) { [IO.Path]::GetFullPath([IO.Path]::Combine($taskGameRoot, $OutputDirectory)) }
               else { Join-Path $taskGameRoot "debug/$taskPreviewPrefix/editor-$Phase-$Backend" }
 New-Item -ItemType Directory -Path $taskOutput -Force | Out-Null
-$taskProject = Join-Path $taskGameRoot ".phlosion.$taskPreviewPrefix.project.json"
+$taskProject = Join-Path $taskGameRoot ".phlosion.$taskPreviewPrefix.$Backend.project.json"
 $taskDescriptor = Get-Content (Join-Path $taskGameRoot 'phlosion.project.json') -Raw | ConvertFrom-Json
 $taskDescriptor.startup_scene.scene_id = $taskSceneId
 $taskDescriptor | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $taskProject
@@ -37,7 +37,9 @@ if (-not $Capture) {
 $taskPreviousPath = $env:PHLOSION_BACKEND_SCREENSHOT_PATH
 $taskPreviousFrame = $env:PHLOSION_BACKEND_SCREENSHOT_FRAME
 $taskPreviousDefer = $env:PHLOSION_BACKEND_SCREENSHOT_DEFER
+$taskPreviousSeed = $env:PAC_RANDOM_SEED
 try {
+    $env:PAC_RANDOM_SEED = '12345'
     $env:PHLOSION_BACKEND_SCREENSHOT_DEFER = $null
     $env:PHLOSION_BACKEND_SCREENSHOT_PATH = Join-Path $taskOutput 'capture.png'
     $env:PHLOSION_BACKEND_SCREENSHOT_FRAME = [string]$Frame
@@ -62,4 +64,5 @@ try {
     $env:PHLOSION_BACKEND_SCREENSHOT_PATH = $taskPreviousPath
     $env:PHLOSION_BACKEND_SCREENSHOT_FRAME = $taskPreviousFrame
     $env:PHLOSION_BACKEND_SCREENSHOT_DEFER = $taskPreviousDefer
+    $env:PAC_RANDOM_SEED = $taskPreviousSeed
 }

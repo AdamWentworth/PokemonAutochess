@@ -1,4 +1,5 @@
 #include "game/runtime/session/SessionProjectedWorldView.h"
+#include "game/preview/ArenaEffectExperiment.h"
 
 #include "game/runtime/render_prep/WorldProjection.h"
 #include "game/runtime/session/SessionRenderConfig.h"
@@ -301,6 +302,12 @@ Result appendProjectedWorldView(const Args& args) {
             return args.ensureBackendMeshLoaded(meshPath);
         },
         args.ensureBackendTextureLoaded);
+    if (out.hasWorldViewProj && args.supportsWorldIndexedMeshes) {
+        game::preview::arena_effect_experiment::append(args.stateScriptPath,
+                                                       args.gameWorld->getSharedLoopAnimTimeSec(), viewProj,
+                                                       glm::vec3(out.cameraForward[0], out.cameraForward[1], out.cameraForward[2]),
+                                                       args.ensureBackendTextureLoaded, args.scratch->worldIndexedBatches);
+    }
     const auto worldVfxEnd = RenderBuildClock::now();
     out.worldVfxBridgeMs = static_cast<float>(
         std::chrono::duration<double, std::milli>(worldVfxEnd - worldVfxStart).count());

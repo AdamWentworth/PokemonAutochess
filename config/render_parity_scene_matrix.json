@@ -231,7 +231,11 @@
     {
       "name": "static-pbr",
       "focus": "static world geometry, authored PBR materials, and neutral PMREM lighting",
-      "coverage": ["world", "pbr", "environment"],
+      "coverage": [
+        "world",
+        "pbr",
+        "environment"
+      ],
       "snapshotPath": "config/debug/debug_state_snapshot_starter_trio.json",
       "screenshotFrame": 120,
       "contentGuards": [
@@ -267,7 +271,11 @@
     {
       "name": "transparent-vfx",
       "focus": "native layered-Unlit fire transparency and evolved-character materials",
-      "coverage": ["world", "transparent", "vfx"],
+      "coverage": [
+        "world",
+        "transparent",
+        "vfx"
+      ],
       "snapshotPath": "config/debug/debug_state_snapshot_tail_fire_starter_line.json",
       "screenshotFrame": 120,
       "contentGuards": [
@@ -285,7 +293,11 @@
     {
       "name": "combat",
       "focus": "deterministic Route 1 combat presentation, animation, health bars, and battle feed",
-      "coverage": ["world", "combat", "overlay"],
+      "coverage": [
+        "world",
+        "combat",
+        "overlay"
+      ],
       "snapshotPath": "config/debug/debug_state_snapshot_charmander_route1_combat.json",
       "screenshotFrame": 170,
       "autoQuitSeconds": 9,
@@ -304,9 +316,217 @@
     {
       "name": "ui",
       "focus": "startup menu layout, text, panels, and backend-independent UI composition",
-      "coverage": ["ui", "text", "layout"],
+      "coverage": [
+        "ui",
+        "text",
+        "layout"
+      ],
       "snapshotPath": null,
       "screenshotFrame": 90
+    },
+    {
+      "name": "flat-arena-crowded",
+      "focus": "flat Route 1 arena: crowded",
+      "coverage": [
+        "world",
+        "arena",
+        "experiment"
+      ],
+      "snapshotPath": "config/debug/editor_route1_flat_experiment_comparison.json",
+      "screenshotFrame": 164,
+      "width": 1440,
+      "height": 1000,
+      "autoQuitSeconds": 20,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.25,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        }
+      ]
+    },
+    {
+      "name": "flat-arena-earthquake",
+      "focus": "flat Route 1 arena: earthquake",
+      "coverage": [
+        "world",
+        "arena",
+        "experiment",
+        "earthquake"
+      ],
+      "snapshotPath": "config/debug/editor_route1_flat_experiment_earthquake_comparison.json",
+      "screenshotFrame": 164,
+      "width": 1440,
+      "height": 1000,
+      "autoQuitSeconds": 20,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.25,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        }
+      ]
+    },
+    {
+      "name": "flat-arena-overlap-control",
+      "focus": "flat Route 1 arena: overlap-control",
+      "coverage": [
+        "world",
+        "arena",
+        "experiment"
+      ],
+      "snapshotPath": "config/debug/editor_route1_flat_experiment_comparison.json",
+      "screenshotFrame": 536,
+      "width": 1440,
+      "height": 1000,
+      "autoQuitSeconds": 20,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.25,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        }
+      ]
+    },
+    {
+      "name": "flat-arena-overlap",
+      "focus": "flat Route 1 arena: overlap",
+      "coverage": [
+        "world",
+        "arena",
+        "experiment",
+        "earthquake"
+      ],
+      "snapshotPath": "config/debug/editor_route1_flat_experiment_earthquake_comparison.json",
+      "screenshotFrame": 536,
+      "width": 1440,
+      "height": 1000,
+      "autoQuitSeconds": 20,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.25,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        }
+      ]
+    },
+    {
+      "name": "original-arena-crowded",
+      "focus": "original Route 1 arena: crowded",
+      "coverage": [
+        "world",
+        "arena",
+        "experiment"
+      ],
+      "snapshotPath": "config/debug/editor_route1_pilot_comparison.json",
+      "screenshotFrame": 164,
+      "width": 1440,
+      "height": 1000,
+      "autoQuitSeconds": 20,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.25,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        }
+      ]
+    },
+    {
+      "name": "original-arena-earthquake",
+      "focus": "original Route 1 arena: earthquake",
+      "coverage": [
+        "world",
+        "arena",
+        "experiment",
+        "earthquake"
+      ],
+      "snapshotPath": "config/debug/editor_route1_pilot_earthquake_comparison.json",
+      "screenshotFrame": 164,
+      "width": 1440,
+      "height": 1000,
+      "autoQuitSeconds": 20,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.25,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        }
+      ]
+    },
+    {
+      "name": "original-arena-overlap-control",
+      "focus": "original Route 1 arena: overlap-control",
+      "coverage": [
+        "world",
+        "arena",
+        "experiment"
+      ],
+      "snapshotPath": "config/debug/editor_route1_pilot_comparison.json",
+      "screenshotFrame": 536,
+      "width": 1440,
+      "height": 1000,
+      "autoQuitSeconds": 20,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.25,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        }
+      ]
+    },
+    {
+      "name": "original-arena-overlap",
+      "focus": "original Route 1 arena: overlap",
+      "coverage": [
+        "world",
+        "arena",
+        "experiment",
+        "earthquake"
+      ],
+      "snapshotPath": "config/debug/editor_route1_pilot_earthquake_comparison.json",
+      "screenshotFrame": 536,
+      "width": 1440,
+      "height": 1000,
+      "autoQuitSeconds": 20,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.25,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        }
+      ]
     }
   ]
 }

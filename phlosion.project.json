@@ -56,6 +56,15 @@
       "status": "in_progress"
     },
     {
+      "scene_id": "routes/route1-flat-experiment",
+      "display_name": "Route 1 - Flat Dirt Experiment",
+      "category": "Experiments",
+      "environment_asset_id": "environments/route1",
+      "authored_scene_path": "scenes/route1_flat_experiment.scene.json",
+      "runtime_path": "scripts/states/route1_flat_experiment.lua",
+      "status": "in_progress"
+    },
+    {
       "scene_id": "routes/route1-south-clearing",
       "display_name": "Route 1 - South Clearing",
       "category": "Current Map",

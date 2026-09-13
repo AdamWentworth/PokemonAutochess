@@ -1,0 +1,17 @@
+{
+  "kind": "pokemon_autochess_arena_authoring",
+  "schema_version": 1,
+  "display_name": "Route 1 - Flat Dirt Experiment",
+  "scene_id": "routes/route1-flat-experiment",
+  "working_source_relative": "EnvironmentResearch/Route1/authoring/flat-experiment/Route1_FlatExperiment.blend",
+  "depot_source_relative": "pokemon-autochess/source/project-authored/route1-flat-experiment/Route1_FlatExperiment.blend",
+  "board_path": "config/environment/route1_flat_experiment_board_layout.json",
+  "composition_path": "config/environment/route1_environment_package.json",
+  "scene_path": "scenes/route1_flat_experiment.scene.json",
+  "terrain_path": "content/phlosion/environment/flat-experiment/terrain.phpatch",
+  "gameplay_map_path": "config/environment/route1_flat_experiment_gameplay.json",
+  "bundle_path": "content/phlosion/environment/flat-experiment/arena.phscene",
+  "base_environment_asset_id": "environments/route1",
+  "terrain_node_id": "mesh-patch/flat-experiment/terrain",
+  "ground_material_index": 19
+}

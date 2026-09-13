@@ -31,6 +31,13 @@ inline constexpr Variant kRoute1Pilot{
     .arenaBundlePath = "content/phlosion/environment/arena-pilot/arena.phscene",
     .usesSourceTerrain = false};
 
+inline constexpr Variant kRoute1FlatExperiment{
+    .sceneId = "routes/route1-flat-experiment",
+    .boardLayoutManifestPath = "config/environment/route1_flat_experiment_board_layout.json",
+    .authoredSceneDocumentPath = "scenes/route1_flat_experiment.scene.json",
+    .arenaBundlePath = "content/phlosion/environment/flat-experiment/arena.phscene",
+    .usesSourceTerrain = false};
+
 inline constexpr Variant kRoute1SouthClearing{
     .sceneId = "routes/route1-south-clearing",
     .boardLayoutManifestPath = "config/environment/route1_south_clearing_board_layout.json",
@@ -54,6 +61,7 @@ inline constexpr Variant kRoute1NorthEntrance{
 
 inline constexpr const Variant *find(
     std::string_view sceneId) noexcept {
+    if (sceneId == kRoute1FlatExperiment.sceneId) return &kRoute1FlatExperiment;
     if (sceneId == kRoute1.sceneId) {
         return &kRoute1;
     }
@@ -82,6 +90,7 @@ inline constexpr bool editable(
 
 inline constexpr const Variant& fromStateScriptPath(
     std::string_view stateScriptPath) noexcept {
+    if (stateScriptPath.find("route1_flat_experiment") != std::string_view::npos) return kRoute1FlatExperiment;
     if (stateScriptPath.find("route1_north_entrance") != std::string_view::npos) {
         return kRoute1NorthEntrance;
     }

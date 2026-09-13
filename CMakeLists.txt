@@ -191,7 +191,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "026bf68caa4578120b0fbb9329298470a9200013"
+    "6cf6d1f955a1089fbfeba9482dd1a145853a796d"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 
@@ -510,6 +510,8 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldTackleBridge.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldParticleVfxBridge.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldVfxBridges.cpp
+    src/game/vfx/SampledEffectClip.cpp
+    src/game/preview/ArenaEffectExperiment.cpp
     src/game/runtime/shared/projected/world_vfx/SharedProjectedWorldCaptureBridge.cpp
     src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneBatchState.cpp
     src/game/runtime/shared/projected/world_scene/SharedProjectedUnitWorldSceneSubmission.cpp
@@ -912,6 +914,7 @@ if (BUILD_TESTING)
         tests/TestRoute1ArenaPilot.cpp
         tests/TestRoute1SouthClearing.cpp
         tests/TestRoute1NorthTerraces.cpp
+        tests/TestFlatArenaExperiment.cpp
         tests/TestRoute1NorthEntrance.cpp
         tests/TestEncounterGrassRendering.cpp
         tests/TestAuthoredGroundSurface.cpp
@@ -1161,6 +1164,7 @@ if (BUILD_TESTING)
         route1_arena_pilot_contract
         route1_south_clearing_contract
         route1_north_terraces_contract
+        flat_arena_experiment_contract
         route1_north_entrance_contract
         encounter_grass_rendering
         render_prep_unit_visuals_contract
