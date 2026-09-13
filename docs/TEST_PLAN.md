@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-08-20
+Last updated: 2026-09-13
 
 Goal: catch real regressions while keeping correctness, performance evidence,
 preview tooling, and docs maintenance trustworthy.
@@ -342,7 +342,7 @@ The flat arena's **HUD Inspection Test** starts a planning shop with Bulbasaur
 selected. Qualify its compact and normal layouts, plus the ordinary type roster:
 
 ```powershell
-.\tools\render_parity_matrix.ps1 -Config RelWithDebInfo -Cases hud-inspection,hud-inspection-compact,round-shop
+.\tools\render_parity_matrix.ps1 -Config RelWithDebInfo -Cases hud-inspection,hud-inspection-compact,hud-inspection-rattata,round-shop
 .\tools\housekeeping\check_editor_workflow.ps1 -Cases hud-inspection,round-shop
 ctest --test-dir build -C RelWithDebInfo -R '(unit_inspection|ui_hud_formatting|session_debug_snapshot|session_snapshot_runtime|session_loop_bridge|editor_preview_catalog|runtime_startup_asset_prewarm)' --output-on-failure
 ```
@@ -354,6 +354,14 @@ The image cases guard the original type symbols and selected-unit text and bars;
 live stats, bench transfers, removal and planning pickup. Local qualification is
 recorded in `debug/unit-inspection-wide/{native,editor}`. The selected captures
 also guard Team Types at its normal anchor, catching selection-driven shifts.
+
+The identity column uses original HOME art with per-species face framing for all
+151 base Kanto species. See [the portrait runbook](POKEMON_HUD_PORTRAITS.md) for
+asset restoration and framing edits. `ui_hud_formatting_contract` checks the full
+mapping and UV bounds; the native image cases check Bulbasaur and bench Rattata
+portraits, including compact rendering. Qualification is recorded in
+`debug/home-portraits/{native-final,editor-final}`. UI texture changes also require
+`hud-starter-wide` and the editor's `hud-starter-cards` on all three APIs.
 
 Also check the editor while stopped: layout-edit shortcut banners must not paint
 over the game HUD. These instructions live in the Scene/Game tab tooltips.

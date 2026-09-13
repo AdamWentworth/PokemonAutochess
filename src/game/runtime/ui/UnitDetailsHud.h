@@ -1,6 +1,7 @@
 #pragma once
 
 #include "game/runtime/ui/TypeRosterHud.h"
+#include "game/runtime/ui/PokemonPortraits.h"
 #include "game/PokemonInstance.h"
 #include "game/config/GameDataDb.h"
 #include <iomanip>
@@ -46,15 +47,19 @@ inline void append(std::vector<IRenderBackend::DebugQuad> &quads,
     for (float x : {154.0f, 314.0f})
         hud_paint::quad(quads, l.x + x * s, l.y + 11 * s, s, 58 * s, {.20f, .30f, .25f});
 
-    text(12, 10, hud::humanizeToken(unit.name), 1.4f, {.97f, .91f, .69f}, 132);
+    // Share the existing identity column: selection never resizes this strip
+    // or changes the Team Types anchor. Original PNGs use per-species face UVs.
+    hud_paint::panel(quads, l.x + 8 * s, l.y + 9 * s, 56 * s, 56 * s, 5 * s, {.09f, .16f, .13f}, 1);
+    pokemon_portraits::append(sprites, unit.name, l.x + 10 * s, l.y + 11 * s, 52 * s);
+    text(72, 10, hud::humanizeToken(unit.name), 1.4f, {.97f, .91f, .69f}, 74);
     for (std::size_t i = 0; i < std::min<std::size_t>(2, unit.types.size()); ++i) {
-        const float x = 12 + static_cast<float>(i) * 70;
-        type_roster_hud::icon(sprites, unit.types[i], l.x + x * s, l.y + 29 * s, 16 * s);
-        text(x + 20, 34, hud::humanizeToken(unit.types[i]), .82f, {.86f, .92f, .88f}, 46);
+        const float y = 29 + static_cast<float>(i) * 18;
+        type_roster_hud::icon(sprites, unit.types[i], l.x + 72 * s, l.y + y * s, 16 * s);
+        text(92, y + 5, hud::humanizeToken(unit.types[i]), .82f, {.86f, .92f, .88f}, 54);
     }
-    text(12, 51, "Lv " + std::to_string(unit.level) + " | XP " + std::to_string(unit.xp), .9f, {.97f, .91f, .69f}, 132);
+    text(72, 65, "Lv " + std::to_string(unit.level) + " | XP " + std::to_string(unit.xp), .9f, {.97f, .91f, .69f}, 74);
     const std::string place = unit.side == PokemonSide::Enemy ? "Enemy" : (onBench ? "Your bench" : "Your board");
-    text(12, 65, place + (unit.leechSeeded ? " | Seeded" : ""), .85f, {.62f, .76f, .70f}, 132);
+    text(8, 69, unit.leechSeeded ? "Seeded" : place, .75f, {.62f, .76f, .70f}, 56);
 
     const auto bar = [&](float y, int value, int maximum, const std::string &label, glm::vec3 color) {
         hud_paint::quad(quads, l.x + 166 * s, l.y + y * s, 136 * s, 14 * s, {.12f, .17f, .16f});

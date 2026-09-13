@@ -5,6 +5,7 @@
 #include "game/config/GameDataDb.h"
 #include "game/runtime/ui/ImagePath.h"
 #include "game/runtime/ui/TypeRosterHud.h"
+#include "game/runtime/ui/PokemonPortraits.h"
 
 #include <algorithm>
 #include <chrono>
@@ -31,7 +32,9 @@ bool pumpPreloadEventsOrQuit(const Callbacks& callbacks) {
 }
 
 bool isPlaceholderOrHudSprite(const std::string& path) {
-    return path == "assets/ui/frame_gold.png" ||
+    return path.starts_with("assets/ui/pokemon/home/") ||
+           path.starts_with("assets/ui/types/home/") ||
+           path == "assets/ui/frame_gold.png" ||
            path == "assets/images/item_placeholder.png" ||
            path == "assets/images/items_atlas.png" ||
            path == "assets/images/pokedollar.png" ||
@@ -174,6 +177,8 @@ std::vector<std::string> collectUiSpritePrewarmPaths(const GameDataDb& dataDb) {
 
     for (const auto& [speciesName, stats] : dataDb.pokemon.all()) {
         (void)stats;
+        if (const auto *portrait = pokemon_portraits::find(speciesName))
+            addPath(pokemon_portraits::path(*portrait));
         const std::string path =
             game::runtime::ui_images::candidatePokemonPortraitPath(speciesName);
         if (path.empty()) continue;

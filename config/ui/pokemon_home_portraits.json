@@ -1,0 +1,1975 @@
+{
+  "schema": 1,
+  "game": "Pokemon HOME",
+  "source_repository": "https://github.com/PokeAPI/sprites",
+  "source_commit": "2ecb4eeacd5a1718621fc30f12772e3f60d830b9",
+  "imported": "2026-09-13",
+  "width": 512,
+  "height": 512,
+  "notes": "Unmodified original HOME PNGs mirrored by PokeAPI. Crop is a square [x,y,size] in top-left-origin source pixels, applied only as runtime UV framing. Base Kanto species artwork; appearance variants share their species portrait. Pokemon artwork belongs to its respective rights holders.",
+  "portraits": [
+    {
+      "dex": 1,
+      "species": "bulbasaur",
+      "path": "assets/ui/pokemon/home/001.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/1.png",
+      "sha256": "c7cb8e9545e13ab399506fb5fb1f68112be9fff2b68d0ac3ff3b1f531b9c5c38",
+      "bytes": 143991,
+      "crop": [
+        32,
+        141,
+        320
+      ]
+    },
+    {
+      "dex": 2,
+      "species": "ivysaur",
+      "path": "assets/ui/pokemon/home/002.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/2.png",
+      "sha256": "d8600af0fe844be4e6641cee780aacc40adab5c93b40bf187d08b58f590a1a98",
+      "bytes": 162605,
+      "crop": [
+        192,
+        163,
+        288
+      ]
+    },
+    {
+      "dex": 3,
+      "species": "venusaur",
+      "path": "assets/ui/pokemon/home/003.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/3.png",
+      "sha256": "988fab8eaea3dfa16b7ec9dff74d7b9177a59fa56e0339ec42af69d95355064a",
+      "bytes": 168874,
+      "crop": [
+        112,
+        224,
+        288
+      ]
+    },
+    {
+      "dex": 4,
+      "species": "charmander",
+      "path": "assets/ui/pokemon/home/004.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/4.png",
+      "sha256": "c6d932596f03ef73dec2ba27f728e085db63f27b9f9617d60b3e7690061eee93",
+      "bytes": 107318,
+      "crop": [
+        70,
+        77,
+        230
+      ]
+    },
+    {
+      "dex": 5,
+      "species": "charmeleon",
+      "path": "assets/ui/pokemon/home/005.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/5.png",
+      "sha256": "e80c8e201846e586d3b169d218fda1c44d045a44bc9aa8ef542ee78fa58b0bf8",
+      "bytes": 114295,
+      "crop": [
+        86,
+        32,
+        237
+      ]
+    },
+    {
+      "dex": 6,
+      "species": "charizard",
+      "path": "assets/ui/pokemon/home/006.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/6.png",
+      "sha256": "ffe2db1065f91feda24f21c81c461e4ca6b863cf31afb4e4918aba79fb31ee70",
+      "bytes": 130368,
+      "crop": [
+        138,
+        80,
+        211
+      ]
+    },
+    {
+      "dex": 7,
+      "species": "squirtle",
+      "path": "assets/ui/pokemon/home/007.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/7.png",
+      "sha256": "d63efd7617e6fba9d2c9505c69891da692fda30999b3edc79ca0fecc18d19480",
+      "bytes": 114376,
+      "crop": [
+        96,
+        70,
+        269
+      ]
+    },
+    {
+      "dex": 8,
+      "species": "wartortle",
+      "path": "assets/ui/pokemon/home/008.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/8.png",
+      "sha256": "8ddb79651e411410fe1e91031bacb53155019404430f30e48576cba8f2deeddf",
+      "bytes": 152561,
+      "crop": [
+        99,
+        45,
+        320
+      ]
+    },
+    {
+      "dex": 9,
+      "species": "blastoise",
+      "path": "assets/ui/pokemon/home/009.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/9.png",
+      "sha256": "fffffbadcf20d81ff47cc60380314e1f4546b2e908ae215123845fddda0420a0",
+      "bytes": 161688,
+      "crop": [
+        214,
+        22,
+        205
+      ]
+    },
+    {
+      "dex": 10,
+      "species": "caterpie",
+      "path": "assets/ui/pokemon/home/010.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/10.png",
+      "sha256": "452212fb99df6b96dfa51401388deedb1220956acacd89ca5147e4af7ddbf65a",
+      "bytes": 124816,
+      "crop": [
+        67,
+        67,
+        301
+      ]
+    },
+    {
+      "dex": 11,
+      "species": "metapod",
+      "path": "assets/ui/pokemon/home/011.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/11.png",
+      "sha256": "0e01ea10c0566c2b302c4a0b08ca17ad5d1dc9ea0f3556f7653ba9441dcf27c9",
+      "bytes": 88320,
+      "crop": [
+        54,
+        90,
+        320
+      ]
+    },
+    {
+      "dex": 12,
+      "species": "butterfree",
+      "path": "assets/ui/pokemon/home/012.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/12.png",
+      "sha256": "3a64582f885c2268efd1723cbbbf4e5aa8befc02695acb58d43eaf6dc5e7991d",
+      "bytes": 155910,
+      "crop": [
+        99,
+        128,
+        288
+      ]
+    },
+    {
+      "dex": 13,
+      "species": "weedle",
+      "path": "assets/ui/pokemon/home/013.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/13.png",
+      "sha256": "fc9004a147b2bc551eb5d5f0e00c6c61ca514b2f888e7a1ac4f434fb264127e4",
+      "bytes": 91941,
+      "crop": [
+        42,
+        86,
+        288
+      ]
+    },
+    {
+      "dex": 14,
+      "species": "kakuna",
+      "path": "assets/ui/pokemon/home/014.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/14.png",
+      "sha256": "5e45bad27ff679793811e49b87ef7f6e1e518b78e99d90e769b4bb7fa19cd27f",
+      "bytes": 76599,
+      "crop": [
+        77,
+        80,
+        352
+      ]
+    },
+    {
+      "dex": 15,
+      "species": "beedrill",
+      "path": "assets/ui/pokemon/home/015.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/15.png",
+      "sha256": "3bff9daf54f7e34358afb72b1e4446d7d21e9ec977c8a9e52564115222d15f5d",
+      "bytes": 131259,
+      "crop": [
+        96,
+        67,
+        288
+      ]
+    },
+    {
+      "dex": 16,
+      "species": "pidgey",
+      "path": "assets/ui/pokemon/home/016.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/16.png",
+      "sha256": "f22b103dc9c0b7059348a265dd081c81bf887d3e386b111400869b5f35c336c7",
+      "bytes": 101705,
+      "crop": [
+        22,
+        67,
+        288
+      ]
+    },
+    {
+      "dex": 17,
+      "species": "pidgeotto",
+      "path": "assets/ui/pokemon/home/017.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/17.png",
+      "sha256": "e240bf5640073e4d3391b655685f52aba7f736a620a91ae7003824e8abe07d8b",
+      "bytes": 122788,
+      "crop": [
+        83,
+        80,
+        250
+      ]
+    },
+    {
+      "dex": 18,
+      "species": "pidgeot",
+      "path": "assets/ui/pokemon/home/018.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/18.png",
+      "sha256": "ea96e8153eea966386b0566da7411c2932df6abc23e20df71f4adeea7d764825",
+      "bytes": 135668,
+      "crop": [
+        243,
+        90,
+        269
+      ]
+    },
+    {
+      "dex": 19,
+      "species": "rattata",
+      "path": "assets/ui/pokemon/home/019.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/19.png",
+      "sha256": "633afbbb01736c7eb6b7f63778335e6c53fc6d90b91f36f142bc813f2e797820",
+      "bytes": 108564,
+      "crop": [
+        54,
+        186,
+        288
+      ]
+    },
+    {
+      "dex": 20,
+      "species": "raticate",
+      "path": "assets/ui/pokemon/home/020.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/20.png",
+      "sha256": "c22ce5536e0f0f9143b3b6e5acad9f0e124d061c1e22dfea6bb5bb7074dfb104",
+      "bytes": 161030,
+      "crop": [
+        19,
+        22,
+        339
+      ]
+    },
+    {
+      "dex": 21,
+      "species": "spearow",
+      "path": "assets/ui/pokemon/home/021.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/21.png",
+      "sha256": "912e1658993ff5420c9fe16d6a5f759c9eb76ca71865c1e57b768a32d977d497",
+      "bytes": 118273,
+      "crop": [
+        147,
+        80,
+        288
+      ]
+    },
+    {
+      "dex": 22,
+      "species": "fearow",
+      "path": "assets/ui/pokemon/home/022.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/22.png",
+      "sha256": "b25e9accc93cda14af921bdd713f0ccaeef8ccc1dd7188ce4f8d5b2f47bb8789",
+      "bytes": 127126,
+      "crop": [
+        0,
+        214,
+        250
+      ]
+    },
+    {
+      "dex": 23,
+      "species": "ekans",
+      "path": "assets/ui/pokemon/home/023.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/23.png",
+      "sha256": "cceec7b1dcd620322fc744eb3d03add82ff9df682671d0b27a520a052a5b43c8",
+      "bytes": 144437,
+      "crop": [
+        19,
+        74,
+        269
+      ]
+    },
+    {
+      "dex": 24,
+      "species": "arbok",
+      "path": "assets/ui/pokemon/home/024.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/24.png",
+      "sha256": "853770aa56f527a12cb152fd253ddf3851a33562cdf2dc2b364d0f838fa2ed6f",
+      "bytes": 167986,
+      "crop": [
+        42,
+        10,
+        384
+      ]
+    },
+    {
+      "dex": 25,
+      "species": "pikachu",
+      "path": "assets/ui/pokemon/home/025.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/25.png",
+      "sha256": "6a9305fbd6f02345153567f4142faf019380b1a1c839cfa3f2349cc36d536a40",
+      "bytes": 79086,
+      "crop": [
+        22,
+        45,
+        339
+      ]
+    },
+    {
+      "dex": 26,
+      "species": "raichu",
+      "path": "assets/ui/pokemon/home/026.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/26.png",
+      "sha256": "0ae7e20b0b847c4f68a1867cc1a3f8ff180cb0301fbed4c84b83a7e64c779858",
+      "bytes": 100388,
+      "crop": [
+        32,
+        96,
+        288
+      ]
+    },
+    {
+      "dex": 27,
+      "species": "sandshrew",
+      "path": "assets/ui/pokemon/home/027.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/27.png",
+      "sha256": "ec21d4a1f1778bc6344591b838fc60ed1c14b9fcff0a814b8fccb2fb01ea83b7",
+      "bytes": 140841,
+      "crop": [
+        35,
+        80,
+        288
+      ]
+    },
+    {
+      "dex": 28,
+      "species": "sandslash",
+      "path": "assets/ui/pokemon/home/028.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/28.png",
+      "sha256": "f7184af8cb90589638925605f4b106154490d2814a07af45351f35a11ae4f208",
+      "bytes": 164613,
+      "crop": [
+        154,
+        51,
+        326
+      ]
+    },
+    {
+      "dex": 29,
+      "species": "nidoran-f",
+      "path": "assets/ui/pokemon/home/029.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/29.png",
+      "sha256": "4f8e5f44cccad9164e1dcea538b0b949f9f29548a42123db0444b6f6a46b32e2",
+      "bytes": 129676,
+      "crop": [
+        45,
+        48,
+        358
+      ]
+    },
+    {
+      "dex": 30,
+      "species": "nidorina",
+      "path": "assets/ui/pokemon/home/030.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/30.png",
+      "sha256": "fb6ebd83ac9dab6a7df43d22698283fd9b3ddebd0cd8a5eb53cc230687a4bf0f",
+      "bytes": 133236,
+      "crop": [
+        70,
+        42,
+        320
+      ]
+    },
+    {
+      "dex": 31,
+      "species": "nidoqueen",
+      "path": "assets/ui/pokemon/home/031.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/31.png",
+      "sha256": "14f964f021a6eacea5936e1115965f7b2b66e0c788944ba316cbe995b1f35c47",
+      "bytes": 176733,
+      "crop": [
+        86,
+        3,
+        320
+      ]
+    },
+    {
+      "dex": 32,
+      "species": "nidoran-m",
+      "path": "assets/ui/pokemon/home/032.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/32.png",
+      "sha256": "4e9a6a9ad2f7acad94d2d3709d02b0543859444f5397946d7bfd92fd4b46fedb",
+      "bytes": 138352,
+      "crop": [
+        45,
+        99,
+        410
+      ]
+    },
+    {
+      "dex": 33,
+      "species": "nidorino",
+      "path": "assets/ui/pokemon/home/033.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/33.png",
+      "sha256": "d66314051e48e0234f5ffc2d334dae98a23f607fe97306950ef7b230171e971a",
+      "bytes": 159728,
+      "crop": [
+        32,
+        160,
+        352
+      ]
+    },
+    {
+      "dex": 34,
+      "species": "nidoking",
+      "path": "assets/ui/pokemon/home/034.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/34.png",
+      "sha256": "3a34c3c637abb8e80f9cd30ba9d723634962e66ddbe5dbb7983eecf0097cf138",
+      "bytes": 169494,
+      "crop": [
+        22,
+        83,
+        320
+      ]
+    },
+    {
+      "dex": 35,
+      "species": "clefairy",
+      "path": "assets/ui/pokemon/home/035.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/35.png",
+      "sha256": "1a16f1de86f574dc1eb8dc5f189abfd9196e9e6790e7e4ed8514d43189bedfcf",
+      "bytes": 113686,
+      "crop": [
+        58,
+        38,
+        365
+      ]
+    },
+    {
+      "dex": 36,
+      "species": "clefable",
+      "path": "assets/ui/pokemon/home/036.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/36.png",
+      "sha256": "ee602a464354bc7f39d28927362fa8b96fa57a605bbee463b86c0ef106975514",
+      "bytes": 138246,
+      "crop": [
+        42,
+        32,
+        378
+      ]
+    },
+    {
+      "dex": 37,
+      "species": "vulpix",
+      "path": "assets/ui/pokemon/home/037.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/37.png",
+      "sha256": "0b2aea058c11e12415e9731d4d4f7286979122d812898225aa428ac8ac1cdec4",
+      "bytes": 128996,
+      "crop": [
+        0,
+        115,
+        301
+      ]
+    },
+    {
+      "dex": 38,
+      "species": "ninetales",
+      "path": "assets/ui/pokemon/home/038.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/38.png",
+      "sha256": "86748fd007b07b94d6db70c80769d02383071731d4c2b210b0a278ad2c15ff21",
+      "bytes": 172928,
+      "crop": [
+        230,
+        42,
+        282
+      ]
+    },
+    {
+      "dex": 39,
+      "species": "jigglypuff",
+      "path": "assets/ui/pokemon/home/039.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/39.png",
+      "sha256": "8514f906e321d304f785429716983a83c40d7a1cd39a10fcb324ba146816cd04",
+      "bytes": 120584,
+      "crop": [
+        42,
+        45,
+        422
+      ]
+    },
+    {
+      "dex": 40,
+      "species": "wigglytuff",
+      "path": "assets/ui/pokemon/home/040.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/40.png",
+      "sha256": "2c1246fbf875966b1761d9365d77f0d47c1929da519b8ea8bb479e558484c531",
+      "bytes": 135930,
+      "crop": [
+        70,
+        22,
+        397
+      ]
+    },
+    {
+      "dex": 41,
+      "species": "zubat",
+      "path": "assets/ui/pokemon/home/041.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/41.png",
+      "sha256": "954c4b2e30950706b3c2879003742d28723bcf54b1e13f4024e4f656d4e164d3",
+      "bytes": 112424,
+      "crop": [
+        128,
+        19,
+        333
+      ]
+    },
+    {
+      "dex": 42,
+      "species": "golbat",
+      "path": "assets/ui/pokemon/home/042.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/42.png",
+      "sha256": "d82c0991993ce21240487e0eb3cc1575665300d55a2f9c291040f75d6c87fc35",
+      "bytes": 106488,
+      "crop": [
+        42,
+        90,
+        346
+      ]
+    },
+    {
+      "dex": 43,
+      "species": "oddish",
+      "path": "assets/ui/pokemon/home/043.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/43.png",
+      "sha256": "1c02c396a02758cf10185e82dd26684bfa9ff11c55e8af403957b161a9d3cb85",
+      "bytes": 121698,
+      "crop": [
+        0,
+        90,
+        346
+      ]
+    },
+    {
+      "dex": 44,
+      "species": "gloom",
+      "path": "assets/ui/pokemon/home/044.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/44.png",
+      "sha256": "bc60e461f91712423c13b9ee2dbbc625397c01429e8688548681200de9dd50a4",
+      "bytes": 139863,
+      "crop": [
+        93,
+        144,
+        333
+      ]
+    },
+    {
+      "dex": 45,
+      "species": "vileplume",
+      "path": "assets/ui/pokemon/home/045.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/45.png",
+      "sha256": "679a0dc498b403fb80ae7949ccb8e5911d6164d6319cea926960ddaf0f311144",
+      "bytes": 147830,
+      "crop": [
+        80,
+        160,
+        352
+      ]
+    },
+    {
+      "dex": 46,
+      "species": "paras",
+      "path": "assets/ui/pokemon/home/046.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/46.png",
+      "sha256": "7e8b017b76d22e9cd4cf737ee61a20832c232e6bcb2d09df5b05545a31d94117",
+      "bytes": 111421,
+      "crop": [
+        83,
+        154,
+        333
+      ]
+    },
+    {
+      "dex": 47,
+      "species": "parasect",
+      "path": "assets/ui/pokemon/home/047.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/47.png",
+      "sha256": "59a923337d47d1e896cfd9972766372af464ca8c712785b5329194e884acf948",
+      "bytes": 135475,
+      "crop": [
+        80,
+        141,
+        320
+      ]
+    },
+    {
+      "dex": 48,
+      "species": "venonat",
+      "path": "assets/ui/pokemon/home/048.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/48.png",
+      "sha256": "7e21be3c07f89f793a74e2b0f0bb2b79faea6bc7da788620b685aa70f447bf62",
+      "bytes": 147214,
+      "crop": [
+        80,
+        96,
+        352
+      ]
+    },
+    {
+      "dex": 49,
+      "species": "venomoth",
+      "path": "assets/ui/pokemon/home/049.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/49.png",
+      "sha256": "862085f93120f69e8968a143529e48f0e96855c222a9088a0a808af2f40061fa",
+      "bytes": 113680,
+      "crop": [
+        74,
+        157,
+        269
+      ]
+    },
+    {
+      "dex": 50,
+      "species": "diglett",
+      "path": "assets/ui/pokemon/home/050.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/50.png",
+      "sha256": "0b3f8ff02c364a613392668f0571becba57e9e0e6d53d368106a07c5aad777ce",
+      "bytes": 88593,
+      "crop": [
+        58,
+        93,
+        365
+      ]
+    },
+    {
+      "dex": 51,
+      "species": "dugtrio",
+      "path": "assets/ui/pokemon/home/051.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/51.png",
+      "sha256": "4fe2dd7f3f5d580f811c81d0057bcc6408f5cae04d1f9ede02553c1a5a7d9c05",
+      "bytes": 145805,
+      "crop": [
+        26,
+        77,
+        435
+      ]
+    },
+    {
+      "dex": 52,
+      "species": "meowth",
+      "path": "assets/ui/pokemon/home/052.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/52.png",
+      "sha256": "70336b6d39242f31d929f042c9e58926de7e9ff1f6f3212e2237892fa4bf974d",
+      "bytes": 106986,
+      "crop": [
+        83,
+        0,
+        320
+      ]
+    },
+    {
+      "dex": 53,
+      "species": "persian",
+      "path": "assets/ui/pokemon/home/053.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/53.png",
+      "sha256": "af5bbda097ef00c2e342a95ed79bcb4f6d128715021099d6cb9575133e7a2486",
+      "bytes": 123733,
+      "crop": [
+        208,
+        45,
+        262
+      ]
+    },
+    {
+      "dex": 54,
+      "species": "psyduck",
+      "path": "assets/ui/pokemon/home/054.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/54.png",
+      "sha256": "89669dd7f33c87dce7dd58f4f11dfbc4e55a14cb51c9b540a4ca9eccb92e1e9b",
+      "bytes": 119722,
+      "crop": [
+        58,
+        70,
+        390
+      ]
+    },
+    {
+      "dex": 55,
+      "species": "golduck",
+      "path": "assets/ui/pokemon/home/055.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/55.png",
+      "sha256": "9ed048efb2a856a7f097dea38d51c130ad8514c029ef016acc91575a34efa6ed",
+      "bytes": 131518,
+      "crop": [
+        64,
+        16,
+        275
+      ]
+    },
+    {
+      "dex": 56,
+      "species": "mankey",
+      "path": "assets/ui/pokemon/home/056.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/56.png",
+      "sha256": "cea28d279487208e5e3dfcff58756957ac1e631dc891dd0eaf355dce2a651dce",
+      "bytes": 84344,
+      "crop": [
+        59,
+        165,
+        336
+      ]
+    },
+    {
+      "dex": 57,
+      "species": "primeape",
+      "path": "assets/ui/pokemon/home/057.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/57.png",
+      "sha256": "8f0c13a0fd432ac26538ffead5a6d063b569b7b9b700d2bf85570f41025404ca",
+      "bytes": 147162,
+      "crop": [
+        83,
+        90,
+        339
+      ]
+    },
+    {
+      "dex": 58,
+      "species": "growlithe",
+      "path": "assets/ui/pokemon/home/058.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/58.png",
+      "sha256": "e66fd75b178c4efee642e9b674828e2be06b3656df88005610b9e4e3f7eecbc9",
+      "bytes": 142893,
+      "crop": [
+        133,
+        43,
+        336
+      ]
+    },
+    {
+      "dex": 59,
+      "species": "arcanine",
+      "path": "assets/ui/pokemon/home/059.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/59.png",
+      "sha256": "551cf008b80ca6d1ef9b9687106b1307b4d88a1e510e5a337ff5bac2e7116bec",
+      "bytes": 185699,
+      "crop": [
+        26,
+        51,
+        307
+      ]
+    },
+    {
+      "dex": 60,
+      "species": "poliwag",
+      "path": "assets/ui/pokemon/home/060.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/60.png",
+      "sha256": "72c49bcdd36943a21718aca70c2da446fc9a106dffe48223cfab82024eff397e",
+      "bytes": 100702,
+      "crop": [
+        0,
+        45,
+        378
+      ]
+    },
+    {
+      "dex": 61,
+      "species": "poliwhirl",
+      "path": "assets/ui/pokemon/home/061.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/61.png",
+      "sha256": "64590f6e9eab65bcd6046258fe0d96224fae5c45408bea973459a715d69b8e5b",
+      "bytes": 148935,
+      "crop": [
+        38,
+        22,
+        416
+      ]
+    },
+    {
+      "dex": 62,
+      "species": "poliwrath",
+      "path": "assets/ui/pokemon/home/062.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/62.png",
+      "sha256": "7caec1ba21a6b97cd1d8850fe14bff7834bb0b7293d4659184dfc44efdecec31",
+      "bytes": 114523,
+      "crop": [
+        77,
+        96,
+        358
+      ]
+    },
+    {
+      "dex": 63,
+      "species": "abra",
+      "path": "assets/ui/pokemon/home/063.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/63.png",
+      "sha256": "cee7e3dc3d7bd3f0c3a8245726b9da35b14231327650b3e1eb9c77441d1cebe8",
+      "bytes": 110701,
+      "crop": [
+        109,
+        32,
+        320
+      ]
+    },
+    {
+      "dex": 64,
+      "species": "kadabra",
+      "path": "assets/ui/pokemon/home/064.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/64.png",
+      "sha256": "084f77a1734cd7c66cd49f9091b1f4857eb282b443de82bf76afaf174c8ca49a",
+      "bytes": 128746,
+      "crop": [
+        115,
+        86,
+        282
+      ]
+    },
+    {
+      "dex": 65,
+      "species": "alakazam",
+      "path": "assets/ui/pokemon/home/065.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/65.png",
+      "sha256": "a8062be222beb498a638787ef218afab14af7724339d8be97b87ff3c01886d85",
+      "bytes": 143176,
+      "crop": [
+        93,
+        6,
+        346
+      ]
+    },
+    {
+      "dex": 66,
+      "species": "machop",
+      "path": "assets/ui/pokemon/home/066.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/66.png",
+      "sha256": "36ec58bdad40513ada2920b674aa30ba82f00bc150992cc5eadf8d29403e5a45",
+      "bytes": 121546,
+      "crop": [
+        109,
+        13,
+        358
+      ]
+    },
+    {
+      "dex": 67,
+      "species": "machoke",
+      "path": "assets/ui/pokemon/home/067.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/67.png",
+      "sha256": "1f02156b2b361ebad917f83b79d0e8539cec12a64e41e3a160aa2d2d76c39e1f",
+      "bytes": 161049,
+      "crop": [
+        93,
+        0,
+        307
+      ]
+    },
+    {
+      "dex": 68,
+      "species": "machamp",
+      "path": "assets/ui/pokemon/home/068.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/68.png",
+      "sha256": "c535a81d675bb0ef9184e44b33da04bac5894dde32ca80713b4bb0b328063f9b",
+      "bytes": 173719,
+      "crop": [
+        102,
+        77,
+        307
+      ]
+    },
+    {
+      "dex": 69,
+      "species": "bellsprout",
+      "path": "assets/ui/pokemon/home/069.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/69.png",
+      "sha256": "c12286532e73dd4cab5756b844722d661fc80c0f87f66f4c35bfd44d368c9fe9",
+      "bytes": 78180,
+      "crop": [
+        51,
+        61,
+        307
+      ]
+    },
+    {
+      "dex": 70,
+      "species": "weepinbell",
+      "path": "assets/ui/pokemon/home/070.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/70.png",
+      "sha256": "6256b8e1ec0904ada6fd11fe048f696fbdcaae7c31b473e0ae9067e8a242c3b6",
+      "bytes": 109322,
+      "crop": [
+        42,
+        67,
+        378
+      ]
+    },
+    {
+      "dex": 71,
+      "species": "victreebel",
+      "path": "assets/ui/pokemon/home/071.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/71.png",
+      "sha256": "bff032ad68d08f11922cb3da0aebbf75576cc88e4e05539502f7a1e4a22d4194",
+      "bytes": 140275,
+      "crop": [
+        32,
+        42,
+        346
+      ]
+    },
+    {
+      "dex": 72,
+      "species": "tentacool",
+      "path": "assets/ui/pokemon/home/072.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/72.png",
+      "sha256": "83c424930ba905a6e0b35dbf25e6eb7d683836d19a72662d563cc18691269c1f",
+      "bytes": 106434,
+      "crop": [
+        19,
+        0,
+        390
+      ]
+    },
+    {
+      "dex": 73,
+      "species": "tentacruel",
+      "path": "assets/ui/pokemon/home/073.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/73.png",
+      "sha256": "9557ec5b6abf52190a3a9c3957ad44f057ce600c014a4c4a0dc3999bf1d2c633",
+      "bytes": 160643,
+      "crop": [
+        32,
+        0,
+        454
+      ]
+    },
+    {
+      "dex": 74,
+      "species": "geodude",
+      "path": "assets/ui/pokemon/home/074.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/74.png",
+      "sha256": "65a8f8ccf0d690a2035780c343e01416d9c07d039fb192b52647377ef946d772",
+      "bytes": 70203,
+      "crop": [
+        90,
+        99,
+        320
+      ]
+    },
+    {
+      "dex": 75,
+      "species": "graveler",
+      "path": "assets/ui/pokemon/home/075.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/75.png",
+      "sha256": "9afec2e3af15656d0d33f35ad8dacb0b558ea22c5c49b2ec8004c5b90a1ce230",
+      "bytes": 93864,
+      "crop": [
+        54,
+        186,
+        326
+      ]
+    },
+    {
+      "dex": 76,
+      "species": "golem",
+      "path": "assets/ui/pokemon/home/076.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/76.png",
+      "sha256": "5c3b916b2efe1643cb0f693490cea2c9dd4a1514a9789feb289ad1a73443c9b9",
+      "bytes": 160030,
+      "crop": [
+        11,
+        104,
+        330
+      ]
+    },
+    {
+      "dex": 77,
+      "species": "ponyta",
+      "path": "assets/ui/pokemon/home/077.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/77.png",
+      "sha256": "efb440ad1f70df2de2ea626a45feb4052bb238d83654961e0e186e3bb5256f54",
+      "bytes": 112512,
+      "crop": [
+        13,
+        42,
+        307
+      ]
+    },
+    {
+      "dex": 78,
+      "species": "rapidash",
+      "path": "assets/ui/pokemon/home/078.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/78.png",
+      "sha256": "da2cb16c7c90cb7fb68a903835a5ce0a93cf9f2c5916257ef2454ec137c2dea5",
+      "bytes": 130820,
+      "crop": [
+        109,
+        0,
+        352
+      ]
+    },
+    {
+      "dex": 79,
+      "species": "slowpoke",
+      "path": "assets/ui/pokemon/home/079.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/79.png",
+      "sha256": "ddb6192f78618ad479d8d8ff13f44bbbf610742f43c95dcc878a6038e5d3c70c",
+      "bytes": 128558,
+      "crop": [
+        0,
+        166,
+        346
+      ]
+    },
+    {
+      "dex": 80,
+      "species": "slowbro",
+      "path": "assets/ui/pokemon/home/080.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/80.png",
+      "sha256": "fd884e3d5ec7a2d5037debdcb931631c2cd502d35ad0be3cc511fb69c55171f9",
+      "bytes": 180269,
+      "crop": [
+        19,
+        13,
+        333
+      ]
+    },
+    {
+      "dex": 81,
+      "species": "magnemite",
+      "path": "assets/ui/pokemon/home/081.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/81.png",
+      "sha256": "2be5ff84bbad9fc2986493eb7d5d78adacaab119e003549870fd907090547546",
+      "bytes": 74876,
+      "crop": [
+        74,
+        102,
+        358
+      ]
+    },
+    {
+      "dex": 82,
+      "species": "magneton",
+      "path": "assets/ui/pokemon/home/082.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/82.png",
+      "sha256": "e7af873adccb99099cb17454f9f0f7b871271951da4fb1a53e47121c5cb36716",
+      "bytes": 129888,
+      "crop": [
+        27,
+        30,
+        464
+      ]
+    },
+    {
+      "dex": 83,
+      "species": "farfetchd",
+      "path": "assets/ui/pokemon/home/083.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/83.png",
+      "sha256": "48a577615a90f8206ec6213de506fd79b8bac903480fed0cc4f3bd9fb35e6208",
+      "bytes": 127000,
+      "crop": [
+        99,
+        38,
+        352
+      ]
+    },
+    {
+      "dex": 84,
+      "species": "doduo",
+      "path": "assets/ui/pokemon/home/084.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/84.png",
+      "sha256": "f2507bfbefbfcc4150bb82a62cb7cd1f366a7dc6cccca1aaf44cddbb194e423f",
+      "bytes": 73620,
+      "crop": [
+        102,
+        0,
+        371
+      ]
+    },
+    {
+      "dex": 85,
+      "species": "dodrio",
+      "path": "assets/ui/pokemon/home/085.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/85.png",
+      "sha256": "f44bec32fdc71954f7fb3988b93a01f3dadc1ef0a7c10a950fefce841f4b8622",
+      "bytes": 114240,
+      "crop": [
+        50,
+        0,
+        400
+      ]
+    },
+    {
+      "dex": 86,
+      "species": "seel",
+      "path": "assets/ui/pokemon/home/086.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/86.png",
+      "sha256": "bcc650ec977045b8e16b248dcc9e763ed1e0a9ea43b3305814d8aad967210a37",
+      "bytes": 97962,
+      "crop": [
+        48,
+        192,
+        320
+      ]
+    },
+    {
+      "dex": 87,
+      "species": "dewgong",
+      "path": "assets/ui/pokemon/home/087.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/87.png",
+      "sha256": "e869426eaff86c12e834c6946847e4506a7b6986f2eb004dc207e232cc84a928",
+      "bytes": 131731,
+      "crop": [
+        0,
+        67,
+        301
+      ]
+    },
+    {
+      "dex": 88,
+      "species": "grimer",
+      "path": "assets/ui/pokemon/home/088.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/88.png",
+      "sha256": "d9cf21654c52a1a68d477f4056460f293b29df9d3ba729d76a92a34b87d020ac",
+      "bytes": 120806,
+      "crop": [
+        38,
+        150,
+        320
+      ]
+    },
+    {
+      "dex": 89,
+      "species": "muk",
+      "path": "assets/ui/pokemon/home/089.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/89.png",
+      "sha256": "15fac973527bbffa98a16d6f0854e7e927026f29e3b5d9ea90daa99c44e8c7e1",
+      "bytes": 96518,
+      "crop": [
+        99,
+        141,
+        371
+      ]
+    },
+    {
+      "dex": 90,
+      "species": "shellder",
+      "path": "assets/ui/pokemon/home/090.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/90.png",
+      "sha256": "5f836b172bd653320fae20af3f4b24f2b35b7b1773f1191eef0d5a94e4e31c9c",
+      "bytes": 127218,
+      "crop": [
+        16,
+        64,
+        448
+      ]
+    },
+    {
+      "dex": 91,
+      "species": "cloyster",
+      "path": "assets/ui/pokemon/home/091.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/91.png",
+      "sha256": "88333c44bcf759e6025691ebf047f9731f633bb311fb1568905785cd595342c5",
+      "bytes": 169973,
+      "crop": [
+        45,
+        64,
+        378
+      ]
+    },
+    {
+      "dex": 92,
+      "species": "gastly",
+      "path": "assets/ui/pokemon/home/092.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/92.png",
+      "sha256": "3cb7929e58e509dd036ab0b81cdd8dacae62ca3d1ef87be89404f7bc876bbc1c",
+      "bytes": 134446,
+      "crop": [
+        2,
+        46,
+        432
+      ]
+    },
+    {
+      "dex": 93,
+      "species": "haunter",
+      "path": "assets/ui/pokemon/home/093.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/93.png",
+      "sha256": "5aa261dd756d85986345bd96fcd33fa73ff0d6c3782a08e370dfe15b962da94d",
+      "bytes": 126165,
+      "crop": [
+        66,
+        27,
+        432
+      ]
+    },
+    {
+      "dex": 94,
+      "species": "gengar",
+      "path": "assets/ui/pokemon/home/094.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/94.png",
+      "sha256": "33c68a1f380d80d89c4ea1505a7d6d2a10358665a18acb3fd3e069a091659744",
+      "bytes": 139101,
+      "crop": [
+        22,
+        29,
+        429
+      ]
+    },
+    {
+      "dex": 95,
+      "species": "onix",
+      "path": "assets/ui/pokemon/home/095.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/95.png",
+      "sha256": "706d9efc646b7aa2f385448e03e406133d16c6cb37e1d386d3e8bce6d66fde7f",
+      "bytes": 138944,
+      "crop": [
+        0,
+        32,
+        326
+      ]
+    },
+    {
+      "dex": 96,
+      "species": "drowzee",
+      "path": "assets/ui/pokemon/home/096.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/96.png",
+      "sha256": "cbbe3133a098c3b3f40a6703d757b150c4ae4b3309d298787535af6eeaa4172d",
+      "bytes": 106575,
+      "crop": [
+        93,
+        3,
+        301
+      ]
+    },
+    {
+      "dex": 97,
+      "species": "hypno",
+      "path": "assets/ui/pokemon/home/097.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/97.png",
+      "sha256": "9469cdb8d3d249a15dedde4b73e011e732f2a7e5419951d4bde44894c5159984",
+      "bytes": 134987,
+      "crop": [
+        58,
+        38,
+        333
+      ]
+    },
+    {
+      "dex": 98,
+      "species": "krabby",
+      "path": "assets/ui/pokemon/home/098.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/98.png",
+      "sha256": "bc1ef627b6831de1277cf5af706cdcee77000b5cbedf47d576bc45e9727ad17e",
+      "bytes": 86898,
+      "crop": [
+        102,
+        205,
+        307
+      ]
+    },
+    {
+      "dex": 99,
+      "species": "kingler",
+      "path": "assets/ui/pokemon/home/099.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/99.png",
+      "sha256": "a01b70b80c022008437a9d05b7c8915db22fc4119eb85d39e36276d441400fdf",
+      "bytes": 97851,
+      "crop": [
+        74,
+        166,
+        346
+      ]
+    },
+    {
+      "dex": 100,
+      "species": "voltorb",
+      "path": "assets/ui/pokemon/home/100.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/100.png",
+      "sha256": "7515111e948b0af47396407abec95c4ba6002d120699dd2893382e1c45489fd8",
+      "bytes": 137664,
+      "crop": [
+        27,
+        48,
+        464
+      ]
+    },
+    {
+      "dex": 101,
+      "species": "electrode",
+      "path": "assets/ui/pokemon/home/101.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/101.png",
+      "sha256": "b688e97087d6a69a385f3319a3c44df885b13a614c7d8cd264a77da86fb71ebd",
+      "bytes": 139452,
+      "crop": [
+        24,
+        43,
+        464
+      ]
+    },
+    {
+      "dex": 102,
+      "species": "exeggcute",
+      "path": "assets/ui/pokemon/home/102.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/102.png",
+      "sha256": "b949109d5c5e052efd8e8787d8cc9403d23723561161f3a03f0365391626d203",
+      "bytes": 150515,
+      "crop": [
+        22,
+        45,
+        467
+      ]
+    },
+    {
+      "dex": 103,
+      "species": "exeggutor",
+      "path": "assets/ui/pokemon/home/103.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/103.png",
+      "sha256": "e5f6bd4422f2fce33d5598ec27847a57314c49fae25b9775d440d8eb09e89632",
+      "bytes": 145674,
+      "crop": [
+        42,
+        131,
+        378
+      ]
+    },
+    {
+      "dex": 104,
+      "species": "cubone",
+      "path": "assets/ui/pokemon/home/104.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/104.png",
+      "sha256": "f96411fafb80acdba748ca272a9456e7a2847813d5460076c24b65f2c1b4b9d9",
+      "bytes": 125802,
+      "crop": [
+        86,
+        42,
+        352
+      ]
+    },
+    {
+      "dex": 105,
+      "species": "marowak",
+      "path": "assets/ui/pokemon/home/105.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/105.png",
+      "sha256": "71c1fcf3624b4568e30b36181e12b8dbc34ecab56043c971dd216c11c39bb94c",
+      "bytes": 132550,
+      "crop": [
+        35,
+        102,
+        358
+      ]
+    },
+    {
+      "dex": 106,
+      "species": "hitmonlee",
+      "path": "assets/ui/pokemon/home/106.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/106.png",
+      "sha256": "4647a122f3f9a8a8c9309b3ccd2cd3bc023e781483e2dbfa950775a01611244e",
+      "bytes": 95975,
+      "crop": [
+        6,
+        64,
+        339
+      ]
+    },
+    {
+      "dex": 107,
+      "species": "hitmonchan",
+      "path": "assets/ui/pokemon/home/107.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/107.png",
+      "sha256": "514e767a426d5426d037fe560950f6bdd34a1e14d7e4cee1aeca89bee663eafe",
+      "bytes": 98559,
+      "crop": [
+        128,
+        42,
+        339
+      ]
+    },
+    {
+      "dex": 108,
+      "species": "lickitung",
+      "path": "assets/ui/pokemon/home/108.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/108.png",
+      "sha256": "033c6c83e9d6b5b3c0731557708f18ab581512f58460ac9716ba68c45434aa1e",
+      "bytes": 171276,
+      "crop": [
+        0,
+        64,
+        384
+      ]
+    },
+    {
+      "dex": 109,
+      "species": "koffing",
+      "path": "assets/ui/pokemon/home/109.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/109.png",
+      "sha256": "a7f3ec162cca5f47c911457914d5ab34cc472292aaa07150063887a62fcbfe4e",
+      "bytes": 124106,
+      "crop": [
+        48,
+        67,
+        390
+      ]
+    },
+    {
+      "dex": 110,
+      "species": "weezing",
+      "path": "assets/ui/pokemon/home/110.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/110.png",
+      "sha256": "534d3b8e4a709fb488c3907892a218de1bc9f4ace73ad54f73a9cab16cdc22d8",
+      "bytes": 125098,
+      "crop": [
+        19,
+        22,
+        448
+      ]
+    },
+    {
+      "dex": 111,
+      "species": "rhyhorn",
+      "path": "assets/ui/pokemon/home/111.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/111.png",
+      "sha256": "fb70d5461d13daba783305d74cda2d97336d9ee97693c43c7930d7292579df36",
+      "bytes": 162036,
+      "crop": [
+        16,
+        160,
+        352
+      ]
+    },
+    {
+      "dex": 112,
+      "species": "rhydon",
+      "path": "assets/ui/pokemon/home/112.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/112.png",
+      "sha256": "ba13c18242015bfd6194a04d74f1d539b18e60545c3ce5c7a3879361fdf11dd4",
+      "bytes": 140998,
+      "crop": [
+        0,
+        43,
+        374
+      ]
+    },
+    {
+      "dex": 113,
+      "species": "chansey",
+      "path": "assets/ui/pokemon/home/113.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/113.png",
+      "sha256": "d8f69b7695769ea4a04e025987861c96ca71ff4ff7d9334dc62ba6b67e10d9c7",
+      "bytes": 142085,
+      "crop": [
+        14,
+        46,
+        464
+      ]
+    },
+    {
+      "dex": 114,
+      "species": "tangela",
+      "path": "assets/ui/pokemon/home/114.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/114.png",
+      "sha256": "69379d9fddd1fb86bf5d7dbdd7e263863cdbb4191377cc838b3af290556e0fc9",
+      "bytes": 212989,
+      "crop": [
+        80,
+        64,
+        352
+      ]
+    },
+    {
+      "dex": 115,
+      "species": "kangaskhan",
+      "path": "assets/ui/pokemon/home/115.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/115.png",
+      "sha256": "beef10934f6c642455f9aa992bf14e852c22d7d438c6f16ca8909e3792aecbea",
+      "bytes": 178606,
+      "crop": [
+        54,
+        29,
+        390
+      ]
+    },
+    {
+      "dex": 116,
+      "species": "horsea",
+      "path": "assets/ui/pokemon/home/116.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/116.png",
+      "sha256": "a99847a1499a4f66c5f7c6823d5b38bb3662e293bdb0752204078e4894bbd0f8",
+      "bytes": 112231,
+      "crop": [
+        74,
+        19,
+        326
+      ]
+    },
+    {
+      "dex": 117,
+      "species": "seadra",
+      "path": "assets/ui/pokemon/home/117.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/117.png",
+      "sha256": "dc593eeb4d9a0599b6ace65f452ea42224cac428b291b8803df05121d3bb5e2f",
+      "bytes": 126657,
+      "crop": [
+        37,
+        0,
+        374
+      ]
+    },
+    {
+      "dex": 118,
+      "species": "goldeen",
+      "path": "assets/ui/pokemon/home/118.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/118.png",
+      "sha256": "e75d389e1d8bdd7ab220df7f12bc48e190d5b29321e78cd8abdae1cb224cef0a",
+      "bytes": 77005,
+      "crop": [
+        125,
+        74,
+        352
+      ]
+    },
+    {
+      "dex": 119,
+      "species": "seaking",
+      "path": "assets/ui/pokemon/home/119.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/119.png",
+      "sha256": "6436759c3d0f4d78f92504fa0e2b280d7cb947947e5e8671a69c17dbeb9a60a6",
+      "bytes": 154063,
+      "crop": [
+        10,
+        58,
+        371
+      ]
+    },
+    {
+      "dex": 120,
+      "species": "staryu",
+      "path": "assets/ui/pokemon/home/120.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/120.png",
+      "sha256": "cc7ce976970f7084a9680a3b30797f3d90c6ea9da6594e0df81af247df5cea32",
+      "bytes": 123497,
+      "crop": [
+        0,
+        18,
+        464
+      ]
+    },
+    {
+      "dex": 121,
+      "species": "starmie",
+      "path": "assets/ui/pokemon/home/121.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/121.png",
+      "sha256": "111e57a8d9328cbf06de0c85030c941a77b6742810fd06eca4045d99ca538d52",
+      "bytes": 166146,
+      "crop": [
+        0,
+        5,
+        483
+      ]
+    },
+    {
+      "dex": 122,
+      "species": "mr_mime",
+      "path": "assets/ui/pokemon/home/122.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/122.png",
+      "sha256": "e8d2c1ed924b4249f6af1e10e3dc392cf2729366a0a58b1112bbc35ae088a89c",
+      "bytes": 150777,
+      "crop": [
+        90,
+        54,
+        307
+      ]
+    },
+    {
+      "dex": 123,
+      "species": "scyther",
+      "path": "assets/ui/pokemon/home/123.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/123.png",
+      "sha256": "4d43489ed9ad0ffed4c1197c6d62ca2a6d1bcd08426495dd4b1a1694cefdb24c",
+      "bytes": 123885,
+      "crop": [
+        128,
+        77,
+        262
+      ]
+    },
+    {
+      "dex": 124,
+      "species": "jynx",
+      "path": "assets/ui/pokemon/home/124.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/124.png",
+      "sha256": "8a97b0dfb4ad90c35dac13d76fccae83daec6cb385d9d6b630cf794d1f09c001",
+      "bytes": 152031,
+      "crop": [
+        77,
+        74,
+        333
+      ]
+    },
+    {
+      "dex": 125,
+      "species": "electabuzz",
+      "path": "assets/ui/pokemon/home/125.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/125.png",
+      "sha256": "4652a69042b36d43676adbca86f2ee86f3e2b8a0c1e2faa490e141d426891ff2",
+      "bytes": 127624,
+      "crop": [
+        16,
+        29,
+        390
+      ]
+    },
+    {
+      "dex": 126,
+      "species": "magmar",
+      "path": "assets/ui/pokemon/home/126.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/126.png",
+      "sha256": "e491872720d786cbb38156f5b70e3cb4bf0d0740c8cc0c6358fb9ce883a3d165",
+      "bytes": 141130,
+      "crop": [
+        163,
+        19,
+        262
+      ]
+    },
+    {
+      "dex": 127,
+      "species": "pinsir",
+      "path": "assets/ui/pokemon/home/127.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/127.png",
+      "sha256": "0eb57067071e69b8d115336ee46cb1b230a5b680754eff5ab1c9d6f59851466d",
+      "bytes": 136491,
+      "crop": [
+        40,
+        46,
+        438
+      ]
+    },
+    {
+      "dex": 128,
+      "species": "tauros",
+      "path": "assets/ui/pokemon/home/128.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/128.png",
+      "sha256": "c16dc1a7704dd5886674019e5a09d59d8f29b2b7c0e575484c7f5096a7ed9d2c",
+      "bytes": 123653,
+      "crop": [
+        0,
+        131,
+        339
+      ]
+    },
+    {
+      "dex": 129,
+      "species": "magikarp",
+      "path": "assets/ui/pokemon/home/129.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/129.png",
+      "sha256": "366c709d6446ad0bdd8151b6b448030b6ec6872ccfd327d8bb1a47cb1c6b29b8",
+      "bytes": 129978,
+      "crop": [
+        0,
+        72,
+        400
+      ]
+    },
+    {
+      "dex": 130,
+      "species": "gyarados",
+      "path": "assets/ui/pokemon/home/130.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/130.png",
+      "sha256": "60867e5140838c17e09d0eb514114be0cff439e9f47b64989993043ce787e5b6",
+      "bytes": 146223,
+      "crop": [
+        0,
+        19,
+        365
+      ]
+    },
+    {
+      "dex": 131,
+      "species": "lapras",
+      "path": "assets/ui/pokemon/home/131.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/131.png",
+      "sha256": "9aa02ff66c5fed806a8ca74f7374d33cc5cb95a47a709156c756611d24598550",
+      "bytes": 131725,
+      "crop": [
+        86,
+        10,
+        294
+      ]
+    },
+    {
+      "dex": 132,
+      "species": "ditto",
+      "path": "assets/ui/pokemon/home/132.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/132.png",
+      "sha256": "d01441c74f64607e6fd62f916a90be627e9ab4b5eb830ef8f9939ca3230d58ab",
+      "bytes": 94191,
+      "crop": [
+        18,
+        48,
+        464
+      ]
+    },
+    {
+      "dex": 133,
+      "species": "eevee",
+      "path": "assets/ui/pokemon/home/133.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/133.png",
+      "sha256": "78febefb2aba3614b96528455e9c90242cc025d0eb392ee3a43256671962655f",
+      "bytes": 107485,
+      "crop": [
+        0,
+        53,
+        445
+      ]
+    },
+    {
+      "dex": 134,
+      "species": "vaporeon",
+      "path": "assets/ui/pokemon/home/134.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/134.png",
+      "sha256": "7f5fe01da014ce9adb3efe1a75675a364db17250cc155b2a1939f325bc9d2504",
+      "bytes": 156253,
+      "crop": [
+        45,
+        32,
+        378
+      ]
+    },
+    {
+      "dex": 135,
+      "species": "jolteon",
+      "path": "assets/ui/pokemon/home/135.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/135.png",
+      "sha256": "f7ba4d22ea6c7a5ab3b5ec3990b0dbea4afa940038b468b1f174c8c6d09fd8e8",
+      "bytes": 124761,
+      "crop": [
+        0,
+        0,
+        400
+      ]
+    },
+    {
+      "dex": 136,
+      "species": "flareon",
+      "path": "assets/ui/pokemon/home/136.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/136.png",
+      "sha256": "5ab9c05469d776951b2497414faacfcba15dc7187377131227777dd2e5e6b302",
+      "bytes": 144568,
+      "crop": [
+        0,
+        146,
+        342
+      ]
+    },
+    {
+      "dex": 137,
+      "species": "porygon",
+      "path": "assets/ui/pokemon/home/137.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/137.png",
+      "sha256": "c8826b22036cc98d1220b0c7b46b537bcfd8e10c4f15f5a688bd7ffa7c1f72d7",
+      "bytes": 104546,
+      "crop": [
+        0,
+        0,
+        416
+      ]
+    },
+    {
+      "dex": 138,
+      "species": "omanyte",
+      "path": "assets/ui/pokemon/home/138.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/138.png",
+      "sha256": "5578c6c1ac75299efe287121099d88221df16c11c51e72bdc4ab520e1bc91a68",
+      "bytes": 136128,
+      "crop": [
+        64,
+        122,
+        390
+      ]
+    },
+    {
+      "dex": 139,
+      "species": "omastar",
+      "path": "assets/ui/pokemon/home/139.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/139.png",
+      "sha256": "e7209085872533b9ee0b649be58485e05f5080895c530161dbf3edef96250341",
+      "bytes": 163516,
+      "crop": [
+        21,
+        67,
+        445
+      ]
+    },
+    {
+      "dex": 140,
+      "species": "kabuto",
+      "path": "assets/ui/pokemon/home/140.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/140.png",
+      "sha256": "d7c894ed6d6e59b0e61a0811007a2fa6a96a5aa8038252d9046f24823d88590e",
+      "bytes": 100808,
+      "crop": [
+        29,
+        64,
+        448
+      ]
+    },
+    {
+      "dex": 141,
+      "species": "kabutops",
+      "path": "assets/ui/pokemon/home/141.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/141.png",
+      "sha256": "8cf64695df934359879062138237d93abf41164d9f8da077f74b0f69b0b9cd5e",
+      "bytes": 117747,
+      "crop": [
+        102,
+        10,
+        282
+      ]
+    },
+    {
+      "dex": 142,
+      "species": "aerodactyl",
+      "path": "assets/ui/pokemon/home/142.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/142.png",
+      "sha256": "a042ce0156249507c4681e7e5f038fbe07c8bf4cbbd9468692371a13bd7f3c1e",
+      "bytes": 90610,
+      "crop": [
+        0,
+        13,
+        346
+      ]
+    },
+    {
+      "dex": 143,
+      "species": "snorlax",
+      "path": "assets/ui/pokemon/home/143.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/143.png",
+      "sha256": "40ae73f6fd804026ae8e6a61e931cfd5c8b4594d81e492e9dbf445c8d2e497eb",
+      "bytes": 128642,
+      "crop": [
+        83,
+        51,
+        346
+      ]
+    },
+    {
+      "dex": 144,
+      "species": "articuno",
+      "path": "assets/ui/pokemon/home/144.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/144.png",
+      "sha256": "adddbdd5a8c8da91decfcd4f1a74db6650357542ff9b473349bec94ca2b1d483",
+      "bytes": 144859,
+      "crop": [
+        74,
+        83,
+        230
+      ]
+    },
+    {
+      "dex": 145,
+      "species": "zapdos",
+      "path": "assets/ui/pokemon/home/145.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/145.png",
+      "sha256": "b6524d452c379bee2c86890d70741f3129f33dd520619254970e30d22dbd1fd3",
+      "bytes": 118848,
+      "crop": [
+        90,
+        109,
+        256
+      ]
+    },
+    {
+      "dex": 146,
+      "species": "moltres",
+      "path": "assets/ui/pokemon/home/146.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/146.png",
+      "sha256": "8b6082bd305f19d8c0eabc009880190305b2622d6c377986f9b50585f8c742cc",
+      "bytes": 97970,
+      "crop": [
+        243,
+        218,
+        250
+      ]
+    },
+    {
+      "dex": 147,
+      "species": "dratini",
+      "path": "assets/ui/pokemon/home/147.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/147.png",
+      "sha256": "ea3ce3c89878be58df63f32bb501bbfcc8554fbe8fe2ac1ecee71bd16d175f99",
+      "bytes": 91091,
+      "crop": [
+        176,
+        66,
+        336
+      ]
+    },
+    {
+      "dex": 148,
+      "species": "dragonair",
+      "path": "assets/ui/pokemon/home/148.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/148.png",
+      "sha256": "2d7293a0e3e87994ec90295be880e943dc93631af6144e97c8ad021dedffe1d9",
+      "bytes": 88558,
+      "crop": [
+        126,
+        24,
+        259
+      ]
+    },
+    {
+      "dex": 149,
+      "species": "dragonite",
+      "path": "assets/ui/pokemon/home/149.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/149.png",
+      "sha256": "1594662fcb0cfbf7a0d2928b8e1fc680a0deff1cb0b2b4db0372a6f4835b6b31",
+      "bytes": 137783,
+      "crop": [
+        42,
+        0,
+        326
+      ]
+    },
+    {
+      "dex": 150,
+      "species": "mewtwo",
+      "path": "assets/ui/pokemon/home/150.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/150.png",
+      "sha256": "e9dc9acae7c82b705fb06460b0a51c7c28ec2bf8ef4854482b0befbb73f5c97c",
+      "bytes": 115869,
+      "crop": [
+        122,
+        0,
+        314
+      ]
+    },
+    {
+      "dex": 151,
+      "species": "mew",
+      "path": "assets/ui/pokemon/home/151.png",
+      "url": "https://raw.githubusercontent.com/PokeAPI/sprites/2ecb4eeacd5a1718621fc30f12772e3f60d830b9/sprites/pokemon/other/home/151.png",
+      "sha256": "73429b41c859df02c2d8cf5313150e908b42e29fe327e0554aa3e190f85d3f8c",
+      "bytes": 84401,
+      "crop": [
+        94,
+        30,
+        298
+      ]
+    }
+  ]
+}

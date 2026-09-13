@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Index
-Last updated: 2026-09-09
+Last updated: 2026-09-13
 
 This folder holds the live engineering docs for the repo. Historical or
 superseded plans belong in `docs/archive/`. Live docs stay in `docs/`; their
@@ -23,6 +23,7 @@ role is expressed through metadata rather than deep folder nesting.
 | `BLENDER_NORTH_TERRACES.md` | `Runbook` | Third Route 1 arena farther north, source blueprint, editing, preview and qualification. |
 | `BLENDER_NORTH_ENTRANCE.md` | `Runbook` | Final Route 1 arena, northern ramp and grass layout, editing, preview and qualification. |
 | `STARTER_LAB_BACKDROP.md` | `Runbook` | Editable Oak's Lab frontend backdrop, rendering, publication and starter preview. |
+| [POKEMON_HUD_PORTRAITS.md](POKEMON_HUD_PORTRAITS.md) | `Runbook` | Original HOME art for all 151 Kanto species, face framing, restoration and HUD validation. |
 | `ARENA_TRAVEL.md` | `Runbook` | Replayable team recall, covered arena change and formation-preserving send-out. |
 | `ENCOUNTER_GRASS.md` | `Contract` | Grass sight, attack reveals, search patrols, interaction and editor checks. |
 | `COMBAT_MOVEMENT.md` | `Contract` | Step reservations and deterministic combat movement. |

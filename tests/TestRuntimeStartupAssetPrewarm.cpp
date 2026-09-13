@@ -9,6 +9,8 @@
 #include "engine/utils/LogSink.h"
 #include "engine/render/SpriteTextureCardArt.h"
 #include "game/runtime/startup/RuntimeStartupAssetPrewarm.h"
+#include "game/config/GameDataDb.h"
+#include "game/runtime/ui/PokemonPortraits.h"
 
 namespace {
 
@@ -47,6 +49,25 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
         const std::string smallPortrait =
             makeTempFile(tempRoot / "portraits" / "small_portrait.png", 128u).string();
 
+        const auto configPath = tempRoot / "pokemon.json";
+        { std::ofstream config(configPath); config << R"({"bulbasaur":{"model":"0001_Bulbasaur.phmodel"},"nidoran-f":{"model":"0029_NidoranF.phmodel"}})"; }
+        GameDataDb data;
+        if (!data.pokemon.loadConfig(configPath.string())) {
+            outFail = "Could not load portrait prewarm fixture.";
+            return false;
+        }
+        const auto configuredPaths = game::runtime::startup_asset_prewarm::collectUiSpritePrewarmPaths(data);
+        for (const auto *path : {"assets/ui/pokemon/home/001.png", "assets/ui/pokemon/home/029.png"}) {
+            if (std::count(configuredPaths.begin(), configuredPaths.end(), path) != 1) {
+                outFail = "Prewarm must include the HOME sprite for each configured species exactly once.";
+                return false;
+            }
+        }
+        if (std::find(configuredPaths.begin(), configuredPaths.end(), "assets/ui/pokemon/home/151.png") != configuredPaths.end()) {
+            outFail = "Unconfigured species portraits should not all allocate textures on startup.";
+            return false;
+        }
+
         std::vector<std::string> titles;
         std::vector<float> progressValues;
         std::vector<std::vector<std::string>> spritePrewarmCalls;
@@ -70,6 +91,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             {
                 "assets/ui/frame_gold.png",
                 "assets/images/item_placeholder.png",
+                "assets/ui/pokemon/home/001.png",
                 bigPortrait,
                 smallPortrait,
             },
@@ -126,7 +148,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             summary.scratch.warmedBatches != 41u ||
             summary.particleVfx.textures != 8u ||
             summary.particleVfx.warmedBatches != 8u ||
-            summary.uiSpritesRequested != 2u ||
+            summary.uiSpritesRequested != 3u ||
             summary.cardArtRequested < 1u ||
             !summary.cardUiPrewarmed) {
             outFail = "run should preserve growl, tackle, scratch, particle-VFX, and UI/card prewarm summary fields.";
@@ -140,7 +162,8 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
         }
 
         if (spritePrewarmCalls.size() != 2u ||
-            spritePrewarmCalls[0].size() != 2u ||
+            spritePrewarmCalls[0].size() != 3u ||
+            std::find(spritePrewarmCalls[0].begin(), spritePrewarmCalls[0].end(), "assets/ui/pokemon/home/001.png") == spritePrewarmCalls[0].end() ||
             std::find(
                 spritePrewarmCalls[1].begin(),
                 spritePrewarmCalls[1].end(),
@@ -150,7 +173,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             return false;
         }
 
-        if (cardUiPaths.size() != 4u) {
+        if (cardUiPaths.size() != 5u) {
             outFail = "run should pass the full UI sprite path list into backend card-UI prewarm.";
             return false;
         }
@@ -184,7 +207,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             logText.find("Backend tackle VFX prewarm complete: passes=17 baked_textures=12 warmed_batches=29") == std::string::npos ||
             logText.find("Backend scratch VFX prewarm complete: passes=23 baked_textures=14 warmed_batches=41") == std::string::npos ||
             logText.find("Backend particle VFX prewarm complete: textures=8 warmed_batches=8") == std::string::npos ||
-            logText.find("UI sprite prewarm complete: requested=2") == std::string::npos ||
+            logText.find("UI sprite prewarm complete: requested=3") == std::string::npos ||
             logText.find("UI card art prewarm complete: requested=") == std::string::npos ||
             logText.find("UI card prewarm complete") == std::string::npos) {
             outFail = "run should preserve the startup asset prewarm summary logs.";

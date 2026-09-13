@@ -934,11 +934,12 @@
     },
     {
       "name": "hud-inspection",
-      "focus": "wide selected Pokemon strip above the fixed Team Types roster",
+      "focus": "HOME face portrait and wide selected Pokemon strip above fixed Team Types",
       "coverage": [
         "world",
         "ui",
-        "unit-inspection"
+        "unit-inspection",
+        "home-portraits"
       ],
       "snapshotPath": "config/debug/editor_hud_inspection.json",
       "screenshotFrame": 120,
@@ -957,9 +958,9 @@
         },
         {
           "name": "selected-pokemon-name",
-          "x": 0.0234375,
+          "x": 0.0703125,
           "y": 0.03333333333333333,
-          "width": 0.103125,
+          "width": 0.0578125,
           "height": 0.022222222222222223,
           "maximumNearBlackPixelRatio": 0.2,
           "minimumMidtonePixelRatio": 0.025,
@@ -991,7 +992,7 @@
         },
         {
           "name": "selected-grass-type-icon",
-          "x": 0.0234375,
+          "x": 0.0703125,
           "y": 0.059722222222222225,
           "width": 0.0125,
           "height": 0.022222222222222223,
@@ -1022,16 +1023,30 @@
           "minimumMidtonePixelRatio": 0.1,
           "minimumOrangePixelRatio": 0.12,
           "minimumBrightNeutralPixelRatio": 0.06
+        },
+        {
+          "name": "selected-home-portrait",
+          "x": 0.02734375,
+          "y": 0.059722222222222225,
+          "width": 0.0328125,
+          "height": 0.027777777777777776,
+          "maximumNearBlackPixelRatio": 0.08,
+          "minimumMidtonePixelRatio": 0.45,
+          "minimumLuminanceStandardDeviation": 25,
+          "minimumRedPixelRatio": 0.015,
+          "minimumBrightNeutralPixelRatio": 0.02,
+          "midtoneLuminanceMaximum": 255
         }
       ]
     },
     {
       "name": "hud-inspection-compact",
-      "focus": "wide selected Pokemon strip above the fixed Team Types roster",
+      "focus": "HOME face portrait and wide selected Pokemon strip above fixed Team Types",
       "coverage": [
         "world",
         "ui",
-        "unit-inspection"
+        "unit-inspection",
+        "home-portraits"
       ],
       "snapshotPath": "config/debug/editor_hud_inspection.json",
       "screenshotFrame": 120,
@@ -1050,9 +1065,9 @@
         },
         {
           "name": "selected-pokemon-name",
-          "x": 0.023125,
+          "x": 0.07,
           "y": 0.025416666666666667,
-          "width": 0.103125,
+          "width": 0.0578125,
           "height": 0.016666666666666666,
           "maximumNearBlackPixelRatio": 0.2,
           "minimumMidtonePixelRatio": 0.025,
@@ -1084,7 +1099,7 @@
         },
         {
           "name": "selected-grass-type-icon",
-          "x": 0.023125,
+          "x": 0.07,
           "y": 0.045208333333333336,
           "width": 0.0125,
           "height": 0.016666666666666666,
@@ -1115,6 +1130,125 @@
           "minimumMidtonePixelRatio": 0.1,
           "minimumOrangePixelRatio": 0.12,
           "minimumBrightNeutralPixelRatio": 0.06
+        },
+        {
+          "name": "selected-home-portrait",
+          "x": 0.02703125,
+          "y": 0.045208333333333336,
+          "width": 0.0328125,
+          "height": 0.020833333333333332,
+          "maximumNearBlackPixelRatio": 0.08,
+          "minimumMidtonePixelRatio": 0.45,
+          "minimumLuminanceStandardDeviation": 25,
+          "minimumRedPixelRatio": 0.015,
+          "minimumBrightNeutralPixelRatio": 0.02,
+          "midtoneLuminanceMaximum": 255
+        }
+      ]
+    },
+    {
+      "name": "hud-inspection-rattata",
+      "focus": "HOME Rattata portrait for an inspected bench Pokemon",
+      "coverage": [
+        "world",
+        "ui",
+        "unit-inspection",
+        "home-portraits"
+      ],
+      "snapshotPath": "config/debug/editor_hud_inspection_rattata.json",
+      "screenshotFrame": 120,
+      "width": 1280,
+      "height": 720,
+      "autoQuitSeconds": 6,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.2,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "selected-pokemon-name",
+          "x": 0.0703125,
+          "y": 0.03333333333333333,
+          "width": 0.0578125,
+          "height": 0.022222222222222223,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.025,
+          "minimumLuminanceStandardDeviation": 20,
+          "midtoneLuminanceMinimum": 200,
+          "midtoneLuminanceMaximum": 255
+        },
+        {
+          "name": "selected-hp-bar",
+          "x": 0.14375,
+          "y": 0.034722222222222224,
+          "width": 0.10625,
+          "height": 0.019444444444444445,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.025,
+          "minimumLuminanceStandardDeviation": 20
+        },
+        {
+          "name": "selected-energy-bar",
+          "x": 0.14375,
+          "y": 0.0625,
+          "width": 0.10625,
+          "height": 0.019444444444444445,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.025,
+          "minimumLuminanceStandardDeviation": 20
+        },
+        {
+          "name": "selected-normal-type-icon",
+          "x": 0.0703125,
+          "y": 0.059722222222222225,
+          "width": 0.0125,
+          "height": 0.022222222222222223,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.08,
+          "minimumLuminanceStandardDeviation": 30
+        },
+        {
+          "name": "fixed-team-types-heading",
+          "x": 0.0234375,
+          "y": 0.16111111111111112,
+          "width": 0.0875,
+          "height": 0.016666666666666666,
+          "maximumNearBlackPixelRatio": 0.2,
+          "midtoneLuminanceMinimum": 200,
+          "midtoneLuminanceMaximum": 255,
+          "minimumMidtonePixelRatio": 0.025,
+          "minimumLuminanceStandardDeviation": 20
+        },
+        {
+          "name": "fixed-team-fire-icon",
+          "x": 0.025781250000000002,
+          "y": 0.25416666666666665,
+          "width": 0.014843750000000001,
+          "height": 0.02638888888888889,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumOrangePixelRatio": 0.12,
+          "minimumBrightNeutralPixelRatio": 0.06
+        },
+        {
+          "name": "selected-home-portrait",
+          "x": 0.02734375,
+          "y": 0.06111111111111111,
+          "width": 0.028125,
+          "height": 0.03194444444444444,
+          "maximumNearBlackPixelRatio": 0.08,
+          "minimumMidtonePixelRatio": 0.45,
+          "minimumLuminanceStandardDeviation": 25,
+          "minimumBrightNeutralPixelRatio": 0.05,
+          "midtoneLuminanceMaximum": 255
         }
       ]
     }
