@@ -29,14 +29,24 @@ combat-facing overrides, airborne movement, stationary targeting, and crowded
 turns. The ledge test also checks facing through takeoff, flight and landing.
 Native and editor matrix cases `movement-facing-approach`, `movement-facing-turns`
 and `movement-facing-ledge` qualify the same phases on OpenGL, Vulkan and D3D12.
+`movement-crowded-meeting` additionally checks the crowded formation after it
+reaches combat range. The frame-72 case now expects continued forward progress
+where the former target-selection bug caused unnecessary turns.
 
 ```powershell
-./tools/render_parity_matrix.ps1 -Config RelWithDebInfo -Cases movement-facing-approach,movement-facing-turns,movement-facing-ledge -OutputDir debug/movement-facing/native
-./tools/housekeeping/check_editor_workflow.ps1 -Cases movement-facing-approach,movement-facing-turns,movement-facing-ledge -OutputDirectory debug/movement-facing/editor
+./tools/render_parity_matrix.ps1 -Config RelWithDebInfo -Cases movement-facing-approach,movement-facing-turns,movement-facing-ledge,movement-crowded-meeting -OutputDir debug/crowded-pathing/native
+./tools/housekeeping/check_editor_workflow.ps1 -Cases movement-facing-approach,movement-facing-turns,movement-facing-ledge,movement-crowded-meeting -OutputDirectory debug/crowded-pathing/editor
 ```
 
 Idle units compete in order of distance to the nearest terrain-reachable enemy, movement speed,
 then stable unit ID. Equally near enemies are selected by stable ID as well.
+Target selection measures squared straight-line distance between grid cells
+(`dx*dx + dz*dz`), also used by script nearest-enemy queries. Counting only the
+larger axis made distant diagonal enemies tie with the opponent directly ahead,
+funneling a whole formation toward its lowest-ID opponent. Adjacent melee still
+includes diagonals and follows the map's melee permissions. The crowded-row
+regression checks direct initial targets, no unnecessary retreat, and timely
+engagement at equal and mixed speeds, at 120 Hz, 30 Hz and 5 Hz.
 A unit routes around a reserved corridor when possible. If every attack position
 is occupied, it can approach a closer reachable cell and queue there; it waits
 when no closer position is available. Arrival releases the completed step for

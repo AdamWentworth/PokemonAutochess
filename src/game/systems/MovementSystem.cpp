@@ -258,7 +258,9 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
 
             const int dx = std::abs(entry.col - cached[j].col);
             const int dy = std::abs(entry.row - cached[j].row);
-            const int dist = std::max(dx, dy);
+            // Chebyshev distance makes an entire opposing row tie, funneling
+            // units toward its lowest ID even when their own lane is clear.
+            const int dist = dx * dx + dy * dy;
             if (dist < bestDistance || (dist == bestDistance && boardUnits[j].id < bestEnemyId)) {
                 bestDistance = dist;
                 bestEnemyId = boardUnits[j].id;
@@ -269,7 +271,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
             }
         }
 
-        entry.adjacentToEnemy = bestDistance == 1 && map.canEngageMelee(gameWorld->combatActor(*entry.unit), entry.target);
+        entry.adjacentToEnemy = entry.targetUnit && map.canEngageMelee(gameWorld->combatActor(*entry.unit), entry.target);
         if (entry.enemyCol != -1) {
             const int dx = entry.col - entry.enemyCol;
             const int dy = entry.row - entry.enemyRow;

@@ -120,6 +120,7 @@ std::vector<ScriptAPI::MovementUnitSnapshot> ScriptAPI::listUnitsForMovement() c
 
         if (cached[i].active) {
             int bestDistance = std::numeric_limits<int>::max();
+            int bestEnemyId = std::numeric_limits<int>::max();
             glm::ivec2 bestCell(-1, -1);
             for (std::size_t j = 0; j < units.size(); ++j) {
                 if (i == j) continue;
@@ -128,9 +129,10 @@ std::vector<ScriptAPI::MovementUnitSnapshot> ScriptAPI::listUnitsForMovement() c
 
                 const int dx = std::abs(cached[i].cell.x - cached[j].cell.x);
                 const int dy = std::abs(cached[i].cell.y - cached[j].cell.y);
-                const int d = std::max(dx, dy);
-                if (d < bestDistance) {
+                const int d = dx * dx + dy * dy;
+                if (d < bestDistance || (d == bestDistance && units[j].id < bestEnemyId)) {
                     bestDistance = d;
+                    bestEnemyId = units[j].id;
                     bestCell = cached[j].cell;
                 }
             }
@@ -236,15 +238,18 @@ std::pair<int, int> ScriptAPI::nearestEnemyCell(int unitId) const {
     const auto myCell = world_->worldToGrid(unit->position);
 
     int best = std::numeric_limits<int>::max();
+    int bestEnemyId = std::numeric_limits<int>::max();
     glm::ivec2 bestCell(-1, -1);
 
     for (const auto& candidate : world_->getPokemons()) {
         if (!isCombatActive(candidate) || candidate.side == unit->side) continue;
         if (!world_->combatMap().canPerceive(world_->combatActor(*unit), world_->combatActor(candidate))) continue;
         const auto ec = world_->worldToGrid(candidate.position);
-        const int d = std::max(std::abs(myCell.x - ec.x), std::abs(myCell.y - ec.y));
-        if (d < best) {
+        const int dx = myCell.x - ec.x, dy = myCell.y - ec.y;
+        const int d = dx * dx + dy * dy;
+        if (d < best || (d == best && candidate.id < bestEnemyId)) {
             best = d;
+            bestEnemyId = candidate.id;
             bestCell = ec;
         }
     }

@@ -346,6 +346,64 @@ bool test_movement_collision_regressions(std::string& outFail) {
         }
     }
 
+    // Crowded Battle starts with opponents directly across from each other.
+    // Equal grid-step counts must not pull the whole row toward the lowest ID.
+    // Different speeds may change the nearest opponent, but should not send
+    // an unobstructed opening approach backwards around the rest of the row.
+    for (bool variedSpeeds : {false, true}) {
+        for (float dt : {1.0f / 120.0f, 1.0f / 30.0f, .2f}) {
+            GameWorld world(cfg);
+            auto& units = world.getPokemons();
+            const float speeds[] = {1.0f, 1.2f, .9f, 1.2f, 1.1f, 1.3f};
+            for (int row : {6, 1}) for (int col = 1; col <= 6; ++col)
+                units.push_back(makeUnit(cfg, "crowded_lane", row == 6 ? PokemonSide::Player : PokemonSide::Enemy,
+                                         col, row, variedSpeeds ? speeds[col - 1] : 1.0f));
+            MovementSystem movement(&world, services, combat);
+            movement.update(ecs, 0.0f);
+            for (const auto& unit : units) {
+                const auto cell = world.worldToGrid(unit.position);
+                if (unit.targetMemory.cell != game::arena::Cell{cell.x, cell.y == 6 ? 1 : 6} ||
+                    unit.committedDest != glm::ivec2(cell.x, cell.y == 6 ? 5 : 2)) {
+                    outFail = "Crowded native planning ignored the clear lane directly ahead in column " + std::to_string(cell.x);
+                    return false;
+                }
+            }
+            ScriptAPI api(&world, nullptr, services);
+            const auto snapshots = api.listUnitsForMovement();
+            for (std::size_t i = 0; i < units.size(); ++i) {
+                const auto cell = world.worldToGrid(units[i].position);
+                const int enemyRow = cell.y == 6 ? 1 : 6;
+                if (snapshots[i].enemyCol != cell.x || snapshots[i].enemyRow != enemyRow ||
+                    api.nearestEnemyCell(units[i].id) != std::pair<int, int>{cell.x, enemyRow}) {
+                    outFail = "Crowded target query ignored the closer opponent directly ahead in column " + std::to_string(cell.x);
+                    return false;
+                }
+            }
+            for (int tick = 0; tick < static_cast<int>(5.0f / dt); ++tick) {
+                std::vector<glm::vec3> before;
+                for (const auto& unit : units) before.push_back(unit.position);
+                movement.update(ecs, dt);
+                for (std::size_t i = 0; i < units.size(); ++i) {
+                    const auto& unit = units[i];
+                    const float forward = unit.side == PokemonSide::Player ? -1.0f : 1.0f;
+                    if ((unit.position.z - before[i].z) * forward < -1e-5f ||
+                        (!variedSpeeds && std::abs(unit.position.x - before[i].x) > 1e-5f)) {
+                        outFail = "Crowded opening took an unnecessary detour: unit " + std::to_string(i) +
+                                  " at tick " + std::to_string(tick) + " varied=" + std::to_string(variedSpeeds) +
+                                  " destination=" + std::to_string(unit.committedDest.x) + "," + std::to_string(unit.committedDest.y);
+                        return false;
+                    }
+                }
+            }
+            for (const auto& unit : units) {
+                if (!api.isAdjacentToEnemy(unit.id)) {
+                    outFail = "Crowded opening failed to reach melee within five seconds.";
+                    return false;
+                }
+            }
+        }
+    }
+
     // Opponents approaching along an empty lane should meet in that lane.
     // In particular, a fresh reservation toward us is not a stationary obstacle
     // that requires a sidestep before the next update's rounded cell changes.

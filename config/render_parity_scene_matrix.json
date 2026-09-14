@@ -1299,7 +1299,7 @@
     },
     {
       "name": "movement-facing-turns",
-      "focus": "crowded route changes keep models aligned with travel",
+      "focus": "crowded pursuit continues forward while models face their travel direction",
       "coverage": [
         "world",
         "units",
@@ -1330,11 +1330,11 @@
           "minimumLuminanceStandardDeviation": 20
         },
         {
-          "name": "turning-squirtle",
-          "x": 0.465625,
-          "y": 0.5291666666666667,
-          "width": 0.021875,
-          "height": 0.03333333333333333,
+          "name": "advancing-squirtle",
+          "x": 0.471875,
+          "y": 0.46805555555555556,
+          "width": 0.0171875,
+          "height": 0.05,
           "maximumNearBlackPixelRatio": 0.2,
           "minimumMidtonePixelRatio": 0.1,
           "minimumBrightNeutralPixelRatio": 0.008,
@@ -1381,6 +1381,52 @@
           "height": 0.025,
           "maximumNearBlackPixelRatio": 0.2,
           "minimumMidtonePixelRatio": 0.1,
+          "minimumLuminanceStandardDeviation": 20
+        }
+      ]
+    },
+    {
+      "name": "movement-crowded-meeting",
+      "focus": "crowded opponents reach nearby melee positions without retreating around the row",
+      "coverage": [
+        "world",
+        "units",
+        "movement",
+        "facing",
+        "target-selection"
+      ],
+      "snapshotPath": "config/debug/editor_route1_flat_experiment_comparison.json",
+      "screenshotFrame": 180,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.25,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "engaged-pidgey",
+          "x": 0.5453125,
+          "y": 0.4125,
+          "width": 0.021875,
+          "height": 0.06388888888888888,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.08,
+          "minimumLuminanceStandardDeviation": 20
+        },
+        {
+          "name": "engaged-squirtle",
+          "x": 0.4671875,
+          "y": 0.4444444444444444,
+          "width": 0.0234375,
+          "height": 0.04027777777777778,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.008,
           "minimumLuminanceStandardDeviation": 20
         }
       ]
