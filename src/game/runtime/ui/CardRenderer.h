@@ -104,6 +104,9 @@ inline void appendCardLayered(std::vector<IRenderBackend::DebugQuad>& baseQuads,
             input.v0,
             input.u1,
             input.v1);
+    if (!input.item)
+        if (const auto *entry = pokemon_artwork::find(input.speciesName.empty() ? input.displayName : input.speciesName))
+            pokemon_artwork::applyCardCrop(sprite, *entry);
     if (!sprite.texturePath.empty()) {
         sprites->push_back(std::move(sprite));
     }

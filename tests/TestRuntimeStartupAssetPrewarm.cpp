@@ -10,7 +10,7 @@
 #include "engine/render/SpriteTextureCardArt.h"
 #include "game/runtime/startup/RuntimeStartupAssetPrewarm.h"
 #include "game/config/GameDataDb.h"
-#include "game/runtime/ui/PokemonPortraits.h"
+#include "game/runtime/ui/PokemonArtwork.h"
 
 namespace {
 
@@ -57,13 +57,13 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             return false;
         }
         const auto configuredPaths = game::runtime::startup_asset_prewarm::collectUiSpritePrewarmPaths(data);
-        for (const auto *path : {"assets/ui/pokemon/home/001.png", "assets/ui/pokemon/home/029.png"}) {
+        for (const auto *path : {"assets/ui/pokemon/tcg/001.jpg", "assets/ui/pokemon/tcg/029.jpg"}) {
             if (std::count(configuredPaths.begin(), configuredPaths.end(), path) != 1) {
-                outFail = "Prewarm must include the HOME sprite for each configured species exactly once.";
+                outFail = "Card and portrait prewarm must share one original scan per configured species.";
                 return false;
             }
         }
-        if (std::find(configuredPaths.begin(), configuredPaths.end(), "assets/ui/pokemon/home/151.png") != configuredPaths.end()) {
+        if (std::find(configuredPaths.begin(), configuredPaths.end(), "assets/ui/pokemon/tcg/151.jpg") != configuredPaths.end()) {
             outFail = "Unconfigured species portraits should not all allocate textures on startup.";
             return false;
         }
@@ -91,7 +91,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             {
                 "assets/ui/frame_gold.png",
                 "assets/images/item_placeholder.png",
-                "assets/ui/pokemon/home/001.png",
+                "assets/ui/pokemon/tcg/001.jpg",
                 bigPortrait,
                 smallPortrait,
             },
@@ -163,7 +163,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
 
         if (spritePrewarmCalls.size() != 2u ||
             spritePrewarmCalls[0].size() != 3u ||
-            std::find(spritePrewarmCalls[0].begin(), spritePrewarmCalls[0].end(), "assets/ui/pokemon/home/001.png") == spritePrewarmCalls[0].end() ||
+            std::find(spritePrewarmCalls[0].begin(), spritePrewarmCalls[0].end(), "assets/ui/pokemon/tcg/001.jpg") == spritePrewarmCalls[0].end() ||
             std::find(
                 spritePrewarmCalls[1].begin(),
                 spritePrewarmCalls[1].end(),

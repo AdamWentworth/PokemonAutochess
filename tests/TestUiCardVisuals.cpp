@@ -78,9 +78,8 @@ bool test_ui_card_visuals_contract(std::string& outFail) {
             in,
             resolveCardImagePath("", "charmander", false),
             1.0f);
-        if (!isProxyPath(sprite.texturePath) ||
-            sourcePathFromProxy(sprite.texturePath) != "assets/images/charmander.png") {
-            outFail = "card sprite path should resolve to backend card art proxy";
+        if (sprite.texturePath != "assets/ui/pokemon/tcg/004.jpg") {
+            outFail = "Known Pokemon cards must use the same original scan as the inspector portrait.";
             return false;
         }
         if (sprite.w <= 0.0f || sprite.h <= 0.0f) {
@@ -201,16 +200,20 @@ bool test_ui_card_visuals_contract(std::string& outFail) {
         }
         const std::string explicitPath =
             resolveCardImagePath("assets/images/charmander.png", "pikachu", false);
-        if (!isProxyPath(explicitPath) ||
-            sourcePathFromProxy(explicitPath) != "assets/images/charmander.png") {
-            outFail = "existing explicit card image path should map to backend card art proxy";
+        if (explicitPath != "assets/ui/pokemon/tcg/025.jpg") {
+            outFail = "The artwork catalog must supersede stale species art in saved/scripted card paths.";
             return false;
         }
 
         const std::string missingExplicit =
-            resolveCardImagePath("assets/images/custom_missing.png", "pikachu", false);
+            resolveCardImagePath("assets/images/custom_missing.png", "unknown-pokemon", false);
         if (missingExplicit != "assets/images/item_placeholder.png") {
             outFail = "missing explicit image path should fall back to placeholder";
+            return false;
+        }
+        const std::string customPath = resolveCardImagePath("assets/images/charmander.png", "custom-card", false);
+        if (!isProxyPath(customPath) || sourcePathFromProxy(customPath) != "assets/images/charmander.png") {
+            outFail = "Custom cards outside the catalog must retain their explicit artwork.";
             return false;
         }
     }

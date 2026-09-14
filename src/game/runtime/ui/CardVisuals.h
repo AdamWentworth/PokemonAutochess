@@ -4,6 +4,7 @@
 #include "engine/render/SpriteTextureCardArt.h"
 #include "game/runtime/ui/DebugText.h"
 #include "game/runtime/ui/ImagePath.h"
+#include "game/runtime/ui/PokemonArtwork.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -43,6 +44,12 @@ inline std::uint32_t fnv1aHash(const std::string& text) {
 inline std::string resolveCardImagePath(const std::string& explicitImagePath,
                                         const std::string& cardName,
                                         bool itemCard) {
+    // One catalog owns the chosen Pokemon illustration, including old states
+    // that still carry legacy image paths. Item/custom unknown cards retain
+    // their explicit image and atlas behavior.
+    if (!itemCard)
+        if (const auto *entry = pokemon_artwork::find(cardName))
+            return pokemon_artwork::path(*entry);
     if (engine::render::sprite_card_art::isProxyPath(explicitImagePath)) {
         return explicitImagePath;
     }

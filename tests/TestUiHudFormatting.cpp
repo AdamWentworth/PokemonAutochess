@@ -6,26 +6,28 @@
 #include <utility>
 #include <vector>
 #include <set>
+#include <cmath>
 
 bool test_ui_hud_formatting_contract(std::string& outFail) {
-    namespace portraits = game::runtime::pokemon_portraits;
+    namespace portraits = game::runtime::pokemon_artwork;
     std::set<int> portraitDex;
     std::set<std::string> portraitPaths;
     for (const auto &entry : portraits::entries) {
         std::vector<IRenderBackend::DebugSprite> sprites;
-        portraits::append(sprites, entry.species, 10, 20, 52);
+        portraits::appendPortrait(sprites, entry.species, 10, 20, 52);
         if (!portraitDex.insert(entry.dex).second || entry.dex < 1 || entry.dex > 151 ||
             !portraitPaths.insert(portraits::path(entry)).second || portraits::find(entry.species) != &entry ||
             sprites.size() != 1 || sprites[0].w != sprites[0].h ||
             sprites[0].u0 < 0 || sprites[0].v0 < 0 || sprites[0].u1 > 1 || sprites[0].v1 > 1 ||
             sprites[0].u1 <= sprites[0].u0 || sprites[0].v1 <= sprites[0].v0 ||
-            sprites[0].u1 - sprites[0].u0 != sprites[0].v1 - sprites[0].v0) {
-            outFail = "Every Kanto species needs a unique HOME portrait with square, in-bounds face framing.";
+            std::abs((sprites[0].u1 - sprites[0].u0) * entry.width -
+                     (sprites[0].v1 - sprites[0].v0) * entry.height) > .001f) {
+            outFail = "Every Kanto species needs a unique card portrait with square source-pixel face framing.";
             return false;
         }
     }
     if (portraitDex.size() != 151) {
-        outFail = "HOME portrait coverage must include all 151 base Kanto species.";
+        outFail = "Card portrait coverage must include all 151 base Kanto species.";
         return false;
     }
     for (const auto &[name, dex] : {std::pair{"Bulbasaur", 1}, {"Nidoran-F", 29}, {"NidoranF", 29},
@@ -68,7 +70,7 @@ bool test_ui_hud_formatting_contract(std::string& outFail) {
         std::vector<IRenderBackend::DebugLine> lines;
         std::vector<IRenderBackend::DebugSprite> sprites;
         game::runtime::unit_details_hud::append(quads, lines, sprites, size.first, size.second, unit, nullptr, false);
-        if (sprites.size() != 3 || sprites[0].texturePath != "assets/ui/pokemon/home/001.png") {
+        if (sprites.size() != 3 || sprites[0].texturePath != "assets/ui/pokemon/tcg/001.jpg") {
             outFail = "The inspector must draw the selected portrait alongside both type icons.";
             return false;
         }

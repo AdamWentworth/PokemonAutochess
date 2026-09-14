@@ -1,0 +1,5276 @@
+{
+  "schema": 1,
+  "name": "Original Kanto TCG artwork",
+  "imported": "2026-09-13",
+  "catalog_repository": "BinderLedger",
+  "catalog_commit": "abbd57133290c680181baf98676a84b7abca73b1",
+  "selection": "Base Set first, then Jungle, then Fossil; Mew uses Wizards Black Star Promo 8. Prefer a clear scan of the original illustration. Holo and non-holo variants may share illustrations.",
+  "framing": "Original full-card JPEGs remain unmodified. Art [x,y,w,h] and portrait [x,y,size] are source-pixel UV windows, reviewed per species. Illustration bounds and excluded badges keep card labels out of both uses.",
+  "cards": [
+    {
+      "dex": 1,
+      "species": "bulbasaur",
+      "set": "base-set",
+      "number": "44",
+      "path": "assets/ui/pokemon/tcg/001.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 86576,
+      "sha256": "4274454c10ee1e09ef4d65b8044c33b91e3ef08788e803a5884aa99985c57594",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        169,
+        247,
+        177
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-bulbasaur-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 2,
+      "species": "ivysaur",
+      "set": "base-set",
+      "number": "30",
+      "path": "assets/ui/pokemon/tcg/002.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 89412,
+      "sha256": "4ee547cc5d630590f80115847bcefe3edc5f854fae5ce9cbab250e8137eb1cfa",
+      "art": [
+        81,
+        152,
+        399,
+        272
+      ],
+      "portrait": [
+        158,
+        205,
+        219
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-ivysaur-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 3,
+      "species": "venusaur",
+      "set": "base-set",
+      "number": "15",
+      "path": "assets/ui/pokemon/tcg/003.jpg",
+      "width": 731,
+      "height": 1000,
+      "bytes": 132749,
+      "sha256": "37963fd5c034c270f4383e6977ad61ca61bfb6724bf1f5f54eabb91b21b107da",
+      "art": [
+        149,
+        182,
+        478,
+        326
+      ],
+      "portrait": [
+        178,
+        140,
+        368
+      ],
+      "illustration": [
+        92,
+        132,
+        547,
+        376
+      ],
+      "excluded_badge": [
+        92,
+        132,
+        86,
+        50
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-venusaur-holo-rare--first-edition--holofoil--english--37963fd5c034.jpg"
+      }
+    },
+    {
+      "dex": 4,
+      "species": "charmander",
+      "set": "base-set",
+      "number": "46",
+      "path": "assets/ui/pokemon/tcg/004.jpg",
+      "width": 731,
+      "height": 1000,
+      "bytes": 121863,
+      "sha256": "d36324efd9af56e46b32036e28116acdf22867161516f800ef50b1137f9310b1",
+      "art": [
+        92,
+        132,
+        547,
+        376
+      ],
+      "portrait": [
+        259,
+        132,
+        215
+      ],
+      "illustration": [
+        92,
+        132,
+        547,
+        376
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-charmander-common--first-edition--normal--english--d36324efd9af.jpg"
+      }
+    },
+    {
+      "dex": 5,
+      "species": "charmeleon",
+      "set": "base-set",
+      "number": "24",
+      "path": "assets/ui/pokemon/tcg/005.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 85491,
+      "sha256": "df869545d7595d8ec61e7f5375fa8a373995aec2e2f2fa7e410ed347620e3149",
+      "art": [
+        149,
+        110,
+        384,
+        262
+      ],
+      "portrait": [
+        163,
+        110,
+        160
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-charmeleon-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 6,
+      "species": "charizard",
+      "set": "base-set",
+      "number": "4",
+      "path": "assets/ui/pokemon/tcg/006.jpg",
+      "width": 731,
+      "height": 1000,
+      "bytes": 137476,
+      "sha256": "2b3f780012f97dd256b09b1ba090994f69dedced59f81e15777d6badc9ccde02",
+      "art": [
+        92,
+        182,
+        478,
+        326
+      ],
+      "portrait": [
+        150,
+        220,
+        288
+      ],
+      "illustration": [
+        92,
+        132,
+        547,
+        376
+      ],
+      "excluded_badge": [
+        92,
+        132,
+        86,
+        50
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-charizard-holo-rare--first-edition--holofoil--english--2b3f780012f9.jpg"
+      }
+    },
+    {
+      "dex": 7,
+      "species": "squirtle",
+      "set": "base-set",
+      "number": "63",
+      "path": "assets/ui/pokemon/tcg/007.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 95786,
+      "sha256": "c1ce7e22173c72449aeca819274ab063bf5f1e6b7425f300f6a69aea180ced9e",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        234,
+        110,
+        167
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-squirtle-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 8,
+      "species": "wartortle",
+      "set": "base-set",
+      "number": "42",
+      "path": "assets/ui/pokemon/tcg/008.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 96222,
+      "sha256": "9859e4c6977a924381eaae5c3078e59703a3bc5aba8ee44386a412e81d4fe547",
+      "art": [
+        149,
+        110,
+        384,
+        262
+      ],
+      "portrait": [
+        200,
+        125,
+        189
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-wartortle-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 9,
+      "species": "blastoise",
+      "set": "base-set",
+      "number": "2",
+      "path": "assets/ui/pokemon/tcg/009.jpg",
+      "width": 1147,
+      "height": 1600,
+      "bytes": 210771,
+      "sha256": "44ef94c5c5f4e0150569311b557a0b7be8b8a656db56d416af1a040eeea24f56",
+      "art": [
+        280,
+        211,
+        722,
+        492
+      ],
+      "portrait": [
+        295,
+        211,
+        319
+      ],
+      "illustration": [
+        143,
+        211,
+        859,
+        603
+      ],
+      "excluded_badge": [
+        143,
+        211,
+        137,
+        80
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-blastoise-holo-rare--unlimited--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 10,
+      "species": "caterpie",
+      "set": "base-set",
+      "number": "45",
+      "path": "assets/ui/pokemon/tcg/010.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 82087,
+      "sha256": "fef4605c65c4be5c3cba0eaee8a48ba78c06012b92cc11a22dcf1368f74c616c",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        219,
+        110,
+        172
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-caterpie-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 11,
+      "species": "metapod",
+      "set": "base-set",
+      "number": "54",
+      "path": "assets/ui/pokemon/tcg/011.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 102961,
+      "sha256": "826cb83cd73363eaad77745f869a5e0e3c1437f0a599419d856586a14dfb84df",
+      "art": [
+        149,
+        110,
+        384,
+        262
+      ],
+      "portrait": [
+        149,
+        114,
+        182
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-metapod-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 12,
+      "species": "butterfree",
+      "set": "jungle",
+      "number": "33",
+      "path": "assets/ui/pokemon/tcg/012.jpg",
+      "width": 1105,
+      "height": 1539,
+      "bytes": 408211,
+      "sha256": "6fd02a8287d10a022d701f3f849f6f1ee84e1ae785139838a1dfcf954fa8f21b",
+      "art": [
+        191,
+        280,
+        738,
+        503
+      ],
+      "portrait": [
+        403,
+        309,
+        314
+      ],
+      "illustration": [
+        138,
+        203,
+        828,
+        580
+      ],
+      "excluded_badge": [
+        138,
+        203,
+        132,
+        77
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-butterfree-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 13,
+      "species": "weedle",
+      "set": "base-set",
+      "number": "69",
+      "path": "assets/ui/pokemon/tcg/013.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 99971,
+      "sha256": "b7740a6b1a70b213a6d2d6aca43850cfa0f010dea5eeaaccb6cb85d689c2795b",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        91,
+        173,
+        230
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-weedle-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 14,
+      "species": "kakuna",
+      "set": "base-set",
+      "number": "33",
+      "path": "assets/ui/pokemon/tcg/014.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 92174,
+      "sha256": "871f6326d97760fb09acb7989a7a964fe2a4a118d92925876fd837a954712ace",
+      "art": [
+        114,
+        152,
+        399,
+        272
+      ],
+      "portrait": [
+        203,
+        167,
+        221
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-kakuna-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 15,
+      "species": "beedrill",
+      "set": "base-set",
+      "number": "17",
+      "path": "assets/ui/pokemon/tcg/015.jpg",
+      "width": 996,
+      "height": 1395,
+      "bytes": 431119,
+      "sha256": "17c08312a0bd0baf5eb3b9641e77de4d6b5095320fe8fa362a5bc038902adc26",
+      "art": [
+        243,
+        184,
+        628,
+        428
+      ],
+      "portrait": [
+        286,
+        225,
+        340
+      ],
+      "illustration": [
+        125,
+        184,
+        746,
+        525
+      ],
+      "excluded_badge": [
+        125,
+        184,
+        118,
+        70
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-beedrill-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 16,
+      "species": "pidgey",
+      "set": "base-set",
+      "number": "57",
+      "path": "assets/ui/pokemon/tcg/016.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 92946,
+      "sha256": "e0603ac3ec0f28333c7dc2111dda3faf4ee76bdb73e8cb2a928c33eca14c3adb",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        149,
+        127,
+        175
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-pidgey-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 17,
+      "species": "pidgeotto",
+      "set": "base-set",
+      "number": "22",
+      "path": "assets/ui/pokemon/tcg/017.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 89196,
+      "sha256": "3d5f5eb61866c4235cb9f86aab817af625b7ab65c5b73136d1af706b59ddccc5",
+      "art": [
+        149,
+        110,
+        384,
+        262
+      ],
+      "portrait": [
+        161,
+        117,
+        170
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-pidgeotto-rare--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 18,
+      "species": "pidgeot",
+      "set": "jungle",
+      "number": "24",
+      "path": "assets/ui/pokemon/tcg/018.jpg",
+      "width": 744,
+      "height": 1033,
+      "bytes": 207452,
+      "sha256": "a6194ddc7eb02a8e810bdcc1e8e3d957eee0f29b44a99c8dae94fb1434436823",
+      "art": [
+        125,
+        188,
+        493,
+        336
+      ],
+      "portrait": [
+        300,
+        225,
+        185
+      ],
+      "illustration": [
+        93,
+        136,
+        557,
+        388
+      ],
+      "excluded_badge": [
+        93,
+        136,
+        89,
+        52
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-pidgeot-24-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 19,
+      "species": "rattata",
+      "set": "base-set",
+      "number": "61",
+      "path": "assets/ui/pokemon/tcg/019.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 79287,
+      "sha256": "24cc794986333ad94ec5ffb87e64b869ce91399cb08a87da5f377e5a933ab3c2",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        214,
+        147,
+        161
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-rattata-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 20,
+      "species": "raticate",
+      "set": "base-set",
+      "number": "40",
+      "path": "assets/ui/pokemon/tcg/020.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 101484,
+      "sha256": "9d0ba0808cbe8363837ef8d04a0aa50aef2b5547bdb156aae5a984534ee6be73",
+      "art": [
+        149,
+        110,
+        384,
+        262
+      ],
+      "portrait": [
+        173,
+        134,
+        201
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-raticate-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 21,
+      "species": "spearow",
+      "set": "jungle",
+      "number": "62",
+      "path": "assets/ui/pokemon/tcg/021.jpg",
+      "width": 350,
+      "height": 495,
+      "bytes": 94329,
+      "sha256": "0113629c8bce84f876d3d5fc6d0e194d7576e77e41db7b2e8041eea20ef18e5f",
+      "art": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "portrait": [
+        100,
+        76,
+        123
+      ],
+      "illustration": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-spearow-common--unlimited--normal--english--0113629c8bce.jpg"
+      }
+    },
+    {
+      "dex": 22,
+      "species": "fearow",
+      "set": "jungle",
+      "number": "36",
+      "path": "assets/ui/pokemon/tcg/022.jpg",
+      "width": 1058,
+      "height": 1473,
+      "bytes": 387132,
+      "sha256": "518f91ef28599bb2504f67bf8af09ad6a9e22e70f4d4f45278ede6dea937a4f5",
+      "art": [
+        132,
+        268,
+        705,
+        481
+      ],
+      "portrait": [
+        171,
+        268,
+        355
+      ],
+      "illustration": [
+        132,
+        194,
+        793,
+        555
+      ],
+      "excluded_badge": [
+        132,
+        194,
+        126,
+        74
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-fearow-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 23,
+      "species": "ekans",
+      "set": "fossil",
+      "number": "46",
+      "path": "assets/ui/pokemon/tcg/023.jpg",
+      "width": 291,
+      "height": 400,
+      "bytes": 30603,
+      "sha256": "563bd1b7ac24765bd300d0d7b456f20abd7c7a7e0461f43d2d477c37e50bab7a",
+      "art": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "portrait": [
+        75,
+        68,
+        134
+      ],
+      "illustration": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-ekans-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 24,
+      "species": "arbok",
+      "set": "fossil",
+      "number": "31",
+      "path": "assets/ui/pokemon/tcg/024.jpg",
+      "width": 729,
+      "height": 1000,
+      "bytes": 94003,
+      "sha256": "2297f88f84788b11d6c3df5d9579fed9f81d2213d53d05d11f1f5c074f361cb4",
+      "art": [
+        91,
+        182,
+        478,
+        326
+      ],
+      "portrait": [
+        163,
+        184,
+        202
+      ],
+      "illustration": [
+        91,
+        132,
+        545,
+        376
+      ],
+      "excluded_badge": [
+        91,
+        132,
+        87,
+        50
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-arbok-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 25,
+      "species": "pikachu",
+      "set": "base-set",
+      "number": "58",
+      "path": "assets/ui/pokemon/tcg/025.jpg",
+      "width": 1160,
+      "height": 1600,
+      "bytes": 393190,
+      "sha256": "df6591811c4cc08c016b8af76a1197eb01dbd351da15fa8d2263f2c11061f4f9",
+      "art": [
+        145,
+        211,
+        869,
+        603
+      ],
+      "portrait": [
+        247,
+        326,
+        468
+      ],
+      "illustration": [
+        145,
+        211,
+        869,
+        603
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-pikachu-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 26,
+      "species": "raichu",
+      "set": "base-set",
+      "number": "14",
+      "path": "assets/ui/pokemon/tcg/026.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 93385,
+      "sha256": "7b2b4446a5a436ca41c6585db9c49028a515a75a9f45b9a277d2007cd6ae03f2",
+      "art": [
+        87,
+        152,
+        399,
+        272
+      ],
+      "portrait": [
+        181,
+        152,
+        211
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-raichu-holo-rare--first-edition--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 27,
+      "species": "sandshrew",
+      "set": "base-set",
+      "number": "62",
+      "path": "assets/ui/pokemon/tcg/027.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 88927,
+      "sha256": "984e9f8e26963ee0a688f1a3fd246f48736585e606fefbbd525202f5aedd3fc6",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        179,
+        110,
+        181
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-sandshrew-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 28,
+      "species": "sandslash",
+      "set": "fossil",
+      "number": "41",
+      "path": "assets/ui/pokemon/tcg/028.jpg",
+      "width": 1000,
+      "height": 1398,
+      "bytes": 148777,
+      "sha256": "a417f2aea4fb8c1043913fe07eb042d6b6cb071f1e1a5b049bc67dc42e52f98f",
+      "art": [
+        205,
+        254,
+        669,
+        456
+      ],
+      "portrait": [
+        424,
+        254,
+        363
+      ],
+      "illustration": [
+        125,
+        184,
+        749,
+        526
+      ],
+      "excluded_badge": [
+        125,
+        184,
+        119,
+        70
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-sandslash-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 29,
+      "species": "nidoran-f",
+      "set": "jungle",
+      "number": "57",
+      "path": "assets/ui/pokemon/tcg/029.jpg",
+      "width": 322,
+      "height": 450,
+      "bytes": 45340,
+      "sha256": "3eb91bc506fd5fc15735a134bb0f895fb687c032de9c55d36cde4d65a6f921d0",
+      "art": [
+        41,
+        60,
+        240,
+        168
+      ],
+      "portrait": [
+        68,
+        67,
+        115
+      ],
+      "illustration": [
+        41,
+        60,
+        240,
+        168
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-nidoran-f-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 30,
+      "species": "nidorina",
+      "set": "jungle",
+      "number": "40",
+      "path": "assets/ui/pokemon/tcg/030.jpg",
+      "width": 350,
+      "height": 495,
+      "bytes": 95621,
+      "sha256": "dafbfe868fe468be0e37029f08437a7ddd0f10ef29548d0102b780ae76ca6eb7",
+      "art": [
+        44,
+        90,
+        236,
+        161
+      ],
+      "portrait": [
+        73,
+        90,
+        156
+      ],
+      "illustration": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "excluded_badge": [
+        44,
+        66,
+        41,
+        24
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-nidorina-uncommon--unlimited--normal--english--dafbfe868fe4.jpg"
+      }
+    },
+    {
+      "dex": 31,
+      "species": "nidoqueen",
+      "set": "jungle",
+      "number": "23",
+      "path": "assets/ui/pokemon/tcg/031.jpg",
+      "width": 506,
+      "height": 706,
+      "bytes": 82508,
+      "sha256": "dd78b184f0aa0aace6bb60c63d211a177c9a0774bb486aaf903b40ece14195a6",
+      "art": [
+        123,
+        93,
+        319,
+        218
+      ],
+      "portrait": [
+        123,
+        111,
+        164
+      ],
+      "illustration": [
+        64,
+        93,
+        378,
+        265
+      ],
+      "excluded_badge": [
+        64,
+        93,
+        59,
+        35
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-nidoqueen-23-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 32,
+      "species": "nidoran-m",
+      "set": "base-set",
+      "number": "55",
+      "path": "assets/ui/pokemon/tcg/032.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 88074,
+      "sha256": "1c7adecb25c284c07c606776c799930f186c806b4bb4768e403fd825e48a4c1b",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        164,
+        222,
+        202
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-nidoran-m-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 33,
+      "species": "nidorino",
+      "set": "base-set",
+      "number": "37",
+      "path": "assets/ui/pokemon/tcg/033.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 93250,
+      "sha256": "2fc9a905f5788dff10582ca842267a4fbf5e5cc97f0e36873b55b3a06b15683a",
+      "art": [
+        134,
+        152,
+        399,
+        272
+      ],
+      "portrait": [
+        212,
+        240,
+        184
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-nidorino-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 34,
+      "species": "nidoking",
+      "set": "base-set",
+      "number": "11",
+      "path": "assets/ui/pokemon/tcg/034.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 97936,
+      "sha256": "baf59e05b5ce2a51da8e8d742cc66952b6a1da0ab16e14762ad3a2951fabaa93",
+      "art": [
+        149,
+        110,
+        384,
+        262
+      ],
+      "portrait": [
+        149,
+        114,
+        237
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-nidoking-holo-rare--first-edition--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 35,
+      "species": "clefairy",
+      "set": "base-set",
+      "number": "5",
+      "path": "assets/ui/pokemon/tcg/035.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 92245,
+      "sha256": "a220ff683df933a5299eea2bcceb9e4afd82e152f4acbd6b1ca6658f3618af82",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        179,
+        110,
+        233
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-clefairy-holo-rare--first-edition--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 36,
+      "species": "clefable",
+      "set": "jungle",
+      "number": "17",
+      "path": "assets/ui/pokemon/tcg/036.jpg",
+      "width": 743,
+      "height": 1033,
+      "bytes": 202053,
+      "sha256": "d558e4f57453d5090154976546838b8a2b7643ee1569e0a57e45bfd1848b8295",
+      "art": [
+        117,
+        188,
+        493,
+        336
+      ],
+      "portrait": [
+        248,
+        191,
+        239
+      ],
+      "illustration": [
+        93,
+        136,
+        556,
+        388
+      ],
+      "excluded_badge": [
+        93,
+        136,
+        88,
+        52
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-clefable-17-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 37,
+      "species": "vulpix",
+      "set": "base-set",
+      "number": "68",
+      "path": "assets/ui/pokemon/tcg/037.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 81374,
+      "sha256": "e479fd67ddb5f00d904a81eaabb23b07313507b70c003b2d48dbae78029124e3",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        131,
+        134,
+        190
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-vulpix-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 38,
+      "species": "ninetales",
+      "set": "base-set",
+      "number": "12",
+      "path": "assets/ui/pokemon/tcg/038.jpg",
+      "width": 1155,
+      "height": 1600,
+      "bytes": 262525,
+      "sha256": "25874388f9097807248eba96a197e80423a5035c84123970576402880ed067ad",
+      "art": [
+        282,
+        211,
+        727,
+        496
+      ],
+      "portrait": [
+        545,
+        233,
+        324
+      ],
+      "illustration": [
+        144,
+        211,
+        865,
+        603
+      ],
+      "excluded_badge": [
+        144,
+        211,
+        138,
+        80
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-ninetales-holo-rare--unlimited--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 39,
+      "species": "jigglypuff",
+      "set": "jungle",
+      "number": "54",
+      "path": "assets/ui/pokemon/tcg/039.jpg",
+      "width": 739,
+      "height": 1046,
+      "bytes": 176058,
+      "sha256": "f4828f1179ca852d46a2055ef923522c3fc0c9e851218e186f8cb82ce18fd656",
+      "art": [
+        93,
+        138,
+        553,
+        393
+      ],
+      "portrait": [
+        255,
+        230,
+        250
+      ],
+      "illustration": [
+        93,
+        138,
+        553,
+        393
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-jigglypuff-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 40,
+      "species": "wigglytuff",
+      "set": "jungle",
+      "number": "32",
+      "path": "assets/ui/pokemon/tcg/040.jpg",
+      "width": 262,
+      "height": 368,
+      "bytes": 23259,
+      "sha256": "2d132a42ba30149699e938aae7f9cafd0b40bb0ef54278b64ed7ab27522007aa",
+      "art": [
+        47,
+        67,
+        175,
+        119
+      ],
+      "portrait": [
+        73,
+        58,
+        121
+      ],
+      "illustration": [
+        33,
+        49,
+        195,
+        137
+      ],
+      "excluded_badge": [
+        33,
+        49,
+        31,
+        18
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-wigglytuff-32-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 41,
+      "species": "zubat",
+      "set": "fossil",
+      "number": "57",
+      "path": "assets/ui/pokemon/tcg/041.jpg",
+      "width": 743,
+      "height": 1038,
+      "bytes": 176451,
+      "sha256": "4ddcf3b86e829dca19d5fe6a07bed3ecbe615644eb07b8e4cff46b48401d84c9",
+      "art": [
+        93,
+        137,
+        556,
+        390
+      ],
+      "portrait": [
+        202,
+        174,
+        353
+      ],
+      "illustration": [
+        93,
+        137,
+        556,
+        390
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-zubat-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 42,
+      "species": "golbat",
+      "set": "fossil",
+      "number": "34",
+      "path": "assets/ui/pokemon/tcg/042.jpg",
+      "width": 567,
+      "height": 765,
+      "bytes": 70346,
+      "sha256": "80884147f36665473707066f2c496eda48d219fd3846e9dd155c6434d1f05929",
+      "art": [
+        138,
+        106,
+        357,
+        243
+      ],
+      "portrait": [
+        147,
+        121,
+        214
+      ],
+      "illustration": [
+        71,
+        101,
+        424,
+        287
+      ],
+      "excluded_badge": [
+        71,
+        101,
+        67,
+        38
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-golbat-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 43,
+      "species": "oddish",
+      "set": "jungle",
+      "number": "58",
+      "path": "assets/ui/pokemon/tcg/043.jpg",
+      "width": 350,
+      "height": 495,
+      "bytes": 34368,
+      "sha256": "530f063683a5da3b0b544f54a5e496fab18178a7d159e2a056836d683ebfa5e5",
+      "art": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "portrait": [
+        127,
+        132,
+        115
+      ],
+      "illustration": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-oddish-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 44,
+      "species": "gloom",
+      "set": "jungle",
+      "number": "37",
+      "path": "assets/ui/pokemon/tcg/044.jpg",
+      "width": 350,
+      "height": 495,
+      "bytes": 86901,
+      "sha256": "32302884cccdad9d55662f76b3583d13475885ed5e72acd2860ef280884f48f9",
+      "art": [
+        67,
+        90,
+        236,
+        161
+      ],
+      "portrait": [
+        153,
+        120,
+        122
+      ],
+      "illustration": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "excluded_badge": [
+        44,
+        66,
+        41,
+        24
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-gloom-uncommon--unlimited--normal--english--32302884cccd.jpg"
+      }
+    },
+    {
+      "dex": 45,
+      "species": "vileplume",
+      "set": "jungle",
+      "number": "31",
+      "path": "assets/ui/pokemon/tcg/045.jpg",
+      "width": 1119,
+      "height": 1565,
+      "bytes": 495887,
+      "sha256": "17a09d019ea71b3a89562361b21bc052d1fee563c3cbff4e002bce36dd8c9b48",
+      "art": [
+        192,
+        285,
+        749,
+        511
+      ],
+      "portrait": [
+        362,
+        318,
+        423
+      ],
+      "illustration": [
+        140,
+        206,
+        838,
+        590
+      ],
+      "excluded_badge": [
+        140,
+        206,
+        133,
+        79
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-vileplume-31-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 46,
+      "species": "paras",
+      "set": "jungle",
+      "number": "59",
+      "path": "assets/ui/pokemon/tcg/046.jpg",
+      "width": 1089,
+      "height": 1523,
+      "bytes": 392885,
+      "sha256": "34886e8d406477169dd2511f4c4249ba33167ce319b97bd546fc3460fe0a5bfa",
+      "art": [
+        136,
+        201,
+        816,
+        574
+      ],
+      "portrait": [
+        299,
+        302,
+        458
+      ],
+      "illustration": [
+        136,
+        201,
+        816,
+        574
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-paras-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 47,
+      "species": "parasect",
+      "set": "jungle",
+      "number": "41",
+      "path": "assets/ui/pokemon/tcg/047.jpg",
+      "width": 496,
+      "height": 677,
+      "bytes": 76760,
+      "sha256": "9a8c21dfcf21177370a21ae4131ae4feced7bbd378d1827e6001de16143d1115",
+      "art": [
+        78,
+        123,
+        324,
+        221
+      ],
+      "portrait": [
+        151,
+        151,
+        176
+      ],
+      "illustration": [
+        63,
+        90,
+        370,
+        254
+      ],
+      "excluded_badge": [
+        63,
+        90,
+        58,
+        33
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-parasect-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 48,
+      "species": "venonat",
+      "set": "jungle",
+      "number": "63",
+      "path": "assets/ui/pokemon/tcg/048.jpg",
+      "width": 350,
+      "height": 495,
+      "bytes": 88289,
+      "sha256": "644cb089707bfa0cbaee560198631a6af48ff2d998015d26982f5512b8cfa050",
+      "art": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "portrait": [
+        97,
+        82,
+        155
+      ],
+      "illustration": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-venonat-common--unlimited--normal--english--644cb089707b.jpg"
+      }
+    },
+    {
+      "dex": 49,
+      "species": "venomoth",
+      "set": "jungle",
+      "number": "29",
+      "path": "assets/ui/pokemon/tcg/049.jpg",
+      "width": 746,
+      "height": 1033,
+      "bytes": 228883,
+      "sha256": "e8169aa075a69e13e96f78ce8b3edba6da9984b89ccaa004c10d49c9439171c0",
+      "art": [
+        119,
+        188,
+        493,
+        336
+      ],
+      "portrait": [
+        257,
+        269,
+        216
+      ],
+      "illustration": [
+        94,
+        136,
+        558,
+        388
+      ],
+      "excluded_badge": [
+        94,
+        136,
+        88,
+        52
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-venomoth-29-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 50,
+      "species": "diglett",
+      "set": "base-set",
+      "number": "47",
+      "path": "assets/ui/pokemon/tcg/050.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 83297,
+      "sha256": "bbbf790fbeec458ba02fb6f1c0a06e2c8285759990400e6e44adf522fb203e8b",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        193,
+        110,
+        154
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-diglett-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 51,
+      "species": "dugtrio",
+      "set": "base-set",
+      "number": "19",
+      "path": "assets/ui/pokemon/tcg/051.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 83246,
+      "sha256": "fa8e6929710d85046d6cf91406017ad56ee0a4ab0178ba4164dd1cb61bfc1cfb",
+      "art": [
+        97,
+        152,
+        399,
+        272
+      ],
+      "portrait": [
+        161,
+        152,
+        272
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-dugtrio-rare--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 52,
+      "species": "meowth",
+      "set": "jungle",
+      "number": "56",
+      "path": "assets/ui/pokemon/tcg/052.jpg",
+      "width": 323,
+      "height": 450,
+      "bytes": 39982,
+      "sha256": "98a536d8e64aefe947a6a374458e195c21b86994bbe7096e70462eb21ef66ff0",
+      "art": [
+        41,
+        60,
+        241,
+        168
+      ],
+      "portrait": [
+        107,
+        60,
+        109
+      ],
+      "illustration": [
+        41,
+        60,
+        241,
+        168
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-meowth-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 53,
+      "species": "persian",
+      "set": "jungle",
+      "number": "42",
+      "path": "assets/ui/pokemon/tcg/053.jpg",
+      "width": 350,
+      "height": 495,
+      "bytes": 93410,
+      "sha256": "eb6a51dff3c6dc1c2b53c61e959d48f84ed331ab01f6c61e6d9acf99e8404ac3",
+      "art": [
+        44,
+        90,
+        236,
+        161
+      ],
+      "portrait": [
+        77,
+        136,
+        110
+      ],
+      "illustration": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "excluded_badge": [
+        44,
+        66,
+        41,
+        24
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-persian-uncommon--unlimited--normal--english--eb6a51dff3c6.jpg"
+      }
+    },
+    {
+      "dex": 54,
+      "species": "psyduck",
+      "set": "fossil",
+      "number": "53",
+      "path": "assets/ui/pokemon/tcg/054.jpg",
+      "width": 291,
+      "height": 400,
+      "bytes": 31928,
+      "sha256": "bffa6f9b81263828cc72c2f923c5f20e0a382386fa49a72e00c37815c96b2cd3",
+      "art": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "portrait": [
+        120,
+        62,
+        89
+      ],
+      "illustration": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-psyduck-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 55,
+      "species": "golduck",
+      "set": "fossil",
+      "number": "35",
+      "path": "assets/ui/pokemon/tcg/055.jpg",
+      "width": 729,
+      "height": 1000,
+      "bytes": 103918,
+      "sha256": "8b8b9477cc566d97f11a160755cf80a36c2070ab0870190fb7837ea41b126ac8",
+      "art": [
+        178,
+        132,
+        458,
+        312
+      ],
+      "portrait": [
+        218,
+        132,
+        271
+      ],
+      "illustration": [
+        91,
+        132,
+        545,
+        376
+      ],
+      "excluded_badge": [
+        91,
+        132,
+        87,
+        50
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-golduck-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 56,
+      "species": "mankey",
+      "set": "jungle",
+      "number": "55",
+      "path": "assets/ui/pokemon/tcg/056.jpg",
+      "width": 320,
+      "height": 450,
+      "bytes": 39199,
+      "sha256": "14b959efa227c5ab750fffcc04b82d8b40ba0e2dec850b049995b1d20fa19327",
+      "art": [
+        41,
+        60,
+        238,
+        168
+      ],
+      "portrait": [
+        92,
+        81,
+        137
+      ],
+      "illustration": [
+        41,
+        60,
+        238,
+        168
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-mankey-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 57,
+      "species": "primeape",
+      "set": "jungle",
+      "number": "43",
+      "path": "assets/ui/pokemon/tcg/057.jpg",
+      "width": 1000,
+      "height": 1417,
+      "bytes": 382732,
+      "sha256": "854645ddeeca372fcf1d141685098a9fb80a34ca95d6e8e4befcf88867e02688",
+      "art": [
+        125,
+        258,
+        679,
+        463
+      ],
+      "portrait": [
+        220,
+        260,
+        390
+      ],
+      "illustration": [
+        125,
+        187,
+        749,
+        534
+      ],
+      "excluded_badge": [
+        125,
+        187,
+        119,
+        71
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-primeape-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 58,
+      "species": "growlithe",
+      "set": "base-set",
+      "number": "28",
+      "path": "assets/ui/pokemon/tcg/058.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 77929,
+      "sha256": "7b1d0f27503f95da3742796564d67bd9eea0599f8adf72e35d0ed77339365836",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        164,
+        110,
+        210
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-growlithe-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 59,
+      "species": "arcanine",
+      "set": "base-set",
+      "number": "23",
+      "path": "assets/ui/pokemon/tcg/059.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 90502,
+      "sha256": "872ab2941c2de4b3629f2223ceeaac1847618ddd78939b8fa507f67547ea2f95",
+      "art": [
+        149,
+        110,
+        384,
+        262
+      ],
+      "portrait": [
+        150,
+        110,
+        206
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-arcanine-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 60,
+      "species": "poliwag",
+      "set": "base-set",
+      "number": "59",
+      "path": "assets/ui/pokemon/tcg/060.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 92191,
+      "sha256": "15f86ab388e3c64927486e2c1515231b9b798bcbd6ca2b4e1ae1c9749d19a835",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        284,
+        110,
+        222
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-poliwag-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 61,
+      "species": "poliwhirl",
+      "set": "base-set",
+      "number": "38",
+      "path": "assets/ui/pokemon/tcg/061.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 99256,
+      "sha256": "f0a295fa4a56e1f92e5a91dce952470c3d54bc510534fc65aad381c8ef8fb604",
+      "art": [
+        149,
+        110,
+        384,
+        262
+      ],
+      "portrait": [
+        151,
+        110,
+        228
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-poliwhirl-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 62,
+      "species": "poliwrath",
+      "set": "base-set",
+      "number": "13",
+      "path": "assets/ui/pokemon/tcg/062.jpg",
+      "width": 712,
+      "height": 1000,
+      "bytes": 99352,
+      "sha256": "02c185fbfb7f5e371801870192f7d6caacdd9b16ad6b1e3e4419764010861346",
+      "art": [
+        174,
+        132,
+        448,
+        305
+      ],
+      "portrait": [
+        191,
+        132,
+        293
+      ],
+      "illustration": [
+        89,
+        132,
+        533,
+        376
+      ],
+      "excluded_badge": [
+        89,
+        132,
+        85,
+        50
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-poliwrath-holo-rare--unlimited--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 63,
+      "species": "abra",
+      "set": "base-set",
+      "number": "43",
+      "path": "assets/ui/pokemon/tcg/063.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 91808,
+      "sha256": "b4f4ed7b971daf0d90818d798cb94d51d90c563b8adf999ce793deb41ff02137",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        287,
+        176,
+        219
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-abra-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 64,
+      "species": "kadabra",
+      "set": "base-set",
+      "number": "32",
+      "path": "assets/ui/pokemon/tcg/064.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 93491,
+      "sha256": "fcb68d24fa23f6551449badc54a3e8efb036e5847640185a86f463c0c4b393c3",
+      "art": [
+        133,
+        152,
+        399,
+        272
+      ],
+      "portrait": [
+        229,
+        153,
+        192
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-kadabra-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 65,
+      "species": "alakazam",
+      "set": "base-set",
+      "number": "1",
+      "path": "assets/ui/pokemon/tcg/065.jpg",
+      "width": 731,
+      "height": 1000,
+      "bytes": 151933,
+      "sha256": "3a85f28bd31961b893b2e9cf89bc462c8d07655add270d3e645f69e2694979d5",
+      "art": [
+        178,
+        132,
+        461,
+        314
+      ],
+      "portrait": [
+        249,
+        134,
+        235
+      ],
+      "illustration": [
+        92,
+        132,
+        547,
+        376
+      ],
+      "excluded_badge": [
+        92,
+        132,
+        86,
+        50
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-alakazam-holo-rare--first-edition--holofoil--english--3a85f28bd319.jpg"
+      }
+    },
+    {
+      "dex": 66,
+      "species": "machop",
+      "set": "base-set",
+      "number": "52",
+      "path": "assets/ui/pokemon/tcg/066.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 76532,
+      "sha256": "bcb07f7452d1963805d3ce071344e572d91c0a3cda7bfa7d1727bc00fc015aeb",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        194,
+        182,
+        163
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-machop-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 67,
+      "species": "machoke",
+      "set": "base-set",
+      "number": "34",
+      "path": "assets/ui/pokemon/tcg/067.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 104643,
+      "sha256": "383df54d27427e783a28244b3c489c818c8d5ff2d14a0b924e28fbc945a90fb7",
+      "art": [
+        149,
+        110,
+        384,
+        262
+      ],
+      "portrait": [
+        218,
+        129,
+        173
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-machoke-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 68,
+      "species": "machamp",
+      "set": "base-set",
+      "number": "8",
+      "path": "assets/ui/pokemon/tcg/068.jpg",
+      "width": 1400,
+      "height": 1960,
+      "bytes": 848946,
+      "sha256": "80e937f7ff968c190ddb5c3932572a62c71ca13c57c39d84cd3f0b77eb3bb861",
+      "art": [
+        285,
+        357,
+        939,
+        640
+      ],
+      "portrait": [
+        548,
+        426,
+        378
+      ],
+      "illustration": [
+        175,
+        258,
+        1049,
+        739
+      ],
+      "excluded_badge": [
+        175,
+        258,
+        167,
+        99
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-shadowless-machamp-holo-rare--first-edition--holofoil--english--80e937f7ff96.jpg"
+      }
+    },
+    {
+      "dex": 69,
+      "species": "bellsprout",
+      "set": "jungle",
+      "number": "49",
+      "path": "assets/ui/pokemon/tcg/069.jpg",
+      "width": 1136,
+      "height": 1600,
+      "bytes": 395646,
+      "sha256": "8e49125c4a4282c2a9d9af78a13fe82988f3766e656a20f5ce2d57edc0c0553e",
+      "art": [
+        142,
+        211,
+        851,
+        603
+      ],
+      "portrait": [
+        541,
+        264,
+        338
+      ],
+      "illustration": [
+        142,
+        211,
+        851,
+        603
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-bellsprout-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 70,
+      "species": "weepinbell",
+      "set": "jungle",
+      "number": "48",
+      "path": "assets/ui/pokemon/tcg/070.jpg",
+      "width": 958,
+      "height": 1352,
+      "bytes": 231963,
+      "sha256": "79bb5bad64fad4a3f829b53c7626cc11abba4226ff8baa06364776f27d0d18f6",
+      "art": [
+        162,
+        246,
+        647,
+        441
+      ],
+      "portrait": [
+        287,
+        286,
+        401
+      ],
+      "illustration": [
+        120,
+        178,
+        717,
+        509
+      ],
+      "excluded_badge": [
+        120,
+        178,
+        114,
+        68
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-weepinbell-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 71,
+      "species": "victreebel",
+      "set": "jungle",
+      "number": "30",
+      "path": "assets/ui/pokemon/tcg/071.jpg",
+      "width": 1052,
+      "height": 1487,
+      "bytes": 469044,
+      "sha256": "6ca4ac994f841b1445cccfc8e443a899a1711494ef382b6c9f4afa9eb70c28fd",
+      "art": [
+        257,
+        196,
+        662,
+        451
+      ],
+      "portrait": [
+        283,
+        221,
+        390
+      ],
+      "illustration": [
+        131,
+        196,
+        788,
+        560
+      ],
+      "excluded_badge": [
+        131,
+        196,
+        126,
+        75
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-victreebel-30-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 72,
+      "species": "tentacool",
+      "set": "fossil",
+      "number": "56",
+      "path": "assets/ui/pokemon/tcg/072.jpg",
+      "width": 739,
+      "height": 1032,
+      "bytes": 117388,
+      "sha256": "880883552c4d5af86f1d40971535241de6d8c9dda0ce455c6581bde9991fa475",
+      "art": [
+        93,
+        136,
+        553,
+        388
+      ],
+      "portrait": [
+        260,
+        138,
+        386
+      ],
+      "illustration": [
+        93,
+        136,
+        553,
+        388
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-tentacool-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 73,
+      "species": "tentacruel",
+      "set": "fossil",
+      "number": "44",
+      "path": "assets/ui/pokemon/tcg/073.jpg",
+      "width": 556,
+      "height": 779,
+      "bytes": 129246,
+      "sha256": "d282c6f870f9bc4aad388aa512decc94b5159afb5411eca9c9293c475075b4a6",
+      "art": [
+        70,
+        142,
+        371,
+        253
+      ],
+      "portrait": [
+        81,
+        143,
+        250
+      ],
+      "illustration": [
+        70,
+        103,
+        416,
+        292
+      ],
+      "excluded_badge": [
+        70,
+        103,
+        66,
+        39
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-tentacruel-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 74,
+      "species": "geodude",
+      "set": "fossil",
+      "number": "47",
+      "path": "assets/ui/pokemon/tcg/074.jpg",
+      "width": 291,
+      "height": 400,
+      "bytes": 22239,
+      "sha256": "e6b750e140b490c2a7a13e542847eaaed4015311084a7eef4c4274a802a2a582",
+      "art": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "portrait": [
+        80,
+        64,
+        138
+      ],
+      "illustration": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-geodude-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 75,
+      "species": "graveler",
+      "set": "fossil",
+      "number": "37",
+      "path": "assets/ui/pokemon/tcg/075.jpg",
+      "width": 291,
+      "height": 400,
+      "bytes": 38621,
+      "sha256": "5f34e00e9934a16bc5429e9f06fe5ab4ba792049f9ced337ea4008619101d3db",
+      "art": [
+        65,
+        73,
+        189,
+        129
+      ],
+      "portrait": [
+        97,
+        83,
+        101
+      ],
+      "illustration": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "excluded_badge": [
+        37,
+        53,
+        34,
+        20
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-graveler-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 76,
+      "species": "golem",
+      "set": "fossil",
+      "number": "36",
+      "path": "assets/ui/pokemon/tcg/076.jpg",
+      "width": 729,
+      "height": 1000,
+      "bytes": 87924,
+      "sha256": "a7e59e5e2b2c447a5a8ec10a141ba191752d8fd0a093951efc5980054cbaf6be",
+      "art": [
+        158,
+        182,
+        478,
+        326
+      ],
+      "portrait": [
+        260,
+        220,
+        210
+      ],
+      "illustration": [
+        91,
+        132,
+        545,
+        376
+      ],
+      "excluded_badge": [
+        91,
+        132,
+        87,
+        50
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-golem-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 77,
+      "species": "ponyta",
+      "set": "base-set",
+      "number": "60",
+      "path": "assets/ui/pokemon/tcg/077.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 79863,
+      "sha256": "cb13dc618559e0d0db0deeb084bb7e3f5b2ebaf4c38449c779bb8ca66333850e",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        213,
+        135,
+        152
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-ponyta-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 78,
+      "species": "rapidash",
+      "set": "jungle",
+      "number": "44",
+      "path": "assets/ui/pokemon/tcg/078.jpg",
+      "width": 392,
+      "height": 550,
+      "bytes": 46691,
+      "sha256": "219412bec04ec931366624dee5dea4b0acad7dc704eebdf26baf7bcb1ba704a1",
+      "art": [
+        79,
+        100,
+        263,
+        179
+      ],
+      "portrait": [
+        135,
+        102,
+        139
+      ],
+      "illustration": [
+        50,
+        73,
+        292,
+        206
+      ],
+      "excluded_badge": [
+        50,
+        73,
+        46,
+        27
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-rapidash-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 79,
+      "species": "slowpoke",
+      "set": "fossil",
+      "number": "55",
+      "path": "assets/ui/pokemon/tcg/079.jpg",
+      "width": 291,
+      "height": 400,
+      "bytes": 27265,
+      "sha256": "8016fd105702f7dbc0d522d1a7f71fd91c73cb94165d4de60a84bedecfd5c05d",
+      "art": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "portrait": [
+        93,
+        105,
+        71
+      ],
+      "illustration": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-slowpoke-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 80,
+      "species": "slowbro",
+      "set": "fossil",
+      "number": "43",
+      "path": "assets/ui/pokemon/tcg/080.jpg",
+      "width": 291,
+      "height": 400,
+      "bytes": 24365,
+      "sha256": "8ebaf0578c110dbccd21bc6b6d69854e56ec2e39a8fe87944726b01e07d9b99b",
+      "art": [
+        71,
+        53,
+        183,
+        125
+      ],
+      "portrait": [
+        76,
+        53,
+        108
+      ],
+      "illustration": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "excluded_badge": [
+        37,
+        53,
+        34,
+        20
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-slowbro-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 81,
+      "species": "magnemite",
+      "set": "base-set",
+      "number": "53",
+      "path": "assets/ui/pokemon/tcg/081.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 92986,
+      "sha256": "1ec2ef1c35a18d2f7054c6cf363b9df9849fa32fca36253729546924af69b8be",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        98,
+        160,
+        264
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-magnemite-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 82,
+      "species": "magneton",
+      "set": "base-set",
+      "number": "9",
+      "path": "assets/ui/pokemon/tcg/082.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 97373,
+      "sha256": "9001d8f98c24aa18b16e048494ab6a0478a6503c19383f50b1958c3cfc7b2123",
+      "art": [
+        116,
+        152,
+        399,
+        272
+      ],
+      "portrait": [
+        179,
+        152,
+        272
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-magneton-holo-rare--first-edition--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 83,
+      "species": "farfetchd",
+      "set": "base-set",
+      "number": "27",
+      "path": "assets/ui/pokemon/tcg/083.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 85353,
+      "sha256": "7804962b21f2d6cf2742597b73403522f9801d00f310762b229f9a289d26d89d",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        159,
+        119,
+        236
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-farfetch-d-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 84,
+      "species": "doduo",
+      "set": "base-set",
+      "number": "48",
+      "path": "assets/ui/pokemon/tcg/084.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 79603,
+      "sha256": "88966983782aafc78ab2e14f1294e1c5b592590fa622e3c49ae276415164fe10",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        87,
+        110,
+        263
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-doduo-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 85,
+      "species": "dodrio",
+      "set": "jungle",
+      "number": "34",
+      "path": "assets/ui/pokemon/tcg/085.jpg",
+      "width": 291,
+      "height": 400,
+      "bytes": 31635,
+      "sha256": "da4aab99137646594523940f4709e274d55de3c6aea07ffa164d47a9f55e1d42",
+      "art": [
+        37,
+        73,
+        189,
+        129
+      ],
+      "portrait": [
+        44,
+        75,
+        125
+      ],
+      "illustration": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "excluded_badge": [
+        37,
+        53,
+        34,
+        20
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-dodrio-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 86,
+      "species": "seel",
+      "set": "base-set",
+      "number": "41",
+      "path": "assets/ui/pokemon/tcg/086.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 92084,
+      "sha256": "4b75a37e215c21b667e8656261e84dd3c6f39e3ac555c4298554d6dc51ecc890",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        174,
+        224,
+        200
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-seel-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 87,
+      "species": "dewgong",
+      "set": "base-set",
+      "number": "25",
+      "path": "assets/ui/pokemon/tcg/087.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 92834,
+      "sha256": "2009dcc999c3ad091d2b6c54106d6d6b3baf885759c88e90a4677a35b2957a76",
+      "art": [
+        87,
+        152,
+        399,
+        272
+      ],
+      "portrait": [
+        151,
+        174,
+        237
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-dewgong-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 88,
+      "species": "grimer",
+      "set": "fossil",
+      "number": "48",
+      "path": "assets/ui/pokemon/tcg/088.jpg",
+      "width": 369,
+      "height": 518,
+      "bytes": 47949,
+      "sha256": "76319d484497987b74641c1ef1d586ac75e3f8b88251139402d1a615d9ce4b7b",
+      "art": [
+        47,
+        69,
+        275,
+        194
+      ],
+      "portrait": [
+        80,
+        71,
+        192
+      ],
+      "illustration": [
+        47,
+        69,
+        275,
+        194
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-grimer-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 89,
+      "species": "muk",
+      "set": "fossil",
+      "number": "13",
+      "path": "assets/ui/pokemon/tcg/089.jpg",
+      "width": 321,
+      "height": 450,
+      "bytes": 31303,
+      "sha256": "ff30d0d74fa522202bf0d83f1ca5f354607955472296c8347788d4502108eea7",
+      "art": [
+        49,
+        82,
+        214,
+        146
+      ],
+      "portrait": [
+        67,
+        90,
+        131
+      ],
+      "illustration": [
+        41,
+        60,
+        239,
+        168
+      ],
+      "excluded_badge": [
+        41,
+        60,
+        37,
+        22
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-muk-13-holo-rare--unlimited--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 90,
+      "species": "shellder",
+      "set": "fossil",
+      "number": "54",
+      "path": "assets/ui/pokemon/tcg/090.jpg",
+      "width": 291,
+      "height": 400,
+      "bytes": 33288,
+      "sha256": "71bd19e8c344d4562ca1a80a13d34af2f8deb81995eeaedc2ee31f2cbc977c3d",
+      "art": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "portrait": [
+        74,
+        68,
+        134
+      ],
+      "illustration": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-shellder-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 91,
+      "species": "cloyster",
+      "set": "fossil",
+      "number": "32",
+      "path": "assets/ui/pokemon/tcg/091.jpg",
+      "width": 707,
+      "height": 1000,
+      "bytes": 175624,
+      "sha256": "2ce2949ccd6e2d727eec556081f322c05c9a26343a0c07a9cb24c85023ac48da",
+      "art": [
+        89,
+        182,
+        478,
+        326
+      ],
+      "portrait": [
+        167,
+        192,
+        316
+      ],
+      "illustration": [
+        89,
+        132,
+        529,
+        376
+      ],
+      "excluded_badge": [
+        89,
+        132,
+        84,
+        50
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-cloyster-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 92,
+      "species": "gastly",
+      "set": "base-set",
+      "number": "50",
+      "path": "assets/ui/pokemon/tcg/092.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 89051,
+      "sha256": "52b8a7adc255b7aab5047f4a0ef39773cf76d3aa71481f3b70830df7ce6f0016",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        168,
+        151,
+        270
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-gastly-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 93,
+      "species": "haunter",
+      "set": "base-set",
+      "number": "29",
+      "path": "assets/ui/pokemon/tcg/093.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 84701,
+      "sha256": "a902a98f14d33f32344d4053954877d2d33240e51025b0e63f0eb14781329419",
+      "art": [
+        134,
+        152,
+        399,
+        272
+      ],
+      "portrait": [
+        199,
+        165,
+        202
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-haunter-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 94,
+      "species": "gengar",
+      "set": "fossil",
+      "number": "5",
+      "path": "assets/ui/pokemon/tcg/094.jpg",
+      "width": 285,
+      "height": 400,
+      "bytes": 26286,
+      "sha256": "ea55b359dd9cce8de48d33f5ac987fbf6270f1aa1174f7c87216026ec6f7684d",
+      "art": [
+        70,
+        66,
+        178,
+        121
+      ],
+      "portrait": [
+        70,
+        62,
+        128
+      ],
+      "illustration": [
+        36,
+        53,
+        212,
+        149
+      ],
+      "excluded_badge": [
+        36,
+        53,
+        34,
+        20
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-gengar-5-holo-rare--unlimited--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 95,
+      "species": "onix",
+      "set": "base-set",
+      "number": "56",
+      "path": "assets/ui/pokemon/tcg/095.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 102341,
+      "sha256": "c2a882178bb861284c1bba8f71005e9fd9f6e73492713adae64c2ce87d3f4697",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        125,
+        208,
+        208
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-onix-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 96,
+      "species": "drowzee",
+      "set": "base-set",
+      "number": "49",
+      "path": "assets/ui/pokemon/tcg/096.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 91227,
+      "sha256": "83f9bfe9566d64e92fc737d422b1e6ac42c78e6039c0d35b042a8d9f8e9d0bd1",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        126,
+        110,
+        261
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-drowzee-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 97,
+      "species": "hypno",
+      "set": "fossil",
+      "number": "23",
+      "path": "assets/ui/pokemon/tcg/097.jpg",
+      "width": 350,
+      "height": 495,
+      "bytes": 34224,
+      "sha256": "9923c76ddf0e034691897c70c70dfc510c712a4e26bdd92db871b63c617dfc25",
+      "art": [
+        85,
+        66,
+        220,
+        150
+      ],
+      "portrait": [
+        117,
+        76,
+        124
+      ],
+      "illustration": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "excluded_badge": [
+        44,
+        66,
+        41,
+        24
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-hypno-23-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 98,
+      "species": "krabby",
+      "set": "fossil",
+      "number": "51",
+      "path": "assets/ui/pokemon/tcg/098.jpg",
+      "width": 266,
+      "height": 374,
+      "bytes": 26559,
+      "sha256": "31ba0dabffcbdeae56ef9ac680d244f7f548110eed0a10033a4835b16d0fd906",
+      "art": [
+        34,
+        50,
+        198,
+        139
+      ],
+      "portrait": [
+        53,
+        56,
+        126
+      ],
+      "illustration": [
+        34,
+        50,
+        198,
+        139
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-krabby-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 99,
+      "species": "kingler",
+      "set": "fossil",
+      "number": "38",
+      "path": "assets/ui/pokemon/tcg/099.jpg",
+      "width": 1000,
+      "height": 1394,
+      "bytes": 244799,
+      "sha256": "bd5d6574d20571cc8aa915d9d6bb93cf93b00611e11a9e32cd613e3c94281316",
+      "art": [
+        244,
+        184,
+        630,
+        430
+      ],
+      "portrait": [
+        424,
+        209,
+        307
+      ],
+      "illustration": [
+        125,
+        184,
+        749,
+        525
+      ],
+      "excluded_badge": [
+        125,
+        184,
+        119,
+        70
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-kingler-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 100,
+      "species": "voltorb",
+      "set": "base-set",
+      "number": "67",
+      "path": "assets/ui/pokemon/tcg/100.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 76957,
+      "sha256": "536e83de013fda830df1f3bacd2d9ca69aff10fede0b4ececceadfc0903f1ecd",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        164,
+        110,
+        314
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-voltorb-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 101,
+      "species": "electrode",
+      "set": "base-set",
+      "number": "21",
+      "path": "assets/ui/pokemon/tcg/101.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 90841,
+      "sha256": "5febe97bac2dd3779e55910c4945a07ce56fd60385b41a36f6029b44ec1dbd18",
+      "art": [
+        91,
+        152,
+        399,
+        272
+      ],
+      "portrait": [
+        154,
+        152,
+        272
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-electrode-rare--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 102,
+      "species": "exeggcute",
+      "set": "jungle",
+      "number": "52",
+      "path": "assets/ui/pokemon/tcg/102.jpg",
+      "width": 322,
+      "height": 450,
+      "bytes": 35937,
+      "sha256": "a3793114f893637db96c519fc57cd6f1f59018111b4fb50c4a75326e7b136e7c",
+      "art": [
+        41,
+        60,
+        240,
+        168
+      ],
+      "portrait": [
+        81,
+        60,
+        168
+      ],
+      "illustration": [
+        41,
+        60,
+        240,
+        168
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-exeggcute-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 103,
+      "species": "exeggutor",
+      "set": "jungle",
+      "number": "35",
+      "path": "assets/ui/pokemon/tcg/103.jpg",
+      "width": 1064,
+      "height": 1481,
+      "bytes": 418743,
+      "sha256": "a38f173854ab6423744f88703e3b0a73dcf36deda36dbcaff228136fb2d85771",
+      "art": [
+        133,
+        270,
+        708,
+        483
+      ],
+      "portrait": [
+        233,
+        276,
+        425
+      ],
+      "illustration": [
+        133,
+        195,
+        797,
+        558
+      ],
+      "excluded_badge": [
+        133,
+        195,
+        127,
+        75
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-exeggutor-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 104,
+      "species": "cubone",
+      "set": "jungle",
+      "number": "50",
+      "path": "assets/ui/pokemon/tcg/104.jpg",
+      "width": 322,
+      "height": 450,
+      "bytes": 38288,
+      "sha256": "7f62dc1edccd5b090a2c8c26f128abb96c288229b85163a338d5a9ad3bb21c26",
+      "art": [
+        41,
+        60,
+        240,
+        168
+      ],
+      "portrait": [
+        103,
+        60,
+        110
+      ],
+      "illustration": [
+        41,
+        60,
+        240,
+        168
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-cubone-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 105,
+      "species": "marowak",
+      "set": "jungle",
+      "number": "39",
+      "path": "assets/ui/pokemon/tcg/105.jpg",
+      "width": 350,
+      "height": 495,
+      "bytes": 92842,
+      "sha256": "23421a2a11fd97aa04111c433badeab9e139ee1eff74143c4c3241a684280615",
+      "art": [
+        85,
+        66,
+        220,
+        150
+      ],
+      "portrait": [
+        150,
+        76,
+        129
+      ],
+      "illustration": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "excluded_badge": [
+        44,
+        66,
+        41,
+        24
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-marowak-uncommon--unlimited--normal--english--23421a2a11fd.jpg"
+      }
+    },
+    {
+      "dex": 106,
+      "species": "hitmonlee",
+      "set": "fossil",
+      "number": "22",
+      "path": "assets/ui/pokemon/tcg/106.jpg",
+      "width": 267,
+      "height": 371,
+      "bytes": 28576,
+      "sha256": "236991e0df4a96a2991fb2bbf985f5a7fefbe403c7889279bcea6dd4e87a2c04",
+      "art": [
+        34,
+        50,
+        199,
+        138
+      ],
+      "portrait": [
+        96,
+        50,
+        94
+      ],
+      "illustration": [
+        34,
+        50,
+        199,
+        138
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-hitmonlee-22-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 107,
+      "species": "hitmonchan",
+      "set": "base-set",
+      "number": "7",
+      "path": "assets/ui/pokemon/tcg/107.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 79584,
+      "sha256": "f5c66e9fd808121a7e8d4458b0dc43a3191578819802043f904cd422fc5567c1",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        224,
+        110,
+        179
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-hitmonchan-holo-rare--first-edition--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 108,
+      "species": "lickitung",
+      "set": "jungle",
+      "number": "38",
+      "path": "assets/ui/pokemon/tcg/108.jpg",
+      "width": 350,
+      "height": 495,
+      "bytes": 91871,
+      "sha256": "769c1635d0db343adb28c65c00bd4c0b0f6b8be01ae179254fe3d1acd2232329",
+      "art": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "portrait": [
+        126,
+        79,
+        153
+      ],
+      "illustration": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-lickitung-uncommon--unlimited--normal--english--769c1635d0db.jpg"
+      }
+    },
+    {
+      "dex": 109,
+      "species": "koffing",
+      "set": "base-set",
+      "number": "51",
+      "path": "assets/ui/pokemon/tcg/109.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 86551,
+      "sha256": "72c3c57dd4b37eefcbf8eec9a60d18e71c6949a2162d00de4b7d680c7549f863",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        161,
+        110,
+        258
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-koffing-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 110,
+      "species": "weezing",
+      "set": "fossil",
+      "number": "45",
+      "path": "assets/ui/pokemon/tcg/110.jpg",
+      "width": 1101,
+      "height": 1555,
+      "bytes": 443149,
+      "sha256": "c0ffba404b98eaa0188befeb9029bf7b5836725e3b3e51fd95376cb0daf20bb0",
+      "art": [
+        269,
+        230,
+        694,
+        473
+      ],
+      "portrait": [
+        316,
+        205,
+        523
+      ],
+      "illustration": [
+        138,
+        205,
+        825,
+        586
+      ],
+      "excluded_badge": [
+        138,
+        205,
+        131,
+        78
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-weezing-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 111,
+      "species": "rhyhorn",
+      "set": "jungle",
+      "number": "61",
+      "path": "assets/ui/pokemon/tcg/111.jpg",
+      "width": 1079,
+      "height": 1516,
+      "bytes": 405171,
+      "sha256": "516af0f1fde24c83b6160b2a82e47badf0353d6841330f449d072937cd7da6f0",
+      "art": [
+        135,
+        200,
+        808,
+        571
+      ],
+      "portrait": [
+        292,
+        227,
+        473
+      ],
+      "illustration": [
+        135,
+        200,
+        808,
+        571
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-rhyhorn-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 112,
+      "species": "rhydon",
+      "set": "jungle",
+      "number": "45",
+      "path": "assets/ui/pokemon/tcg/112.jpg",
+      "width": 350,
+      "height": 495,
+      "bytes": 39663,
+      "sha256": "f3f29f7e6c1a4834de3a7a6c28a02c986b42c68ed1f595e94b1e571c2422f66d",
+      "art": [
+        54,
+        90,
+        236,
+        161
+      ],
+      "portrait": [
+        110,
+        94,
+        129
+      ],
+      "illustration": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "excluded_badge": [
+        44,
+        66,
+        41,
+        24
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-rhydon-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 113,
+      "species": "chansey",
+      "set": "base-set",
+      "number": "3",
+      "path": "assets/ui/pokemon/tcg/113.jpg",
+      "width": 1157,
+      "height": 1600,
+      "bytes": 193848,
+      "sha256": "cad5151c9f0e03bda9b77e88d7818d8ecbf40da9fbe14779e88b297fea815e70",
+      "art": [
+        144,
+        211,
+        867,
+        603
+      ],
+      "portrait": [
+        355,
+        211,
+        363
+      ],
+      "illustration": [
+        144,
+        211,
+        867,
+        603
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-chansey-holo-rare--unlimited--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 114,
+      "species": "tangela",
+      "set": "base-set",
+      "number": "66",
+      "path": "assets/ui/pokemon/tcg/114.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 99863,
+      "sha256": "96e73b5b4b1a675a632298a10b1e3dd39e8396ba9fc8733a39fe17da5f5d50f6",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        231,
+        148,
+        186
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-tangela-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 115,
+      "species": "kangaskhan",
+      "set": "jungle",
+      "number": "21",
+      "path": "assets/ui/pokemon/tcg/115.jpg",
+      "width": 500,
+      "height": 694,
+      "bytes": 67802,
+      "sha256": "64bff7163a4875dfac6f2af2add625ae6822c84366ab91b8254f0b8b0a0954c0",
+      "art": [
+        63,
+        92,
+        374,
+        260
+      ],
+      "portrait": [
+        188,
+        92,
+        136
+      ],
+      "illustration": [
+        63,
+        92,
+        374,
+        260
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-kangaskhan-21-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 116,
+      "species": "horsea",
+      "set": "fossil",
+      "number": "49",
+      "path": "assets/ui/pokemon/tcg/116.jpg",
+      "width": 707,
+      "height": 981,
+      "bytes": 148380,
+      "sha256": "c5a96ef28d3f236212d6776ce1887c008ffbf0c1067ebf00dfe070050750a140",
+      "art": [
+        89,
+        130,
+        529,
+        369
+      ],
+      "portrait": [
+        146,
+        130,
+        279
+      ],
+      "illustration": [
+        89,
+        130,
+        529,
+        369
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-horsea-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 117,
+      "species": "seadra",
+      "set": "fossil",
+      "number": "42",
+      "path": "assets/ui/pokemon/tcg/117.jpg",
+      "width": 816,
+      "height": 1132,
+      "bytes": 184048,
+      "sha256": "afe3812ae7ed96d2eeb1d7184a81bb6c4d62feb38dc8b0bb5ae473de63fcda44",
+      "art": [
+        109,
+        206,
+        541,
+        369
+      ],
+      "portrait": [
+        212,
+        276,
+        258
+      ],
+      "illustration": [
+        102,
+        149,
+        611,
+        426
+      ],
+      "excluded_badge": [
+        102,
+        149,
+        97,
+        57
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-seadra-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 118,
+      "species": "goldeen",
+      "set": "jungle",
+      "number": "53",
+      "path": "assets/ui/pokemon/tcg/118.jpg",
+      "width": 322,
+      "height": 450,
+      "bytes": 40380,
+      "sha256": "27918a7dbdcacbe4a8bdabd28375b29e5563192b7974a435c750fc382be043df",
+      "art": [
+        41,
+        60,
+        240,
+        168
+      ],
+      "portrait": [
+        65,
+        63,
+        122
+      ],
+      "illustration": [
+        41,
+        60,
+        240,
+        168
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-goldeen-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 119,
+      "species": "seaking",
+      "set": "jungle",
+      "number": "46",
+      "path": "assets/ui/pokemon/tcg/119.jpg",
+      "width": 350,
+      "height": 495,
+      "bytes": 42759,
+      "sha256": "d35405b18bcd64c41121d32297233873f8b96f7ad3f29c3853948da17370df32",
+      "art": [
+        45,
+        90,
+        236,
+        161
+      ],
+      "portrait": [
+        103,
+        125,
+        126
+      ],
+      "illustration": [
+        44,
+        66,
+        261,
+        185
+      ],
+      "excluded_badge": [
+        44,
+        66,
+        41,
+        24
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-seaking-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 120,
+      "species": "staryu",
+      "set": "base-set",
+      "number": "65",
+      "path": "assets/ui/pokemon/tcg/120.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 79154,
+      "sha256": "e5e15fea38e2ffe525eca33fdaddd178b3d2bc0aeefb277e1193361e2cefd109",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        168,
+        118,
+        274
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-staryu-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 121,
+      "species": "starmie",
+      "set": "base-set",
+      "number": "64",
+      "path": "assets/ui/pokemon/tcg/121.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 98546,
+      "sha256": "799e82ea4c7314d15a78c4fb62135c587145beffca6622fc8e6a520b508fa86e",
+      "art": [
+        77,
+        152,
+        399,
+        272
+      ],
+      "portrait": [
+        131,
+        166,
+        248
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-starmie-common--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 122,
+      "species": "mr_mime",
+      "set": "jungle",
+      "number": "22",
+      "path": "assets/ui/pokemon/tcg/122.jpg",
+      "width": 1023,
+      "height": 1416,
+      "bytes": 290750,
+      "sha256": "c2c92d30b6a071233bf80095b8d329d33105021b9b92e3578e1c01511eb8f771",
+      "art": [
+        128,
+        186,
+        766,
+        533
+      ],
+      "portrait": [
+        343,
+        287,
+        252
+      ],
+      "illustration": [
+        128,
+        186,
+        766,
+        533
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-mr-mime-22-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 123,
+      "species": "scyther",
+      "set": "jungle",
+      "number": "26",
+      "path": "assets/ui/pokemon/tcg/123.jpg",
+      "width": 658,
+      "height": 925,
+      "bytes": 104481,
+      "sha256": "3085c7ffa3fa151bfbdb2e7710762869fff2baf192f30e65ee33628416bd23b2",
+      "art": [
+        83,
+        122,
+        492,
+        348
+      ],
+      "portrait": [
+        212,
+        169,
+        204
+      ],
+      "illustration": [
+        83,
+        122,
+        492,
+        348
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-scyther-26-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 124,
+      "species": "jynx",
+      "set": "base-set",
+      "number": "31",
+      "path": "assets/ui/pokemon/tcg/124.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 97512,
+      "sha256": "8c7dd58a23db938b40da5a70206a55d3755f381c1f9f1514c42c732a7c731242",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        222,
+        110,
+        170
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-jynx-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 125,
+      "species": "electabuzz",
+      "set": "base-set",
+      "number": "20",
+      "path": "assets/ui/pokemon/tcg/125.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 95162,
+      "sha256": "be3cb215a2da441fa8ee8a33d0adfde3ec6a8876b371f74c0c9ec6533208c372",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        212,
+        120,
+        243
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-electabuzz-rare--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 126,
+      "species": "magmar",
+      "set": "base-set",
+      "number": "36",
+      "path": "assets/ui/pokemon/tcg/126.jpg",
+      "width": 1011,
+      "height": 1403,
+      "bytes": 201434,
+      "sha256": "dfaa7dff8686055b52a70b7badaca32de3f26542627cb296ccf7d57378214057",
+      "art": [
+        126,
+        185,
+        757,
+        528
+      ],
+      "portrait": [
+        231,
+        185,
+        358
+      ],
+      "illustration": [
+        126,
+        185,
+        757,
+        528
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-magmar-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 127,
+      "species": "pinsir",
+      "set": "jungle",
+      "number": "25",
+      "path": "assets/ui/pokemon/tcg/127.jpg",
+      "width": 990,
+      "height": 1371,
+      "bytes": 327599,
+      "sha256": "ae30d836abc3cb8d0e166a05b19d2975f24a0b624453281f76b0ec38f765d63c",
+      "art": [
+        124,
+        181,
+        741,
+        516
+      ],
+      "portrait": [
+        343,
+        251,
+        400
+      ],
+      "illustration": [
+        124,
+        181,
+        741,
+        516
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-pinsir-25-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 128,
+      "species": "tauros",
+      "set": "jungle",
+      "number": "47",
+      "path": "assets/ui/pokemon/tcg/128.jpg",
+      "width": 322,
+      "height": 450,
+      "bytes": 41405,
+      "sha256": "4e7299c7be6beb5c1180a3cd6f4433edec07a0245e74a7b340849398109f8e9e",
+      "art": [
+        41,
+        60,
+        240,
+        168
+      ],
+      "portrait": [
+        46,
+        74,
+        110
+      ],
+      "illustration": [
+        41,
+        60,
+        240,
+        168
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-tauros-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 129,
+      "species": "magikarp",
+      "set": "base-set",
+      "number": "35",
+      "path": "assets/ui/pokemon/tcg/129.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 107244,
+      "sha256": "9e848bdf150fc3caf4530f29d3fdd81322ff2ed6d33d957b9c6f1780093e2640",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        138,
+        119,
+        305
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-magikarp-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 130,
+      "species": "gyarados",
+      "set": "base-set",
+      "number": "6",
+      "path": "assets/ui/pokemon/tcg/130.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 95334,
+      "sha256": "0996557099d148472f11fbdadb649641c39b83ce722319232bbcad8276966be9",
+      "art": [
+        77,
+        152,
+        399,
+        272
+      ],
+      "portrait": [
+        85,
+        152,
+        234
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-gyarados-holo-rare--first-edition--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 131,
+      "species": "lapras",
+      "set": "fossil",
+      "number": "10",
+      "path": "assets/ui/pokemon/tcg/131.jpg",
+      "width": 485,
+      "height": 673,
+      "bytes": 63525,
+      "sha256": "64e5c9b4c82aaf5782497b0e8b2035dffc23dc4472dfbd9e9b34ea74ff2f6c48",
+      "art": [
+        61,
+        89,
+        362,
+        252
+      ],
+      "portrait": [
+        178,
+        89,
+        139
+      ],
+      "illustration": [
+        61,
+        89,
+        362,
+        252
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-lapras-10-holo-rare--unlimited--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 132,
+      "species": "ditto",
+      "set": "fossil",
+      "number": "18",
+      "path": "assets/ui/pokemon/tcg/132.jpg",
+      "width": 747,
+      "height": 1033,
+      "bytes": 173923,
+      "sha256": "e45680852bc732a77350719dbb64f104e40a6271eeed1e97e8b3e76d21db34c4",
+      "art": [
+        94,
+        136,
+        559,
+        388
+      ],
+      "portrait": [
+        195,
+        136,
+        372
+      ],
+      "illustration": [
+        94,
+        136,
+        559,
+        388
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-ditto-18-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 133,
+      "species": "eevee",
+      "set": "jungle",
+      "number": "51",
+      "path": "assets/ui/pokemon/tcg/133.jpg",
+      "width": 357,
+      "height": 500,
+      "bytes": 35829,
+      "sha256": "d7708854bd39bc4a8742aab5f1344513124f6b1ffbfabd8e06e9cbba0f649d35",
+      "art": [
+        45,
+        67,
+        266,
+        187
+      ],
+      "portrait": [
+        146,
+        77,
+        126
+      ],
+      "illustration": [
+        45,
+        67,
+        266,
+        187
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-eevee-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 134,
+      "species": "vaporeon",
+      "set": "jungle",
+      "number": "28",
+      "path": "assets/ui/pokemon/tcg/134.jpg",
+      "width": 547,
+      "height": 766,
+      "bytes": 103555,
+      "sha256": "f2c47a664be6e6ca8a33d5e6bfcd2fb5409bd2dae7d4baf06fa36ff2a651229e",
+      "art": [
+        133,
+        110,
+        345,
+        235
+      ],
+      "portrait": [
+        133,
+        122,
+        212
+      ],
+      "illustration": [
+        69,
+        101,
+        409,
+        288
+      ],
+      "excluded_badge": [
+        69,
+        101,
+        64,
+        38
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-vaporeon-28-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 135,
+      "species": "jolteon",
+      "set": "jungle",
+      "number": "20",
+      "path": "assets/ui/pokemon/tcg/135.jpg",
+      "width": 1036,
+      "height": 1448,
+      "bytes": 454927,
+      "sha256": "b83ead073723e56ecddcdcede10d27529bff990317dbbdbc023208cac300b38e",
+      "art": [
+        164,
+        264,
+        692,
+        472
+      ],
+      "portrait": [
+        316,
+        335,
+        401
+      ],
+      "illustration": [
+        129,
+        191,
+        776,
+        545
+      ],
+      "excluded_badge": [
+        129,
+        191,
+        124,
+        73
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-jolteon-20-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 136,
+      "species": "flareon",
+      "set": "jungle",
+      "number": "19",
+      "path": "assets/ui/pokemon/tcg/136.jpg",
+      "width": 1096,
+      "height": 1523,
+      "bytes": 419575,
+      "sha256": "9f01924d3c4caa5e25decb40c7b402fbc8e972d373369080f9fce72420c6ee79",
+      "art": [
+        137,
+        277,
+        730,
+        498
+      ],
+      "portrait": [
+        211,
+        335,
+        432
+      ],
+      "illustration": [
+        137,
+        201,
+        821,
+        574
+      ],
+      "excluded_badge": [
+        137,
+        201,
+        130,
+        76
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-flareon-19-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 137,
+      "species": "porygon",
+      "set": "base-set",
+      "number": "39",
+      "path": "assets/ui/pokemon/tcg/137.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 87480,
+      "sha256": "1cb8604139ce12c0fefd68641bf67a729af15a2064f1d19d4144b4f50f2cb89e",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        163,
+        126,
+        241
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-porygon-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 138,
+      "species": "omanyte",
+      "set": "fossil",
+      "number": "52",
+      "path": "assets/ui/pokemon/tcg/138.jpg",
+      "width": 291,
+      "height": 400,
+      "bytes": 37078,
+      "sha256": "678a463e97397752a6725c9c37db7bb8ce29fda72b299852eeafa4e4d0ce3e13",
+      "art": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "portrait": [
+        107,
+        87,
+        115
+      ],
+      "illustration": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-omanyte-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 139,
+      "species": "omastar",
+      "set": "fossil",
+      "number": "40",
+      "path": "assets/ui/pokemon/tcg/139.jpg",
+      "width": 263,
+      "height": 363,
+      "bytes": 31248,
+      "sha256": "4a625a368fa84b91a2d7da8f311d5877836f782d8baed466b57d55acb66329cc",
+      "art": [
+        52,
+        66,
+        173,
+        118
+      ],
+      "portrait": [
+        81,
+        76,
+        103
+      ],
+      "illustration": [
+        34,
+        49,
+        196,
+        135
+      ],
+      "excluded_badge": [
+        34,
+        49,
+        30,
+        17
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-omastar-uncommon--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 140,
+      "species": "kabuto",
+      "set": "fossil",
+      "number": "50",
+      "path": "assets/ui/pokemon/tcg/140.jpg",
+      "width": 291,
+      "height": 400,
+      "bytes": 33906,
+      "sha256": "8751e4a8d612317a8883a4c21d6f88e2873a8a9735ca278541b6d1b45c579878",
+      "art": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "portrait": [
+        84,
+        53,
+        148
+      ],
+      "illustration": [
+        37,
+        53,
+        217,
+        149
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-kabuto-common--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 141,
+      "species": "kabutops",
+      "set": "fossil",
+      "number": "9",
+      "path": "assets/ui/pokemon/tcg/141.jpg",
+      "width": 549,
+      "height": 767,
+      "bytes": 91740,
+      "sha256": "e01d11703c6fed7e1a835898f8437c3416bac44d94e7a15e6ef6ff3074f39f80",
+      "art": [
+        134,
+        101,
+        345,
+        235
+      ],
+      "portrait": [
+        134,
+        112,
+        197
+      ],
+      "illustration": [
+        69,
+        101,
+        410,
+        288
+      ],
+      "excluded_badge": [
+        69,
+        101,
+        65,
+        39
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-kabutops-9-holo-rare--unlimited--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 142,
+      "species": "aerodactyl",
+      "set": "fossil",
+      "number": "16",
+      "path": "assets/ui/pokemon/tcg/142.jpg",
+      "width": 744,
+      "height": 1039,
+      "bytes": 241612,
+      "sha256": "024cdcd335e793fd3412d507edb1d248a25f484c4a20c388fd2992f52eeed23c",
+      "art": [
+        93,
+        137,
+        557,
+        391
+      ],
+      "portrait": [
+        212,
+        179,
+        349
+      ],
+      "illustration": [
+        93,
+        137,
+        557,
+        391
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-aerodactyl-16-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 143,
+      "species": "snorlax",
+      "set": "jungle",
+      "number": "11",
+      "path": "assets/ui/pokemon/tcg/143.jpg",
+      "width": 500,
+      "height": 703,
+      "bytes": 60453,
+      "sha256": "a87322c1c9670809ae843904bb22ec77a6ae323f3e470a690f112b19d2b3b0fb",
+      "art": [
+        63,
+        93,
+        374,
+        264
+      ],
+      "portrait": [
+        177,
+        93,
+        186
+      ],
+      "illustration": [
+        63,
+        93,
+        374,
+        264
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-jungle-snorlax-11-holo-rare--unlimited--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 144,
+      "species": "articuno",
+      "set": "fossil",
+      "number": "17",
+      "path": "assets/ui/pokemon/tcg/144.jpg",
+      "width": 1120,
+      "height": 1563,
+      "bytes": 404498,
+      "sha256": "49596d71e2f1106426e6990bf77fa21896fc268fdcc8db95f83c42b6ce9e385a",
+      "art": [
+        140,
+        206,
+        839,
+        589
+      ],
+      "portrait": [
+        271,
+        252,
+        403
+      ],
+      "illustration": [
+        140,
+        206,
+        839,
+        589
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-articuno-17-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 145,
+      "species": "zapdos",
+      "set": "base-set",
+      "number": "16",
+      "path": "assets/ui/pokemon/tcg/145.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 85746,
+      "sha256": "b2292fe53730767a4a44f569a89832dd4993b53436653ad8524c275487e18ccb",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        219,
+        126,
+        222
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-zapdos-holo-rare--first-edition--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 146,
+      "species": "moltres",
+      "set": "fossil",
+      "number": "27",
+      "path": "assets/ui/pokemon/tcg/146.jpg",
+      "width": 394,
+      "height": 550,
+      "bytes": 47456,
+      "sha256": "a914075df62d69a66de3d09c4192d0a53cc90f4178dec0e8e698024c9e9ed3a5",
+      "art": [
+        50,
+        73,
+        294,
+        206
+      ],
+      "portrait": [
+        140,
+        87,
+        95
+      ],
+      "illustration": [
+        50,
+        73,
+        294,
+        206
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-moltres-27-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 147,
+      "species": "dratini",
+      "set": "base-set",
+      "number": "26",
+      "path": "assets/ui/pokemon/tcg/147.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 73747,
+      "sha256": "a168dc7bb2ef3b70b3189fe4d5b57108e168b47e794e68df0f697e1f3163a553",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        189,
+        110,
+        207
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-dratini-uncommon--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 148,
+      "species": "dragonair",
+      "set": "base-set",
+      "number": "18",
+      "path": "assets/ui/pokemon/tcg/148.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 97782,
+      "sha256": "0e4a04a4286a5d2eba800b76b52d08579e4b75650e87ef5694414c491353f68e",
+      "art": [
+        149,
+        110,
+        384,
+        262
+      ],
+      "portrait": [
+        291,
+        140,
+        197
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "excluded_badge": [
+        77,
+        110,
+        72,
+        42
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-dragonair-rare--first-edition--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 149,
+      "species": "dragonite",
+      "set": "fossil",
+      "number": "19",
+      "path": "assets/ui/pokemon/tcg/149.jpg",
+      "width": 324,
+      "height": 450,
+      "bytes": 34716,
+      "sha256": "ce2e3c511c92760555b1f7b45ead7d3e4ddb55b2f5fc33cae566005378e80296",
+      "art": [
+        79,
+        60,
+        203,
+        138
+      ],
+      "portrait": [
+        116,
+        64,
+        101
+      ],
+      "illustration": [
+        41,
+        60,
+        241,
+        168
+      ],
+      "excluded_badge": [
+        41,
+        60,
+        38,
+        22
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-fossil-dragonite-19-rare--unlimited--normal--english.jpg"
+      }
+    },
+    {
+      "dex": 150,
+      "species": "mewtwo",
+      "set": "base-set",
+      "number": "10",
+      "path": "assets/ui/pokemon/tcg/150.jpg",
+      "width": 610,
+      "height": 835,
+      "bytes": 87826,
+      "sha256": "3bdcceed1139ed97b24324ae0875cefda51f64310757c9cab775cc77ca2c1262",
+      "art": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "portrait": [
+        180,
+        110,
+        186
+      ],
+      "illustration": [
+        77,
+        110,
+        456,
+        314
+      ],
+      "source": {
+        "kind": "binderledger",
+        "path": "data/card-images/pokemon-base-set-first-edition-mewtwo-holo-rare--first-edition--holofoil--english.jpg"
+      }
+    },
+    {
+      "dex": 151,
+      "species": "mew",
+      "set": "wizards-black-star-promos",
+      "number": "8",
+      "path": "assets/ui/pokemon/tcg/151.jpg",
+      "width": 600,
+      "height": 825,
+      "bytes": 136309,
+      "sha256": "bcde813d13f0adb9e9bd72ce2dfbeba32675febcfcf00173def19c883f72617e",
+      "art": [
+        68,
+        100,
+        464,
+        320
+      ],
+      "portrait": [
+        163,
+        100,
+        196
+      ],
+      "illustration": [
+        68,
+        100,
+        464,
+        320
+      ],
+      "source": {
+        "kind": "web",
+        "url": "https://pkmncards.com/wp-content/uploads/mew-wizards-black-star-promos-8.jpg",
+        "reference": "https://pkmncards.com/card/mew-wizards-black-star-promos-8/"
+      }
+    }
+  ]
+}

@@ -934,12 +934,12 @@
     },
     {
       "name": "hud-inspection",
-      "focus": "HOME face portrait and wide selected Pokemon strip above fixed Team Types",
+      "focus": "TCG face portrait and wide selected Pokemon strip above fixed Team Types",
       "coverage": [
         "world",
         "ui",
         "unit-inspection",
-        "home-portraits"
+        "tcg-artwork"
       ],
       "snapshotPath": "config/debug/editor_hud_inspection.json",
       "screenshotFrame": 120,
@@ -1025,7 +1025,7 @@
           "minimumBrightNeutralPixelRatio": 0.06
         },
         {
-          "name": "selected-home-portrait",
+          "name": "selected-tcg-portrait",
           "x": 0.02734375,
           "y": 0.059722222222222225,
           "width": 0.0328125,
@@ -1033,20 +1033,20 @@
           "maximumNearBlackPixelRatio": 0.08,
           "minimumMidtonePixelRatio": 0.45,
           "minimumLuminanceStandardDeviation": 25,
-          "minimumRedPixelRatio": 0.015,
-          "minimumBrightNeutralPixelRatio": 0.02,
-          "midtoneLuminanceMaximum": 255
+          "minimumBrightNeutralPixelRatio": 0.2,
+          "midtoneLuminanceMaximum": 255,
+          "midtoneLuminanceMinimum": 180
         }
       ]
     },
     {
       "name": "hud-inspection-compact",
-      "focus": "HOME face portrait and wide selected Pokemon strip above fixed Team Types",
+      "focus": "TCG face portrait and wide selected Pokemon strip above fixed Team Types",
       "coverage": [
         "world",
         "ui",
         "unit-inspection",
-        "home-portraits"
+        "tcg-artwork"
       ],
       "snapshotPath": "config/debug/editor_hud_inspection.json",
       "screenshotFrame": 120,
@@ -1132,7 +1132,7 @@
           "minimumBrightNeutralPixelRatio": 0.06
         },
         {
-          "name": "selected-home-portrait",
+          "name": "selected-tcg-portrait",
           "x": 0.02703125,
           "y": 0.045208333333333336,
           "width": 0.0328125,
@@ -1140,20 +1140,20 @@
           "maximumNearBlackPixelRatio": 0.08,
           "minimumMidtonePixelRatio": 0.45,
           "minimumLuminanceStandardDeviation": 25,
-          "minimumRedPixelRatio": 0.015,
-          "minimumBrightNeutralPixelRatio": 0.02,
-          "midtoneLuminanceMaximum": 255
+          "minimumBrightNeutralPixelRatio": 0.2,
+          "midtoneLuminanceMaximum": 255,
+          "midtoneLuminanceMinimum": 180
         }
       ]
     },
     {
       "name": "hud-inspection-rattata",
-      "focus": "HOME Rattata portrait for an inspected bench Pokemon",
+      "focus": "TCG Rattata portrait for an inspected bench Pokemon",
       "coverage": [
         "world",
         "ui",
         "unit-inspection",
-        "home-portraits"
+        "tcg-artwork"
       ],
       "snapshotPath": "config/debug/editor_hud_inspection_rattata.json",
       "screenshotFrame": 120,
@@ -1239,7 +1239,7 @@
           "minimumBrightNeutralPixelRatio": 0.06
         },
         {
-          "name": "selected-home-portrait",
+          "name": "selected-tcg-portrait",
           "x": 0.02734375,
           "y": 0.06111111111111111,
           "width": 0.028125,
@@ -1247,7 +1247,7 @@
           "maximumNearBlackPixelRatio": 0.08,
           "minimumMidtonePixelRatio": 0.45,
           "minimumLuminanceStandardDeviation": 25,
-          "minimumBrightNeutralPixelRatio": 0.05,
+          "minimumBrightNeutralPixelRatio": 0.2,
           "midtoneLuminanceMaximum": 255
         }
       ]

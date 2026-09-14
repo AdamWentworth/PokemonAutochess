@@ -355,13 +355,16 @@ live stats, bench transfers, removal and planning pickup. Local qualification is
 recorded in `debug/unit-inspection-wide/{native,editor}`. The selected captures
 also guard Team Types at its normal anchor, catching selection-driven shifts.
 
-The identity column uses original HOME art with per-species face framing for all
-151 base Kanto species. See [the portrait runbook](POKEMON_HUD_PORTRAITS.md) for
-asset restoration and framing edits. `ui_hud_formatting_contract` checks the full
-mapping and UV bounds; the native image cases check Bulbasaur and bench Rattata
-portraits, including compact rendering. Qualification is recorded in
-`debug/home-portraits/{native-final,editor-final}`. UI texture changes also require
-`hud-starter-wide` and the editor's `hud-starter-cards` on all three APIs.
+The identity column and Pokemon cards share original TCG scans with separate
+per-species crops for all 151 base Kanto species. See [the artwork runbook](POKEMON_HUD_PORTRAITS.md)
+for catalog sources, restoration and framing edits. `ui_hud_formatting_contract`
+checks the full mapping and portrait bounds; `ui_card_renderer_contract` checks
+all card crops at multiple frame sizes without stretching. Native image cases
+check Bulbasaur and bench Rattata portraits, including compact rendering.
+Qualification is recorded in `debug/tcg-art/{native-final,editor-final}`. Artwork
+changes also require `hud-shop-compact`, `hud-starter-wide` and the editor's
+`hud-starter-cards` on all three APIs. TCG portrait content guards must reject
+blank and stale HOME portrait content; frame-fill and type-icon checks remain.
 
 Also check the editor while stopped: layout-edit shortcut banners must not paint
 over the game HUD. These instructions live in the Scene/Game tab tooltips.

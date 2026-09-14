@@ -3,10 +3,10 @@
 
 #include <string>
 #include <vector>
+#include <cmath>
 
 bool test_ui_card_renderer_contract(std::string& outFail) {
-    using engine::render::sprite_card_art::isProxyPath;
-    using engine::render::sprite_card_art::sourcePathFromProxy;
+    namespace artwork = game::runtime::pokemon_artwork;
     std::vector<IRenderBackend::DebugQuad> quads;
     std::vector<IRenderBackend::DebugSprite> sprites;
 
@@ -37,14 +37,16 @@ bool test_ui_card_renderer_contract(std::string& outFail) {
     }
 
     const auto& artSprite = sprites.front();
-    if (!isProxyPath(artSprite.texturePath) ||
-        sourcePathFromProxy(artSprite.texturePath) != "assets/images/charmander.png") {
-        outFail = "appendCard should map explicit art image path to backend card art proxy";
+    if (artSprite.texturePath != "assets/ui/pokemon/tcg/004.jpg") {
+        outFail = "appendCard should choose the catalog scan even when old states carry legacy artwork paths.";
         return false;
     }
-    if (artSprite.u0 != 0.20f || artSprite.v0 != 0.10f ||
-        artSprite.u1 != 0.60f || artSprite.v1 != 0.90f) {
-        outFail = "appendCard should propagate UV bounds to sprite";
+    const auto &charmander = *artwork::find("charmander");
+    if (artSprite.u0 * charmander.width < charmander.art.x + charmander.art.w * .20f - .001f ||
+        artSprite.v0 * charmander.height < charmander.art.y + charmander.art.h * .10f - .001f ||
+        artSprite.u1 * charmander.width > charmander.art.x + charmander.art.w * .60f + .001f ||
+        artSprite.v1 * charmander.height > charmander.art.y + charmander.art.h * .90f + .001f) {
+        outFail = "Pokemon card UVs must stay within their requested portion of the illustration.";
         return false;
     }
     if (artSprite.w <= 0.0f || artSprite.h <= 0.0f) {
@@ -55,6 +57,46 @@ bool test_ui_card_renderer_contract(std::string& outFail) {
     if (frameSprite.texturePath != "assets/ui/frame_gold.png") {
         outFail = "appendCard should emit legacy gold frame sprite";
         return false;
+    }
+
+    for (const auto &entry : artwork::entries) {
+        for (const auto size : {std::pair{90.25f,61.0f}, std::pair{220.0f,150.0f},
+                                std::pair{180.0f,180.0f}, std::pair{300.0f,120.0f}}) {
+            auto card = in;
+            card.speciesName = std::string(entry.species);
+            card.w = size.first; card.h = size.second;
+            card.u0 = card.v0 = 0; card.u1 = card.v1 = 1;
+            std::vector<IRenderBackend::DebugQuad> cardQuads;
+            std::vector<IRenderBackend::DebugSprite> cardSprites, portraitSprites;
+            game::runtime::ui_card_renderer::appendCard(cardQuads, &cardSprites, card);
+            artwork::appendPortrait(portraitSprites, entry.species, 10, 10, 52);
+            if (cardSprites.size() != 2 || portraitSprites.size() != 1 ||
+                cardSprites[0].texturePath != portraitSprites[0].texturePath) {
+                outFail = "All 151 Pokemon must share one scan between cards and portraits.";
+                return false;
+            }
+            const auto &sprite = cardSprites[0];
+            const float pixelW = (sprite.u1 - sprite.u0) * entry.width;
+            const float pixelH = (sprite.v1 - sprite.v0) * entry.height;
+            if (sprite.u0 * entry.width < entry.art.x - .001f || sprite.v0 * entry.height < entry.art.y - .001f ||
+                sprite.u1 * entry.width > entry.art.x + entry.art.w + .001f ||
+                sprite.v1 * entry.height > entry.art.y + entry.art.h + .001f ||
+                std::abs(pixelW / pixelH - sprite.w / sprite.h) > .001f) {
+                outFail = "Card art must fill the frame without stretching or sampling physical-card labels at any aspect ratio.";
+                return false;
+            }
+        }
+    }
+    {
+        auto item = in; item.item = true;
+        std::vector<IRenderBackend::DebugQuad> itemQuads;
+        std::vector<IRenderBackend::DebugSprite> itemSprites;
+        game::runtime::ui_card_renderer::appendCard(itemQuads, &itemSprites, item);
+        if (itemSprites[0].texturePath != in.explicitImagePath || itemSprites[0].u0 != .20f ||
+            itemSprites[0].v0 != .10f || itemSprites[0].u1 != .60f || itemSprites[0].v1 != .90f) {
+            outFail = "Item images and atlas UVs must remain independent of the Pokemon artwork catalog.";
+            return false;
+        }
     }
 
     {

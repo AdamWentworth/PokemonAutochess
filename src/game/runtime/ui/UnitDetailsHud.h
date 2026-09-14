@@ -1,7 +1,7 @@
 #pragma once
 
 #include "game/runtime/ui/TypeRosterHud.h"
-#include "game/runtime/ui/PokemonPortraits.h"
+#include "game/runtime/ui/PokemonArtwork.h"
 #include "game/PokemonInstance.h"
 #include "game/config/GameDataDb.h"
 #include <iomanip>
@@ -48,9 +48,9 @@ inline void append(std::vector<IRenderBackend::DebugQuad> &quads,
         hud_paint::quad(quads, l.x + x * s, l.y + 11 * s, s, 58 * s, {.20f, .30f, .25f});
 
     // Share the existing identity column: selection never resizes this strip
-    // or changes the Team Types anchor. Original PNGs use per-species face UVs.
+    // or changes the Team Types anchor. Original scans use per-species face UVs.
     hud_paint::panel(quads, l.x + 8 * s, l.y + 9 * s, 56 * s, 56 * s, 5 * s, {.09f, .16f, .13f}, 1);
-    pokemon_portraits::append(sprites, unit.name, l.x + 10 * s, l.y + 11 * s, 52 * s);
+    pokemon_artwork::appendPortrait(sprites, unit.name, l.x + 10 * s, l.y + 11 * s, 52 * s);
     text(72, 10, hud::humanizeToken(unit.name), 1.4f, {.97f, .91f, .69f}, 74);
     for (std::size_t i = 0; i < std::min<std::size_t>(2, unit.types.size()); ++i) {
         const float y = 29 + static_cast<float>(i) * 18;
