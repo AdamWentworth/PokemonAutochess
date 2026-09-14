@@ -160,7 +160,6 @@ std::vector<ScriptAPI::CombatUnitSnapshot> ScriptAPI::listUnitsForCombat() const
         PokemonSide side = PokemonSide::Player;
         bool active = false;
         bool attackReady = false;
-        int hp = 0;
     };
 
     std::vector<CachedUnit> cached;
@@ -170,8 +169,7 @@ std::vector<ScriptAPI::CombatUnitSnapshot> ScriptAPI::listUnitsForCombat() const
         item.cell = world_->worldToGrid(unit.position);
         item.side = unit.side;
         item.active = isCombatActive(unit);
-        item.attackReady = canIssueAttack(unit) && unit.attackTimerSec <= kAttackReadyEps;
-        item.hp = unit.hp;
+        item.attackReady = !unit.isMoving && canIssueAttack(unit) && unit.attackTimerSec <= kAttackReadyEps;
         cached.push_back(item);
     }
 
@@ -199,17 +197,20 @@ std::vector<ScriptAPI::CombatUnitSnapshot> ScriptAPI::listUnitsForCombat() const
         if (cached[i].active) {
             int adjacentCount = 0;
             int bestAdjacentEnemyId = -1;
-            int bestAdjacentHp = std::numeric_limits<int>::max();
+            int bestAdjacentDistance = std::numeric_limits<int>::max();
             for (std::size_t j = 0; j < units.size(); ++j) {
                 if (i == j) continue;
                 if (!cached[j].active || cached[j].side == cached[i].side) continue;
                 if (!world_->combatMap().canEngageMelee(world_->combatActor(units[i]), world_->combatActor(units[j]))) continue;
 
                 ++adjacentCount;
-                if (cached[j].hp < bestAdjacentHp ||
-                    (cached[j].hp == bestAdjacentHp &&
+                const int dx = cached[i].cell.x - cached[j].cell.x;
+                const int dz = cached[i].cell.y - cached[j].cell.y;
+                const int distance = dx * dx + dz * dz;
+                if (distance < bestAdjacentDistance ||
+                    (distance == bestAdjacentDistance &&
                      (bestAdjacentEnemyId < 0 || units[j].id < bestAdjacentEnemyId))) {
-                    bestAdjacentHp = cached[j].hp;
+                    bestAdjacentDistance = distance;
                     bestAdjacentEnemyId = units[j].id;
                 }
             }
@@ -257,6 +258,15 @@ std::pair<int, int> ScriptAPI::nearestEnemyCell(int unitId) const {
     return {bestCell.x, bestCell.y};
 }
 
+bool ScriptAPI::canEngageEnemy(int unitId, int targetId) const {
+    if (!world_) return false;
+    const auto* unit = world_->findUnitById(unitId);
+    const auto* target = world_->findUnitById(targetId);
+    return unit && target && isCombatActive(*unit) && isCombatActive(*target) &&
+           unit->side != target->side &&
+           world_->combatMap().canEngageMelee(world_->combatActor(*unit), world_->combatActor(*target));
+}
+
 bool ScriptAPI::isAdjacentToEnemy(int unitId) const {
     if (!world_) return false;
     const auto* unit = world_->findUnitById(unitId);
@@ -294,7 +304,7 @@ bool ScriptAPI::canAttack(int unitId) const {
 bool ScriptAPI::attackReady(int unitId) const {
     if (!world_) return false;
     const auto* unit = world_->findUnitById(unitId);
-    if (!unit || !canIssueAttack(*unit)) return false;
+    if (!unit || unit->isMoving || !canIssueAttack(*unit)) return false;
     return unit->attackTimerSec <= kAttackReadyEps;
 }
 

@@ -1430,6 +1430,53 @@
           "minimumLuminanceStandardDeviation": 20
         }
       ]
+    },
+    {
+      "name": "combat-target-focus",
+      "focus": "crowded opponents retain attackable targets across repeated attack cycles",
+      "coverage": [
+        "world",
+        "units",
+        "movement",
+        "facing",
+        "target-selection",
+        "combat-focus"
+      ],
+      "snapshotPath": "config/debug/editor_route1_flat_experiment_comparison.json",
+      "screenshotFrame": 360,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.25,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "engaged-pidgey",
+          "x": 0.5453125,
+          "y": 0.4125,
+          "width": 0.021875,
+          "height": 0.06388888888888888,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.08,
+          "minimumLuminanceStandardDeviation": 20
+        },
+        {
+          "name": "engaged-squirtle",
+          "x": 0.4671875,
+          "y": 0.4444444444444444,
+          "width": 0.0234375,
+          "height": 0.04027777777777778,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.008,
+          "minimumLuminanceStandardDeviation": 20
+        }
+      ]
     }
   ]
 }

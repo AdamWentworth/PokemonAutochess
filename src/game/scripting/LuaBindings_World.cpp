@@ -144,6 +144,10 @@ void registerLuaBindings_World(sol::state& lua, ScriptAPI& api) {
         return api.isAdjacentToEnemy(unitId);
     });
 
+    lua.set_function("world_can_engage_enemy", [&api](int unitId, int targetId) {
+        return api.canEngageEnemy(unitId, targetId);
+    });
+
     lua.set_function("world_enemies_adjacent", [&api, &lua](int unitId) {
         sol::state_view L(lua);
         sol::table arr = L.create_table();

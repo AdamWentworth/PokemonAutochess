@@ -717,7 +717,12 @@ function combat_update(dt)
       if cycleLocked then
         tgt = locked_target[u.id]
       elseif adjacent then
-        tgt = find_adjacent_enemy(u.id)
+        local previous = focused_target[u.id]
+        if previous and world_can_engage_enemy(u.id, previous) then
+          tgt = previous
+        else
+          tgt = find_adjacent_enemy(u.id)
+        end
       end
 
       if tgt then
@@ -726,7 +731,8 @@ function combat_update(dt)
         focused_target[u.id] = nil
       end
 
-      local targetValid = target_exists_for_lock(tgt)
+      local targetValid = tgt and ((cycleLocked and target_exists_for_lock(tgt)) or
+                                  ((not cycleLocked) and world_can_engage_enemy(u.id, tgt)))
       if adjacent and (not cycleLocked) and targetValid then
         -- Update pending-charged flag as soon as gauge fills.
         mark_charged_pending_if_ready(u.id)

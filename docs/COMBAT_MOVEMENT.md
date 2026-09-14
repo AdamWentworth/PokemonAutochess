@@ -69,6 +69,33 @@ capability. `ENCOUNTER_GRASS.md` defines concealment, attack reveals and the
 last-seen investigations and terrain-legal search patrol used when no visible,
 reachable target remains.
 
+## Combat targeting
+
+New engagements choose the nearest visible, attackable enemy using the same
+squared grid distance as movement. HP is not a target priority; genuine distance
+ties use stable unit ID. Cardinal neighbors therefore take priority over diagonal
+neighbors when acquiring a target in aligned rows.
+
+Native and Lua combat retain that focus between attack cycles while the enemy
+remains alive, hostile, visible, and within terrain-legal melee range. A closer or
+weaker newcomer does not steal it. `ScriptAPI::canEngageEnemy` supplies the shared
+validity query. Units do not acquire combat targets or start attacks during
+locomotion. An existing attack cycle keeps its animation target; the next attack
+must reacquire if the old enemy fainted, entered capture, disappeared, changed
+teams, moved out of range, or became concealed or terrain-inaccessible.
+
+`combat_targeting_headless` exercises both drivers: aligned 5v5 formations with
+unequal HP and reversed storage order, moving approaches, retained focus across
+attacks, all seven invalidation cases, and waiting without an eligible target.
+The `movement-crowded-meeting` and `combat-target-focus` native/editor matrix cases
+check initial and repeated attack cycles on all three rendering APIs.
+
+```powershell
+ctest --test-dir build -C RelWithDebInfo -R combat_targeting_headless --output-on-failure
+./tools/render_parity_matrix.ps1 -Config RelWithDebInfo -Cases movement-crowded-meeting,combat-target-focus -OutputDir debug/combat-targeting/native
+./tools/housekeeping/check_editor_workflow.ps1 -Cases movement-crowded-meeting,combat-target-focus -OutputDirectory debug/combat-targeting/editor
+```
+
 ## Ground ledges and ramps
 
 `AuthoredCombatMap` activates from the validated arena archive before the first

@@ -1087,7 +1087,11 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
             const auto it = lockedTarget_.find(unit.id);
             if (it != lockedTarget_.end()) targetId = it->second;
         } else if (adjacent) {
-            targetId = unit.bestAdjacentEnemyId;
+            // Keep a valid focus between attack cycles. A weaker or closer
+            // neighbor arriving later must not steal an ongoing engagement.
+            const auto focus = focusedTarget_.find(unit.id);
+            targetId = focus != focusedTarget_.end() && api->canEngageEnemy(unit.id, focus->second)
+                ? focus->second : unit.bestAdjacentEnemyId;
         }
         if (decisionTraceMode) {
             unitTrace.targetId = targetId;
@@ -1107,7 +1111,8 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         }
 
         const auto validateStart = decisionTraceMode ? Clock::now() : Clock::time_point{};
-        const bool targetValid = targetExistsForLock(targetId);
+        const bool targetValid = cycleLocked ? targetExistsForLock(targetId)
+                                            : api->canEngageEnemy(unit.id, targetId);
         if (decisionTraceMode) {
             unitTrace.targetValid = targetValid;
             unitTrace.validateMs = elapsedPlanMs(validateStart, Clock::now());

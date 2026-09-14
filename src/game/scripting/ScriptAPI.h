@@ -148,7 +148,7 @@ public:
         std::string chargedMove;
         std::vector<std::string> types;
         int adjacentEnemyCount = 0;
-        int bestAdjacentEnemyId = -1;
+        int bestAdjacentEnemyId = -1; // Nearest eligible candidate for acquiring a new combat focus.
         bool canAttack = false;
         bool attackReady = false;
     };
@@ -182,6 +182,8 @@ public:
     std::tuple<float, float, float> gridToWorldPos(int col, int row) const;
     std::pair<int, int> worldToGridPos(float x, float y, float z) const;
     bool isAdjacentToEnemy(int unitId) const;
+    // Live opponent, visibility, terrain and range; independent of attack cooldown.
+    bool canEngageEnemy(int unitId, int targetId) const;
     std::vector<int> enemiesAdjacent(int unitId) const;
     bool canAttack(int unitId) const;
     bool attackReady(int unitId) const;
