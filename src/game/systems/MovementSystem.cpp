@@ -1,5 +1,6 @@
 // MovementSystem.cpp
 #include "MovementSystem.h"
+#include "game/systems/UnitFacing.h"
 
 #include "engine/core/EngineServices.h"
 #include "engine/core/ecs/World.h"
@@ -25,17 +26,6 @@ constexpr float kInfCost = std::numeric_limits<float>::max();
 
 bool isCombatActive(const PokemonInstance& unit) {
     return unit.alive && !unit.captureInProgress;
-}
-
-bool setFacingToTarget(PokemonInstance& unit, const glm::vec3& targetPos) {
-    const glm::vec3 delta = targetPos - unit.position;
-    const float lenSq = glm::dot(delta, delta);
-    if (lenSq <= 1e-8f) return false;
-
-    const glm::vec3 lookDir = delta / std::sqrt(lenSq);
-    constexpr float kRadToDeg = 57.29577951308232f;
-    unit.rotation.y = std::atan2(lookDir.x, lookDir.z) * kRadToDeg;
-    return true;
 }
 
 glm::ivec2 worldCell(const GameConfigData& cfg, const glm::vec3& pos) {
@@ -399,12 +389,12 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     }
 
     for (const PlannerUnit &unit : units) {
-        if (unit.unit->ledgeJump.active() || (unit.enemyCol == -1 && unit.unit->isMoving)) {
-            setFacingToTarget(*unit.unit, unit.unit->moveTo);
+        if (game::unit_facing::hasTravelFacing(*unit.unit)) {
+            game::unit_facing::faceTravel(*unit.unit);
             continue;
         }
         if (unit.enemyCol != -1 && unit.enemyRow != -1) {
-            setFacingToTarget(*unit.unit, gameWorld->gridToWorld(unit.enemyCol, unit.enemyRow));
+            game::unit_facing::faceTarget(*unit.unit, gameWorld->gridToWorld(unit.enemyCol, unit.enemyRow));
         }
     }
 

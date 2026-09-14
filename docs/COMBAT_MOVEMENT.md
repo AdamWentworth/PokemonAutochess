@@ -2,17 +2,38 @@
 
 Status: Active
 Type: Contract
-Last updated: 2026-09-09
+Last updated: 2026-09-13
 
-The current gameplay test map is the Blender-authored Route 1 south entrance
-(`routes/route1-pilot`, art pass 10). Open its Planning or Battle preset in
-Phlosion Editor. The south clearing is deferred.
+Normal games use the Blender-authored flat dirt arena
+(`routes/route1-flat-experiment`). Its Crowded Battle scenario exercises movement
+and combat. The South Entrance (`routes/route1-pilot`) retains terrain, encounter
+grass and ledge scenarios for those mechanics.
 
 `MovementSystem` owns movement timing and reservations; `game/arena/CombatMap`
 owns grid planning and the traversal/perception/melee policy interface. Each step reserves its origin
 and destination until arrival. Diagonal steps also reserve their two adjoining
 cells, and A* cannot cut across an occupied or reserved corner. Reservations for
 existing moves are established before any idle unit plans another step.
+
+`game/systems/UnitFacing.h` owns horizontal facing for native movement and script
+commands. Walking, flying and jumping face the current travel segment, including
+detours away from an enemy. Combat's target-facing commands cannot override that
+direction. The segment remains stable at arrival and throughout ledge landing;
+continuous locomotion between steps keeps its last direction until the next step
+is planned. Once locomotion stops, a unit may turn toward a visible combat target.
+Pure vertical or zero-length directions preserve yaw. Placement and round-reset
+orientations remain separate from traversal.
+
+The movement collision regressions exercise all eight directions, queued commits,
+combat-facing overrides, airborne movement, stationary targeting, and crowded
+turns. The ledge test also checks facing through takeoff, flight and landing.
+Native and editor matrix cases `movement-facing-approach`, `movement-facing-turns`
+and `movement-facing-ledge` qualify the same phases on OpenGL, Vulkan and D3D12.
+
+```powershell
+./tools/render_parity_matrix.ps1 -Config RelWithDebInfo -Cases movement-facing-approach,movement-facing-turns,movement-facing-ledge -OutputDir debug/movement-facing/native
+./tools/housekeeping/check_editor_workflow.ps1 -Cases movement-facing-approach,movement-facing-turns,movement-facing-ledge -OutputDirectory debug/movement-facing/editor
+```
 
 Idle units compete in order of distance to the nearest terrain-reachable enemy, movement speed,
 then stable unit ID. Equally near enemies are selected by stable ID as well.
@@ -49,7 +70,7 @@ rule. Ground melee cannot reach through a cliff; movement can choose another
 reachable opponent or use a ramp to reach an upper shelf. Visibility queries
 still report visible opponents even when no route exists.
 
-The current board has five drop edges, columns 3–7 from row 1 to row 2 (zero
+The South Entrance test board has five drop edges, columns 3–7 from row 1 to row 2 (zero
 based), and three ramp columns on the west side. The 8×8 footprint is unchanged.
 
 `LedgeJump` owns start, airborne, and landing phases within the committed move.
@@ -59,7 +80,7 @@ The jumper cannot issue a new attack until landing recovery finishes. This does
 not grant damage immunity. Competing units must queue or route around the full
 corridor, including while the landing animation is playing.
 
-Both render paths and headless play use manifest phase durations. Newer model
+All three rendering APIs and headless play use manifest phase durations. Newer model
 imports resolve `jumpdown01_start`, `jumpdown01_loop`, and `land02`; LGPE-style
 imports resolve `landA`, `landB`, and `landC`. Optional `jump_start`, `jump_loop`,
 and `jump_land` roles override these choices. Missing clips use a stationary

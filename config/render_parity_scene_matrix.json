@@ -1251,6 +1251,139 @@
           "midtoneLuminanceMaximum": 255
         }
       ]
+    },
+    {
+      "name": "movement-facing-approach",
+      "focus": "walking and flying units face their current approach step",
+      "coverage": [
+        "world",
+        "units",
+        "movement",
+        "facing"
+      ],
+      "snapshotPath": "config/debug/editor_route1_flat_experiment_comparison.json",
+      "screenshotFrame": 36,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.25,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "flying-pidgey",
+          "x": 0.55546875,
+          "y": 0.5027777777777778,
+          "width": 0.03125,
+          "height": 0.06111111111111111,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.08,
+          "minimumLuminanceStandardDeviation": 20
+        },
+        {
+          "name": "walking-squirtle",
+          "x": 0.46640625,
+          "y": 0.5055555555555555,
+          "width": 0.0203125,
+          "height": 0.05694444444444444,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.008,
+          "minimumLuminanceStandardDeviation": 20
+        }
+      ]
+    },
+    {
+      "name": "movement-facing-turns",
+      "focus": "crowded route changes keep models aligned with travel",
+      "coverage": [
+        "world",
+        "units",
+        "movement",
+        "facing"
+      ],
+      "snapshotPath": "config/debug/editor_route1_flat_experiment_comparison.json",
+      "screenshotFrame": 72,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.25,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "flying-pidgey",
+          "x": 0.546875,
+          "y": 0.4388888888888889,
+          "width": 0.04140625,
+          "height": 0.07361111111111111,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.08,
+          "minimumLuminanceStandardDeviation": 20
+        },
+        {
+          "name": "turning-squirtle",
+          "x": 0.465625,
+          "y": 0.5291666666666667,
+          "width": 0.021875,
+          "height": 0.03333333333333333,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumBrightNeutralPixelRatio": 0.008,
+          "minimumLuminanceStandardDeviation": 20
+        }
+      ]
+    },
+    {
+      "name": "movement-facing-ledge",
+      "focus": "jump direction stays fixed through the ledge trajectory",
+      "coverage": [
+        "world",
+        "units",
+        "movement",
+        "facing"
+      ],
+      "snapshotPath": "config/debug/editor_route1_pilot_ledges.json",
+      "screenshotFrame": 36,
+      "contentGuards": [
+        {
+          "name": "visible-arena",
+          "x": 0.3,
+          "y": 0.25,
+          "width": 0.4,
+          "height": 0.5,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "ledge-bulbasaur",
+          "x": 0.5453125,
+          "y": 0.24861111111111112,
+          "width": 0.01953125,
+          "height": 0.03888888888888889,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumLuminanceStandardDeviation": 20
+        },
+        {
+          "name": "ledge-rattata",
+          "x": 0.5109375,
+          "y": 0.25555555555555554,
+          "width": 0.0140625,
+          "height": 0.025,
+          "maximumNearBlackPixelRatio": 0.2,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumLuminanceStandardDeviation": 20
+        }
+      ]
     }
   ]
 }

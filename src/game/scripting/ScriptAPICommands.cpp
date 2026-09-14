@@ -15,6 +15,7 @@
 #include "game/logging/LoggerUtil.h"
 #include "game/state/CombatState.h"
 #include "game/state/scripted/ScriptedState.h"
+#include "game/systems/UnitFacing.h"
 
 #include "LuaBindings_Internal.h"
 
@@ -22,18 +23,6 @@ namespace {
 
 bool isCombatActive(const PokemonInstance& u) {
     return u.alive && !u.captureInProgress;
-}
-
-bool setFacingToTarget(PokemonInstance& unit, const glm::vec3& targetPos) {
-    if (unit.ledgeJump.active()) return false;
-    const glm::vec3 delta = targetPos - unit.position;
-    const float lenSq = glm::dot(delta, delta);
-    if (lenSq <= 1e-8f) return false;
-
-    const glm::vec3 lookDir = delta / std::sqrt(lenSq);
-    constexpr float kRadToDeg = 57.29577951308232f;
-    unit.rotation.y = std::atan2(lookDir.x, lookDir.z) * kRadToDeg;
-    return true;
 }
 
 bool canCommitStep(GameWorld &world, const PokemonInstance &unit, int x, int z) {
@@ -194,6 +183,7 @@ void ScriptAPI::flush() {
                         u->moveTo = world_->gridToWorld(c->col, c->row);
                         u->moveT = 0.0f;
                         u->isMoving = true;
+                        game::unit_facing::faceTravel(*u);
 
                         lookup.reservedByCell[targetKey] = u->id;
                         lookup.reservedCellByUnit[u->id] = targetKey;
@@ -215,7 +205,7 @@ void ScriptAPI::flush() {
                     } else {
                         target = world_->getNearestEnemyPosition(*unit);
                     }
-                    setFacingToTarget(*unit, target);
+                    game::unit_facing::faceTarget(*unit, target);
                 }
                 continue;
             }
@@ -227,7 +217,7 @@ void ScriptAPI::flush() {
                 if (unitIt != lookup.unitsById.end() && targetIt != lookup.unitsById.end() &&
                     unitIt->second && targetIt->second &&
                     world_->combatMap().canPerceive(world_->combatActor(*unitIt->second), world_->combatActor(*targetIt->second))) {
-                    setFacingToTarget(*unitIt->second, targetIt->second->position);
+                    game::unit_facing::faceTarget(*unitIt->second, targetIt->second->position);
                 }
                 continue;
             }
@@ -496,6 +486,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
         u->moveTo = world_->gridToWorld(c.col, c.row);
         u->moveT = 0.0f;
         u->isMoving = true;
+        game::unit_facing::faceTravel(*u);
         return;
     }
 
@@ -513,7 +504,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
         } else {
             target = world_->getNearestEnemyPosition(*it);
         }
-        setFacingToTarget(*it, target);
+        game::unit_facing::faceTarget(*it, target);
         return;
     }
 
@@ -526,7 +517,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
         auto *t = world_->findUnitById(c.targetId);
         if (!u || !t || !world_->combatMap().canPerceive(world_->combatActor(*u), world_->combatActor(*t))) return;
 
-        setFacingToTarget(*u, t->position);
+        game::unit_facing::faceTarget(*u, t->position);
         return;
     }
 

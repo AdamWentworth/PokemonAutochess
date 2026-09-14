@@ -56,6 +56,13 @@ PokemonInstance makeUnit(const GameConfigData& cfg,
 int64_t cellKey(int col, int row) {
     return (static_cast<int64_t>(row) << 32) | static_cast<uint32_t>(col);
 }
+
+bool facesDirection(const PokemonInstance& unit, const glm::vec3& delta) {
+    const glm::vec2 motion(delta.x, delta.z);
+    if (glm::length(motion) <= 1e-5f) return true;
+    const float yaw = glm::radians(unit.rotation.y);
+    return glm::dot(glm::vec2(std::sin(yaw), std::cos(yaw)), glm::normalize(motion)) > .9999f;
+}
 } // namespace
 
 bool test_ledge_jump_movement(std::string &outFail) {
@@ -124,6 +131,12 @@ bool test_ledge_jump_movement(std::string &outFail) {
             }
             const auto phase = jumper.ledgeJump.phase;
             if (phase != LedgeJumpPhase::None) {
+                api.faceEnemy(jumper.id, 0, 1);
+                api.flush();
+                if (!facesDirection(jumper, jumper.moveTo - jumper.moveFrom)) {
+                    outFail = "Target-facing turned a jumping unit away from its drop during start, flight or landing.";
+                    return false;
+                }
                 if (jumper.committedDest != glm::ivec2(5, 2) || api.canAttack(jumper.id)) {
                     outFail = "Jump lost its landing reservation or allowed an attack before recovery.";
                     return false;
@@ -268,6 +281,70 @@ bool test_movement_collision_regressions(std::string& outFail) {
         unit.moveT = progress;
         unit.isMoving = true;
     };
+
+    // A detour can point away from the enemy. Every travel direction must win
+    // over combat/Lua facing, including a new queued commit and in-flight move.
+    for (bool scripted : {false, true}) {
+        for (bool airborne : {false, true}) {
+            for (int dx = -1; dx <= 1; ++dx) for (int dz = -1; dz <= 1; ++dz) {
+                if (dx == 0 && dz == 0) continue;
+                GameWorld world(cfg);
+                auto& units = world.getPokemons();
+                units.push_back(makeUnit(cfg, "mover", PokemonSide::Player, 3, 3));
+                units.push_back(makeUnit(cfg, "target", PokemonSide::Enemy, 3 - 2*dx, 3 - 2*dz, 0));
+                auto& mover = units[0];
+                mover.usesAirLocomotion = airborne;
+                mover.airState = airborne ? AirLocomotionState::Airborne : AirLocomotionState::Grounded;
+                const glm::vec3 direction(static_cast<float>(dx), 0, static_cast<float>(dz));
+                ScriptAPI api(&world, nullptr, services);
+                if (scripted) {
+                    api.faceTarget(mover.id, units[1].id);
+                    api.commitMove(mover.id, 3 + dx, 3 + dz);
+                    api.faceEnemy(mover.id, std::nullopt, std::nullopt);
+                    api.flush();
+                    if (!mover.isMoving || !facesDirection(mover, direction)) {
+                        outFail = "Queued movement must face its step immediately, regardless of enemy-facing command order.";
+                        return false;
+                    }
+                } else {
+                    commit(mover, 3 + dx, 3 + dz, .25f);
+                }
+                MovementSystem movement(&world, services, combat);
+                for (int tick = 0; tick < 3; ++tick) {
+                    const auto before = mover.position;
+                    movement.update(ecs, .03f);
+                    if (glm::distance(before, mover.position) <= 1e-5f || !facesDirection(mover, mover.position - before)) {
+                        outFail = "A traversing unit faced its enemy instead of its actual motion.";
+                        return false;
+                    }
+                    // Combat runs after movement and can issue either command.
+                    api.faceTarget(mover.id, units[1].id);
+                    api.faceEnemy(mover.id, 3 - 2*dx, 3 - 2*dz);
+                    api.flush();
+                    if (!facesDirection(mover, direction)) {
+                        outFail = "Target-facing overrode walking/flying direction.";
+                        return false;
+                    }
+                }
+                mover.isMoving = false;
+                mover.committedDest = {-1, -1};
+                api.faceTarget(mover.id, units[1].id);
+                api.flush();
+                if (!facesDirection(mover, units[1].position - mover.position)) {
+                    outFail = "A stopped unit must resume facing its combat target.";
+                    return false;
+                }
+                const float yaw = mover.rotation.y;
+                units[1].position = mover.position + glm::vec3(0, 1, 0);
+                api.faceTarget(mover.id, units[1].id);
+                api.flush();
+                if (!std::isfinite(mover.rotation.y) || std::abs(mover.rotation.y - yaw) > .001f) {
+                    outFail = "Pure height changes must not reset horizontal facing.";
+                    return false;
+                }
+            }
+        }
+    }
 
     // Opponents approaching along an empty lane should meet in that lane.
     // In particular, a fresh reservation toward us is not a stationary obstacle
@@ -488,6 +565,10 @@ bool test_movement_collision_regressions(std::string& outFail) {
                     return false;
                 }
                 const glm::vec2 now(unit.position.x, unit.position.z);
+                if (!facesDirection(unit, glm::vec3(now.x - before[i].x, 0, now.y - before[i].y))) {
+                    outFail = "Crowded-path turns must face the actual direction of traversal.";
+                    return false;
+                }
                 approached = approached || glm::distance(now, before[i]) > 1e-5f;
                 for (std::size_t j = 0; j < i; ++j) {
                     const glm::vec2 relativeStart = before[i]-before[j];
