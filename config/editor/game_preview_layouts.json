@@ -1,5 +1,29 @@
 {
   "previews": {
+    "route1-pilot-battle": {
+      "units": {
+        "board/enemy/rattata/1": {
+          "bench_slot": -1,
+          "board_cell": [
+            5,
+            0
+          ],
+          "placement": "board",
+          "position_world": [
+            1.5,
+            0.46000000834465027,
+            -3.5
+          ],
+          "rotation_degrees": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "side": "enemy",
+          "species": "rattata"
+        }
+      }
+    },
     "route1-planning-classic": {
       "units": {
         "board/player/bulbasaur/1": {
