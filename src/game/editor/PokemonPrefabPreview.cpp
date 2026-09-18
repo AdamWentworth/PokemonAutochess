@@ -425,20 +425,14 @@ constexpr std::string_view kSourceStageDiffuseProbePath =
 constexpr std::string_view kSourceStageSpecularProbePath =
     "assets/textures/environment/model_preview/source_stage_specular.png";
 
-bool zaSourceAsset(std::string_view assetId, std::string_view assetPath) {
-    return assetId.find(".za.") != std::string_view::npos ||
-        assetId.ends_with(".za") ||
-        assetPath.find("_ZA.") != std::string_view::npos ||
-        assetPath.find("_ZA_") != std::string_view::npos;
-}
-
 void attachZaUiOffscreenProbes(
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>& batches,
     game::runtime::session_texture_cache::TextureCache& textureCache,
-    std::string_view assetId,
-    std::string_view assetPath,
     int lightingProfile) {
-    if (lightingProfile != 4 || !zaSourceAsset(assetId, assetPath)) {
+    // The selected lighting preset owns these probes. Authored model names
+    // need not contain "_ZA", and mixed surfaces still retain native eyes
+    // and membranes. Select compatible batches by material mode below.
+    if (lightingProfile != 4) {
         return;
     }
     auto *diffuse = game::runtime::session_texture_cache::ensureTextureLoaded(
@@ -1003,9 +997,7 @@ struct PokemonPrefabPreview::Impl {
         for (float& component : worldSceneView.cameraForward) {
             component *= lightingForwardScale;
         }
-        const bool zaSourceStage =
-            options.lightingProfile == 4 &&
-            zaSourceAsset(assetId, assetPath);
+        const bool zaSourceStage = options.lightingProfile == 4;
         std::vector<IRenderBackend::WorldTriangle>
             noWorldTriangles;
         if (!gridLines.empty()) {
@@ -1401,9 +1393,7 @@ void PokemonPrefabPreview::render(
         impl_->visibilityAdjustedMesh(
             animationIndex,
             impl_->animationTime);
-    const bool zaSourceStage =
-        impl_->options.lightingProfile == 4 &&
-        zaSourceAsset(impl_->assetId, impl_->assetPath);
+    const bool zaSourceStage = impl_->options.lightingProfile == 4;
     auto scenePose =
         game::runtime::shared_backend_pose::
             evaluateScenePoseForResolvedClipTime(
@@ -1561,8 +1551,6 @@ void PokemonPrefabPreview::render(
         attachZaUiOffscreenProbes(
             scratch.worldIndexedBatches,
             impl_->textureCache,
-            impl_->assetId,
-            impl_->assetPath,
             impl_->options.lightingProfile);
     }
     {
