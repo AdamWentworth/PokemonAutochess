@@ -592,6 +592,61 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         outFail = "native mesh visibility animation was not preserved";
         return false;
     }
+    // Declared source winding is normalized to the shared CW world convention
+    // without changing vertex data, rigging, or animation. Legacy inputs keep
+    // their previous order, and invalid declarations fail rather than guessing.
+    {
+        const json savedDocument = document;
+        for (const std::string winding : {"clockwise", "counter_clockwise"}) {
+            document["coordinate_system"]["triangle_winding"] = winding;
+            {
+                std::ofstream output(manifestPath);
+                output << document.dump(2);
+            }
+            game::runtime::render_model::MeshData declaredMesh;
+            if (!tools::phlosion_native_model_ir::load(
+                    manifestPath.string(), declaredMesh, &outFail)) return false;
+            auto expectedIndices = mesh.indices;
+            if (winding == "counter_clockwise") {
+                std::swap(expectedIndices[1], expectedIndices[2]);
+            }
+            if (declaredMesh.indices != expectedIndices ||
+                declaredMesh.vertices.size() != mesh.vertices.size() ||
+                declaredMesh.skins.size() != mesh.skins.size() ||
+                declaredMesh.animations.size() != mesh.animations.size()) {
+                outFail = "declared source winding was not normalized consistently";
+                return false;
+            }
+            for (std::size_t i = 0; i < mesh.vertices.size(); ++i) {
+                const auto& before = mesh.vertices[i];
+                const auto& after = declaredMesh.vertices[i];
+                if (before.position != after.position || before.normal != after.normal ||
+                    before.tangent != after.tangent || before.uv != after.uv ||
+                    before.j0 != after.j0 || before.w0 != after.w0) {
+                    outFail = "winding normalization changed source vertex data";
+                    return false;
+                }
+            }
+        }
+        document["coordinate_system"]["triangle_winding"] = "unknown";
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData invalidMesh;
+        std::string windingError;
+        if (tools::phlosion_native_model_ir::load(
+                manifestPath.string(), invalidMesh, &windingError) ||
+            windingError.find("triangle winding") == std::string::npos) {
+            outFail = "invalid source winding was silently accepted";
+            return false;
+        }
+        document = savedDocument;
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+    }
     // The exporter intentionally emits LOD0 geometry while retaining native
     // TRACM visibility evidence for every LOD. A discarded non-zero LOD must
     // not make an otherwise valid model impossible to cook.
@@ -2074,6 +2129,37 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
             !svGenericSssMesh.submeshEmissiveTextures[0].hasPixels()) {
             outFail =
                 "SV non-Eevee SSS mask, mode, or neutral surface qualifier was not preserved";
+            return false;
+        }
+        // A hybrid authored body retains the original mesh's provenance. The
+        // opt-in is per material and must not implicitly enable a species profile.
+        document["source"]["profile"] = "pokemon-legends-za-v2.0.0";
+        document["model"]["name"] = "pm0133_00_00";
+        document["materials"][0]["runtime_translation"]["authored_surface_model"] = "sss";
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData authoredSssMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), authoredSssMesh, &outFail) ||
+            authoredSssMesh.submeshMaterialModes.at(0) !=
+                game::runtime::render_model::kNativeSssMaterialMode ||
+            authoredSssMesh.submeshMaterialFlags.at(0) !=
+                game::runtime::render_model::kNativeSssSurfaceDefault) {
+            outFail = "Authored SSS did not preserve the shared neutral material transport";
+            return false;
+        }
+        document["materials"][0]["textures"].erase(4); // Required SSS mask.
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        std::string authoredError;
+        if (tools::phlosion_native_model_ir::load(
+                manifestPath.string(), authoredSssMesh, &authoredError) ||
+            authoredError.find("Invalid authored surface model") == std::string::npos) {
+            outFail = "An incomplete authored SSS material silently fell back";
             return false;
         }
         document = savedDocument;

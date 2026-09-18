@@ -4139,6 +4139,17 @@ bool load(
             return fail(outError, "Unsupported native model IR schema.");
         }
         const auto& coordinateSystem = document.at("coordinate_system");
+        // The world pipelines share a clockwise front-face convention. New
+        // authoring packages can declare their source winding explicitly;
+        // omitted metadata retains the legacy import behavior.
+        const std::string triangleWinding = coordinateSystem.value(
+            "triangle_winding", std::string{"clockwise"});
+        if (triangleWinding != "clockwise" &&
+            triangleWinding != "counter_clockwise") {
+            return fail(outError, "Native model IR triangle winding is invalid.");
+        }
+        const bool reverseTriangleWinding =
+            triangleWinding == "counter_clockwise";
         if (coordinateSystem.value(
                 "texcoords_0",
                 std::string{}) != "gamefreak_native") {
@@ -4443,12 +4454,21 @@ bool load(
                 out.vertices.push_back(vertex);
             }
             out.indices.reserve(out.indices.size() + indexCount);
+            if (indexCount % 3u != 0u) {
+                return fail(outError, "Native model IR requires complete triangles.");
+            }
             for (const std::uint32_t index : indices) {
                 if (index >= vertexCount) {
                     return fail(outError, "Native model IR index is out of range.");
                 }
                 out.indices.push_back(
                     static_cast<std::uint32_t>(baseVertex) + index);
+            }
+            if (reverseTriangleWinding) {
+                for (std::size_t index = indexOffset;
+                     index < out.indices.size(); index += 3u) {
+                    std::swap(out.indices[index + 1u], out.indices[index + 2u]);
+                }
             }
 
             const int meshNode =
@@ -4527,8 +4547,19 @@ bool load(
             }
             const bool nativeSupplementalScarletRoughness =
                 !supplementalScarletRoughnessFilename(material).empty();
-            const bool nativeScarletSss =
-                nativeScarletSource &&
+            // Authored materials may reuse the shared SSS transport without
+            // changing the provenance of their mesh or unrelated eye materials.
+            const std::string authoredSurfaceModel = material.at(
+                "runtime_translation").value("authored_surface_model", std::string{});
+            if (!authoredSurfaceModel.empty() &&
+                (authoredSurfaceModel != "sss" ||
+                 material.value("shader_family", std::string{}) != "SSS" ||
+                 !hasTextureRole(material, "RoughnessMap") ||
+                 !hasTextureRole(material, "SSSMaskMap"))) {
+                return fail(outError, "Invalid authored surface model: SSS requires its shader family, roughness, and subsurface mask.");
+            }
+            const bool nativeSss =
+                (nativeScarletSource || authoredSurfaceModel == "sss") &&
                 material.value("shader_family", std::string{}) == "SSS" &&
                 hasTextureRole(material, "RoughnessMap") &&
                 hasTextureRole(material, "SSSMaskMap");
@@ -4541,7 +4572,8 @@ bool load(
                 hasTextureRole(material, "BaseColorMap1") &&
                 hasTextureRole(material, "LocalSpecularProbe");
             const bool nativeScarletSssFibre =
-                nativeScarletSss && nativeModelName.starts_with("pm0133_");
+                nativeSss && nativeScarletSource &&
+                authoredSurfaceModel.empty() && nativeModelName.starts_with("pm0133_");
             const bool nativeIkCharacterLightingCandidate =
                 (nativeZaSource || nativeLegacyEeveeFamilySoftCoat) &&
                 !nativeSupplementalScarletRoughness &&
@@ -4783,7 +4815,7 @@ bool load(
                      "LocalReflectionMap",
                      environmentTexture,
                      outError)) ||
-                (nativeScarletSss &&
+                (nativeSss &&
                  !loadTextureByRole(
                      root,
                      material,
@@ -5198,7 +5230,7 @@ bool load(
                     ? std::max(nativeOcclusionStrength, 0.0f)
                     : glm::clamp(nativeOcclusionStrength, 0.0f, 1.0f));
             out.submeshEmissiveFactors.push_back(
-                nativeScarletSss
+                nativeSss
                     ? [&]() {
                           glm::vec4 subsurfaceColor(0.2f);
                           (void)vec4Parameter(
@@ -5389,7 +5421,7 @@ bool load(
                 nativeFresnelEffect
                     ? game::runtime::render_model::
                           kNativeFresnelEffectMaterialMode
-                : nativeScarletSss
+                : nativeSss
                     ? game::runtime::render_model::
                           kNativeSssMaterialMode
                     : nativeIkCharacterEyeLighting
@@ -5415,7 +5447,7 @@ bool load(
                               kNativeEyeClearCoatMaterialMode
                         : 2u);
             float resolvedMaterialFlags =
-                nativeScarletSss
+                nativeSss
                     ? (nativeScarletSssFibre
                            ? game::runtime::render_model::
                                  kNativeSssSurfaceFibre
