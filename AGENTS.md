@@ -1,3 +1,20 @@
+# Project orientation
+
+This repository owns the game. Reusable Phlosion Engine and VFX components have
+their own repositories and verification boundaries.
+
+Read documentation progressively according to the task:
+
+- Setup, build targets, and repository layout: [README](README.md).
+- Game/engine/package ownership: [project boundaries](docs/PROJECT_BOUNDARIES.md).
+- Editor and scene work: [editor scene model](docs/EDITOR_SCENE_MODEL.md).
+- Renderer settings: [renderer configuration](docs/RENDERER_CONFIGURATION.md).
+- Verification: [test plan](docs/TEST_PLAN.md), selecting the affected checks.
+
+Start with the affected subsystem and expand as its dependencies require. Do not
+load every linked document for each task. The renderer requirements below remain
+mandatory for rendering changes.
+
 # Renderer parity
 
 OpenGL, Vulkan, and Direct3D 12 are equal supported targets. This is a standing

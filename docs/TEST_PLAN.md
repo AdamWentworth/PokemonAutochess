@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-09-13
+Last updated: 2026-09-14
 
 Goal: catch real regressions while keeping correctness, performance evidence,
 preview tooling, and docs maintenance trustworthy.
@@ -18,6 +18,15 @@ preview tooling, and docs maintenance trustworthy.
 - Docs hygiene validation via `tools/check_docs_hygiene.ps1`
 
 ## Required Local Validation
+Authored regular/shiny model promotion also follows the
+[character surface runbook](AUTHORED_CHARACTER_SURFACES.md). The asset-independent
+`PAC_Tools.kanto_model_promotions_contract` tests catalog identity and paired
+promotion rejection cases; `PAC_Tools.kanto_model_promotions` checks the private
+published inventory. Surface changes require editor and native game captures
+on all three APIs. Include both review lighting presets, bird flight and
+material-specific expected content; Beedrill's wings must remain pale rather
+than passing on the body alone.
+
 1. Debug correctness gate
 
 ```powershell
