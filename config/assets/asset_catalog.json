@@ -10,8 +10,139 @@
                                }
                            ],
     "explicit_native_models":  [
-
-                               ],
+      {
+        "stem": "0016_Pidgey_SurfaceStudyMarkingPreserved",
+        "source": "assets/models/0016_Pidgey_SurfaceStudyMarkingPreserved.phmodel",
+        "animset": "assets/models/0016_Pidgey_SurfaceStudyMarkingPreserved.animset.json",
+        "scope": "staged_import",
+        "purpose": "authored_character_surface",
+        "species_id": 16,
+        "species_name": "Pidgey",
+        "variant": "unisex",
+        "appearance": "regular"
+      },
+      {
+        "stem": "0017_Pidgeotto_SVSurface",
+        "source": "assets/models/0017_Pidgeotto_SVSurface.phmodel",
+        "animset": "assets/models/0017_Pidgeotto_SVSurface.animset.json",
+        "scope": "staged_import",
+        "purpose": "authored_character_surface",
+        "species_id": 17,
+        "species_name": "Pidgeotto",
+        "variant": "unisex",
+        "appearance": "regular"
+      },
+      {
+        "stem": "0018_Pidgeot_SVSurface",
+        "source": "assets/models/0018_Pidgeot_SVSurface.phmodel",
+        "animset": "assets/models/0018_Pidgeot_SVSurface.animset.json",
+        "scope": "staged_import",
+        "purpose": "authored_character_surface",
+        "species_id": 18,
+        "species_name": "Pidgeot",
+        "variant": "unisex",
+        "appearance": "regular"
+      },
+      {
+        "stem": "0015_Beedrill_SVSurface",
+        "source": "assets/models/0015_Beedrill_SVSurface.phmodel",
+        "animset": "assets/models/0015_Beedrill_SVSurface.animset.json",
+        "scope": "staged_import",
+        "purpose": "authored_character_surface",
+        "species_id": 15,
+        "species_name": "Beedrill",
+        "variant": "unisex",
+        "appearance": "regular"
+      },
+      {
+        "stem": "0104_Cubone_SVSurface",
+        "source": "assets/models/0104_Cubone_SVSurface.phmodel",
+        "animset": "assets/models/0104_Cubone_SVSurface.animset.json",
+        "scope": "staged_import",
+        "purpose": "authored_character_surface",
+        "species_id": 104,
+        "species_name": "Cubone",
+        "variant": "unisex",
+        "appearance": "regular"
+      },
+      {
+        "stem": "0095_Onix_SVSurface",
+        "source": "assets/models/0095_Onix_SVSurface.phmodel",
+        "animset": "assets/models/0095_Onix_SVSurface.animset.json",
+        "scope": "staged_import",
+        "purpose": "authored_character_surface",
+        "species_id": 95,
+        "species_name": "Onix",
+        "variant": "unisex",
+        "appearance": "regular"
+      },
+      {
+        "stem": "0016_Pidgey_SurfaceStudyMarkingPreserved_Shiny",
+        "source": "assets/models/0016_Pidgey_SurfaceStudyMarkingPreserved_Shiny.phmodel",
+        "animset": "assets/models/0016_Pidgey_SurfaceStudyMarkingPreserved_Shiny.animset.json",
+        "scope": "staged_import",
+        "purpose": "authored_character_surface",
+        "species_id": 16,
+        "species_name": "Pidgey",
+        "variant": "unisex",
+        "appearance": "shiny"
+      },
+      {
+        "stem": "0017_Pidgeotto_SVSurface_Shiny",
+        "source": "assets/models/0017_Pidgeotto_SVSurface_Shiny.phmodel",
+        "animset": "assets/models/0017_Pidgeotto_SVSurface_Shiny.animset.json",
+        "scope": "staged_import",
+        "purpose": "authored_character_surface",
+        "species_id": 17,
+        "species_name": "Pidgeotto",
+        "variant": "unisex",
+        "appearance": "shiny"
+      },
+      {
+        "stem": "0018_Pidgeot_SVSurface_Shiny",
+        "source": "assets/models/0018_Pidgeot_SVSurface_Shiny.phmodel",
+        "animset": "assets/models/0018_Pidgeot_SVSurface_Shiny.animset.json",
+        "scope": "staged_import",
+        "purpose": "authored_character_surface",
+        "species_id": 18,
+        "species_name": "Pidgeot",
+        "variant": "unisex",
+        "appearance": "shiny"
+      },
+      {
+        "stem": "0015_Beedrill_SVSurface_Shiny",
+        "source": "assets/models/0015_Beedrill_SVSurface_Shiny.phmodel",
+        "animset": "assets/models/0015_Beedrill_SVSurface_Shiny.animset.json",
+        "scope": "staged_import",
+        "purpose": "authored_character_surface",
+        "species_id": 15,
+        "species_name": "Beedrill",
+        "variant": "unisex",
+        "appearance": "shiny"
+      },
+      {
+        "stem": "0104_Cubone_SVSurface_Shiny",
+        "source": "assets/models/0104_Cubone_SVSurface_Shiny.phmodel",
+        "animset": "assets/models/0104_Cubone_SVSurface_Shiny.animset.json",
+        "scope": "staged_import",
+        "purpose": "authored_character_surface",
+        "species_id": 104,
+        "species_name": "Cubone",
+        "variant": "unisex",
+        "appearance": "shiny"
+      },
+      {
+        "stem": "0095_Onix_SVSurface_Shiny",
+        "source": "assets/models/0095_Onix_SVSurface_Shiny.phmodel",
+        "animset": "assets/models/0095_Onix_SVSurface_Shiny.animset.json",
+        "scope": "staged_import",
+        "purpose": "authored_character_surface",
+        "species_id": 95,
+        "species_name": "Onix",
+        "variant": "unisex",
+        "appearance": "shiny"
+      }
+    ],
     "authored_runtime_sources":  [
                                      {
                                          "id":  "capture/pokeball",

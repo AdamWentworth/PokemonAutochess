@@ -113,7 +113,7 @@ if ([string](Get-OptionalProperty $package 'schema' '') -ne
 
 $catalogStems = New-Object 'System.Collections.Generic.HashSet[string]' (
     [StringComparer]::Ordinal)
-$packageModels = @{}
+$catalogModels = @{}
 foreach ($import in @($package.imports)) {
     $speciesId = [int](Get-OptionalProperty $import 'speciesId' 0)
     $speciesName = [string](Get-OptionalProperty $import 'speciesName' '')
@@ -132,7 +132,7 @@ foreach ($import in @($package.imports)) {
         if ($appearance -notin @('regular', 'shiny')) {
             throw "External model package contains unsupported appearance '$appearance': $stem"
         }
-        $packageModels[$stem] = [pscustomobject]@{
+        $catalogModels[$stem] = [pscustomobject]@{
             species_id = $speciesId
             species_name = $speciesName
             variant = $variant
@@ -142,6 +142,41 @@ foreach ($import in @($package.imports)) {
 }
 if ($catalogStems.Count -eq 0) {
     throw 'External model package contains no models.'
+}
+
+# Authored surfaces live in the explicit catalog, independently of the
+# immutable external import package. Promotion still requires a complete,
+# matching species/appearance identity; an unlabelled preview cannot bypass it.
+foreach ($model in @($catalog.explicit_native_models)) {
+    $stem = [string](Get-OptionalProperty $model 'stem' '')
+    if ([string]::IsNullOrWhiteSpace($stem) -or -not $catalogStems.Add($stem)) {
+        throw "Asset catalog contains an empty or duplicate explicit stem: $stem"
+    }
+    if ([string](Get-OptionalProperty $model 'scope' '') -cne 'staged_import' -or
+        (Normalize-ProjectPath ([string](Get-OptionalProperty $model 'source' ''))) -cne "assets/models/$stem.phmodel" -or
+        (Normalize-ProjectPath ([string](Get-OptionalProperty $model 'animset' ''))) -cne "assets/models/$stem.animset.json") {
+        throw "Explicit model has an invalid scope or source identity: $stem"
+    }
+    $identityFields = @('species_id', 'species_name', 'variant', 'appearance')
+    $identityCount = @($identityFields | Where-Object {
+        $model.PSObject.Properties.Name -contains $_
+    }).Count
+    if ($identityCount -eq 0) { continue }
+    $speciesId = [int](Get-OptionalProperty $model 'species_id' 0)
+    $speciesName = [string](Get-OptionalProperty $model 'species_name' '')
+    $variant = [string](Get-OptionalProperty $model 'variant' '')
+    $appearance = [string](Get-OptionalProperty $model 'appearance' '')
+    if ($identityCount -ne $identityFields.Count -or $speciesId -lt 1 -or $speciesId -gt 151 -or
+        [string]::IsNullOrWhiteSpace($speciesName) -or [string]::IsNullOrWhiteSpace($variant) -or
+        $appearance -notin @('regular', 'shiny')) {
+        throw "Explicit model has incomplete or invalid promotion identity: $stem"
+    }
+    $catalogModels[$stem] = [pscustomobject]@{
+        species_id = $speciesId
+        species_name = $speciesName
+        variant = $variant
+        appearance = $appearance
+    }
 }
 
 $promotions = @($registry.promotions)
@@ -172,15 +207,15 @@ foreach ($promotion in $promotions) {
         $stem = [string](Get-OptionalProperty $model 'stem' '')
         $variant = [string](Get-OptionalProperty $model 'variant' 'default')
         $appearance = [string](Get-OptionalProperty $model 'appearance' '')
-        if (-not $packageModels.ContainsKey($stem)) {
-            throw "Promoted model is absent from the external package: $stem"
+        if (-not $catalogModels.ContainsKey($stem)) {
+            throw "Promoted model has no identified catalog source: $stem"
         }
-        $packageModel = $packageModels[$stem]
+        $packageModel = $catalogModels[$stem]
         if ([int]$packageModel.species_id -ne $speciesId -or
             [string]$packageModel.species_name -cne $speciesName -or
             [string]$packageModel.variant -cne $variant -or
             [string]$packageModel.appearance -cne $appearance) {
-            throw "Promoted identity disagrees with the external package: $stem"
+            throw "Promoted identity disagrees with the asset catalog: $stem"
         }
         if (-not $promotedStems.Add($stem)) {
             throw "Promotion registry repeats a model stem: $stem"
@@ -257,7 +292,7 @@ foreach ($entry in $nativeManifestEntries) {
 foreach ($stem in $catalogStems) {
     $sourcePath = "assets/models/$stem.phmodel"
     if (-not $manifestBySource.ContainsKey($sourcePath)) {
-        throw "Packaged native model is absent from the current cook manifest: $sourcePath"
+        throw "Catalog native model is absent from the current cook manifest: $sourcePath"
     }
 }
 if ($manifestBySource.Count -ne $catalogStems.Count) {
@@ -265,7 +300,7 @@ if ($manifestBySource.Count -ne $catalogStems.Count) {
         $stem = [IO.Path]::GetFileNameWithoutExtension($_)
         -not $catalogStems.Contains($stem)
     })
-    throw "Cook manifest native set disagrees with the model package. Unexpected: $($unexpected -join ', ')"
+    throw "Cook manifest native set disagrees with the asset catalog. Unexpected: $($unexpected -join ', ')"
 }
 
 $comparisonCount = $catalogStems.Count - $promotedStems.Count

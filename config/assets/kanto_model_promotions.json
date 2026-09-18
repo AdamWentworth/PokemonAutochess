@@ -273,12 +273,12 @@
                                           {
                                               "appearance":  "regular",
                                               "variant":  "unisex",
-                                              "stem":  "0015_Beedrill_ZA"
+                                              "stem":  "0015_Beedrill_SVSurface"
                                           },
                                           {
                                               "appearance":  "shiny",
                                               "variant":  "unisex",
-                                              "stem":  "0015_Beedrill_ZA_Shiny"
+                                              "stem":  "0015_Beedrill_SVSurface_Shiny"
                                           }
                                       ]
                        },
@@ -290,12 +290,12 @@
                                           {
                                               "appearance":  "regular",
                                               "variant":  "unisex",
-                                              "stem":  "0016_Pidgey_ZA"
+                                              "stem":  "0016_Pidgey_SurfaceStudyMarkingPreserved"
                                           },
                                           {
                                               "appearance":  "shiny",
                                               "variant":  "unisex",
-                                              "stem":  "0016_Pidgey_ZA_Shiny"
+                                              "stem":  "0016_Pidgey_SurfaceStudyMarkingPreserved_Shiny"
                                           }
                                       ]
                        },
@@ -307,12 +307,12 @@
                                           {
                                               "appearance":  "regular",
                                               "variant":  "unisex",
-                                              "stem":  "0017_Pidgeotto_ZA"
+                                              "stem":  "0017_Pidgeotto_SVSurface"
                                           },
                                           {
                                               "appearance":  "shiny",
                                               "variant":  "unisex",
-                                              "stem":  "0017_Pidgeotto_ZA_Shiny"
+                                              "stem":  "0017_Pidgeotto_SVSurface_Shiny"
                                           }
                                       ]
                        },
@@ -324,12 +324,12 @@
                                           {
                                               "appearance":  "regular",
                                               "variant":  "unisex",
-                                              "stem":  "0018_Pidgeot_ZA"
+                                              "stem":  "0018_Pidgeot_SVSurface"
                                           },
                                           {
                                               "appearance":  "shiny",
                                               "variant":  "unisex",
-                                              "stem":  "0018_Pidgeot_ZA_Shiny"
+                                              "stem":  "0018_Pidgeot_SVSurface_Shiny"
                                           }
                                       ]
                        },
@@ -1723,12 +1723,12 @@
                                           {
                                               "appearance":  "regular",
                                               "variant":  "unisex",
-                                              "stem":  "0095_Onix_ZA"
+                                              "stem":  "0095_Onix_SVSurface"
                                           },
                                           {
                                               "appearance":  "shiny",
                                               "variant":  "unisex",
-                                              "stem":  "0095_Onix_ZA_Shiny"
+                                              "stem":  "0095_Onix_SVSurface_Shiny"
                                           }
                                       ]
                        },
@@ -1886,12 +1886,12 @@
                                           {
                                               "appearance":  "regular",
                                               "variant":  "unisex",
-                                              "stem":  "0104_Cubone_LGPE"
+                                              "stem":  "0104_Cubone_SVSurface"
                                           },
                                           {
                                               "appearance":  "shiny",
                                               "variant":  "unisex",
-                                              "stem":  "0104_Cubone_LGPE_Shiny"
+                                              "stem":  "0104_Cubone_SVSurface_Shiny"
                                           }
                                       ]
                        },

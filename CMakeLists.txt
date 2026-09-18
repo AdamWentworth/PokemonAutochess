@@ -1369,6 +1369,15 @@ if (BUILD_TESTING)
             RUN_SERIAL TRUE
         )
 
+        add_test(
+            NAME PAC_Tools.kanto_model_promotions_contract
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/assets/test_kanto_model_promotions.ps1)
+        set_tests_properties(PAC_Tools.kanto_model_promotions_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 30
+        )
+
         if (PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE)
             add_test(
                 NAME PAC_Tools.kanto_model_promotions

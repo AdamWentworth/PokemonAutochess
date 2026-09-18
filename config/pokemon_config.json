@@ -206,10 +206,10 @@
         "fast": "quick_attack"
       }
     },
-    "model": "0016_Pidgey_ZA.phmodel",
+    "model": "0016_Pidgey_SurfaceStudyMarkingPreserved.phmodel",
     "modelVariants": {
-      "regular": "0016_Pidgey_ZA.phmodel",
-      "shiny": "0016_Pidgey_ZA_Shiny.phmodel"
+      "regular": "0016_Pidgey_SurfaceStudyMarkingPreserved.phmodel",
+      "shiny": "0016_Pidgey_SurfaceStudyMarkingPreserved_Shiny.phmodel"
     },
     "movementSpeed": 1.1,
     "visualScale": 2,
@@ -903,10 +903,10 @@
         "fast": "wing_attack"
       }
     },
-    "model": "0017_Pidgeotto_ZA.phmodel",
+    "model": "0017_Pidgeotto_SVSurface.phmodel",
     "modelVariants": {
-      "regular": "0017_Pidgeotto_ZA.phmodel",
-      "shiny": "0017_Pidgeotto_ZA_Shiny.phmodel"
+      "regular": "0017_Pidgeotto_SVSurface.phmodel",
+      "shiny": "0017_Pidgeotto_SVSurface_Shiny.phmodel"
     },
     "movementSpeed": 1.25,
     "visualScale": 1.0,
@@ -1188,10 +1188,10 @@
         "fast": "poison_sting"
       }
     },
-    "model": "0015_Beedrill_ZA.phmodel",
+    "model": "0015_Beedrill_SVSurface.phmodel",
     "modelVariants": {
-      "regular": "0015_Beedrill_ZA.phmodel",
-      "shiny": "0015_Beedrill_ZA_Shiny.phmodel"
+      "regular": "0015_Beedrill_SVSurface.phmodel",
+      "shiny": "0015_Beedrill_SVSurface_Shiny.phmodel"
     },
     "movementSpeed": 1.2,
     "visualScale": 1.0,
