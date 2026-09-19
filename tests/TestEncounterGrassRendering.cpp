@@ -5,7 +5,7 @@
 #include "game/render/environment/EncounterGrassMotion.h"
 #include "game/render/environment/EncounterGrassLayout.h"
 #include "game/arena/EncounterGrassFootprint.h"
-#include "game/render/environment/Route1FieldEncounterGrassMaterial.h"
+#include "game/render/materials/field/EncounterGrassMaterial.h"
 #include "game/runtime/shared/scene/ArenaSceneActivation.h"
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 #include "game/runtime/shared/scene/Route1SceneVariants.h"
@@ -32,7 +32,7 @@ std::vector<BladeVertex> sampleBlades(const std::vector<Batch> &batches) {
     std::vector<BladeVertex> result;
     for (const auto &batch : batches) {
         const auto &material = batch.sharedTemplate ? *batch.sharedTemplate : batch;
-        if (material.materialMode != engine::render::route1_field_encounter_grass::kMaterialMode) continue;
+        if (material.materialMode != game::render::field_encounter_grass::kMaterialMode) continue;
         const auto *vertices = batch.sharedVertices ? batch.sharedVertices : batch.vertices.data();
         const auto *indices = batch.sharedIndices ? batch.sharedIndices : batch.indices.data();
         const auto count = batch.sharedIndices ? batch.sharedIndexCount : batch.indices.size();
@@ -140,7 +140,7 @@ bool test_encounter_grass_rendering(std::string &outFail) {
             std::size_t clumps = 0;
             for (const auto &batch : cached) {
                 const auto &material = batch.sharedTemplate ? *batch.sharedTemplate : batch;
-                if (material.materialMode != engine::render::route1_field_encounter_grass::kMaterialMode) continue;
+                if (material.materialMode != game::render::field_encounter_grass::kMaterialMode) continue;
                 const auto *vertices = batch.sharedVertices ? batch.sharedVertices : batch.vertices.data();
                 const auto *indices = batch.sharedIndices ? batch.sharedIndices : batch.indices.data();
                 const auto count = batch.sharedIndices ? batch.sharedIndexCount : batch.indices.size();

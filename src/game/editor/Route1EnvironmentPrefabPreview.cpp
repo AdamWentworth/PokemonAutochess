@@ -2,7 +2,7 @@
 
 #include "game/assets/environment/PublishedEnvironmentScene.h"
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
-#include "game/render/environment/Route1FieldEncounterGrassMaterial.h"
+#include "game/render/materials/field/EncounterGrassMaterial.h"
 #include "game/assets/DevAssetStore.h"
 #include "game/runtime/shared/scene/Route1ProjectedShadow.h"
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
@@ -78,20 +78,20 @@ const IRenderBackend::WorldSceneGeometry* geometry(
 }
 
 std::vector<float> encounterGrassSkinPalette(
-    engine::render::route1_field_encounter_grass::SourceVariant
+    game::render::field_encounter_grass::SourceVariant
         variant,
     std::size_t jointCount,
     float windPhaseCycles) {
     std::vector<float> palette(jointCount * 16u, 0.0f);
     for (std::size_t joint = 0u; joint < jointCount; ++joint) {
         const auto rotation =
-            engine::render::route1_field_encounter_grass::
+            game::render::field_encounter_grass::
                 evaluateWindJointRotation(
                     static_cast<std::uint32_t>(joint),
                     0.0f,
                     windPhaseCycles);
         const auto pivotValues =
-            engine::render::route1_field_encounter_grass::
+            game::render::field_encounter_grass::
                 sourceJointPivot(
                     variant,
                     static_cast<std::uint32_t>(joint));
@@ -180,7 +180,7 @@ std::vector<float> vegetationSkinPalette(
                     1u;
             }
             const auto rotation =
-                engine::render::route1_field_encounter_grass::
+                game::render::field_encounter_grass::
                     evaluateWindJointRotation(
                         componentIndex,
                         0.0f,
@@ -637,11 +637,11 @@ struct Route1EnvironmentPrefabPreview::Impl {
             std::string::npos) {
             skinPalette = encounterGrassSkinPalette(
                 encounterGrass02
-                    ? engine::render::
-                          route1_field_encounter_grass::
+                    ? game::render::
+                          field_encounter_grass::
                               SourceVariant::Grass02
-                    : engine::render::
-                          route1_field_encounter_grass::
+                    : game::render::
+                          field_encounter_grass::
                               SourceVariant::Grass01,
                 source.bones.size(),
                 phase);

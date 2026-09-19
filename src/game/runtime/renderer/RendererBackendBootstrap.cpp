@@ -1,6 +1,7 @@
 #include "game/runtime/renderer/RendererBackendBootstrap.h"
 
 #include <exception>
+#include "engine/core/Paths.h"
 #include <memory>
 
 #include "engine/render/D3D12RenderBackend.h"
@@ -65,24 +66,26 @@ std::unique_ptr<IRenderBackend> createRenderBackend(game::video::RendererBackend
                                                     const std::string& preferredAdapter,
                                                     std::string* outError) {
     try {
+        const auto profile = engine::render::loadWorldMaterialProfile(
+            engine::paths::data(""), "config/render/field_materials.json");
         switch (backend) {
         case game::video::RendererBackend::Auto:
         case game::video::RendererBackend::OpenGL:
-            return std::make_unique<OpenGLRenderBackend>();
+            return std::make_unique<OpenGLRenderBackend>(profile);
         case game::video::RendererBackend::D3D12:
             return std::make_unique<D3D12RenderBackend>(
                 sdlWindow,
                 width,
                 height,
                 vsyncEnabled,
-                preferredAdapter);
+                preferredAdapter, profile);
         case game::video::RendererBackend::Vulkan:
             return std::make_unique<VulkanRenderBackend>(
                 sdlWindow,
                 width,
                 height,
                 vsyncEnabled,
-                preferredAdapter);
+                preferredAdapter, profile);
         default:
             if (outError) *outError = "Unknown renderer backend.";
             return nullptr;

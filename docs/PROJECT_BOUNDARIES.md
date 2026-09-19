@@ -22,6 +22,13 @@ shooter.
 and combat UI semantics. Generic mesh, text, sprite, and solid-color UI rendering
 remain engine primitives.
 
+The recovered field-material shaders, material-mode selection, D3D12 parameter
+packing rules and CPU material oracles live under `src/game/render/materials/field`.
+The game and editor explicitly load `config/render/field_materials.json` through
+the engine's generic material-profile interface. The engine has no field-material
+allowlist or built-in field evaluator. Descriptive material names preserve their
+recovery provenance in [field materials](FIELD_MATERIALS.md).
+
 `GameRuntimeServices` extends the generic engine host services with per-session
 game state: board flags, shop/round/combat timings, projected-unit counters,
 terminal modes, and Growl/Scratch debugging. Both the runner and editor use it.

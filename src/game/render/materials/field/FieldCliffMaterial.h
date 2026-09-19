@@ -1,13 +1,13 @@
 #pragma once
 
-#include "game/render/environment/Route1FieldSharedLighting.h"
+#include "game/render/materials/field/FieldLighting.h"
 
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::route1_field_cliff {
+namespace game::render::field_cliff {
 
 // World material modes 0-4 predate direct FieldCliffShader01 interpretation.
 inline constexpr std::uint8_t kMaterialMode = 5u;
@@ -27,7 +27,7 @@ struct SurfaceInputs {
     float normalDotView = 1.0f;
 };
 
-inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
+inline std::array<float, 4> evaluateSurface(const SurfaceInputs &input) {
     const float blend = std::clamp(input.blendTexRed, 0.0f, 1.0f);
     const float border = std::clamp(input.borderTex[3], 0.0f, 1.0f);
     const float rimSpan =
@@ -35,12 +35,12 @@ inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
     const float rimCoordinate = 1.0f - input.normalDotView;
     const float rim =
         rimSpan > 0.0f
-        ? std::clamp(
-              (rimCoordinate - input.rimLightMin) / rimSpan,
-              0.0f,
-              1.0f) *
-              input.rimLightStrength
-        : 0.0f;
+            ? std::clamp(
+                  (rimCoordinate - input.rimLightMin) / rimSpan,
+                  0.0f,
+                  1.0f) *
+                  input.rimLightStrength
+            : 0.0f;
 
     std::array<float, 4> output{};
     for (std::size_t channel = 0u; channel < 3u; ++channel) {
@@ -59,10 +59,10 @@ inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
 }
 
 inline std::array<float, 4> applySharedLighting(
-    const std::array<float, 4>& surface,
+    const std::array<float, 4> &surface,
     float projectedCloud) {
-    return route1_field_shared::applyUniformWhiteToonCloudLighting(
+    return field_lighting::applyUniformWhiteToonCloudLighting(
         surface, projectedCloud);
 }
 
-} // namespace engine::render::route1_field_cliff
+} // namespace game::render::field_cliff

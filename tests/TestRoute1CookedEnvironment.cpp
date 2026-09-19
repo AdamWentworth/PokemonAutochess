@@ -2,7 +2,7 @@
 #include "engine/core/Paths.h"
 #include "engine/assets/phlosion/PhlosionEnvironmentPatch.h"
 #include "game/assets/DevAssetStore.h"
-#include "game/render/environment/Route1FieldEncounterGrassMaterial.h"
+#include "game/render/materials/field/EncounterGrassMaterial.h"
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 #include "game/runtime/shared/scene/Route1SceneVariants.h"
 
@@ -565,7 +565,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             game::runtime::shared_world_batches::
                 resolvedMaterialBatch(batch);
         if (material.materialMode !=
-            engine::render::route1_field_encounter_grass::
+            game::render::field_encounter_grass::
                 kMaterialMode) {
             continue;
         }

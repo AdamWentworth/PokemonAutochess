@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::route1_field_tree02 {
+namespace game::render::field_layered_foliage {
 
 inline constexpr std::uint8_t kMaterialMode = 8u;
 inline constexpr std::uint8_t kGrass02MaterialMode = 19u;
@@ -61,7 +61,7 @@ inline float rangeMap(float value, float minimum, float maximum) {
 // projectedShadow is an explicit input because the source ten-tap PCF requires
 // the game's shared shadow matrix/depth state, which is not part of a material.
 inline SurfaceResult evaluateSurfaceImpl(
-    const SurfaceInputs& input,
+    const SurfaceInputs &input,
     bool useProjectedCloud) {
     SurfaceResult result;
     if (input.texture01[3] <= saturate(input.discardThreshold)) {
@@ -77,8 +77,8 @@ inline SurfaceResult evaluateSurfaceImpl(
     const float toonShadow =
         saturate(input.toon) * saturate(input.projectedShadow);
     const float shadow = useProjectedCloud
-        ? std::min(toonShadow, saturate(input.projectedCloud))
-        : toonShadow;
+                             ? std::min(toonShadow, saturate(input.projectedCloud))
+                             : toonShadow;
     for (std::size_t channel = 0u; channel < 3u; ++channel) {
         const float secondary =
             rim * input.rimColor[channel] +
@@ -100,15 +100,15 @@ inline SurfaceResult evaluateSurfaceImpl(
     return result;
 }
 
-inline SurfaceResult evaluateSurface(const SurfaceInputs& input) {
+inline SurfaceResult evaluateSurface(const SurfaceInputs &input) {
     return evaluateSurfaceImpl(input, false);
 }
 
 // Grass02's separately recovered pasted__pasted__tree15 fragment program is
 // the six-sampler member of this family. Unlike tree004/tree005, it gates the
 // toon/depth result with pow(LightProjMap, 1.0).
-inline SurfaceResult evaluateGrass02Surface(const SurfaceInputs& input) {
+inline SurfaceResult evaluateGrass02Surface(const SurfaceInputs &input) {
     return evaluateSurfaceImpl(input, true);
 }
 
-} // namespace engine::render::route1_field_tree02
+} // namespace game::render::field_layered_foliage

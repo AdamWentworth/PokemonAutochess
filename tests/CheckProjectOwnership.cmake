@@ -14,7 +14,7 @@ set(_required_project_files
     "${PAC_ROOT}/src/game/ui/HealthBarData.h"
     "${PAC_ROOT}/src/game/assets/environment/PublishedEnvironmentScene.h"
     "${PAC_ROOT}/src/game/assets/environment/PublishedEnvironmentScene.cpp"
-    "${PAC_ROOT}/src/game/render/environment/Route1FieldGroundMaterial.h"
+    "${PAC_ROOT}/src/game/render/materials/field/FieldGroundMaterial.h"
     "${PAC_ROOT}/src/game/ui/legacy/Card.h"
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorAssetCatalog.h"
     "${PAC_ROOT}/src/game/editor/PokemonAutochessEditorAssetCatalog.cpp"
@@ -48,6 +48,7 @@ endforeach()
 
 set(_forbidden_engine_paths
     "${PHLOSION_ROOT}/src/engine/assets/lgpe"
+    "${PHLOSION_ROOT}/src/engine/render/FieldGroundMaterial.h"
     "${PHLOSION_ROOT}/src/engine/render/Route1FieldGroundMaterial.h"
     "${PHLOSION_ROOT}/src/engine/ui/Card.h"
     "${PHLOSION_ROOT}/src/engine/editor/TileTools.cpp"

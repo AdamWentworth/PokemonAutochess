@@ -4,7 +4,7 @@
 #include <array>
 #include <cstddef>
 
-namespace engine::render::route1_field_shared {
+namespace game::render::field_lighting {
 
 inline constexpr std::array<float, 3> kShadowColor{
     0.235f,
@@ -12,7 +12,7 @@ inline constexpr std::array<float, 3> kShadowColor{
     0.391f};
 
 inline std::array<float, 4> applyUniformWhiteToonCloudLighting(
-    const std::array<float, 4>& surface,
+    const std::array<float, 4> &surface,
     float projectedCloud) {
     const float light = std::clamp(projectedCloud, 0.0f, 1.0f);
     std::array<float, 4> output = surface;
@@ -24,4 +24,4 @@ inline std::array<float, 4> applyUniformWhiteToonCloudLighting(
     return output;
 }
 
-} // namespace engine::render::route1_field_shared
+} // namespace game::render::field_lighting

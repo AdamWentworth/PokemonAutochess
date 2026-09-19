@@ -195,7 +195,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "e8c9f7b877bfd061e2e6cac55c211fed247553a0"
+    "4a066c0f6f4004e2e65a06beba06fda02ec1dc8d"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 
@@ -395,6 +395,8 @@ endif()
 
 # ---------------- Game objects (shared by exe + tests) ----------------
 # Pure arena policy/data and spatial queries have no renderer or asset-store dependency.
+add_subdirectory(src/game/render/materials/field)
+
 add_library(PAC_ArenaLogic STATIC
     src/game/arena/CombatMap.cpp
     src/game/arena/ArenaMapData.cpp
@@ -668,6 +670,7 @@ add_library(PAC_GameObjects STATIC
     src/game/systems/CombatSystem.cpp
     src/game/systems/ShopSystem.cpp
 )
+add_dependencies(PAC_GameObjects PAC_FieldMaterialShaders)
 target_link_libraries(PAC_GameObjects PUBLIC PAC_ArenaLogic)
 target_link_libraries(PAC_GameObjects
     PUBLIC
@@ -847,6 +850,7 @@ if (PAC_BUILD_EDITOR)
         src/game/editor/Route1EnvironmentPrefabPreview.cpp
         src/game/editor/Route1EnvironmentPrefabPreview.h
     )
+    add_dependencies(PokemonAutochessEditorProject PAC_FieldMaterialShaders)
     target_link_libraries(PokemonAutochessEditorProject
         PRIVATE
             PAC_GameObjects

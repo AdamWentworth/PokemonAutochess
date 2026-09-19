@@ -1,17 +1,17 @@
 #include "game/runtime/shared/scene/PublishedEnvironmentSceneAdapter.h"
 #include "game/runtime/shared/scene/Route1ProjectedShadow.h"
-#include "game/render/environment/Route1FieldCliffMaterial.h"
-#include "game/render/environment/Route1FieldEncounterGrassMaterial.h"
-#include "game/render/environment/Route1FieldFlowerMaterial.h"
-#include "game/render/environment/Route1FieldGrassMaterial.h"
-#include "game/render/environment/Route1FieldGroundMaterial.h"
-#include "game/render/environment/Route1FieldOverlayMaterial.h"
-#include "game/render/environment/Route1FieldRockMaterial.h"
-#include "game/render/environment/Route1FieldSignMaterial.h"
-#include "game/render/environment/Route1FieldSmallGrassMaterial.h"
-#include "game/render/environment/Route1FieldObjectTreeMikiMaterial.h"
-#include "game/render/environment/Route1FieldTree02Material.h"
-#include "game/render/environment/Route1FieldTree05Material.h"
+#include "game/render/materials/field/FieldCliffMaterial.h"
+#include "game/render/materials/field/EncounterGrassMaterial.h"
+#include "game/render/materials/field/FlowerMaterial.h"
+#include "game/render/materials/field/FieldGrassMaterial.h"
+#include "game/render/materials/field/FieldGroundMaterial.h"
+#include "game/render/materials/field/GroundOverlayMaterial.h"
+#include "game/render/materials/field/RockMaterial.h"
+#include "game/render/materials/field/PaintedSurfaceMaterial.h"
+#include "game/render/materials/field/GroundCoverMaterial.h"
+#include "game/render/materials/field/TreeTrunkMaterial.h"
+#include "game/render/materials/field/LayeredFoliageMaterial.h"
+#include "game/render/materials/field/CanopyMaterial.h"
 
 #include <cmath>
 #include <cstdint>
@@ -1671,7 +1671,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     if (groundPrepared.stats.fieldGroundSurfaceMaterialCount != 1u ||
         groundPrepared.stats.materialWithPreviewTextureCount != 0u ||
         ground.materialMode !=
-            engine::render::route1_field_ground::kMaterialMode ||
+            game::render::field_ground::kMaterialMode ||
         ground.textureRgba[0] != 10u ||
         ground.normalTextureRgba[0] != 20u ||
         ground.metallicRoughnessTextureRgba[0] != 30u ||
@@ -1703,7 +1703,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
 
-    engine::render::route1_field_ground::SurfaceInputs surface{};
+    game::render::field_ground::SurfaceInputs surface{};
     surface.groundTex01 = {0.1f, 0.1f, 0.1f, 1.0f};
     surface.groundTex02 = {0.3f, 0.3f, 0.3f, 1.0f};
     surface.grassTex02 = {0.5f, 0.5f, 0.5f, 1.0f};
@@ -1713,7 +1713,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     surface.vertexColor = {0.5f, 0.5f, 0.5f, 0.25f};
     surface.alphaLight = {0.1f, 0.1f, 0.1f};
     const auto evaluated =
-        engine::render::route1_field_ground::evaluateSurface(surface);
+        game::render::field_ground::evaluateSurface(surface);
     if (!near(evaluated[0], 0.255f) ||
         !near(evaluated[1], 0.255f) ||
         !near(evaluated[2], 0.255f) ||
@@ -1723,7 +1723,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
     const auto groundLit =
-        engine::render::route1_field_ground::applySharedLighting(
+        game::render::field_ground::applySharedLighting(
             evaluated, 0.5f);
     if (!near(groundLit[0], 0.1574625f) ||
         !near(groundLit[1], 0.1735275f) ||
@@ -1744,7 +1744,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     if (cliffPrepared.stats.fieldCliffSurfaceMaterialCount != 1u ||
         cliffPrepared.stats.materialWithPreviewTextureCount != 0u ||
         cliff.materialMode !=
-            engine::render::route1_field_cliff::kMaterialMode ||
+            game::render::field_cliff::kMaterialMode ||
         cliff.textureRgba[0] != 10u ||
         cliff.normalTextureRgba[0] != 20u ||
         cliff.metallicRoughnessTextureRgba[0] != 30u ||
@@ -1778,7 +1778,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
 
-    engine::render::route1_field_cliff::SurfaceInputs cliffSurface{};
+    game::render::field_cliff::SurfaceInputs cliffSurface{};
     cliffSurface.cliffTex01 = {0.1f, 0.1f, 0.1f, 0.5f};
     cliffSurface.groundTex02 = {0.4f, 0.4f, 0.4f, 1.0f};
     cliffSurface.groundTex01 = {0.8f, 0.8f, 0.8f, 1.0f};
@@ -1791,7 +1791,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     cliffSurface.rimLightStrength = 0.5f;
     cliffSurface.normalDotView = 0.0f;
     const auto evaluatedCliff =
-        engine::render::route1_field_cliff::evaluateSurface(cliffSurface);
+        game::render::field_cliff::evaluateSurface(cliffSurface);
     if (!near(evaluatedCliff[0], 0.165f) ||
         !near(evaluatedCliff[1], 0.165f) ||
         !near(evaluatedCliff[2], 0.165f) ||
@@ -1801,7 +1801,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
     const auto cliffLit =
-        engine::render::route1_field_cliff::applySharedLighting(
+        game::render::field_cliff::applySharedLighting(
             evaluatedCliff, 0.5f);
     if (!near(cliffLit[0], 0.1018875f) ||
         !near(cliffLit[1], 0.1122825f) ||
@@ -1821,18 +1821,18 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     const auto& grass02 = grass02Prepared.registry.materials[0];
     const auto& grass02Geometry = grass02Prepared.registry.geometries[0];
     constexpr bool usesFloorFoliageMask =
-        engine::render::route1_field_grass::usesFloorFoliageMask(
+        game::render::field_grass::usesFloorFoliageMask(
             "lgpe_route1_road001_00",
             "road001_00_grass00_000");
     constexpr bool leavesOtherVegetationOnAcceptedSampling =
-        !engine::render::route1_field_grass::usesFloorFoliageMask(
+        !game::render::field_grass::usesFloorFoliageMask(
             "lgpe_route1_road001_00",
             "grass02_mesh");
     if (grass02Prepared.stats.fieldGrass02SurfaceMaterialCount != 1u ||
         grass02Prepared.stats.fieldGrass01SurfaceMaterialCount != 0u ||
         grass02Prepared.stats.materialWithPreviewTextureCount != 0u ||
         grass02.materialMode !=
-            engine::render::route1_field_grass::kShader02MaterialMode ||
+            game::render::field_grass::kShader02MaterialMode ||
         grass02.alphaMode != 1u ||
         !near(grass02.alphaCutoff, 0.85f) ||
         grass02.textureRgba[0] != 10u ||
@@ -1878,11 +1878,11 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         floorCardPrepared.registry.geometries[0];
     if (!near(
             floorCardGeometry.vertices[0].sourceUv2U,
-            engine::render::route1_field_grass::
+            game::render::field_grass::
                 kFloorFoliageMaskMarker) ||
         !near(
             floorCardGeometry.sourceVertices[0].texcoords[1][0],
-            engine::render::route1_field_grass::
+            game::render::field_grass::
                 kFloorFoliageMaskMarker) ||
         !near(floorCardGeometry.vertices[0].sourceUv1U, 0.4f) ||
         !near(floorCardGeometry.vertices[0].sourceUv1V, 0.5f)) {
@@ -1902,7 +1902,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
 
-    engine::render::route1_field_grass::SurfaceInputs grassSurface{};
+    game::render::field_grass::SurfaceInputs grassSurface{};
     grassSurface.textureMap01 = {0.2f, 0.3f, 0.4f, 0.9f};
     grassSurface.textureMap02 = {0.6f, 0.7f, 0.8f, 1.0f};
     grassSurface.greenHikari = {0.1f, 0.2f, 0.3f, 1.0f};
@@ -1919,7 +1919,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     grassSurface.onGameColorValue = 0.5f;
     grassSurface.onGameAlpha = 0.75f;
     const auto evaluatedGrass02 =
-        engine::render::route1_field_grass::evaluateShader02Surface(
+        game::render::field_grass::evaluateShader02Surface(
             grassSurface);
     if (evaluatedGrass02.discarded ||
         !near(evaluatedGrass02.color[0], 0.0198f) ||
@@ -1940,7 +1940,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     const auto& grass01 = grass01Prepared.registry.materials[0];
     if (grass01Prepared.stats.fieldGrass01SurfaceMaterialCount != 1u ||
         grass01.materialMode !=
-            engine::render::route1_field_grass::kShader01MaterialMode ||
+            game::render::field_grass::kShader01MaterialMode ||
         !near(grass01.normalScale, 0.210406289f) ||
         !near(grass01.metallicFactor, 0.295774639f) ||
         !near(grass01.roughnessFactor, 0.0872536451f) ||
@@ -1963,7 +1963,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     grassSurface.rimLightStrength = 0.5f;
     grassSurface.normalDotView = 0.0f;
     const auto evaluatedGrass01 =
-        engine::render::route1_field_grass::evaluateShader01Surface(
+        game::render::field_grass::evaluateShader01Surface(
             grassSurface);
     if (evaluatedGrass01.discarded ||
         !near(evaluatedGrass01.color[0], 0.048f) ||
@@ -1975,10 +1975,10 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
     grassSurface.greenHikari[3] = 0.85f;
-    if (!engine::render::route1_field_grass::evaluateShader01Surface(
+    if (!game::render::field_grass::evaluateShader01Surface(
              grassSurface)
              .discarded ||
-        !engine::render::route1_field_grass::evaluateShader02Surface(
+        !game::render::field_grass::evaluateShader02Surface(
              grassSurface)
              .discarded) {
         outFail =
@@ -1997,7 +1997,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         grass04Prepared.stats.fieldGrass05SurfaceMaterialCount != 0u ||
         grass04Prepared.stats.materialWithPreviewTextureCount != 0u ||
         grass04.materialMode !=
-            engine::render::route1_field_small_grass::
+            game::render::field_ground_cover::
                 kShader04MaterialMode ||
         grass04.alphaMode != 1u ||
         !near(grass04.alphaCutoff, 0.470133f) ||
@@ -2025,7 +2025,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
 
-    engine::render::route1_field_small_grass::Shader04Inputs grass04Surface{};
+    game::render::field_ground_cover::Shader04Inputs grass04Surface{};
     grass04Surface.texture03 = 0.25f;
     grass04Surface.texture02 = {0.2f, 0.4f, 0.6f, 0.8f};
     grass04Surface.texture01 = {0.6f, 0.8f, 1.0f, 0.4f};
@@ -2040,7 +2040,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     grass04Surface.onGameAlpha = 0.75f;
     grass04Surface.transparent = 0.9f;
     const auto evaluatedGrass04 =
-        engine::render::route1_field_small_grass::evaluateShader04Surface(
+        game::render::field_ground_cover::evaluateShader04Surface(
             grass04Surface);
     if (evaluatedGrass04.discarded ||
         !near(evaluatedGrass04.color[0], 0.165f) ||
@@ -2063,7 +2063,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         grass05Prepared.stats.fieldGrass04SurfaceMaterialCount != 0u ||
         grass05Prepared.stats.materialWithPreviewTextureCount != 0u ||
         grass05.materialMode !=
-            engine::render::route1_field_small_grass::
+            game::render::field_ground_cover::
                 kShader05MaterialMode ||
         grass05.alphaMode != 1u ||
         !near(grass05.alphaCutoff, 0.85f) ||
@@ -2093,7 +2093,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
 
-    engine::render::route1_field_small_grass::Shader05Inputs grass05Surface{};
+    game::render::field_ground_cover::Shader05Inputs grass05Surface{};
     grass05Surface.lightLine = 0.25f;
     grass05Surface.alpha01Primary = {0.2f, 0.3f, 0.4f, 0.8f};
     grass05Surface.alpha01Secondary = {0.6f, 0.7f, 0.8f, 0.4f};
@@ -2110,7 +2110,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     grass05Surface.onGameColorValue = 0.5f;
     grass05Surface.onGameAlpha = 0.75f;
     const auto evaluatedGrass05 =
-        engine::render::route1_field_small_grass::evaluateShader05Surface(
+        game::render::field_ground_cover::evaluateShader05Surface(
             grass05Surface);
     if (evaluatedGrass05.discarded ||
         !near(evaluatedGrass05.color[0], 0.264f) ||
@@ -2122,7 +2122,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
     const auto route1CloudUv =
-        engine::render::route1_field_small_grass::
+        game::render::field_ground_cover::
             projectRoute1CloudTextureUv({2200.0f, 150.0f, -2100.0f});
     if (!near(route1CloudUv[0], 1.04837016f) ||
         !near(route1CloudUv[1], 1.02691201f)) {
@@ -2132,12 +2132,12 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     }
     grass04Surface.discardThreshold = evaluatedGrass04.color[3];
     grass05Surface.discardThreshold = evaluatedGrass05.color[3];
-    if (!engine::render::route1_field_small_grass::
+    if (!game::render::field_ground_cover::
              evaluateShader04Surface(grass04Surface)
-             .discarded ||
-        !engine::render::route1_field_small_grass::
+                 .discarded ||
+        !game::render::field_ground_cover::
              evaluateShader05Surface(grass05Surface)
-             .discarded) {
+                 .discarded) {
         outFail =
             "FieldGrassShader04/05 no longer discard composite alpha at the exact threshold.";
         return false;
@@ -2155,7 +2155,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         roadstonePrepared.stats.fieldRockMaskSurfaceMaterialCount != 0u ||
         roadstonePrepared.stats.materialWithPreviewTextureCount != 0u ||
         roadstone.materialMode !=
-            engine::render::route1_field_overlay::
+            game::render::field_ground_overlay::
                 kRoadstoneMaterialMode ||
         roadstone.alphaMode != 2u ||
         roadstone.blendMode != 2u ||
@@ -2178,7 +2178,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
 
-    engine::render::route1_field_overlay::RoadstoneInputs
+    game::render::field_ground_overlay::RoadstoneInputs
         roadstoneSurface{};
     roadstoneSurface.texture01 = {0.3f, 0.4f, 0.5f, 0.6f};
     roadstoneSurface.toon = 0.5f;
@@ -2191,7 +2191,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     roadstoneSurface.onGameAlpha = 0.75f;
     roadstoneSurface.transparent = 0.9f;
     const auto evaluatedRoadstone =
-        engine::render::route1_field_overlay::
+        game::render::field_ground_overlay::
             evaluateRoadstoneSurface(roadstoneSurface);
     if (!near(evaluatedRoadstone.color[0], 0.032076f) ||
         !near(evaluatedRoadstone.color[1], 0.0489888f) ||
@@ -2214,7 +2214,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         rockMaskPrepared.stats.fieldRoadstoneSurfaceMaterialCount != 0u ||
         rockMaskPrepared.stats.materialWithPreviewTextureCount != 0u ||
         rockMask.materialMode !=
-            engine::render::route1_field_overlay::
+            game::render::field_ground_overlay::
                 kRockMaskMaterialMode ||
         rockMask.alphaMode != 2u ||
         rockMask.blendMode != 2u ||
@@ -2239,7 +2239,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
 
-    engine::render::route1_field_overlay::RockMaskInputs
+    game::render::field_ground_overlay::RockMaskInputs
         rockMaskSurface{};
     rockMaskSurface.textureMap01 = {0.8f, 0.6f, 0.4f};
     rockMaskSurface.textureMap02 = {0.4f, 0.2f, 0.0f};
@@ -2256,7 +2256,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     rockMaskSurface.onGameColorValue = 0.5f;
     rockMaskSurface.onGameAlpha = 0.75f;
     const auto evaluatedRockMask =
-        engine::render::route1_field_overlay::
+        game::render::field_ground_overlay::
             evaluateRockMaskSurface(rockMaskSurface);
     if (!near(evaluatedRockMask.color[0], 0.06435f) ||
         !near(evaluatedRockMask.color[1], 0.071442f) ||
@@ -2279,7 +2279,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         flowerPrepared.stats.fieldRockSurfaceMaterialCount != 0u ||
         flowerPrepared.stats.materialWithPreviewTextureCount != 0u ||
         flower.materialMode !=
-            engine::render::route1_field_flower::kMaterialMode ||
+            game::render::field_flower::kMaterialMode ||
         flower.alphaMode != 1u ||
         !near(flower.alphaCutoff, 0.85f) ||
         flower.textureRgba[0] != 10u ||
@@ -2314,16 +2314,16 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         buildmodelFlowerPrepared.registry.materials[0];
     if (buildmodelFlowerPrepared.stats.fieldFlowerSurfaceMaterialCount != 1u ||
         buildmodelFlower.materialMode !=
-            engine::render::route1_field_flower::kBuildmodelMaterialMode ||
+            game::render::field_flower::kBuildmodelMaterialMode ||
         !near(
             buildmodelFlower.alphaCutoff,
-            engine::render::route1_field_flower::kDiscardValue)) {
+            game::render::field_flower::kDiscardValue)) {
         outFail =
             "Build-model flower did not select the reviewed Blender alpha-coverage surface for its 0.001 shadow-bias variant.";
         return false;
     }
 
-    engine::render::route1_field_flower::SurfaceInputs flowerSurface{};
+    game::render::field_flower::SurfaceInputs flowerSurface{};
     flowerSurface.texture01 = {0.3f, 0.4f, 0.5f, 0.9f};
     flowerSurface.vertexColor = {0.5f, 0.6f, 0.7f, 0.95f};
     flowerSurface.shadowColor = {0.2f, 0.4f, 0.6f};
@@ -2333,7 +2333,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     flowerSurface.projectedCloud = 0.7f;
     flowerSurface.onGameColorValue = 0.5f;
     const auto evaluatedFlower =
-        engine::render::route1_field_flower::evaluateSurface(
+        game::render::field_flower::evaluateSurface(
             flowerSurface);
     if (evaluatedFlower.discarded ||
         !near(evaluatedFlower.color[0], 0.0858f) ||
@@ -2346,9 +2346,9 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     }
     flowerSurface.texture01[3] = 0.85f;
     flowerSurface.vertexColor[3] = 1.0f;
-    if (!engine::render::route1_field_flower::
+    if (!game::render::field_flower::
              evaluateSurface(flowerSurface)
-             .discarded) {
+                 .discarded) {
         outFail =
             "Field flower no longer discards composite alpha at the exact 0.85 threshold.";
         return false;
@@ -2357,7 +2357,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     flowerSurface.texture01[3] = 0.9f;
     flowerSurface.vertexColor[3] = 0.95f;
     const auto evaluatedBuildmodelFlower =
-        engine::render::route1_field_flower::evaluateBuildmodelSurface(
+        game::render::field_flower::evaluateBuildmodelSurface(
             flowerSurface,
             0.5f);
     if (evaluatedBuildmodelFlower.discarded ||
@@ -2372,13 +2372,13 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     flowerSurface.texture01[3] = 0.7f;
     flowerSurface.vertexColor[3] = 1.0f;
     if (!near(
-            engine::render::route1_field_flower::buildmodelCoverage(0.7f),
+            game::render::field_flower::buildmodelCoverage(0.7f),
             0.5f) ||
-        !engine::render::route1_field_flower::evaluateBuildmodelSurface(
+        !game::render::field_flower::evaluateBuildmodelSurface(
              flowerSurface,
              0.5f)
              .discarded ||
-        engine::render::route1_field_flower::evaluateBuildmodelSurface(
+        game::render::field_flower::evaluateBuildmodelSurface(
             flowerSurface,
             0.49f)
             .discarded) {
@@ -2399,7 +2399,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         fieldRockPrepared.stats.fieldFlowerSurfaceMaterialCount != 0u ||
         fieldRockPrepared.stats.materialWithPreviewTextureCount != 0u ||
         fieldRock.materialMode !=
-            engine::render::route1_field_rock::kMaterialMode ||
+            game::render::field_rock::kMaterialMode ||
         fieldRock.alphaMode != 0u ||
         fieldRock.textureRgba[0] != 10u ||
         fieldRock.normalTextureRgba[0] != 20u ||
@@ -2426,7 +2426,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
 
-    engine::render::route1_field_rock::SurfaceInputs fieldRockSurface{};
+    game::render::field_rock::SurfaceInputs fieldRockSurface{};
     fieldRockSurface.rockTexture = {0.2f, 0.3f, 0.4f, 0.5f};
     fieldRockSurface.groundTexture02 = {0.1f, 0.2f, 0.3f};
     fieldRockSurface.groundTexture01 = {0.5f, 0.6f, 0.7f};
@@ -2448,7 +2448,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     fieldRockSurface.onGameColorValue = 0.5f;
     fieldRockSurface.onGameAlpha = 0.75f;
     const auto evaluatedFieldRock =
-        engine::render::route1_field_rock::evaluateSurface(
+        game::render::field_rock::evaluateSurface(
             fieldRockSurface);
     if (!near(evaluatedFieldRock[0], 0.0677248f) ||
         !near(evaluatedFieldRock[1], 0.08636544f) ||
@@ -2459,15 +2459,15 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
     if (!near(
-            engine::render::route1_field_rock::evaluateLightTable(
+            game::render::field_rock::evaluateLightTable(
                 458.5f / 512.0f),
             1.0f / 255.0f) ||
         !near(
-            engine::render::route1_field_rock::evaluateLightTable(
+            game::render::field_rock::evaluateLightTable(
                 480.5f / 512.0f),
             91.0f / 255.0f) ||
         !near(
-            engine::render::route1_field_rock::evaluateLightTable(1.0f),
+            game::render::field_rock::evaluateLightTable(1.0f),
             1.0f)) {
         outFail =
             "The recovered lighttable01_t red curve no longer matches its exact decoded texels.";
@@ -2485,7 +2485,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     if (fieldSignPrepared.stats.fieldSignSurfaceMaterialCount != 1u ||
         fieldSignPrepared.stats.materialWithPreviewTextureCount != 0u ||
         fieldSign.materialMode !=
-            engine::render::route1_field_sign::kMaterialMode ||
+            game::render::field_painted_surface::kMaterialMode ||
         fieldSign.alphaMode != 0u ||
         fieldSign.textureRgba[0] != 10u ||
         fieldSign.occlusionTextureRgba[0] != 20u ||
@@ -2508,9 +2508,9 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
 
-    engine::render::route1_field_sign::SurfaceInputs signSurface{};
+    game::render::field_painted_surface::SurfaceInputs signSurface{};
     const auto signTextureUv =
-        engine::render::route1_field_sign::canonicalDecodedTextureUv(
+        game::render::field_painted_surface::canonicalDecodedTextureUv(
             {0.125f, 0.875f});
     if (!near(signTextureUv[0], 0.125f) ||
         !near(signTextureUv[1], 0.875f)) {
@@ -2534,7 +2534,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     signSurface.rimStrength = 0.5f;
     signSurface.normalDotView = 0.2f;
     const auto evaluatedFieldSign =
-        engine::render::route1_field_sign::evaluateSurface(signSurface);
+        game::render::field_painted_surface::evaluateSurface(signSurface);
     if (!near(evaluatedFieldSign[0], 0.13f) ||
         !near(evaluatedFieldSign[1], 0.192f) ||
         !near(evaluatedFieldSign[2], 0.2793f) ||
@@ -2557,11 +2557,11 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
             1u ||
         encounterPrepared.stats.materialWithPreviewTextureCount != 0u ||
         encounter.materialMode !=
-            engine::render::route1_field_encounter_grass::kMaterialMode ||
+            game::render::field_encounter_grass::kMaterialMode ||
         encounter.alphaMode != 1u ||
         !near(
             encounter.alphaCutoff,
-            engine::render::route1_field_encounter_grass::kDiscardValue) ||
+            game::render::field_encounter_grass::kDiscardValue) ||
         encounter.textureRgba[0] != 10u ||
         encounter.normalTextureRgba[0] != 20u ||
         encounter.occlusionTextureRgba[0] != 30u ||
@@ -2579,7 +2579,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
             "FieldEncGrassShader01 did not bind its exact base/rim/toon/cloud roles and source constants.";
         return false;
     }
-    engine::render::route1_field_encounter_grass::SurfaceInputs
+    game::render::field_encounter_grass::SurfaceInputs
         encounterSurface{};
     encounterSurface.texture01 = {0.2f, 0.3f, 0.4f, 0.8f};
     encounterSurface.texture02Red = 0.5f;
@@ -2591,7 +2591,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     encounterSurface.projectedCloud = 0.9f;
     encounterSurface.normalDotView = 0.25f;
     const auto evaluatedEncounter =
-        engine::render::route1_field_encounter_grass::evaluateSurface(
+        game::render::field_encounter_grass::evaluateSurface(
             encounterSurface);
     if (evaluatedEncounter.discarded ||
         !near(evaluatedEncounter.color[0], 0.104f) ||
@@ -2603,32 +2603,34 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
     const auto rootWind =
-        engine::render::route1_field_encounter_grass::
+        game::render::field_encounter_grass::
             evaluateWindJointRotation(0u, 0.25f, 0.5f);
     const auto jointWind =
-        engine::render::route1_field_encounter_grass::
+        game::render::field_encounter_grass::
             evaluateWindJointRotation(2u, 0.25f, 0.5f);
     const auto jointPivot =
-        engine::render::route1_field_encounter_grass::sourceJointPivot(
-            engine::render::route1_field_encounter_grass::
+        game::render::field_encounter_grass::sourceJointPivot(
+            game::render::field_encounter_grass::
                 SourceVariant::Grass01,
             2u);
     if (!near(rootWind.bendRadians, 0.0f) ||
         !near(rootWind.crossRadians, 0.0f) ||
-        engine::render::route1_field_encounter_grass::
+        game::render::field_encounter_grass::
                 sourceJointCount(
-                    engine::render::route1_field_encounter_grass::
+                    game::render::field_encounter_grass::
                         SourceVariant::Grass01) != 5u ||
-        engine::render::route1_field_encounter_grass::
+        game::render::field_encounter_grass::
                 sourceJointCount(
-                    engine::render::route1_field_encounter_grass::
+                    game::render::field_encounter_grass::
                         SourceVariant::Grass02) != 6u ||
         std::abs(jointWind.bendRadians) >
-            engine::render::route1_field_encounter_grass::
-                kMaximumBendRadians + 0.0001f ||
+            game::render::field_encounter_grass::
+                    kMaximumBendRadians +
+                0.0001f ||
         std::abs(jointWind.crossRadians) >
-            engine::render::route1_field_encounter_grass::
-                kMaximumCrossRadians + 0.0001f ||
+            game::render::field_encounter_grass::
+                    kMaximumCrossRadians +
+                0.0001f ||
         !near(jointPivot[0], 31.31517f) ||
         !near(jointPivot[1], 44.032f) ||
         !near(jointPivot[2], -31.06537f)) {
@@ -2647,7 +2649,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     if (tree02Prepared.stats.fieldTree02SurfaceMaterialCount != 1u ||
         tree02Prepared.stats.materialWithPreviewTextureCount != 0u ||
         tree02.materialMode !=
-            engine::render::route1_field_tree02::
+            game::render::field_layered_foliage::
                 kTree004ReviewedMaterialMode ||
         tree02.alphaMode != 1u ||
         !near(tree02.alphaCutoff, 0.6f) ||
@@ -2693,19 +2695,19 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         buildmodelGrass02Prepared.registry.materials[0];
     if (buildmodelGrass02Prepared.stats.fieldTree02SurfaceMaterialCount != 1u ||
         buildmodelGrass02.materialMode !=
-            engine::render::route1_field_tree02::
+            game::render::field_layered_foliage::
                 kGrass02ReviewedMaterialMode ||
         !buildmodelGrass02.lightProjectionTextureRgba ||
         buildmodelGrass02.lightProjectionTextureRgba[0] != 50u ||
         !near(
             buildmodelGrass02.alphaCutoff,
-            engine::render::route1_field_tree02::kGrass02DiscardValue)) {
+            game::render::field_layered_foliage::kGrass02DiscardValue)) {
         outFail =
             "Grass02 did not preserve its exact cutoff, cloud sampler, and dedicated six-sampler FieldTreeShader02 variant.";
         return false;
     }
 
-    engine::render::route1_field_tree02::SurfaceInputs tree02Surface{};
+    game::render::field_layered_foliage::SurfaceInputs tree02Surface{};
     tree02Surface.texture01 = {0.1f, 0.2f, 0.3f, 0.7f};
     tree02Surface.texture02 = {0.4f, 0.5f, 0.6f, 1.0f};
     tree02Surface.toon = 0.5f;
@@ -2723,7 +2725,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     tree02Surface.rimLightStrength = 1.0f;
     tree02Surface.normalDotView = 0.0f;
     const auto evaluatedTree02 =
-        engine::render::route1_field_tree02::evaluateSurface(tree02Surface);
+        game::render::field_layered_foliage::evaluateSurface(tree02Surface);
     if (evaluatedTree02.discarded ||
         !near(evaluatedTree02.color[0], 0.028795f) ||
         !near(evaluatedTree02.color[1], 0.0846f) ||
@@ -2735,7 +2737,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     }
     tree02Surface.projectedCloud = 0.3f;
     const auto evaluatedBuildmodelGrass02Surface =
-        engine::render::route1_field_tree02::
+        game::render::field_layered_foliage::
             evaluateGrass02Surface(tree02Surface);
     if (evaluatedBuildmodelGrass02Surface.discarded ||
         !near(evaluatedBuildmodelGrass02Surface.color[0], 0.024365f) ||
@@ -2747,7 +2749,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
     tree02Surface.texture01[3] = 0.6f;
-    if (!engine::render::route1_field_tree02::evaluateSurface(tree02Surface)
+    if (!game::render::field_layered_foliage::evaluateSurface(tree02Surface)
              .discarded) {
         outFail =
             "FieldTreeShader02 no longer discards Texture01 alpha at its exact threshold.";
@@ -2764,7 +2766,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     if (tree04Prepared.stats.fieldTree04SurfaceMaterialCount != 1u ||
         tree04Prepared.stats.fieldTree05SurfaceMaterialCount != 0u ||
         tree04.materialMode !=
-            engine::render::route1_field_tree05::
+            game::render::field_canopy::
                 kTree006ReviewedMaterialMode ||
         !near(tree04.alphaCutoff, 0.777439f) ||
         !near(tree04.normalScale, 0.2541925f) ||
@@ -2804,7 +2806,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     if (treePrepared.stats.fieldTree05SurfaceMaterialCount != 1u ||
         treePrepared.stats.materialWithPreviewTextureCount != 0u ||
         tree.materialMode !=
-            engine::render::route1_field_tree05::
+            game::render::field_canopy::
                 kTree001ReviewedMaterialMode ||
         tree.alphaMode != 1u ||
         !near(tree.alphaCutoff, 0.85f) ||
@@ -2860,7 +2862,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     }
     const auto& tree002 = tree002Prepared.registry.materials[0];
     if (tree002.materialMode !=
-            engine::render::route1_field_tree05::
+            game::render::field_canopy::
                 kTree002ReviewedMaterialMode ||
         !near(tree002.emissiveFactorR, 0.05949648097157478f) ||
         !near(tree002.emissiveFactorG, 0.23199999332427979f) ||
@@ -2870,7 +2872,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
 
-    engine::render::route1_field_tree05::SurfaceInputs treeSurface{};
+    game::render::field_canopy::SurfaceInputs treeSurface{};
     treeSurface.texture01 = {0.1f, 0.2f, 0.3f, 0.9f};
     treeSurface.texture02 = {0.4f, 0.5f, 0.6f, 1.0f};
     treeSurface.texture03 = {0.8f, 0.0f, 0.0f, 1.0f};
@@ -2889,7 +2891,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     treeSurface.normalDotLight = 1.0f;
     treeSurface.normalDotSecondary = 1.0f;
     const auto evaluatedTree =
-        engine::render::route1_field_tree05::evaluateSurface(treeSurface);
+        game::render::field_canopy::evaluateSurface(treeSurface);
     if (evaluatedTree.discarded ||
         !near(evaluatedTree.color[0], 0.228f) ||
         !near(evaluatedTree.color[1], 0.476f) ||
@@ -2900,7 +2902,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
     treeSurface.texture01[3] = 0.85f;
-    if (!engine::render::route1_field_tree05::evaluateSurface(treeSurface)
+    if (!game::render::field_canopy::evaluateSurface(treeSurface)
              .discarded) {
         outFail =
             "FieldTreeShader05 no longer discards Texture01 alpha at its exact threshold.";
@@ -2919,7 +2921,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     if (trunkPrepared.stats.fieldObjectTreeMikiSurfaceMaterialCount != 1u ||
         trunkPrepared.stats.materialWithPreviewTextureCount != 0u ||
         trunk.materialMode !=
-            engine::render::route1_field_object_tree_miki::kMaterialMode ||
+            game::render::field_tree_trunk::kMaterialMode ||
         trunk.alphaMode != 0u ||
         trunk.textureKey.find(":stem:Texture01") == std::string::npos ||
         trunk.normalTextureKey.find(":stem:HighlightMap") ==
@@ -2944,7 +2946,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
         return false;
     }
 
-    engine::render::route1_field_object_tree_miki::SurfaceInputs
+    game::render::field_tree_trunk::SurfaceInputs
         trunkSurface{};
     trunkSurface.texture01 = {0.2f, 0.4f, 0.6f, 0.8f};
     trunkSurface.highlightAlpha = 0.5f;
@@ -2958,7 +2960,7 @@ bool test_published_environment_scene_adapter_contract(std::string& outFail) {
     trunkSurface.rimLightStrength = 1.0f;
     trunkSurface.normalDotView = 0.0f;
     const auto evaluatedTrunk =
-        engine::render::route1_field_object_tree_miki::evaluateSurface(
+        game::render::field_tree_trunk::evaluateSurface(
             trunkSurface);
     if (!near(evaluatedTrunk[0], 0.065f) ||
         !near(evaluatedTrunk[1], 0.24f) ||

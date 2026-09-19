@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::route1_field_rock {
+namespace game::render::field_rock {
 
 inline constexpr std::uint8_t kMaterialMode = 16u;
 inline constexpr float kBlendTextureUvScale = 0.3f;
@@ -75,12 +75,12 @@ inline float evaluateLightTable(float toonCoordinate) {
     const float fraction =
         sourceTexel - static_cast<float>(lower);
     return (
-        texelValue(lower) * (1.0f - fraction) +
-        texelValue(lower + 1) * fraction) /
-        255.0f;
+               texelValue(lower) * (1.0f - fraction) +
+               texelValue(lower + 1) * fraction) /
+           255.0f;
 }
 
-inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
+inline std::array<float, 4> evaluateSurface(const SurfaceInputs &input) {
     const float blend = saturate(input.blendTextureRed);
     const float border = saturate(input.borderTexture[3]);
     const float rimSpan =
@@ -89,10 +89,10 @@ inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
     const float rimCoordinate = 1.0f - input.normalDotView;
     const float rim =
         rimSpan > 0.0f
-        ? saturate(
-              (rimCoordinate - input.rimLightMin) / rimSpan) *
-              input.rimLightStrength
-        : 0.0f;
+            ? saturate(
+                  (rimCoordinate - input.rimLightMin) / rimSpan) *
+                  input.rimLightStrength
+            : 0.0f;
     const float light = std::min(
         saturate(input.shadowToon) *
             saturate(input.projectedShadow),
@@ -122,4 +122,4 @@ inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
     return output;
 }
 
-} // namespace engine::render::route1_field_rock
+} // namespace game::render::field_rock

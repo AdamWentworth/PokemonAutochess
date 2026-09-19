@@ -339,6 +339,7 @@
       "name": "combat",
       "focus": "deterministic Route 1 combat presentation, animation, health bars, and battle feed",
       "coverage": [
+        "field-materials",
         "world",
         "combat",
         "overlay"
@@ -475,6 +476,7 @@
       "name": "original-arena-crowded",
       "focus": "original Route 1 arena: crowded",
       "coverage": [
+        "field-materials",
         "world",
         "arena",
         "experiment"

@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <string_view>
 
-namespace engine::render::route1_field_grass {
+namespace game::render::field_grass {
 
 inline constexpr std::uint8_t kShader02MaterialMode = 9u;
 inline constexpr std::uint8_t kShader01MaterialMode = 10u;
@@ -66,7 +66,7 @@ inline float rangeMap(float value, float minimum, float maximum) {
 }
 
 inline std::array<float, 3> evaluateLocalSurface(
-    const SurfaceInputs& input) {
+    const SurfaceInputs &input) {
     std::array<float, 3> surface{};
     const float blend = saturate(input.greenBlend);
     const float highlight = saturate(input.highlight);
@@ -84,7 +84,7 @@ inline std::array<float, 3> evaluateLocalSurface(
 }
 
 inline std::array<float, 3> evaluateLighting(
-    const SurfaceInputs& input) {
+    const SurfaceInputs &input) {
     const float light = std::min(
         saturate(input.toon) * saturate(input.projectedShadow),
         saturate(input.projectedCloud));
@@ -100,7 +100,7 @@ inline std::array<float, 3> evaluateLighting(
 // program with its sampler dictionary and the authored alpha-bearing
 // green_hikari atlas. The shared projected shadow/cloud terms remain explicit
 // because their matrices and frame state are not material-local.
-inline SurfaceResult evaluateShader02Surface(const SurfaceInputs& input) {
+inline SurfaceResult evaluateShader02Surface(const SurfaceInputs &input) {
     SurfaceResult result;
     if (input.greenHikari[3] <= saturate(input.discardThreshold)) {
         result.discarded = true;
@@ -122,7 +122,7 @@ inline SurfaceResult evaluateShader02Surface(const SurfaceInputs& input) {
 
 // FieldGrassShader01 uses the same base/decal contract, then adds RimColor
 // before toon/cloud/shadow lighting.
-inline SurfaceResult evaluateShader01Surface(const SurfaceInputs& input) {
+inline SurfaceResult evaluateShader01Surface(const SurfaceInputs &input) {
     SurfaceResult result;
     if (input.greenHikari[3] <= saturate(input.discardThreshold)) {
         result.discarded = true;
@@ -144,4 +144,4 @@ inline SurfaceResult evaluateShader01Surface(const SurfaceInputs& input) {
     return result;
 }
 
-} // namespace engine::render::route1_field_grass
+} // namespace game::render::field_grass

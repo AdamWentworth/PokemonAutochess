@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::route1_field_object_tree_miki {
+namespace game::render::field_tree_trunk {
 
 inline constexpr std::uint8_t kMaterialMode = 7u;
 inline constexpr std::array<float, 3> kRoute1SunRay{
@@ -31,7 +31,7 @@ struct SurfaceInputs {
     float normalDotView = 1.0f;
 };
 
-inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
+inline std::array<float, 4> evaluateSurface(const SurfaceInputs &input) {
     std::array<float, 4> result{};
     const float rimSpan =
         std::max(input.rimLightMax, input.rimLightMin) -
@@ -40,12 +40,12 @@ inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
         std::clamp(1.0f - input.normalDotView, 0.0f, 1.0f);
     const float rim =
         rimSpan > 0.0f
-        ? std::clamp(
-              (rimCoordinate - input.rimLightMin) / rimSpan,
-              0.0f,
-              1.0f) *
-              input.rimLightStrength
-        : 0.0f;
+            ? std::clamp(
+                  (rimCoordinate - input.rimLightMin) / rimSpan,
+                  0.0f,
+                  1.0f) *
+                  input.rimLightStrength
+            : 0.0f;
     const float sourceLighting =
         std::clamp(input.toon, 0.0f, 1.0f) *
         std::clamp(input.projectedShadow, 0.0f, 1.0f);
@@ -71,4 +71,4 @@ inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
     return result;
 }
 
-} // namespace engine::render::route1_field_object_tree_miki
+} // namespace game::render::field_tree_trunk

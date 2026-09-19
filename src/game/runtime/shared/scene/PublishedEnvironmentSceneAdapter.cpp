@@ -1,17 +1,17 @@
 #include "game/runtime/shared/scene/PublishedEnvironmentSceneAdapter.h"
 
-#include "game/render/environment/Route1FieldCliffMaterial.h"
-#include "game/render/environment/Route1FieldEncounterGrassMaterial.h"
-#include "game/render/environment/Route1FieldFlowerMaterial.h"
-#include "game/render/environment/Route1FieldOverlayMaterial.h"
-#include "game/render/environment/Route1FieldGrassMaterial.h"
-#include "game/render/environment/Route1FieldGroundMaterial.h"
-#include "game/render/environment/Route1FieldRockMaterial.h"
-#include "game/render/environment/Route1FieldSignMaterial.h"
-#include "game/render/environment/Route1FieldSmallGrassMaterial.h"
-#include "game/render/environment/Route1FieldObjectTreeMikiMaterial.h"
-#include "game/render/environment/Route1FieldTree02Material.h"
-#include "game/render/environment/Route1FieldTree05Material.h"
+#include "game/render/materials/field/FieldCliffMaterial.h"
+#include "game/render/materials/field/EncounterGrassMaterial.h"
+#include "game/render/materials/field/FlowerMaterial.h"
+#include "game/render/materials/field/GroundOverlayMaterial.h"
+#include "game/render/materials/field/FieldGrassMaterial.h"
+#include "game/render/materials/field/FieldGroundMaterial.h"
+#include "game/render/materials/field/RockMaterial.h"
+#include "game/render/materials/field/PaintedSurfaceMaterial.h"
+#include "game/render/materials/field/GroundCoverMaterial.h"
+#include "game/render/materials/field/TreeTrunkMaterial.h"
+#include "game/render/materials/field/LayeredFoliageMaterial.h"
+#include "game/render/materials/field/CanopyMaterial.h"
 
 #include <algorithm>
 #include <array>
@@ -309,7 +309,7 @@ bool route1GroundCliffSharedLightingContract(
     for (std::size_t channel = 0u; channel < shadowColor.size(); ++channel) {
         if (std::abs(
                 shadowColor[channel] -
-                engine::render::route1_field_shared::kShadowColor[channel]) >
+                game::render::field_lighting::kShadowColor[channel]) >
             0.0001f) {
             return false;
         }
@@ -478,7 +478,7 @@ bool configureFieldGroundSurface(
     material.emissiveFactorB = alphaLight[2];
     material.alphaMode = 0u;
     material.materialMode =
-        engine::render::route1_field_ground::kMaterialMode;
+        game::render::field_ground::kMaterialMode;
     return true;
 }
 
@@ -543,7 +543,7 @@ bool configureFieldCliffSurface(
     material.roughnessFactor = rimStrength;
     material.alphaMode = 0u;
     material.materialMode =
-        engine::render::route1_field_cliff::kMaterialMode;
+        game::render::field_cliff::kMaterialMode;
     return true;
 }
 
@@ -736,7 +736,7 @@ bool configureFieldGrassSurface(
         material.materialRect0U = rimColor[1];
         material.materialRect0V = rimColor[2];
         material.materialMode =
-            engine::render::route1_field_grass::kShader01MaterialMode;
+            game::render::field_grass::kShader01MaterialMode;
     } else {
         material.materialTimeSec = onGameColor[0];
         material.materialFlags = onGameColor[1];
@@ -744,7 +744,7 @@ bool configureFieldGrassSurface(
         material.materialAtlasHeight = onGameColorValue;
         material.materialRect0U = onGameAlpha;
         material.materialMode =
-            engine::render::route1_field_grass::kShader02MaterialMode;
+            game::render::field_grass::kShader02MaterialMode;
     }
     return true;
 }
@@ -941,7 +941,7 @@ bool configureFieldOverlaySurface(
         assignOcclusionSlot(profileId, *shadowToon, material);
         material.materialRect0V = transparent;
         material.materialMode =
-            engine::render::route1_field_overlay::kRoadstoneMaterialMode;
+            game::render::field_ground_overlay::kRoadstoneMaterialMode;
         return true;
     }
 
@@ -976,7 +976,7 @@ bool configureFieldOverlaySurface(
     material.metallicFactor = color[1];
     material.roughnessFactor = color[2];
     material.materialMode =
-        engine::render::route1_field_overlay::kRockMaskMaterialMode;
+        game::render::field_ground_overlay::kRockMaskMaterialMode;
     return true;
 }
 
@@ -1101,15 +1101,15 @@ bool configureFieldFlowerSurface(
         std::abs(transparent - 1.0f) > 0.0001f ||
         std::abs(
             discardValue -
-            engine::render::route1_field_flower::kDiscardValue) > 0.0001f ||
+            game::render::field_flower::kDiscardValue) > 0.0001f ||
         std::abs(shadowSamplingScale - 2.0f) > 0.0001f ||
         (std::abs(
              shadowBias -
-             engine::render::route1_field_flower::kRoadShadowBias) >
+             game::render::field_flower::kRoadShadowBias) >
              0.0001f &&
          std::abs(
              shadowBias -
-             engine::render::route1_field_flower::kBuildmodelShadowBias) >
+             game::render::field_flower::kBuildmodelShadowBias) >
              0.0001f) ||
         std::abs(projectionScaleU - 0.5f) > 0.0001f ||
         std::abs(projectionScaleV - 0.5f) > 0.0001f ||
@@ -1141,10 +1141,10 @@ bool configureFieldFlowerSurface(
     material.materialMode =
         std::abs(
             shadowBias -
-            engine::render::route1_field_flower::kBuildmodelShadowBias) <
+            game::render::field_flower::kBuildmodelShadowBias) <
                 0.0001f
-            ? engine::render::route1_field_flower::kBuildmodelMaterialMode
-            : engine::render::route1_field_flower::kMaterialMode;
+            ? game::render::field_flower::kBuildmodelMaterialMode
+            : game::render::field_flower::kMaterialMode;
     return true;
 }
 
@@ -1274,7 +1274,7 @@ bool configureFieldRockSurface(
 
     // The five surface maps plus the source shadow-toon table fit the
     // renderer's typed six-texture contract. The separate light-table red
-    // curve is recovered byte-for-byte in Route1FieldRockMaterial and evaluated
+    // curve is recovered byte-for-byte in RockMaterial and evaluated
     // from the same source normal coordinate in each backend.
     assignBaseTexture(profileId, *rock, material);
     assignNormalSlot(profileId, *ground02, material);
@@ -1304,7 +1304,7 @@ bool configureFieldRockSurface(
     material.materialFlipbook0Fps = mipMapBias;
     material.alphaMode = 0u;
     material.materialMode =
-        engine::render::route1_field_rock::kMaterialMode;
+        game::render::field_rock::kMaterialMode;
     return true;
 }
 
@@ -1480,11 +1480,11 @@ bool configureFieldSignSurface(
         std::abs(transparent - 1.0f) > 0.0001f ||
         std::abs(shadowSamplingScale - 2.0f) > 0.0001f ||
         std::abs(shadowMin -
-                 engine::render::route1_field_sign::kShadowMin) > 0.0001f ||
+                 game::render::field_painted_surface::kShadowMin) > 0.0001f ||
         std::abs(shadowMax -
-                 engine::render::route1_field_sign::kShadowMax) > 0.0001f ||
+                 game::render::field_painted_surface::kShadowMax) > 0.0001f ||
         std::abs(shadowStrength -
-                 engine::render::route1_field_sign::kShadowStrength) >
+                 game::render::field_painted_surface::kShadowStrength) >
             0.0001f ||
         std::abs(onGameColorValue - 1.0f) > 0.0001f ||
         std::abs(onGameAlpha - 1.0f) > 0.0001f ||
@@ -1492,11 +1492,11 @@ bool configureFieldSignSurface(
         std::abs(projectionScaleV - 0.5f) > 0.0001f ||
         std::abs(projectionColorPower - 1.0f) > 0.0001f ||
         std::abs(rimMin -
-                 engine::render::route1_field_sign::kRimMin) > 0.0001f ||
+                 game::render::field_painted_surface::kRimMin) > 0.0001f ||
         std::abs(rimMax -
-                 engine::render::route1_field_sign::kRimMax) > 0.0001f ||
+                 game::render::field_painted_surface::kRimMax) > 0.0001f ||
         std::abs(rimStrength -
-                 engine::render::route1_field_sign::kRimStrength) > 0.0001f ||
+                 game::render::field_painted_surface::kRimStrength) > 0.0001f ||
         std::abs(tex01Uv) > 0.0001f ||
         std::abs(mipMapBias) > 0.0001f ||
         std::abs(sourceBlendMode) > 0.0001f ||
@@ -1530,7 +1530,7 @@ bool configureFieldSignSurface(
     material.materialFlipbook0Fps = mipMapBias;
     material.alphaMode = 0u;
     material.materialMode =
-        engine::render::route1_field_sign::kMaterialMode;
+        game::render::field_painted_surface::kMaterialMode;
     return true;
 }
 
@@ -1652,7 +1652,7 @@ bool configureFieldEncounterGrassSurface(
         !depthWrite || !depthTest ||
         std::abs(
             discard -
-            engine::render::route1_field_encounter_grass::kDiscardValue) >
+            game::render::field_encounter_grass::kDiscardValue) >
             0.0001f ||
         std::abs(uvSet) > 0.0001f ||
         std::abs(shadowSamplingScale - 2.0f) > 0.0001f ||
@@ -1665,15 +1665,15 @@ bool configureFieldEncounterGrassSurface(
         std::abs(projectionColorPower - 1.0f) > 0.0001f ||
         std::abs(
             rimMin -
-            engine::render::route1_field_encounter_grass::kRimMin) >
+            game::render::field_encounter_grass::kRimMin) >
             0.0001f ||
         std::abs(
             rimMax -
-            engine::render::route1_field_encounter_grass::kRimMax) >
+            game::render::field_encounter_grass::kRimMax) >
             0.0001f ||
         std::abs(
             rimStrength -
-            engine::render::route1_field_encounter_grass::kRimStrength) >
+            game::render::field_encounter_grass::kRimStrength) >
             0.0001f) {
         return false;
     }
@@ -1702,7 +1702,7 @@ bool configureFieldEncounterGrassSurface(
     material.alphaMode = 1u;
     material.alphaCutoff = discard;
     material.materialMode =
-        engine::render::route1_field_encounter_grass::kMaterialMode;
+        game::render::field_encounter_grass::kMaterialMode;
     return true;
 }
 
@@ -1916,7 +1916,7 @@ bool configureFieldSmallGrassSurface(
         material.materialRect0U = onGameColor[1];
         material.materialRect0V = onGameColor[2];
         material.materialMode =
-            engine::render::route1_field_small_grass::kShader04MaterialMode;
+            game::render::field_ground_cover::kShader04MaterialMode;
     } else {
         const auto* textureMap01 = sourceBinding(material, "TextureMap01");
         const auto* textureMap02 = sourceBinding(material, "TextureMap02");
@@ -1963,7 +1963,7 @@ bool configureFieldSmallGrassSurface(
         material.materialRect0V = scrollU;
         material.materialRect0W = scrollV;
         material.materialMode =
-            engine::render::route1_field_small_grass::kShader05MaterialMode;
+            game::render::field_ground_cover::kShader05MaterialMode;
     }
     return true;
 }
@@ -2063,21 +2063,21 @@ bool configureFieldTree02Surface(
     const bool knownRouteTreeVariant =
         std::abs(
             discard -
-            engine::render::route1_field_tree02::kRouteTreeDiscardValue) <=
+            game::render::field_layered_foliage::kRouteTreeDiscardValue) <=
             0.0001f &&
         std::abs(
             shadowBias -
-            engine::render::route1_field_tree02::kRouteTreeShadowBias) <=
+            game::render::field_layered_foliage::kRouteTreeShadowBias) <=
             0.0001f;
     const bool knownGrass02Variant =
         material.sourceMaterialName == "pasted__pasted__tree15" &&
         std::abs(
             discard -
-            engine::render::route1_field_tree02::kGrass02DiscardValue) <=
+            game::render::field_layered_foliage::kGrass02DiscardValue) <=
             0.0001f &&
         std::abs(
             shadowBias -
-            engine::render::route1_field_tree02::kGrass02ShadowBias) <=
+            game::render::field_layered_foliage::kGrass02ShadowBias) <=
             0.0001f;
     if (!knownRouteTreeVariant && !knownGrass02Variant) {
         return false;
@@ -2128,19 +2128,19 @@ bool configureFieldTree02Surface(
     material.alphaCutoff = discard;
     if (knownGrass02Variant) {
         material.materialMode =
-            engine::render::route1_field_tree02::
+            game::render::field_layered_foliage::
                 kGrass02ReviewedMaterialMode;
     } else if (material.sourceMaterialName == "tree004_sha") {
         material.materialMode =
-            engine::render::route1_field_tree02::
+            game::render::field_layered_foliage::
                 kTree004ReviewedMaterialMode;
     } else if (material.sourceMaterialName == "tree005_sha") {
         material.materialMode =
-            engine::render::route1_field_tree02::
+            game::render::field_layered_foliage::
                 kTree005ReviewedMaterialMode;
     } else {
         material.materialMode =
-            engine::render::route1_field_tree02::kMaterialMode;
+            game::render::field_layered_foliage::kMaterialMode;
     }
     return true;
 }
@@ -2235,15 +2235,15 @@ bool configureFieldTree04Surface(
         std::abs(mipMapBias) > 0.0001f ||
         std::abs(
             lightColor[0] -
-            engine::render::route1_field_tree05::kTree006SourceLightColor[0]) >
+            game::render::field_canopy::kTree006SourceLightColor[0]) >
             0.0001f ||
         std::abs(
             lightColor[1] -
-            engine::render::route1_field_tree05::kTree006SourceLightColor[1]) >
+            game::render::field_canopy::kTree006SourceLightColor[1]) >
             0.0001f ||
         std::abs(
             lightColor[2] -
-            engine::render::route1_field_tree05::kTree006SourceLightColor[2]) >
+            game::render::field_canopy::kTree006SourceLightColor[2]) >
             0.0001f) {
         return false;
     }
@@ -2280,9 +2280,9 @@ bool configureFieldTree04Surface(
     material.alphaCutoff = discard;
     material.materialMode =
         material.sourceMaterialName == "tree006_sha"
-            ? engine::render::route1_field_tree05::
+            ? game::render::field_canopy::
                   kTree006ReviewedMaterialMode
-            : engine::render::route1_field_tree05::kMaterialMode;
+            : game::render::field_canopy::kMaterialMode;
     return true;
 }
 
@@ -2314,10 +2314,10 @@ bool configureFieldTree05Surface(
     const std::array<float, 3>* capturedLightColor = nullptr;
     if (material.sourceMaterialName == "tree001_newsha1") {
         capturedLightColor =
-            &engine::render::route1_field_tree05::kTree001CapturedLightColor;
+            &game::render::field_canopy::kTree001CapturedLightColor;
     } else if (material.sourceMaterialName == "tree002_newsha") {
         capturedLightColor =
-            &engine::render::route1_field_tree05::kTree002CapturedLightColor;
+            &game::render::field_canopy::kTree002CapturedLightColor;
     }
     if (!texture01 || !texture02 || !texture03 || !shadowToon ||
         !lightProjection || !depthBuffer || !capturedLightColor ||
@@ -2387,15 +2387,15 @@ bool configureFieldTree05Surface(
     material.alphaCutoff = discard;
     if (material.sourceMaterialName == "tree001_newsha1") {
         material.materialMode =
-            engine::render::route1_field_tree05::
+            game::render::field_canopy::
                 kTree001ReviewedMaterialMode;
     } else if (material.sourceMaterialName == "tree002_newsha") {
         material.materialMode =
-            engine::render::route1_field_tree05::
+            game::render::field_canopy::
                 kTree002ReviewedMaterialMode;
     } else {
         material.materialMode =
-            engine::render::route1_field_tree05::kMaterialMode;
+            game::render::field_canopy::kMaterialMode;
     }
     return true;
 }
@@ -2509,7 +2509,7 @@ bool configureFieldObjectTreeMikiSurface(
     material.materialRect0V = rimColor[2];
     material.alphaMode = 0u;
     material.materialMode =
-        engine::render::route1_field_object_tree_miki::kMaterialMode;
+        game::render::field_tree_trunk::kMaterialMode;
     return true;
 }
 
@@ -2778,7 +2778,7 @@ bool prepareCanonicalSceneWithMaterials(
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             if (material.materialMode ==
-                engine::render::route1_field_overlay::
+                game::render::field_ground_overlay::
                     kRoadstoneMaterialMode) {
                 ++prepared.stats.fieldRoadstoneSurfaceMaterialCount;
             } else {
@@ -2808,7 +2808,7 @@ bool prepareCanonicalSceneWithMaterials(
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             if (material.materialMode ==
-                engine::render::route1_field_grass::kShader01MaterialMode) {
+                game::render::field_grass::kShader01MaterialMode) {
                 ++prepared.stats.fieldGrass01SurfaceMaterialCount;
             } else {
                 ++prepared.stats.fieldGrass02SurfaceMaterialCount;
@@ -2827,7 +2827,7 @@ bool prepareCanonicalSceneWithMaterials(
                 --prepared.stats.materialWithPreviewTextureCount;
             }
             if (material.materialMode ==
-                engine::render::route1_field_small_grass::
+                game::render::field_ground_cover::
                     kShader04MaterialMode) {
                 ++prepared.stats.fieldGrass04SurfaceMaterialCount;
             } else {
@@ -2903,7 +2903,7 @@ bool prepareCanonicalSceneWithMaterials(
         meshStorage.vertices.reserve(sourceMesh.vertices.size());
         meshStorage.sourceVertices.reserve(sourceMesh.vertices.size());
         const bool usesFloorFoliageMask =
-            engine::render::route1_field_grass::
+            game::render::field_grass::
                 usesFloorFoliageMask(
                     materialSource.profileId,
                     sourceMesh.name);
@@ -2911,14 +2911,14 @@ bool prepareCanonicalSceneWithMaterials(
             auto preparedVertex = baseVertex(vertex);
             if (usesFloorFoliageMask) {
                 preparedVertex.sourceUv2U =
-                    engine::render::route1_field_grass::
+                    game::render::field_grass::
                         kFloorFoliageMaskMarker;
             }
             meshStorage.vertices.push_back(preparedVertex);
             auto preparedSourceVertex = sourceVertex(vertex);
             if (usesFloorFoliageMask) {
                 preparedSourceVertex.texcoords[1][0] =
-                    engine::render::route1_field_grass::
+                    game::render::field_grass::
                         kFloorFoliageMaskMarker;
             }
             meshStorage.sourceVertices.push_back(preparedSourceVertex);
@@ -3016,7 +3016,7 @@ bool prepareCanonicalSceneWithMaterials(
                     shared_world_scene::PipelineVariant::OpaqueLit,
                     groupOrdinal,
                     preparedMaterial.materialMode ==
-                        engine::render::route1_field_encounter_grass::
+                        game::render::field_encounter_grass::
                             kMaterialMode);
             IRenderBackend::WorldSceneRenderInstanceHandle instanceHandle{};
             instanceHandle.id = instanceId++;

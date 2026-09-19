@@ -1,5 +1,5 @@
 #include "engine/core/IAssetStore.h"
-#include "game/render/environment/Route1FieldSmallGrassMaterial.h"
+#include "game/render/materials/field/GroundCoverMaterial.h"
 #include "game/runtime/shared/scene/Route1RuntimeEnvironment.h"
 #include "game/runtime/shared/scene/Route1SceneVariants.h"
 #include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
@@ -1155,7 +1155,7 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
         transformPoint(worldFromSource, sourceSample);
     const auto projectionRows = route1CloudProjectionRows(layout);
     const auto canonicalUv =
-        engine::render::route1_field_small_grass::
+        game::render::field_ground_cover::
             projectRoute1CloudTextureUv(
                 {sourceSample[0], sourceSample[1], sourceSample[2]});
     if (!close(dot(projectionRows.u, worldSample), canonicalUv[0]) ||

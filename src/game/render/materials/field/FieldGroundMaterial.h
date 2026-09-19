@@ -1,13 +1,13 @@
 #pragma once
 
-#include "game/render/environment/Route1FieldSharedLighting.h"
+#include "game/render/materials/field/FieldLighting.h"
 
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::route1_field_ground {
+namespace game::render::field_ground {
 
 // World material modes 0-3 predate direct source-material interpretation.
 inline constexpr std::uint8_t kMaterialMode = 4u;
@@ -27,7 +27,7 @@ struct SurfaceInputs {
 // GrassBlendTex is the low-frequency soil/grass texture-variation noise.
 // BlendTex is the UV2-authored route paint whose alpha selects dirt or lawn
 // and whose RGB supplies the authored edge decoration.
-inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
+inline std::array<float, 4> evaluateSurface(const SurfaceInputs &input) {
     const float blend =
         std::clamp(input.grassBlendTexRed, 0.0f, 1.0f);
     const float grassBlend =
@@ -53,10 +53,10 @@ inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
 }
 
 inline std::array<float, 4> applySharedLighting(
-    const std::array<float, 4>& surface,
+    const std::array<float, 4> &surface,
     float projectedCloud) {
-    return route1_field_shared::applyUniformWhiteToonCloudLighting(
+    return field_lighting::applyUniformWhiteToonCloudLighting(
         surface, projectedCloud);
 }
 
-} // namespace engine::render::route1_field_ground
+} // namespace game::render::field_ground

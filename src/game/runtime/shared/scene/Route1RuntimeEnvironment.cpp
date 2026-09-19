@@ -10,10 +10,10 @@
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
 #include "engine/core/Environment.h"
 #include "engine/core/IAssetStore.h"
-#include "game/render/environment/Route1FieldEncounterGrassMaterial.h"
+#include "game/render/materials/field/EncounterGrassMaterial.h"
 #include "game/render/environment/EncounterGrassMotion.h"
 #include "game/render/environment/EncounterGrassLayout.h"
-#include "game/render/environment/Route1FieldSmallGrassMaterial.h"
+#include "game/render/materials/field/GroundCoverMaterial.h"
 #include "game/runtime/shared/scene/Route1ProjectedShadow.h"
 #include "game/runtime/shared/scene/Route1TerrainAssemblies.h"
 #include "game/runtime/shared/scene/Route1TerrainContourAssembler.h"
@@ -687,13 +687,13 @@ const IRenderBackend::WorldSceneGeometry* geometry(
 }
 
 void initializeEncounterGrassJointAnchors(
-    EncounterGrassLayer& layer,
-    engine::render::route1_field_encounter_grass::SourceVariant variant) {
+    EncounterGrassLayer &layer,
+    game::render::field_encounter_grass::SourceVariant variant) {
     std::array<glm::dvec3, 6> weightedPositions{};
     std::array<double, 6> totalWeights{};
     const std::size_t responsiveJointCount = std::min(
         layer.source.bones.size(),
-        engine::render::route1_field_encounter_grass::
+        game::render::field_encounter_grass::
             sourceJointCount(variant));
     for (const auto& sourceDraw : layer.sourceDraws) {
         const auto* object = renderObject(
@@ -770,14 +770,14 @@ void initializeEncounterGrassJointAnchors(
 }
 
 void initializeEncounterGrassDrawMasks(
-    EncounterGrassLayer& layer,
-    const std::vector<PlacedVegetationSourceDraw>& sourceDraws,
-    std::vector<EncounterGrassDrawMaskSet>& outMasks,
-    engine::render::route1_field_encounter_grass::SourceVariant variant,
+    EncounterGrassLayer &layer,
+    const std::vector<PlacedVegetationSourceDraw> &sourceDraws,
+    std::vector<EncounterGrassDrawMaskSet> &outMasks,
+    game::render::field_encounter_grass::SourceVariant variant,
     std::string_view cacheRole) {
     const std::size_t responsiveJointCount = std::min(
         layer.source.bones.size(),
-        engine::render::route1_field_encounter_grass::
+        game::render::field_encounter_grass::
             sourceJointCount(variant));
     if (responsiveJointCount <= 1u ||
         responsiveJointCount > 6u) {
@@ -976,7 +976,7 @@ std::vector<EncounterGrassPlacement> expandedEncounterGrassPlacements(
 }
 
 void encounterGrassSkinPalette(
-    engine::render::route1_field_encounter_grass::SourceVariant variant,
+    game::render::field_encounter_grass::SourceVariant variant,
     std::size_t jointCount,
     float placementPhaseCycles,
     float windPhaseCycles,
@@ -985,13 +985,13 @@ void encounterGrassSkinPalette(
     palette.resize(jointCount * 16u);
     for (std::size_t joint = 0u; joint < jointCount; ++joint) {
         const auto rotation =
-            engine::render::route1_field_encounter_grass::
+            game::render::field_encounter_grass::
                 evaluateWindJointRotation(
                     static_cast<std::uint32_t>(joint),
                     placementPhaseCycles,
                     windPhaseCycles);
         const auto pivotValues =
-            engine::render::route1_field_encounter_grass::sourceJointPivot(
+            game::render::field_encounter_grass::sourceJointPivot(
                 variant,
                 static_cast<std::uint32_t>(joint));
         const glm::vec3 pivot{
@@ -1024,8 +1024,8 @@ void placeEncounterGrassLayer(
     bool rebuildInstances = true) {
     const auto variant =
         layer.logicalName == "enc_grass02"
-        ? engine::render::route1_field_encounter_grass::SourceVariant::Grass02
-        : engine::render::route1_field_encounter_grass::SourceVariant::Grass01;
+            ? game::render::field_encounter_grass::SourceVariant::Grass02
+            : game::render::field_encounter_grass::SourceVariant::Grass01;
     if (layer.sourceDraws.empty()) {
         layer.sourceDraws.reserve(
             layer.scene.frame.drawClasses.size());
@@ -1080,7 +1080,7 @@ void placeEncounterGrassLayer(
     std::size_t visibleClusterCount = 0u;
     const std::size_t responsiveJointCount = std::min(
         layer.source.bones.size(),
-        engine::render::route1_field_encounter_grass::
+        game::render::field_encounter_grass::
             sourceJointCount(variant));
     for (std::size_t placementIndex = 0u;
          placementIndex < layer.placements.size();
@@ -1626,7 +1626,7 @@ void vegetationSkinPalette(
                     static_cast<std::uint32_t>(std::stoul(suffix)) + 1u;
             }
             const auto rotation =
-                engine::render::route1_field_encounter_grass::
+                game::render::field_encounter_grass::
                     evaluateWindJointRotation(
                         componentIndex,
                         0.0f,
@@ -4908,13 +4908,13 @@ struct RuntimeEnvironment::Impl {
         for (auto& layer : encounterGrass) {
             const auto variant =
                 layer.logicalName == "enc_grass02"
-                ? engine::render::route1_field_encounter_grass::
-                      SourceVariant::Grass02
-                : engine::render::route1_field_encounter_grass::
-                      SourceVariant::Grass01;
+                    ? game::render::field_encounter_grass::
+                          SourceVariant::Grass02
+                    : game::render::field_encounter_grass::
+                          SourceVariant::Grass01;
             const std::size_t responsiveJointCount = std::min(
                 layer.source.bones.size(),
-                engine::render::route1_field_encounter_grass::
+                game::render::field_encounter_grass::
                     sourceJointCount(variant));
             for (auto& placement : layer.placements) {
                 const auto record = std::find_if(
@@ -5696,13 +5696,13 @@ struct RuntimeEnvironment::Impl {
         for (auto &layer : encounterGrass) {
             const auto variant =
                 layer.logicalName == "enc_grass02"
-                    ? engine::render::route1_field_encounter_grass::
+                    ? game::render::field_encounter_grass::
                           SourceVariant::Grass02
-                    : engine::render::route1_field_encounter_grass::
+                    : game::render::field_encounter_grass::
                           SourceVariant::Grass01;
             const std::size_t responsiveJointCount = std::min(
                 layer.source.bones.size(),
-                engine::render::route1_field_encounter_grass::
+                game::render::field_encounter_grass::
                     sourceJointCount(variant));
             for (auto &placement : layer.placements) {
                 if (rewound || placement.suppressed) placement.contactMotion.fill({});
@@ -21795,7 +21795,7 @@ std::array<float, 16> sourceFromWorldMatrix(
 LightProjectionRows route1CloudProjectionRows(
     const BoardLayoutTransform& transform) {
     namespace small_grass =
-        engine::render::route1_field_small_grass;
+        game::render::field_ground_cover;
     const glm::mat4 transposeSourceFromWorld =
         glm::transpose(glm::inverse(boardMatrix(transform)));
     const glm::vec4 sourceU{

@@ -2,6 +2,7 @@
 #include <string>
 
 #include "engine/render/IRenderBackend.h"
+#include "engine/core/Paths.h"
 #include "engine/render/d3d12/D3D12RenderBackendInternal.h"
 
 namespace {
@@ -20,6 +21,8 @@ bool nearf(float a, float b, float eps = 0.0001f) {
 
 bool test_d3d12_world_material_constants_contract(std::string& outFail) {
     namespace d3d12i = engine::render::d3d12_internal;
+    const auto profile = engine::render::loadWorldMaterialProfile(
+        engine::paths::data(""), "config/render/field_materials.json");
 
     if (!expect(d3d12i::alignUp(0u, 256u) == 0u &&
                     d3d12i::alignUp(1u, 256u) == 256u &&
@@ -88,7 +91,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
             7.0f, 8.0f, 9.0f, 0.0f,
             10.0f, 11.0f, 12.0f, 1.0f};
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(nearf(c.useTexture, 1.0f) &&
                         nearf(c.wrapS, 33071.0f) &&
                         nearf(c.wrapT, 10497.0f) &&
@@ -141,7 +144,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialRect0V = 0.46f;
         tex.materialFlipbook0Fps = 0.47f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 20.0f) &&
                     nearf(c.materialTimeSec, 0.41f) &&
@@ -181,7 +184,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.metallicFactor = 0.8f;
         tex.roughnessFactor = 0.7f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 27.0f) &&
                     nearf(c.materialRect0U, 0.05f) &&
@@ -222,13 +225,13 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.cameraPosY = 4.0f;
         tex.cameraPosZ = 19.0f;
 
-        const auto front = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto front = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         tex.cameraPosZ = -19.0f;
-        const auto rear = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto rear = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         tex.materialMode = 30u;
         tex.lightProjectionUvRowU = {2.0f, 4.0f, 0.5f, 0.25f};
         const auto animated =
-            d3d12i::makeWorldPsConstants(&tex, 1.0f);
+            d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(front.materialRect0U, 0.61f) &&
                     nearf(front.materialRect1H, 19.0f) &&
@@ -277,7 +280,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.cameraPosY = 18.0f;
         tex.cameraPosZ = 19.0f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 7.0f) &&
                     nearf(c.vertexColorMulR, 0.234547868f) &&
@@ -304,7 +307,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.emissiveFactorG = 0.2319999933f;
         tex.emissiveFactorB = 0.03874399886f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialFlipbook0Cols, tex.emissiveFactorR) &&
                     nearf(c.materialFlipbook0Rows, tex.emissiveFactorG) &&
@@ -340,7 +343,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.cameraPosY = 18.0f;
         tex.cameraPosZ = 19.0f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 8.0f) &&
                     nearf(c.vertexColorMulR, 0.01f) &&
@@ -386,7 +389,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialRect0U = 0.35f;
         tex.materialFlipbook0Fps = -2.0f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 9.0f) &&
                     nearf(c.vertexColorMulR, 0.11f) &&
@@ -427,7 +430,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.cameraPosY = 18.0f;
         tex.cameraPosZ = 19.0f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 10.0f) &&
                     nearf(c.vertexColorMulR, 0.11f) &&
@@ -464,7 +467,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialRect0U = 0.32f;
         tex.materialRect0V = 0.33f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 11.0f) &&
                     nearf(c.vertexColorMulR, 0.11f) &&
@@ -496,7 +499,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialRect0V = 0.31f;
         tex.materialRect0W = 0.32f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 12.0f) &&
                     nearf(c.vertexColorMulR, 0.11f) &&
@@ -529,7 +532,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialRect0V = 0.26f;
         tex.materialFlipbook0Fps = -2.0f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 13.0f) &&
                     nearf(c.vertexColorMulR, 0.11f) &&
@@ -564,7 +567,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialRect0U = 0.25f;
         tex.materialFlipbook0Fps = -2.0f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 14.0f) &&
                     nearf(c.vertexColorMulR, 0.11f) &&
@@ -602,7 +605,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialRect0V = 0.26f;
         tex.materialFlipbook0Fps = 0.27f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 15.0f) &&
                     nearf(c.vertexColorMulR, 0.71f) &&
@@ -644,7 +647,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.cameraPosY = 1.2f;
         tex.cameraPosZ = 1.3f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 16.0f) &&
                     nearf(c.vertexColorMulR, 0.31f) &&
@@ -689,7 +692,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.cameraPosY = 1.2f;
         tex.cameraPosZ = 1.3f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 17.0f) &&
                     nearf(c.vertexColorMulR, 0.11f) &&
@@ -727,7 +730,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialRect0U = 0.42f;
         tex.materialRect0V = 0.43f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 18.0f) &&
                     nearf(c.materialTimeSec, 0.21f) &&
@@ -770,7 +773,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.cameraPosY = 1.2f;
         tex.cameraPosZ = 1.3f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 19.0f) &&
                     nearf(c.vertexColorMulR, 0.11f) &&
@@ -809,7 +812,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialFlipbook0Cols = 0.12f;
         tex.materialFlipbook1Cols = 0.31f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 35.0f) &&
                     nearf(c.materialRect0V, 1.7f) &&
@@ -844,11 +847,11 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialFlipbook0Frames = 0.23f;
 
         tex.materialFlags = 3.0f;
-        const auto za = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto za = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         tex.materialFlags = 3.25f;
-        const auto scarlet = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto scarlet = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         tex.materialFlags = 4.0f;
-        const auto unrelated = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto unrelated = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(za.materialFlipbook0Cols, 0.21f) &&
                     nearf(za.materialFlipbook0Rows, 0.22f) &&
@@ -886,7 +889,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.metallicRoughnessWidth = 1;
         tex.metallicRoughnessHeight = 1;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         const auto pbrFlags = static_cast<std::uint32_t>(c.materialFlags + 0.5f);
         if (!expect(
                 (pbrFlags & (1u << 1)) != 0u &&
@@ -898,7 +901,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         }
 
         tex.materialFlags = 0.0f;
-        const auto generic = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto generic = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         const auto genericFlags =
             static_cast<std::uint32_t>(generic.materialFlags + 0.5f);
         if (!expect(
@@ -917,7 +920,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialFlags = 4.0f;
         tex.materialRect0H = 1.0f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 31.0f) &&
                     nearf(c.materialFlipbook1Fps, 4.0f) &&
@@ -950,7 +953,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialFlipbook1Rows = 300.0f / 360.0f;
         tex.materialFlipbook1Frames = -0.40f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 32.0f) &&
                     nearf(c.materialRect0V, 1.7f) &&
@@ -974,7 +977,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         }
 
         tex.materialFlipbook1Frames = 0.45f;
-        const auto medium = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto medium = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                     nearf(medium.materialFlipbook1Fps, 145.64f) &&
                         nearf(
@@ -1000,7 +1003,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.emissiveWidth = 1;
         tex.emissiveHeight = 1;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         const auto pbrFlags =
             static_cast<std::uint32_t>(c.materialFlags + 0.5f);
         if (!expect(
@@ -1038,7 +1041,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialFlipbook1Frames = -0.4f;
         tex.materialFlipbook1Fps = 0.0f;
 
-        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f);
+        const auto c = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
                 nearf(c.materialMode, 34.0f) &&
                     nearf(c.projectedShadowRowX[0], 0.76f) &&

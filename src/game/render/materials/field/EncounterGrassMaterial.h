@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <cmath>
 
-namespace engine::render::route1_field_encounter_grass {
+namespace game::render::field_encounter_grass {
 
 inline constexpr std::uint8_t kMaterialMode = 18u;
 inline constexpr float kDiscardValue = 0.632317066f;
@@ -56,12 +56,12 @@ inline std::array<float, 3> sourceJointPivot(
     }};
     if (variant == SourceVariant::Grass01) {
         return jointIndex < grass01.size()
-            ? grass01[jointIndex]
-            : std::array<float, 3>{};
+                   ? grass01[jointIndex]
+                   : std::array<float, 3>{};
     }
     return jointIndex < grass02.size()
-        ? grass02[jointIndex]
-        : std::array<float, 3>{};
+               ? grass02[jointIndex]
+               : std::array<float, 3>{};
 }
 
 inline WindJointRotation evaluateWindJointRotation(
@@ -106,7 +106,7 @@ inline float saturate(float value) {
     return std::clamp(value, 0.0f, 1.0f);
 }
 
-inline SurfaceResult evaluateSurface(const SurfaceInputs& input) {
+inline SurfaceResult evaluateSurface(const SurfaceInputs &input) {
     SurfaceResult result;
     const float alpha =
         saturate(input.texture01[3]) *
@@ -117,10 +117,10 @@ inline SurfaceResult evaluateSurface(const SurfaceInputs& input) {
         std::max(input.rimMax, input.rimMin) - input.rimMin;
     const float rimCoordinate =
         rimSpan > 0.0f
-        ? saturate(
-              (saturate(1.0f - input.normalDotView) - input.rimMin) /
-              rimSpan)
-        : 0.0f;
+            ? saturate(
+                  (saturate(1.0f - input.normalDotView) - input.rimMin) /
+                  rimSpan)
+            : 0.0f;
     const float smoothRim =
         rimCoordinate * rimCoordinate * (3.0f - 2.0f * rimCoordinate);
     const float rim =
@@ -142,4 +142,4 @@ inline SurfaceResult evaluateSurface(const SurfaceInputs& input) {
     return result;
 }
 
-} // namespace engine::render::route1_field_encounter_grass
+} // namespace game::render::field_encounter_grass

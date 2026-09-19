@@ -56,7 +56,7 @@ if (Test-Path $packPath) {
     Write-Warning "content_pak/content.pak not found (PAC_PackData may have failed)."
 }
 
-& "$PSScriptRoot\\sync_runtime_content.ps1" -OutDir $OutDir -Folders @("assets", "config", "scripts")
+& "$PSScriptRoot\\sync_runtime_content.ps1" -OutDir $OutDir -Folders @("assets", "config", "scripts", ".phlosion/materials")
 
 if ($IncludeVcpkgDlls) {
     $vcpkgBin = Join-Path $BuildDir "vcpkg_installed\\x64-windows\\bin"

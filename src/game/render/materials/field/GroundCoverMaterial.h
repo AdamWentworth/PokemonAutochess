@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::route1_field_small_grass {
+namespace game::render::field_ground_cover {
 
 inline constexpr std::uint8_t kShader04MaterialMode = 11u;
 inline constexpr std::uint8_t kShader05MaterialMode = 12u;
@@ -66,7 +66,7 @@ inline float saturate(float value) {
 }
 
 inline std::array<float, 2> projectRoute1CloudTextureUv(
-    const std::array<float, 3>& worldPosition) {
+    const std::array<float, 3> &worldPosition) {
     float sourceU = kRoute1CloudProjectionOffset[0];
     float sourceV = kRoute1CloudProjectionOffset[1];
     for (std::size_t axis = 0u; axis < 3u; ++axis) {
@@ -79,7 +79,7 @@ inline std::array<float, 2> projectRoute1CloudTextureUv(
 }
 
 inline std::array<float, 3> evaluateLighting(
-    const SharedInputs& input) {
+    const SharedInputs &input) {
     const float light = std::min(
         saturate(input.toon) * saturate(input.projectedShadow),
         saturate(input.projectedCloud));
@@ -91,7 +91,7 @@ inline std::array<float, 3> evaluateLighting(
     return lighting;
 }
 
-inline SurfaceResult evaluateShader04Surface(const Shader04Inputs& input) {
+inline SurfaceResult evaluateShader04Surface(const Shader04Inputs &input) {
     SurfaceResult result;
     std::array<float, 4> base{};
     const float textureBlend = saturate(input.texture03);
@@ -121,7 +121,7 @@ inline SurfaceResult evaluateShader04Surface(const Shader04Inputs& input) {
     return result;
 }
 
-inline SurfaceResult evaluateShader05Surface(const Shader05Inputs& input) {
+inline SurfaceResult evaluateShader05Surface(const Shader05Inputs &input) {
     SurfaceResult result;
     std::array<float, 4> base{};
     const float baseBlend = saturate(input.lightLine);
@@ -154,4 +154,4 @@ inline SurfaceResult evaluateShader05Surface(const Shader05Inputs& input) {
     return result;
 }
 
-} // namespace engine::render::route1_field_small_grass
+} // namespace game::render::field_ground_cover

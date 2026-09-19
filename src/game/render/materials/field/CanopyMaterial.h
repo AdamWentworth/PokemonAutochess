@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::route1_field_tree05 {
+namespace game::render::field_canopy {
 
 inline constexpr std::uint8_t kMaterialMode = 6u;
 // Route 1's accepted Blender/gameplay checkpoint retains the recovered local
@@ -65,7 +65,7 @@ struct SurfaceResult {
     bool discarded = false;
 };
 
-inline SurfaceResult evaluateSurface(const SurfaceInputs& input) {
+inline SurfaceResult evaluateSurface(const SurfaceInputs &input) {
     SurfaceResult result{};
     if (input.texture01[3] <= input.discardThreshold) {
         result.discarded = true;
@@ -77,12 +77,12 @@ inline SurfaceResult evaluateSurface(const SurfaceInputs& input) {
     const float rimCoordinate = 1.0f - input.normalDotView;
     const float rim =
         rimSpan > 0.0f
-        ? std::clamp(
-              (rimCoordinate - input.rimLightMin) / rimSpan,
-              0.0f,
-              1.0f) *
-              input.rimLightStrength
-        : 0.0f;
+            ? std::clamp(
+                  (rimCoordinate - input.rimLightMin) / rimSpan,
+                  0.0f,
+                  1.0f) *
+                  input.rimLightStrength
+            : 0.0f;
     const float lightGate =
         1.0f -
         std::clamp(
@@ -96,11 +96,11 @@ inline SurfaceResult evaluateSurface(const SurfaceInputs& input) {
         std::clamp(1.0f - input.normalDotSecondary, 0.0f, 1.0f);
     const float secondary =
         secondarySpan > 0.0f
-        ? std::clamp(
-              (secondaryCoordinate - input.secondaryMin) / secondarySpan,
-              0.0f,
-              1.0f)
-        : 0.0f;
+            ? std::clamp(
+                  (secondaryCoordinate - input.secondaryMin) / secondarySpan,
+                  0.0f,
+                  1.0f)
+            : 0.0f;
     const float secondaryContribution = 1.0f - secondary;
     const float toon = std::clamp(input.toon, 0.0f, 1.0f);
 
@@ -119,4 +119,4 @@ inline SurfaceResult evaluateSurface(const SurfaceInputs& input) {
     return result;
 }
 
-} // namespace engine::render::route1_field_tree05
+} // namespace game::render::field_canopy

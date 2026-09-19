@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::route1_field_sign {
+namespace game::render::field_painted_surface {
 
 inline constexpr std::uint8_t kMaterialMode = 17u;
 inline constexpr std::array<float, 3> kRoute1SunRay{
@@ -21,7 +21,7 @@ inline constexpr float kRimMax = 1.0f;
 inline constexpr float kRimStrength = 1.0f;
 
 inline std::array<float, 2> canonicalDecodedTextureUv(
-    const std::array<float, 2>& uv0) {
+    const std::array<float, 2> &uv0) {
     // The source program applies 1-V to GPU-native BNTX rows. The canonical
     // cooker emits top-down RGBA rows, so applying 1-V again would swap the
     // sign's front and back atlas islands.
@@ -67,7 +67,7 @@ inline float linearWindow(
     return saturate((value - minimum) / span) * strength;
 }
 
-inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
+inline std::array<float, 4> evaluateSurface(const SurfaceInputs &input) {
     const float autoShadowEdge = saturate(
         1.0f -
         (-input.normal[0] + input.normal[1] + input.normal[2]));
@@ -112,4 +112,4 @@ inline std::array<float, 4> evaluateSurface(const SurfaceInputs& input) {
     return output;
 }
 
-} // namespace engine::render::route1_field_sign
+} // namespace game::render::field_painted_surface

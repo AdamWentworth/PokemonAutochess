@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::route1_field_overlay {
+namespace game::render::field_ground_overlay {
 
 inline constexpr std::uint8_t kRoadstoneMaterialMode = 13u;
 inline constexpr std::uint8_t kRockMaskMaterialMode = 14u;
@@ -49,7 +49,7 @@ inline float saturate(float value) {
 }
 
 inline std::array<float, 3> evaluateLighting(
-    const SharedInputs& input) {
+    const SharedInputs &input) {
     const float light = std::min(
         saturate(input.toon) * saturate(input.projectedShadow),
         saturate(input.projectedCloud));
@@ -67,11 +67,11 @@ inline float evaluateAlpha(
     float transparent,
     float onGameAlpha) {
     return saturate(sourceAlpha) * saturate(vertexAlpha) *
-        saturate(transparent) * saturate(onGameAlpha);
+           saturate(transparent) * saturate(onGameAlpha);
 }
 
 inline SurfaceResult evaluateRoadstoneSurface(
-    const RoadstoneInputs& input) {
+    const RoadstoneInputs &input) {
     SurfaceResult result;
     const auto lighting = evaluateLighting(input);
     const float alpha = evaluateAlpha(
@@ -93,7 +93,7 @@ inline SurfaceResult evaluateRoadstoneSurface(
 }
 
 inline SurfaceResult evaluateRockMaskSurface(
-    const RockMaskInputs& input) {
+    const RockMaskInputs &input) {
     SurfaceResult result;
     const auto lighting = evaluateLighting(input);
     // The recovered fragment program intentionally does not multiply the
@@ -121,4 +121,4 @@ inline SurfaceResult evaluateRockMaskSurface(
     return result;
 }
 
-} // namespace engine::render::route1_field_overlay
+} // namespace game::render::field_ground_overlay

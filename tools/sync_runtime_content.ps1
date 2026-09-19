@@ -1,6 +1,6 @@
 param(
     [string]$OutDir = "dist/Release",
-    [string[]]$Folders = @("assets", "config", "scripts"),
+    [string[]]$Folders = @("assets", "config", "scripts", ".phlosion/materials"),
     [switch]$VerboseCopy
 )
 

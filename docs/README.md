@@ -34,6 +34,7 @@ role is expressed through metadata rather than deep folder nesting.
 | `RENDERER_PARITY_ROADMAP.md` | `Roadmap` | Active renderer parity and performance roadmap. |
 | `RENDER_RESTRUCTURING_OUTSTANDING.md` | `Roadmap` | Remaining deeper renderer restructuring work. |
 | `RENDER_PATH_FILE_MAP.md` | `Reference` | Where runtime render behavior lives in code. |
+| [FIELD_MATERIALS.md](FIELD_MATERIALS.md) | `Reference` | Game-owned field shaders, material profiles, provenance, and verification. |
 | `PERF_DECISIONS.md` | `Reference` | Durable performance lessons and decision rules. |
 | `TEST_PLAN.md` | `Runbook` | Validation protocol for correctness, perf, and tooling. |
 | `TECH_DEBT.md` | `Tracker` | Short strategic debt list. |

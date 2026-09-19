@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace engine::render::route1_field_flower {
+namespace game::render::field_flower {
 
 inline constexpr std::uint8_t kMaterialMode = 15u;
 // The accepted Blender checkpoint keeps the exact source program available
@@ -58,11 +58,9 @@ inline float buildmodelCoverage(float alpha) {
 }
 
 inline std::array<float, 3> buildmodelFieldHighlight(
-    const std::array<float, 4>& texture01) {
-    const float maximum = std::max({
-        texture01[0], texture01[1], texture01[2]});
-    const float minimum = std::min({
-        texture01[0], texture01[1], texture01[2]});
+    const std::array<float, 4> &texture01) {
+    const float maximum = std::max({texture01[0], texture01[1], texture01[2]});
+    const float minimum = std::min({texture01[0], texture01[1], texture01[2]});
     const float chroma = maximum - minimum;
     const float sourceSaturation =
         maximum > 0.000001f ? chroma / maximum : 0.0f;
@@ -83,7 +81,7 @@ inline std::array<float, 3> buildmodelFieldHighlight(
     return color;
 }
 
-inline SurfaceResult evaluateSurface(const SurfaceInputs& input) {
+inline SurfaceResult evaluateSurface(const SurfaceInputs &input) {
     SurfaceResult result;
     const float alpha =
         saturate(input.texture01[3]) *
@@ -111,7 +109,7 @@ inline SurfaceResult evaluateSurface(const SurfaceInputs& input) {
 }
 
 inline SurfaceResult evaluateBuildmodelSurface(
-    const SurfaceInputs& input,
+    const SurfaceInputs &input,
     float ditherThreshold = 0.0f) {
     SurfaceResult result;
     const float sourceAlpha =
@@ -152,4 +150,4 @@ inline SurfaceResult evaluateBuildmodelSurface(
     return result;
 }
 
-} // namespace engine::render::route1_field_flower
+} // namespace game::render::field_flower
