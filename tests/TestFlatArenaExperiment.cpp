@@ -136,9 +136,9 @@ bool test_flat_arena_experiment_contract(std::string &error) {
         for (int z : {-11, -12, -13, -14}) {
             const auto *ramp = bundle.map.tileAt(23, z);
             check(ramp != nullptr, "The route behind the north bench has a missing tile");
-            check(std::abs(ramp->heightAt(2350, (z + 1) * 100) - lastHeight) < .001f,
+            check(std::abs(ramp->heightAt(2350.f, static_cast<float>((z + 1) * 100)) - lastHeight) < .001f,
                   "The route exit contains an impassable vertical step");
-            lastHeight = ramp->heightAt(2350, z * 100);
+            lastHeight = ramp->heightAt(2350.f, static_cast<float>(z * 100));
             check(bundle.map.coverAt(2350, (z + .5f) * 100).empty(), "Encounter grass blocks the route exit");
         }
         check(std::abs(lastHeight - 100) < .001f, "The grass ramp does not join the upper route");
