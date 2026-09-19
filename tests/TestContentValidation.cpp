@@ -150,8 +150,8 @@ bool test_content_invariants(std::string &outFail) {
     }
 
     const std::array<std::pair<const char*, const char*>, 2> pidgeyFamilyModels{{
-        {"pidgey", "0016_Pidgey_ZA"},
-        {"pidgeotto", "0017_Pidgeotto_ZA"},
+        {"pidgey", "0016_Pidgey_SurfaceStudyMarkingPreserved"},
+        {"pidgeotto", "0017_Pidgeotto_SVSurface"},
     }};
     for (const auto& [species, stem] : pidgeyFamilyModels) {
         const PokemonStats* stats = pokemon.getStats(species);
@@ -165,7 +165,7 @@ bool test_content_invariants(std::string &outFail) {
             stats->resolveModel("regular") != regular ||
             stats->resolveModel("shiny") != shiny) {
             outFail =
-                "Pidgey-family config must select native Legends: Z-A regular and shiny models: " +
+                "Pidgey-family config must select the promoted authored regular and shiny models: " +
                 std::string(species);
             return false;
         }
@@ -201,7 +201,7 @@ bool test_content_invariants(std::string &outFail) {
                 roles.value("land_c", "") != sourcePrefix + "_00155_land02" ||
                 meta.value("movementMode", "") != "airborne") {
                 outFail =
-                    "Pidgey-family native animset must preserve the Z-A ground-to-air movement sequence: " +
+                    "Pidgey-family authored animset must preserve the Z-A ground-to-air movement sequence: " +
                     animsetPath;
                 return false;
             }
