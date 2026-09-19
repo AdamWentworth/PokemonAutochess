@@ -1,6 +1,6 @@
 #include "game/runtime/shared/world/SharedWorldContentSubmit.h"
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/render/Camera3D.h"
 
 #include <algorithm>

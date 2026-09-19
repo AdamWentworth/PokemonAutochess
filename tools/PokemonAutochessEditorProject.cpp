@@ -1,6 +1,6 @@
 #include "game/runtime/shared/scene/ArenaSceneActivation.h"
 #include "engine/assets/phlosion/PhlosionSceneArchive.h"
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/core/Environment.h"
 #include "engine/core/GameContext.h"
 #include "engine/editor/EditorProjectPlugin.h"
@@ -3354,7 +3354,7 @@ private:
     ResourceManager resources_;
     ShaderCache shaders_;
     EventBus events_;
-    EngineServices services_;
+    GameRuntimeServices services_;
     std::unique_ptr<GameRuntime> gameRuntime_;
     game::editor::PokemonPrefabPreview prefabPreview_;
     game::editor::PokemonVfxPrefabPreview vfxPreview_;

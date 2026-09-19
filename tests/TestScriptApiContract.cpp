@@ -8,7 +8,7 @@
 
 #include "engine/core/Paths.h"
 #include "engine/core/Random.h"
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/core/TimeSources.h"
 
 #include "game/GameConfig.h"
@@ -225,7 +225,7 @@ bool test_script_api_contract(std::string& outFail) {
     if (!expect(vm.width == 1920 && vm.height == 1080 && vm.fullscreen,
                 "getVideoMode should return queryVideoMode callback value.", outFail)) return false;
 
-    EngineServices engineServices;
+    GameRuntimeServices engineServices;
     services.engineServices = &engineServices;
     const fs::path prefsPath =
         fs::temp_directory_path() / "pac_script_api_contract_video_settings.json";
@@ -250,11 +250,11 @@ bool test_script_api_contract(std::string& outFail) {
 
     if (!expect(api.setVSyncPreference(true), "setVSyncPreference should succeed.", outFail)) return false;
     if (!expect(api.getVSyncPreference(), "getVSyncPreference mismatch after set.", outFail)) return false;
-    if (!expect(services.engineServices->vsyncEnabled, "setVSyncPreference should mirror to EngineServices.", outFail)) return false;
+    if (!expect(services.engineServices->vsyncEnabled, "setVSyncPreference should mirror to GameRuntimeServices.", outFail)) return false;
 
     if (!expect(api.setFpsCapPreference(144), "setFpsCapPreference should succeed.", outFail)) return false;
     if (!expect(api.getFpsCapPreference() == 144, "getFpsCapPreference mismatch.", outFail)) return false;
-    if (!expect(services.engineServices->fpsCap == 144, "setFpsCapPreference should mirror to EngineServices.", outFail)) return false;
+    if (!expect(services.engineServices->fpsCap == 144, "setFpsCapPreference should mirror to GameRuntimeServices.", outFail)) return false;
     if (!expect(api.setFpsCapPreference(-30), "setFpsCapPreference should sanitize negative input.", outFail)) return false;
     if (!expect(api.getFpsCapPreference() == 0, "negative FPS cap should sanitize to uncapped.", outFail)) return false;
 
@@ -262,7 +262,7 @@ bool test_script_api_contract(std::string& outFail) {
     if (!expect(api.setGraphicsQualityPreference(1), "setGraphicsQualityPreference should succeed.", outFail)) return false;
     if (!expect(api.getGraphicsQualityPreference() == 1, "getGraphicsQualityPreference mismatch.", outFail)) return false;
     if (!expect(services.engineServices->graphicsQuality == 1,
-                "setGraphicsQualityPreference should mirror graphics quality to EngineServices.", outFail)) return false;
+                "setGraphicsQualityPreference should mirror graphics quality to GameRuntimeServices.", outFail)) return false;
     if (!expect(services.graphicsQualityGeneration != graphicsGenerationBefore &&
                 services.engineServices->graphicsQualityGeneration == services.graphicsQualityGeneration,
                 "setGraphicsQualityPreference should bump and mirror the quality generation.", outFail)) return false;
@@ -308,12 +308,12 @@ bool test_script_api_contract(std::string& outFail) {
                 services.engineServices->audioSfxVolume == 45 &&
                 services.engineServices->audioVoiceVolume == 35 &&
                 services.engineServices->audioMute,
-                "audio preference setters should mirror to EngineServices.", outFail)) return false;
+                "audio preference setters should mirror to GameRuntimeServices.", outFail)) return false;
     if (!expect(services.engineServices->requestedRendererBackend == rendererBackendPref &&
                 services.engineServices->requireDiscreteGpu &&
                 services.engineServices->preferredGpuAdapter == "NVIDIA GeForce GTX 1050" &&
                 services.engineServices->characterInkingEnabled,
-                "video preference setters should mirror advanced display settings to EngineServices.", outFail)) return false;
+                "video preference setters should mirror advanced display settings to GameRuntimeServices.", outFail)) return false;
 
     const game::video::Preferences savedPrefs =
         game::video::loadPreferences(prefsPath.string());

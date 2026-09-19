@@ -1,7 +1,7 @@
 // src/game/logging/LogBus.cpp
 #include "LogBus.h"
 
-#include "engine/ui/BattleFeed.h"
+#include "game/ui/BattleFeed.h"
 #include "engine/core/Environment.h"
 #include <algorithm>
 #include <chrono>

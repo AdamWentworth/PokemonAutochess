@@ -19,7 +19,7 @@ class IRenderBackend;
 class RoundSystem;
 class ShopSystem;
 class UnitInteractionSystem;
-struct EngineServices;
+struct GameRuntimeServices;
 struct GameConfigData;
 struct GameDataDb;
 struct GameServices;
@@ -68,7 +68,7 @@ struct Context {
     LogBus::Logger* log = nullptr;
     engine::log::Sink* consoleLog = nullptr;
     session_loop_runtime::PauseState* pauseState = nullptr;
-    EngineServices* engineServices = nullptr;
+    GameRuntimeServices* engineServices = nullptr;
     game::ui::UIViewport* viewport = nullptr;
     UnitInteractionSystem* unitSystem = nullptr;
     CameraSystem* cameraSystem = nullptr;

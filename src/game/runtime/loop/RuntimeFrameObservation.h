@@ -1,6 +1,6 @@
 #pragma once
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/runtime/loop/RuntimePerfAccumulator.h"
 
 namespace game::runtime::frame_observation {
@@ -22,7 +22,7 @@ struct ServiceSnapshot {
     std::uint32_t projectedGpuClipPaletteBatches = 0u;
     std::uint32_t projectedCpuRewriteBatches = 0u;
     std::uint32_t projectedIndexedBatchesQueued = 0u;
-    EngineRenderBuildBreakdown rawRenderBreakdown{};
+    GameRenderBuildBreakdown rawRenderBreakdown{};
 };
 
 struct SampleInputs {
@@ -57,12 +57,12 @@ struct SampleInputs {
     std::uint64_t fastScenePaletteUploadBytes = 0u;
     std::uint32_t fastSceneMaterialTableBinds = 0u;
     std::uint32_t fastSceneIndirectCommands = 0u;
-    EngineFixedPerfBreakdown fixedBreakdown{};
+    GameFixedPerfBreakdown fixedBreakdown{};
     int fixedTicks = 0;
     int fixedTicksDropped = 0;
 };
 
-ServiceSnapshot captureServiceSnapshot(const EngineServices& services);
+ServiceSnapshot captureServiceSnapshot(const GameRuntimeServices& services);
 
 game::runtime::perf_accum::FrameSample makePerfSample(const SampleInputs& inputs,
                                                       const ServiceSnapshot& snapshot);

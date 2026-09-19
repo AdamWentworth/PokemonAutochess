@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/GameWorld.h"
 
 #include "game/config/GameDataDb.h"

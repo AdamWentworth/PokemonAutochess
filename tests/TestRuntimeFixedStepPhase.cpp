@@ -1,11 +1,11 @@
 #include <cmath>
 #include <string>
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/runtime/loop/RuntimeFixedStepPhase.h"
 
 bool test_runtime_fixed_step_phase_contract(std::string& outFail) {
-    EngineServices services;
+    GameRuntimeServices services;
 
     {
         int fixedUpdateCalls = 0;

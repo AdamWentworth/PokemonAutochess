@@ -1,6 +1,6 @@
 #pragma once
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/runtime/video/VideoPreferences.h"
 
 #include <iosfwd>
@@ -40,7 +40,7 @@ PreparedSession prepareFromEnvironment(const std::string& prefsPath,
                                        std::ostream& logOut,
                                        std::ostream& errOut);
 
-void applyToServices(const PreparedSession& session, EngineServices& services);
+void applyToServices(const PreparedSession& session, GameRuntimeServices& services);
 
 } // namespace game::runtime::startup_session
 

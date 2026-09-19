@@ -21,7 +21,7 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include "engine/core/GameContext.h"
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/core/Paths.h"
 #include "engine/core/Random.h"
 #include "engine/core/Services.h"
@@ -104,7 +104,8 @@ struct GameSession::Impl {
     // Pointers (engine-owned)
     Camera3D* camera = nullptr;
     IRenderBackend* renderer = nullptr;
-    EngineServices* engineServices = nullptr;
+    GameRuntimeServices* engineServices = nullptr;
+    GameRuntimeServices fallbackRuntimeServices;
 
     // Injected db (owned; loader instances).
     GameDataDb dataDb;
@@ -216,6 +217,7 @@ struct GameSession::Impl {
                 .camera = &camera,
                 .renderer = &renderer,
                 .engineServices = &engineServices,
+                .fallbackRuntimeServices = &fallbackRuntimeServices,
                 .setTitleCallback = &setTitleCallback,
                 .startupRoutes = &startupRoutes,
                 .allowBackendMenuBackdrop = &allowBackendMenuBackdrop,

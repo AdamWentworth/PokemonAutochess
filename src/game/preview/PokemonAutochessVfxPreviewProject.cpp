@@ -12,7 +12,7 @@
 
 #include "engine/core/Paths.h"
 #include "engine/core/Environment.h"
-#include "engine/render/BoardRenderer.h"
+#include "game/render/BoardRenderer.h"
 #include "engine/render/Camera3D.h"
 #include "engine/render/OpenGLRenderBackend.h"
 #include "game/GameConfig.h"

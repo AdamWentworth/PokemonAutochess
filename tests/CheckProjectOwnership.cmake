@@ -4,6 +4,14 @@ if (NOT DEFINED PAC_ROOT OR NOT DEFINED PHLOSION_ROOT)
 endif()
 
 set(_required_project_files
+    "${PAC_ROOT}/src/game/runtime/GameRuntimeServices.h"
+    "${PAC_ROOT}/src/game/render/BoardRenderer.h"
+    "${PAC_ROOT}/src/game/render/BoardRenderer.cpp"
+    "${PAC_ROOT}/src/game/ui/BattleFeed.h"
+    "${PAC_ROOT}/src/game/ui/BattleFeed.cpp"
+    "${PAC_ROOT}/src/game/ui/HealthBarRenderer.h"
+    "${PAC_ROOT}/src/game/ui/HealthBarRenderer.cpp"
+    "${PAC_ROOT}/src/game/ui/HealthBarData.h"
     "${PAC_ROOT}/src/game/assets/environment/PublishedEnvironmentScene.h"
     "${PAC_ROOT}/src/game/assets/environment/PublishedEnvironmentScene.cpp"
     "${PAC_ROOT}/src/game/render/environment/Route1FieldGroundMaterial.h"

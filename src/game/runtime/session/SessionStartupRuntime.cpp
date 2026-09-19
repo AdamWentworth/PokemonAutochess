@@ -1,6 +1,6 @@
 #include "game/runtime/session/SessionStartupRuntime.h"
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/core/Environment.h"
 #include "engine/core/GameContext.h"
 #include "engine/core/Paths.h"

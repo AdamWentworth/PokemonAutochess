@@ -30,6 +30,10 @@ $dependencies = @(
     [pscustomobject]@{
         Name = "PhlosionVFX"
         Variable = "PHLOSION_VFX_GIT_TAG"
+    },
+    [pscustomobject]@{
+        Name = "PhlosionPackages"
+        Variable = "PHLOSION_PACKAGES_GIT_TAG"
     }
 )
 

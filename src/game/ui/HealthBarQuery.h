@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "engine/ui/HealthBarData.h"
+#include "game/ui/HealthBarData.h"
 
 class Camera3D;
 struct GameConfigData;

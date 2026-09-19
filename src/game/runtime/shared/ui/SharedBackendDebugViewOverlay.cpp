@@ -1,7 +1,7 @@
 #include "game/runtime/shared/ui/SharedBackendDebugViewOverlay.h"
 #include "game/runtime/shared/ui/SharedBackendDebugViewSupport.h"
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/core/ecs/World.h"
 #include "engine/render/Camera3D.h"
 #include "game/GameServices.h"
@@ -71,8 +71,8 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
     auto& lines = *args.lines;
     auto& textLines = *args.textLines;
     auto& sprites = *args.sprites;
-    EngineRenderBuildBreakdown localRenderBreakdown{};
-    EngineRenderBuildBreakdown* renderBuildBreakdown =
+    GameRenderBuildBreakdown localRenderBreakdown{};
+    GameRenderBuildBreakdown* renderBuildBreakdown =
         args.renderBuildBreakdown ? args.renderBuildBreakdown : &localRenderBreakdown;
     const float precomposedWorldMs = renderBuildBreakdown->worldComposeMs;
     const float precomposedWorldBackdropMs = renderBuildBreakdown->worldBackdropMs;
@@ -91,7 +91,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
     const auto composeStart = clock::now();
     const auto *inspected = renderWorld && gameWorld ? gameWorld->inspectedUnit() : nullptr;
         if (showPerfOverlay && engineServices) {
-            const EngineFramePerfStats& perf = engineServices->framePerf;
+            const GameFramePerfStats& perf = engineServices->framePerf;
             if (perf.fps > 0.0f) {
                 const float fpsNorm = std::clamp(perf.fps / 120.0f, 0.0f, 1.0f);
                 IRenderBackend::DebugQuad fpsBarBg;
@@ -132,7 +132,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         };
 
         if (engineServices) {
-            const EngineFramePerfStats& perf = engineServices->framePerf;
+            const GameFramePerfStats& perf = engineServices->framePerf;
             if (perf.fps > 0.0f) {
                 std::ostringstream perfLine;
                 perfLine << std::fixed << std::setprecision(1)

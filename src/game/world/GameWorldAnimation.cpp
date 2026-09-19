@@ -10,7 +10,7 @@
 
 #include "game/animation/FlightLocomotion.h"
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/render/Model.h"
 
 #include "game/logging/DebugTrace.h"
@@ -24,8 +24,8 @@ using WorldTraceClock = std::chrono::steady_clock;
 constexpr double kWorldHitchUpdateThresholdMs = 8.0;
 constexpr double kWorldPendingDamageThresholdMs = 2.0;
 
-bool shouldTraceWorldHitch(const EngineServices* services) {
-    return services && services->terminalLogMode == EngineTerminalLogMode::Performance;
+bool shouldTraceWorldHitch(const GameRuntimeServices* services) {
+    return services && services->terminalLogMode == GameTerminalLogMode::Performance;
 }
 
 void emitWorldHitch(LogBus::Logger* logger,
@@ -61,8 +61,8 @@ std::string traceMoveLabel(const PokemonInstance& unit) {
     return move.empty() ? std::string("-") : std::string(move);
 }
 
-bool shouldTraceAnim(const EngineServices* services, const PokemonInstance& unit) {
-    if (services && services->terminalLogMode == EngineTerminalLogMode::AnimationDecision) {
+bool shouldTraceAnim(const GameRuntimeServices* services, const PokemonInstance& unit) {
+    if (services && services->terminalLogMode == GameTerminalLogMode::AnimationDecision) {
         return true;
     }
     return DebugTrace::anim(unit.name, traceMoveName(unit));
@@ -120,7 +120,7 @@ void emitAnimTrace(LogBus::Logger* logger,
 }
 
 void emitAnimSelectionTrace(LogBus::Logger* logger,
-                            const EngineServices* services,
+                            const GameRuntimeServices* services,
                             std::string_view stage,
                             const PokemonInstance& unit,
                             int previousAnim,

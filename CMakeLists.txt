@@ -195,7 +195,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "30b86b2b7f7762a0a1b51f43c45f537f8154d522"
+    "e8c9f7b877bfd061e2e6cac55c211fed247553a0"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 
@@ -275,6 +275,12 @@ endif()
 # included only when this game builds its editor integration; shipped gameplay
 # targets do not load or link editor package code.
 if (PAC_BUILD_EDITOR)
+    set(PHLOSION_PACKAGES_GIT_REPOSITORY
+        "git@github.com:AdamWentworth/PhlosionPackages.git"
+        CACHE STRING "Phlosion Packages Git repository (private; requires access)")
+    set(PHLOSION_PACKAGES_GIT_TAG
+        "d27d065b1d016414dc7e82cad22bf5523cb29583"
+        CACHE STRING "Pinned Phlosion Packages commit")
     set(_pac_sibling_packages "")
     if (PHLOSION_DEV_ROOT)
         set(_pac_sibling_packages
@@ -291,23 +297,36 @@ if (PAC_BUILD_EDITOR)
     set(PHLOSION_PACKAGES_SOURCE_DIR
         "${_pac_packages_source_default}"
         CACHE PATH
-        "Local PhlosionPackages checkout")
-    if (NOT EXISTS
-        "${PHLOSION_PACKAGES_SOURCE_DIR}/CMakeLists.txt")
-        message(FATAL_ERROR
-            "PAC_BUILD_EDITOR requires a PhlosionPackages checkout. "
-            "Set PHLOSION_PACKAGES_SOURCE_DIR to the monorepo root.")
-    endif()
+        "Local PhlosionPackages checkout; empty downloads the pinned commit")
     set(PHLOSION_PACKAGES_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(PHLOSION_PACKAGES_BUILD_EDITOR ON CACHE BOOL "" FORCE)
+    set(PHLOSION_PACKAGES_ENGINE_SOURCE_DIR "${_pac_resolved_engine_source_dir}")
     set(PHLOSION_PACKAGE_OUTPUT_ROOT
         "${CMAKE_SOURCE_DIR}/.phlosion/packages"
         CACHE PATH "" FORCE)
-    add_subdirectory(
-        "${PHLOSION_PACKAGES_SOURCE_DIR}"
-        "${CMAKE_BINARY_DIR}/phlosion-packages")
-    set(_pac_resolved_packages_source_dir
-        "${PHLOSION_PACKAGES_SOURCE_DIR}")
+    if (PHLOSION_PACKAGES_SOURCE_DIR)
+        if (NOT EXISTS "${PHLOSION_PACKAGES_SOURCE_DIR}/CMakeLists.txt")
+            message(FATAL_ERROR
+                "PHLOSION_PACKAGES_SOURCE_DIR does not contain CMakeLists.txt: "
+                "${PHLOSION_PACKAGES_SOURCE_DIR}")
+        endif()
+        add_subdirectory(
+            "${PHLOSION_PACKAGES_SOURCE_DIR}"
+            "${CMAKE_BINARY_DIR}/phlosion-packages")
+        set(_pac_resolved_packages_source_dir "${PHLOSION_PACKAGES_SOURCE_DIR}")
+        message(STATUS "Pokemon Autochess is using local Phlosion Packages: ${PHLOSION_PACKAGES_SOURCE_DIR}")
+    else()
+        include(FetchContent)
+        FetchContent_Declare(
+            PhlosionPackages
+            GIT_REPOSITORY "${PHLOSION_PACKAGES_GIT_REPOSITORY}"
+            GIT_TAG "${PHLOSION_PACKAGES_GIT_TAG}"
+            GIT_SHALLOW FALSE)
+        FetchContent_MakeAvailable(PhlosionPackages)
+        FetchContent_GetProperties(
+            PhlosionPackages SOURCE_DIR _pac_resolved_packages_source_dir)
+        message(STATUS "Pokemon Autochess is using pinned Phlosion Packages commit: ${PHLOSION_PACKAGES_GIT_TAG}")
+    endif()
     if (NOT TARGET PhlosionPackages::TileToolsEditor)
         message(FATAL_ERROR
             "PhlosionPackages did not provide phlosion.tile-tools.")
@@ -320,7 +339,7 @@ set(PHLOSION_VFX_GIT_REPOSITORY
     CACHE STRING
     "Phlosion VFX Git repository")
 set(PHLOSION_VFX_GIT_TAG
-    "cf1c81a5d7eb368d9ef079f0927218bd3bb0f20b"
+    "8d169ffac2895cb6ef62cd570d7cfaa9542b1190"
     CACHE STRING
     "Pinned Phlosion VFX commit")
 set(_pac_sibling_vfx "")
@@ -386,6 +405,9 @@ target_link_libraries(PAC_ArenaLogic PUBLIC nlohmann_json::nlohmann_json glm::gl
 pac_apply_warning_flags(PAC_ArenaLogic)
 
 add_library(PAC_GameObjects STATIC
+    src/game/render/BoardRenderer.cpp
+    src/game/ui/BattleFeed.cpp
+    src/game/ui/HealthBarRenderer.cpp
     # Project-owned source format adapters
     src/game/assets/environment/PublishedEnvironmentScene.cpp
 

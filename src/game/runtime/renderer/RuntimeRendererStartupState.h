@@ -1,6 +1,6 @@
 #pragma once
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/runtime/renderer/RuntimeRendererActivation.h"
 
 #include <iosfwd>
@@ -17,11 +17,11 @@ struct OpenGlStrings {
     std::string glslVersion;
 };
 
-game::runtime::renderer_activation::Inputs makeActivationInputs(const EngineServices& services,
+game::runtime::renderer_activation::Inputs makeActivationInputs(const GameRuntimeServices& services,
                                                                 const IRenderBackend& renderer,
                                                                 const OpenGlStrings& openGlStrings);
 
-game::runtime::renderer_activation::Outputs applyAndLog(EngineServices& services,
+game::runtime::renderer_activation::Outputs applyAndLog(GameRuntimeServices& services,
                                                         const game::runtime::renderer_activation::Inputs& inputs,
                                                         std::ostream& logOut);
 

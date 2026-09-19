@@ -90,9 +90,12 @@ Notes:
 - Local development uses the Engine, Packages, and VFX checkouts below
   `PHLOSION_DEV_ROOT`. The standard workspace layout is discovered
   automatically; set `PHLOSION_DEV_ROOT` when using another layout. If no
-  local Engine or VFX checkout is available, CMake fetches the exact commits
+  local Engine, Packages, or VFX checkout is available, CMake fetches the exact commits
   pinned in `CMakeLists.txt`. Their individual `*_SOURCE_DIR` cache values
   remain available as explicit overrides.
+- `PhlosionPackages` is private and its default fetch URL uses GitHub SSH.
+  Editor builds require repository access or an existing local package checkout.
+  Set `PAC_BUILD_EDITOR=OFF` for a runtime-only build without this dependency.
 - Runtime payloads under `assets/` and `content/phlosion/` are intentionally
   untracked. Restore them from the private asset depot with
   `.\tools\assets\sync_asset_depot.ps1`.

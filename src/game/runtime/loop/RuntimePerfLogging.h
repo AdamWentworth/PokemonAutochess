@@ -3,35 +3,35 @@
 #include <string>
 #include <string_view>
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 
 namespace game::runtime::perf_logging {
 
-const char* terminalLogModeName(EngineTerminalLogMode mode);
-EngineTerminalLogMode nextTerminalLogMode(EngineTerminalLogMode mode);
+const char* terminalLogModeName(GameTerminalLogMode mode);
+GameTerminalLogMode nextTerminalLogMode(GameTerminalLogMode mode);
 
-std::string formatTopFixedSystems(const EngineFixedPerfBreakdown& fixedBreakdown);
+std::string formatTopFixedSystems(const GameFixedPerfBreakdown& fixedBreakdown);
 
-std::string formatPerfLine(const EngineFramePerfStats& framePerf);
+std::string formatPerfLine(const GameFramePerfStats& framePerf);
 
-std::string formatPerfJson(const EngineFramePerfStats& framePerf);
+std::string formatPerfJson(const GameFramePerfStats& framePerf);
 
-std::string formatPerfHitchLine(const EngineFramePerfStats& framePerf,
+std::string formatPerfHitchLine(const GameFramePerfStats& framePerf,
                                 std::string_view reason = {});
 
-std::string formatPerfHitchJson(const EngineFramePerfStats& framePerf,
+std::string formatPerfHitchJson(const GameFramePerfStats& framePerf,
                                 std::string_view reason = {});
 
-std::string formatGrowlDebugLine(const EngineGrowlDebugStats& growlDebug);
+std::string formatGrowlDebugLine(const GameGrowlDebugStats& growlDebug);
 
-std::string formatGrowlDebugJson(const EngineGrowlDebugStats& growlDebug);
+std::string formatGrowlDebugJson(const GameGrowlDebugStats& growlDebug);
 
-std::string formatScratchDebugLine(const EngineScratchDebugStats& scratchDebug,
-                                   const EngineFramePerfStats& framePerf,
+std::string formatScratchDebugLine(const GameScratchDebugStats& scratchDebug,
+                                   const GameFramePerfStats& framePerf,
                                    std::string_view reason = {});
 
-std::string formatScratchDebugJson(const EngineScratchDebugStats& scratchDebug,
-                                   const EngineFramePerfStats& framePerf,
+std::string formatScratchDebugJson(const GameScratchDebugStats& scratchDebug,
+                                   const GameFramePerfStats& framePerf,
                                    std::string_view reason = {});
 
 } // namespace game::runtime::perf_logging

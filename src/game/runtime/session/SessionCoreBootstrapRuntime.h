@@ -13,7 +13,7 @@ class ShopSystem;
 class RoundSystem;
 class CameraSystem;
 class UnitInteractionSystem;
-struct EngineServices;
+struct GameRuntimeServices;
 struct GameConfigData;
 struct GameContext;
 struct GameDataDb;
@@ -51,7 +51,7 @@ struct Args {
     GameContext* ctx = nullptr;
     Camera3D* camera = nullptr;
     IRenderBackend* renderer = nullptr;
-    EngineServices* engineServices = nullptr;
+    GameRuntimeServices* engineServices = nullptr;
     const render::RenderRoutes* startupRoutes = nullptr;
     ::GameDataDb* dataDb = nullptr;
     LogBus::Logger* log = nullptr;

@@ -2,6 +2,7 @@
 
 #include "engine/core/Environment.h"
 #include "engine/core/GameContext.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/runtime/routes/StartupRenderRoutePolicy.h"
 #include "game/runtime/session/SessionCoreBootstrapRuntime.h"
 #include "game/runtime/session/SessionStartupBridge.h"
@@ -11,6 +12,7 @@ namespace game::runtime::session_init_bridge {
 
 void run(const Context& context) {
     if (!context.ctx || !context.camera || !context.renderer || !context.engineServices ||
+        !context.fallbackRuntimeServices ||
         !context.setTitleCallback || !context.startupRoutes ||
         !context.allowBackendMenuBackdrop || !context.showPerfOverlay || !context.viewport) {
         return;
@@ -18,7 +20,8 @@ void run(const Context& context) {
 
     *context.camera = context.ctx->camera;
     *context.renderer = context.ctx->renderer;
-    *context.engineServices = context.ctx->services;
+    *context.engineServices = bindGameRuntimeServices(
+        context.ctx->services, *context.fallbackRuntimeServices);
     *context.setTitleCallback = context.ctx->setTitle;
 
     const bool hasBackend =

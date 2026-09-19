@@ -1,6 +1,6 @@
 #pragma once
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/logging/LoggerUtil.h"
 
 #include <string>
@@ -8,8 +8,8 @@
 
 namespace game::combat_decision_trace {
 
-inline bool isTerminalModeEnabled(const EngineServices* services) {
-    return services && services->terminalLogMode == EngineTerminalLogMode::CombatDecision;
+inline bool isTerminalModeEnabled(const GameRuntimeServices* services) {
+    return services && services->terminalLogMode == GameTerminalLogMode::CombatDecision;
 }
 
 inline void emit(LogBus::Logger* logger,

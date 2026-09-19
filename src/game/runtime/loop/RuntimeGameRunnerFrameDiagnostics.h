@@ -1,6 +1,6 @@
 #pragma once
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/runtime/loop/RuntimeFixedStepPhase.h"
 #include "game/runtime/loop/RuntimeFrameObservation.h"
 #include "game/runtime/loop/RuntimeFramePerfCapture.h"
@@ -19,7 +19,7 @@ struct State {
     std::uint32_t previousScratchBatchCount = 0u;
     bool previousScratchSpike = false;
     float previousInstantFrameMs = 0.0f;
-    EngineTerminalLogMode previousTerminalLogMode = EngineTerminalLogMode::Performance;
+    GameTerminalLogMode previousTerminalLogMode = GameTerminalLogMode::Performance;
 };
 
 struct Inputs {
@@ -34,10 +34,10 @@ struct Inputs {
     game::runtime::frame_perf_capture::BackendFrameOutputs backendPerf{};
 };
 
-State makeInitialState(const EngineServices& services);
+State makeInitialState(const GameRuntimeServices& services);
 
 void observeAndEmit(State& state,
-                    EngineServices& services,
+                    GameRuntimeServices& services,
                     const Inputs& inputs,
                     std::ostream& out);
 

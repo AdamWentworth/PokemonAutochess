@@ -10,7 +10,7 @@
 class GameStateManager;
 class GameWorld;
 class IRenderBackend;
-struct EngineServices;
+struct GameRuntimeServices;
 struct GameConfigData;
 struct GameContext;
 struct GameDataDb;
@@ -25,7 +25,7 @@ namespace game::runtime::session_startup_runtime {
 struct Args {
     GameContext* ctx = nullptr;
     IRenderBackend* renderer = nullptr;
-    EngineServices* engineServices = nullptr;
+    GameRuntimeServices* engineServices = nullptr;
     const ::GameDataDb* dataDb = nullptr;
     const ::GameConfigData* config = nullptr;
     GameServices* services = nullptr;

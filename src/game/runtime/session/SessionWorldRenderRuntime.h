@@ -12,7 +12,7 @@
 class Camera3D;
 class IRenderBackend;
 class GameWorld;
-struct EngineServices;
+struct GameRuntimeServices;
 struct GameServices;
 struct GameConfigData;
 struct GameDataDb;
@@ -41,7 +41,7 @@ namespace game::runtime::session_world_render_runtime {
 
 struct Args {
     IRenderBackend* renderer = nullptr;
-    EngineServices* engineServices = nullptr;
+    GameRuntimeServices* engineServices = nullptr;
     GameServices* services = nullptr;
     GameWorld* gameWorld = nullptr;
     Camera3D* camera = nullptr;

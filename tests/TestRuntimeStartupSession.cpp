@@ -5,7 +5,7 @@
 #include <sstream>
 #include <string>
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/runtime/startup/RuntimeStartupSession.h"
 #include "game/runtime/video/VideoPreferences.h"
 #include "TestEnvVarUtils.h"
@@ -84,7 +84,7 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
             return false;
         }
 
-        EngineServices services;
+        GameRuntimeServices services;
         game::runtime::startup_session::applyToServices(session, services);
         if (services.bootMenuScreen != "video" ||
             services.requestedRendererBackend != "d3d12" ||
@@ -101,7 +101,7 @@ bool test_runtime_startup_session_contract(std::string& outFail) {
             services.audioVoiceVolume != 55 ||
             !services.audioMute ||
             services.availableGpuAdapters != session.availableGpuAdapters) {
-            outFail = "applyToServices should copy prepared startup session state into EngineServices.";
+            outFail = "applyToServices should copy prepared startup session state into GameRuntimeServices.";
             fs::remove(prefsPath, removeError);
             return false;
         }

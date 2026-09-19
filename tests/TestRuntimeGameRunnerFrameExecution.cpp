@@ -1,7 +1,7 @@
 #include <cmath>
 #include <string>
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/core/GameLoop.h"
 #include "engine/runtime/FixedStep.h"
 #include "game/runtime/loop/RuntimeGameRunnerFrameExecution.h"
@@ -27,7 +27,7 @@ public:
 
     void shutdown() override {}
 
-    EngineServices* services = nullptr;
+    GameRuntimeServices* services = nullptr;
     int fixedUpdateCalls = 0;
     int renderCalls = 0;
     int lastRenderW = 0;
@@ -38,7 +38,7 @@ public:
 } // namespace
 
 bool test_runtime_game_runner_frame_execution_contract(std::string& outFail) {
-    EngineServices services;
+    GameRuntimeServices services;
     services.frameVisibleAnimatedUnits = 9u;
     services.frameParticleCount = 24u;
     services.frameProjectedUnitsMs = 1.5f;

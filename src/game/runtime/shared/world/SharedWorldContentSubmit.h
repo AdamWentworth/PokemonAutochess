@@ -6,7 +6,7 @@
 #include <vector>
 
 class Camera3D;
-struct EngineRenderBuildBreakdown;
+struct GameRenderBuildBreakdown;
 
 namespace game::runtime::shared_world_content_submit {
 
@@ -25,7 +25,7 @@ struct Args {
     const IRenderBackend::WorldSceneView* worldSceneView = nullptr;
     const IRenderBackend::WorldSceneFrame* worldSceneFrame = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches = nullptr;
-    EngineRenderBuildBreakdown* renderBuildBreakdown = nullptr;
+    GameRenderBuildBreakdown* renderBuildBreakdown = nullptr;
 };
 
 void submitOpaqueAndIndexedWorldContent(const Args& args);

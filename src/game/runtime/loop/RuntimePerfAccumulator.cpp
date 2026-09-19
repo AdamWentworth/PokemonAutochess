@@ -5,8 +5,8 @@
 
 namespace {
 
-void accumulateRenderBreakdown(EngineRenderBuildBreakdown& total,
-                               const EngineRenderBuildBreakdown& frame) {
+void accumulateRenderBreakdown(GameRenderBuildBreakdown& total,
+                               const GameRenderBuildBreakdown& frame) {
     total.worldComposeMs += frame.worldComposeMs;
     total.worldBackdropMs += frame.worldBackdropMs;
     total.worldVfxMs += frame.worldVfxMs;
@@ -23,9 +23,9 @@ void accumulateRenderBreakdown(EngineRenderBuildBreakdown& total,
     total.otherMs += frame.otherMs;
 }
 
-EngineRenderBuildBreakdown averageRenderBreakdown(const EngineRenderBuildBreakdown& total,
+GameRenderBuildBreakdown averageRenderBreakdown(const GameRenderBuildBreakdown& total,
                                                   double frames) {
-    EngineRenderBuildBreakdown out{};
+    GameRenderBuildBreakdown out{};
     out.worldComposeMs = static_cast<float>(total.worldComposeMs / frames);
     out.worldBackdropMs = static_cast<float>(total.worldBackdropMs / frames);
     out.worldVfxMs = static_cast<float>(total.worldVfxMs / frames);
@@ -44,8 +44,8 @@ EngineRenderBuildBreakdown averageRenderBreakdown(const EngineRenderBuildBreakdo
     return out;
 }
 
-void accumulateFixedBreakdown(EngineFixedPerfBreakdown& total,
-                              const EngineFixedPerfBreakdown& frame) {
+void accumulateFixedBreakdown(GameFixedPerfBreakdown& total,
+                              const GameFixedPerfBreakdown& frame) {
     total.preUpdateMs += frame.preUpdateMs;
     total.updatePhaseMs += frame.updatePhaseMs;
     total.postUpdateMs += frame.postUpdateMs;
@@ -71,9 +71,9 @@ void accumulateFixedBreakdown(EngineFixedPerfBreakdown& total,
     total.worldMs += frame.worldMs;
 }
 
-EngineFixedPerfBreakdown averageFixedBreakdown(const EngineFixedPerfBreakdown& total,
+GameFixedPerfBreakdown averageFixedBreakdown(const GameFixedPerfBreakdown& total,
                                                double frames) {
-    EngineFixedPerfBreakdown out{};
+    GameFixedPerfBreakdown out{};
     out.preUpdateMs = static_cast<float>(total.preUpdateMs / frames);
     out.updatePhaseMs = static_cast<float>(total.updatePhaseMs / frames);
     out.postUpdateMs = static_cast<float>(total.postUpdateMs / frames);
@@ -175,7 +175,7 @@ bool RollingAccumulator::readyToEmit() const {
 WindowSummary RollingAccumulator::makeSummaryAndReset() {
     WindowSummary summary;
     const double frames = std::max(1, frameCount_);
-    EngineFramePerfStats& out = summary.framePerf;
+    GameFramePerfStats& out = summary.framePerf;
     out.fps = static_cast<float>(static_cast<double>(frameCount_) / std::max(0.000001, fpsTimer_));
     out.frameMs = static_cast<float>(frameMs_ / frames);
     out.fixedMs = static_cast<float>(fixedMs_ / frames);

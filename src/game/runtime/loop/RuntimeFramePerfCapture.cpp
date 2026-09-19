@@ -57,10 +57,10 @@ double computeTotalPresentWaitMs(bool rendererHandlesPresentation,
     return presentWaitMs + (rendererHandlesPresentation ? beginFrameMs : 0.0);
 }
 
-EngineRenderBuildBreakdown finalizeRenderBreakdown(double renderBuildMs,
+GameRenderBuildBreakdown finalizeRenderBreakdown(double renderBuildMs,
                                                    float projectedUnitsMs,
-                                                   const EngineRenderBuildBreakdown& rawBreakdown) {
-    EngineRenderBuildBreakdown out = rawBreakdown;
+                                                   const GameRenderBuildBreakdown& rawBreakdown) {
+    GameRenderBuildBreakdown out = rawBreakdown;
     const float attributedMs =
         projectedUnitsMs +
         out.worldComposeMs +

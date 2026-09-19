@@ -67,7 +67,7 @@ bool test_runtime_frame_perf_capture_contract(std::string& outFail) {
     }
 
     {
-        EngineRenderBuildBreakdown raw{};
+        GameRenderBuildBreakdown raw{};
         raw.worldComposeMs = 1.0f;
         raw.overlayPrepMs = 1.5f;
         raw.worldBackgroundMs = 0.5f;
@@ -84,7 +84,7 @@ bool test_runtime_frame_perf_capture_contract(std::string& outFail) {
     }
 
     {
-        EngineRenderBuildBreakdown raw{};
+        GameRenderBuildBreakdown raw{};
         raw.worldComposeMs = 10.0f;
         const auto out = finalizeRenderBreakdown(1.0, 0.0f, raw);
         if (std::fabs(out.otherMs) > 0.001f) {

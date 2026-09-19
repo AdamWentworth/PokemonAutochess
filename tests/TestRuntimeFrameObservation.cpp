@@ -1,11 +1,11 @@
 #include <cmath>
 #include <string>
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/runtime/loop/RuntimeFrameObservation.h"
 
 bool test_runtime_frame_observation_contract(std::string& outFail) {
-    EngineServices services;
+    GameRuntimeServices services;
     services.frameVisibleAnimatedUnits = 12u;
     services.frameParticleCount = 34u;
     services.frameProjectedUnitsMs = 4.5f;

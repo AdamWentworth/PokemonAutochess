@@ -1,6 +1,6 @@
 #include "game/runtime/startup/RuntimeGameRunnerStartupFinalize.h"
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/render/Camera3D.h"
 #include "engine/render/IRenderBackend.h"
 #include "engine/utils/LogSink.h"
@@ -26,7 +26,7 @@ namespace game::runtime::runner_startup_finalize {
 
 Result activateRendererAndInitializePresentation(
     IRenderBackend& renderer,
-    EngineServices& services,
+    GameRuntimeServices& services,
     game::runtime::window_presentation::WindowPresentationController& presentation,
     std::unique_ptr<Camera3D>& camera,
     const std::function<void(float)>& renderBootLoading,

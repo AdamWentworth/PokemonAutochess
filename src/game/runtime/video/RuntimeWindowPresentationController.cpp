@@ -1,6 +1,6 @@
 #include "game/runtime/video/RuntimeWindowPresentationController.h"
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/platform/Window.h"
 #include "engine/render/Camera3D.h"
 #include "engine/render/IRenderBackend.h"
@@ -16,7 +16,7 @@
 
 namespace game::runtime::window_presentation {
 
-WindowPresentationController::WindowPresentationController(EngineServices& servicesIn,
+WindowPresentationController::WindowPresentationController(GameRuntimeServices& servicesIn,
                                                            std::ostream& outIn,
                                                            std::ostream& errIn)
     : services(servicesIn), out(outIn), err(errIn), log("Video", &outIn, &errIn) {}

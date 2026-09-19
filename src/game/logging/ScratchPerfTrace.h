@@ -1,6 +1,6 @@
 #pragma once
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/logging/LoggerUtil.h"
 
 #include <cctype>
@@ -9,8 +9,8 @@
 
 namespace game::scratch_trace {
 
-inline bool isTerminalModeEnabled(const EngineServices* services) {
-    return services && services->terminalLogMode == EngineTerminalLogMode::ScratchVfx;
+inline bool isTerminalModeEnabled(const GameRuntimeServices* services) {
+    return services && services->terminalLogMode == GameTerminalLogMode::ScratchVfx;
 }
 
 inline bool isScratchMove(std::string_view moveName) {
@@ -24,7 +24,7 @@ inline bool isScratchMove(std::string_view moveName) {
     return true;
 }
 
-inline bool shouldTrace(const EngineServices* services, std::string_view moveName) {
+inline bool shouldTrace(const GameRuntimeServices* services, std::string_view moveName) {
     return isTerminalModeEnabled(services) && isScratchMove(moveName);
 }
 

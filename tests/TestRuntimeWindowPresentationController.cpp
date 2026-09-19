@@ -1,13 +1,13 @@
 #include <sstream>
 #include <string>
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/runtime/video/RuntimeWindowPresentationController.h"
 
 bool test_runtime_window_presentation_controller_contract(std::string& outFail) {
     namespace window_presentation = game::runtime::window_presentation;
 
-    EngineServices services;
+    GameRuntimeServices services;
     std::ostringstream out;
     std::ostringstream err;
     window_presentation::WindowPresentationController controller(services, out, err);

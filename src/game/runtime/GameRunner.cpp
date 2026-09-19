@@ -2,7 +2,7 @@
 
 #include "game/runtime/GameApp.h"
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/core/Environment.h"
 #include "engine/runtime/FixedStep.h"
 #include "engine/core/GameContext.h"
@@ -91,7 +91,7 @@ namespace {
         ResourceManager resourceManager;
         ShaderCache shaderCache;
         EventBus eventBus;
-        EngineServices services;
+        GameRuntimeServices services;
         engine::log::Sink log_;
         game::runtime::window_presentation::WindowPresentationController presentation;
 

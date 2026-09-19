@@ -1,7 +1,7 @@
 #include "CombatSystem.h"
 
 #include "engine/core/Environment.h"
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/core/IAssetStore.h"
 #include "engine/core/Paths.h"
 #include "engine/core/ecs/World.h"
@@ -57,7 +57,7 @@ std::unordered_map<std::string, int>& combatDecisionColdStartTraceCounts() {
     return counts;
 }
 
-bool shouldTraceCombatMoveColdStart(const EngineServices* services, const std::string& moveName) {
+bool shouldTraceCombatMoveColdStart(const GameRuntimeServices* services, const std::string& moveName) {
     if (!game::combat_decision_trace::isTerminalModeEnabled(services) || moveName.empty()) {
         return false;
     }
@@ -965,7 +965,7 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     if (!combat || !combat->active) return;
     if (!gameWorld || gameWorld->isBoardResizePauseActive()) return;
 
-    EngineFixedPerfBreakdown* fixedBreakdown =
+    GameFixedPerfBreakdown* fixedBreakdown =
         services.engineServices ? &services.engineServices->frameFixedBreakdown : nullptr;
 
     const auto planStart = Clock::now();

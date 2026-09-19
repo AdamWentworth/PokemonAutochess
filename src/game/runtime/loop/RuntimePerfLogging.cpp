@@ -28,39 +28,39 @@ std::string escapeJsonString(const std::string& value) {
 
 } // namespace
 
-const char* terminalLogModeName(EngineTerminalLogMode mode) {
+const char* terminalLogModeName(GameTerminalLogMode mode) {
     switch (mode) {
-        case EngineTerminalLogMode::CombatDecision:
+        case GameTerminalLogMode::CombatDecision:
             return "Combat Decision";
-        case EngineTerminalLogMode::AnimationDecision:
+        case GameTerminalLogMode::AnimationDecision:
             return "Animation Decision";
-        case EngineTerminalLogMode::ScratchVfx:
+        case GameTerminalLogMode::ScratchVfx:
             return "Scratch VFX";
-        case EngineTerminalLogMode::GrowlVfx:
+        case GameTerminalLogMode::GrowlVfx:
             return "Growl VFX";
-        case EngineTerminalLogMode::Performance:
+        case GameTerminalLogMode::Performance:
         default:
             return "Performance";
     }
 }
 
-EngineTerminalLogMode nextTerminalLogMode(EngineTerminalLogMode mode) {
+GameTerminalLogMode nextTerminalLogMode(GameTerminalLogMode mode) {
     switch (mode) {
-        case EngineTerminalLogMode::Performance:
-            return EngineTerminalLogMode::GrowlVfx;
-        case EngineTerminalLogMode::GrowlVfx:
-            return EngineTerminalLogMode::ScratchVfx;
-        case EngineTerminalLogMode::ScratchVfx:
-            return EngineTerminalLogMode::CombatDecision;
-        case EngineTerminalLogMode::CombatDecision:
-            return EngineTerminalLogMode::AnimationDecision;
-        case EngineTerminalLogMode::AnimationDecision:
+        case GameTerminalLogMode::Performance:
+            return GameTerminalLogMode::GrowlVfx;
+        case GameTerminalLogMode::GrowlVfx:
+            return GameTerminalLogMode::ScratchVfx;
+        case GameTerminalLogMode::ScratchVfx:
+            return GameTerminalLogMode::CombatDecision;
+        case GameTerminalLogMode::CombatDecision:
+            return GameTerminalLogMode::AnimationDecision;
+        case GameTerminalLogMode::AnimationDecision:
         default:
-            return EngineTerminalLogMode::Performance;
+            return GameTerminalLogMode::Performance;
     }
 }
 
-std::string formatTopFixedSystems(const EngineFixedPerfBreakdown& fixedBreakdown) {
+std::string formatTopFixedSystems(const GameFixedPerfBreakdown& fixedBreakdown) {
     struct FixedSystemEntry {
         const char* name;
         float ms;
@@ -94,7 +94,7 @@ std::string formatTopFixedSystems(const EngineFixedPerfBreakdown& fixedBreakdown
     return out.str();
 }
 
-std::string formatPerfLine(const EngineFramePerfStats& framePerf) {
+std::string formatPerfLine(const GameFramePerfStats& framePerf) {
     std::ostringstream out;
     out << std::fixed << std::setprecision(1)
         << "[Perf] FPS=" << framePerf.fps
@@ -133,7 +133,7 @@ std::string formatPerfLine(const EngineFramePerfStats& framePerf) {
     return out.str();
 }
 
-std::string formatPerfJson(const EngineFramePerfStats& framePerf) {
+std::string formatPerfJson(const GameFramePerfStats& framePerf) {
     std::ostringstream out;
     out << std::fixed << std::setprecision(3)
         << "[PerfJSON] {"
@@ -236,7 +236,7 @@ std::string formatPerfJson(const EngineFramePerfStats& framePerf) {
     return out.str();
 }
 
-std::string formatPerfHitchLine(const EngineFramePerfStats& framePerf,
+std::string formatPerfHitchLine(const GameFramePerfStats& framePerf,
                                 std::string_view reason) {
     std::ostringstream out;
     out << std::fixed << std::setprecision(2)
@@ -273,7 +273,7 @@ std::string formatPerfHitchLine(const EngineFramePerfStats& framePerf,
     return out.str();
 }
 
-std::string formatPerfHitchJson(const EngineFramePerfStats& framePerf,
+std::string formatPerfHitchJson(const GameFramePerfStats& framePerf,
                                 std::string_view reason) {
     std::ostringstream out;
     out << std::fixed << std::setprecision(3)
@@ -321,7 +321,7 @@ std::string formatPerfHitchJson(const EngineFramePerfStats& framePerf,
     return out.str();
 }
 
-std::string formatGrowlDebugLine(const EngineGrowlDebugStats& growlDebug) {
+std::string formatGrowlDebugLine(const GameGrowlDebugStats& growlDebug) {
     std::ostringstream out;
     out << std::fixed << std::setprecision(2)
         << "[Growl] rings=" << growlDebug.activeRingCount
@@ -345,7 +345,7 @@ std::string formatGrowlDebugLine(const EngineGrowlDebugStats& growlDebug) {
     return out.str();
 }
 
-std::string formatGrowlDebugJson(const EngineGrowlDebugStats& growlDebug) {
+std::string formatGrowlDebugJson(const GameGrowlDebugStats& growlDebug) {
     std::ostringstream out;
     out << std::fixed << std::setprecision(3)
         << "[GrowlJSON] {"
@@ -388,8 +388,8 @@ std::string formatGrowlDebugJson(const EngineGrowlDebugStats& growlDebug) {
     return out.str();
 }
 
-std::string formatScratchDebugLine(const EngineScratchDebugStats& scratchDebug,
-                                   const EngineFramePerfStats& framePerf,
+std::string formatScratchDebugLine(const GameScratchDebugStats& scratchDebug,
+                                   const GameFramePerfStats& framePerf,
                                    std::string_view reason) {
     std::ostringstream out;
     out << std::fixed << std::setprecision(2)
@@ -422,8 +422,8 @@ std::string formatScratchDebugLine(const EngineScratchDebugStats& scratchDebug,
     return out.str();
 }
 
-std::string formatScratchDebugJson(const EngineScratchDebugStats& scratchDebug,
-                                   const EngineFramePerfStats& framePerf,
+std::string formatScratchDebugJson(const GameScratchDebugStats& scratchDebug,
+                                   const GameFramePerfStats& framePerf,
                                    std::string_view reason) {
     std::ostringstream out;
     out << std::fixed << std::setprecision(3)

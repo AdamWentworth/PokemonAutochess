@@ -38,7 +38,7 @@
 class Camera3D;
 class ResourceManager;
 class Model;
-struct EngineServices;
+struct GameRuntimeServices;
 struct GameDataDb;
 struct GameConfigData;
 namespace LogBus { class Logger; }
@@ -160,7 +160,7 @@ public:
     void setLogger(LogBus::Logger* logger) { log = logger; }
     void setRenderEnabled(bool enabled) { renderEnabled = enabled; }
     void setRng(engine::IRandom* rngIn) { rng = rngIn; }
-    void setEngineServices(EngineServices* servicesIn) { engineServices = servicesIn; }
+    void setEngineServices(GameRuntimeServices* servicesIn) { engineServices = servicesIn; }
     LogBus::Logger* getLogger() const { return log; }
     const GameDataDb* getData() const { return data; }
     const GameConfigData& getConfig() const { return config; }
@@ -318,7 +318,7 @@ private:
     bool showConcealedUnits_ = false;
     bool renderEnabled = false;
     engine::IRandom* rng = nullptr;
-    EngineServices* engineServices = nullptr;
+    GameRuntimeServices* engineServices = nullptr;
 
     std::vector<PokemonInstance> pokemons;
     std::vector<PokemonInstance> benchPokemons;

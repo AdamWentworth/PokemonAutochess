@@ -4,7 +4,7 @@
 
 namespace game::runtime::renderer_startup_state {
 
-game::runtime::renderer_activation::Inputs makeActivationInputs(const EngineServices& services,
+game::runtime::renderer_activation::Inputs makeActivationInputs(const GameRuntimeServices& services,
                                                                 const IRenderBackend& renderer,
                                                                 const OpenGlStrings& openGlStrings) {
     game::runtime::renderer_activation::Inputs inputs;
@@ -25,7 +25,7 @@ game::runtime::renderer_activation::Inputs makeActivationInputs(const EngineServ
     return inputs;
 }
 
-game::runtime::renderer_activation::Outputs applyAndLog(EngineServices& services,
+game::runtime::renderer_activation::Outputs applyAndLog(GameRuntimeServices& services,
                                                         const game::runtime::renderer_activation::Inputs& inputs,
                                                         std::ostream& logOut) {
     const auto outputs = game::runtime::renderer_activation::resolve(inputs);

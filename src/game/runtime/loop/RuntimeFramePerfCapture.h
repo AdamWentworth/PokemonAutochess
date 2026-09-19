@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/render/IRenderBackend.h"
 
 namespace game::runtime::frame_perf_capture {
@@ -50,8 +50,8 @@ double computeTotalPresentWaitMs(bool rendererHandlesPresentation,
                                  double beginFrameMs,
                                  double presentWaitMs);
 
-EngineRenderBuildBreakdown finalizeRenderBreakdown(double renderBuildMs,
+GameRenderBuildBreakdown finalizeRenderBreakdown(double renderBuildMs,
                                                    float projectedUnitsMs,
-                                                   const EngineRenderBuildBreakdown& rawBreakdown);
+                                                   const GameRenderBuildBreakdown& rawBreakdown);
 
 } // namespace game::runtime::frame_perf_capture

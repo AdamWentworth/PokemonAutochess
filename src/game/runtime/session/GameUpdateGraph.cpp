@@ -6,7 +6,7 @@
 #include <string_view>
 #include <chrono>
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/core/ecs/Scheduler.h"
 #include "engine/core/ecs/World.h"
 #include "game/PhaseState.h"
@@ -25,7 +25,7 @@ const char* phaseName(RoundPhase p) {
     }
 }
 
-void accumulateFixedSystemMs(EngineFixedPerfBreakdown& stats,
+void accumulateFixedSystemMs(GameFixedPerfBreakdown& stats,
                              std::string_view name,
                              float elapsedMs) {
     if (name == "camera") {
@@ -66,7 +66,7 @@ void GameUpdateGraph::configure(Inputs inputs) {
 
 void GameUpdateGraph::tick(float dt) {
     using Clock = std::chrono::high_resolution_clock;
-    EngineFixedPerfBreakdown* fixedBreakdown =
+    GameFixedPerfBreakdown* fixedBreakdown =
         inputs_.engineServices ? &inputs_.engineServices->frameFixedBreakdown : nullptr;
 
     const auto tickPhase = [&](engine::ecs::Scheduler::Phase phase,

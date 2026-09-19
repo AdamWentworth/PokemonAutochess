@@ -7,7 +7,7 @@
 
 class Camera3D;
 class IRenderBackend;
-struct EngineServices;
+struct GameRuntimeServices;
 
 namespace game::runtime::window_presentation {
 class WindowPresentationController;
@@ -22,7 +22,7 @@ struct Result {
 
 Result activateRendererAndInitializePresentation(
     IRenderBackend& renderer,
-    EngineServices& services,
+    GameRuntimeServices& services,
     game::runtime::window_presentation::WindowPresentationController& presentation,
     std::unique_ptr<Camera3D>& camera,
     const std::function<void(float)>& renderBootLoading,

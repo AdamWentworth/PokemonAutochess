@@ -6,7 +6,7 @@
 
 #include <functional>
 
-struct EngineServices;
+struct GameRuntimeServices;
 class GameLoop;
 class IRenderBackend;
 
@@ -18,7 +18,7 @@ struct Inputs {
     int maxFixedTicksPerFrame = 0;
     int drawableW = 0;
     int drawableH = 0;
-    EngineServices& services;
+    GameRuntimeServices& services;
     GameLoop& game;
     IRenderBackend* renderer = nullptr;
     std::function<void()> swapBuffers;

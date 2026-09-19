@@ -4,34 +4,34 @@
 
 bool test_runtime_perf_logging_contract(std::string& outFail) {
     if (std::string(game::runtime::perf_logging::terminalLogModeName(
-            EngineTerminalLogMode::Performance)) != "Performance" ||
+            GameTerminalLogMode::Performance)) != "Performance" ||
         std::string(game::runtime::perf_logging::terminalLogModeName(
-            EngineTerminalLogMode::GrowlVfx)) != "Growl VFX" ||
+            GameTerminalLogMode::GrowlVfx)) != "Growl VFX" ||
         std::string(game::runtime::perf_logging::terminalLogModeName(
-            EngineTerminalLogMode::ScratchVfx)) != "Scratch VFX" ||
+            GameTerminalLogMode::ScratchVfx)) != "Scratch VFX" ||
         std::string(game::runtime::perf_logging::terminalLogModeName(
-            EngineTerminalLogMode::CombatDecision)) != "Combat Decision" ||
+            GameTerminalLogMode::CombatDecision)) != "Combat Decision" ||
         std::string(game::runtime::perf_logging::terminalLogModeName(
-            EngineTerminalLogMode::AnimationDecision)) != "Animation Decision") {
+            GameTerminalLogMode::AnimationDecision)) != "Animation Decision") {
         outFail = "terminalLogModeName should expose stable terminal mode labels.";
         return false;
     }
 
     if (game::runtime::perf_logging::nextTerminalLogMode(
-            EngineTerminalLogMode::Performance) != EngineTerminalLogMode::GrowlVfx ||
+            GameTerminalLogMode::Performance) != GameTerminalLogMode::GrowlVfx ||
         game::runtime::perf_logging::nextTerminalLogMode(
-            EngineTerminalLogMode::GrowlVfx) != EngineTerminalLogMode::ScratchVfx ||
+            GameTerminalLogMode::GrowlVfx) != GameTerminalLogMode::ScratchVfx ||
         game::runtime::perf_logging::nextTerminalLogMode(
-            EngineTerminalLogMode::ScratchVfx) != EngineTerminalLogMode::CombatDecision ||
+            GameTerminalLogMode::ScratchVfx) != GameTerminalLogMode::CombatDecision ||
         game::runtime::perf_logging::nextTerminalLogMode(
-            EngineTerminalLogMode::CombatDecision) != EngineTerminalLogMode::AnimationDecision ||
+            GameTerminalLogMode::CombatDecision) != GameTerminalLogMode::AnimationDecision ||
         game::runtime::perf_logging::nextTerminalLogMode(
-            EngineTerminalLogMode::AnimationDecision) != EngineTerminalLogMode::Performance) {
+            GameTerminalLogMode::AnimationDecision) != GameTerminalLogMode::Performance) {
         outFail = "nextTerminalLogMode should cycle Performance -> Growl VFX -> Scratch VFX -> Combat Decision -> Animation Decision -> Performance.";
         return false;
     }
 
-    EngineFramePerfStats perf;
+    GameFramePerfStats perf;
     perf.fps = 60.0f;
     perf.frameMs = 16.7f;
     perf.fixedMs = 4.2f;
@@ -114,7 +114,7 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         return false;
     }
 
-    EngineGrowlDebugStats growl;
+    GameGrowlDebugStats growl;
     growl.snapshotAvailable = true;
     growl.activeRingCount = 3u;
     growl.configuredPassCount = 9u;
@@ -168,7 +168,7 @@ bool test_runtime_perf_logging_contract(std::string& outFail) {
         return false;
     }
 
-    EngineScratchDebugStats scratch;
+    GameScratchDebugStats scratch;
     scratch.snapshotAvailable = true;
     scratch.activeGlowCount = 2u;
     scratch.snapshotRingCount = 2u;

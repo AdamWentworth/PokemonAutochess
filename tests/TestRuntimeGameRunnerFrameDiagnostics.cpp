@@ -2,7 +2,7 @@
 #include <sstream>
 #include <string>
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/runtime/loop/RuntimeGameRunnerFrameDiagnostics.h"
 
 bool test_runtime_game_runner_frame_diagnostics_contract(std::string& outFail) {
@@ -10,8 +10,8 @@ bool test_runtime_game_runner_frame_diagnostics_contract(std::string& outFail) {
     using game::runtime::runner_frame_diagnostics::makeInitialState;
     using game::runtime::runner_frame_diagnostics::observeAndEmit;
 
-    EngineServices services;
-    services.terminalLogMode = EngineTerminalLogMode::Performance;
+    GameRuntimeServices services;
+    services.terminalLogMode = GameTerminalLogMode::Performance;
     auto state = makeInitialState(services);
     std::ostringstream out;
 
@@ -88,7 +88,7 @@ bool test_runtime_game_runner_frame_diagnostics_contract(std::string& outFail) {
         services.framePerf.visibleAnimatedUnits != 10u ||
         services.framePerf.fixedTicks != 3 ||
         services.framePerf.fixedTicksDropped != 2) {
-        outFail = "Frame diagnostics should update EngineServices frame perf using the aggregated observation window.";
+        outFail = "Frame diagnostics should update GameRuntimeServices frame perf using the aggregated observation window.";
         return false;
     }
 
@@ -107,7 +107,7 @@ bool test_runtime_game_runner_frame_diagnostics_contract(std::string& outFail) {
         return false;
     }
 
-    services.terminalLogMode = EngineTerminalLogMode::GrowlVfx;
+    services.terminalLogMode = GameTerminalLogMode::GrowlVfx;
     services.frameGrowlDebug.snapshotAvailable = true;
     services.frameGrowlDebug.activeRingCount = 2u;
     services.frameGrowlDebug.configuredPassCount = 4u;
@@ -139,7 +139,7 @@ bool test_runtime_game_runner_frame_diagnostics_contract(std::string& outFail) {
         return false;
     }
 
-    services.terminalLogMode = EngineTerminalLogMode::ScratchVfx;
+    services.terminalLogMode = GameTerminalLogMode::ScratchVfx;
     services.frameScratchDebug.snapshotAvailable = true;
     services.frameScratchDebug.activeGlowCount = 1u;
     services.frameScratchDebug.snapshotRingCount = 1u;
@@ -182,7 +182,7 @@ bool test_runtime_game_runner_frame_diagnostics_contract(std::string& outFail) {
         return false;
     }
 
-    services.terminalLogMode = EngineTerminalLogMode::CombatDecision;
+    services.terminalLogMode = GameTerminalLogMode::CombatDecision;
     out.str("");
     out.clear();
     observeAndEmit(
@@ -201,7 +201,7 @@ bool test_runtime_game_runner_frame_diagnostics_contract(std::string& outFail) {
         return false;
     }
 
-    services.terminalLogMode = EngineTerminalLogMode::AnimationDecision;
+    services.terminalLogMode = GameTerminalLogMode::AnimationDecision;
     out.str("");
     out.clear();
     observeAndEmit(

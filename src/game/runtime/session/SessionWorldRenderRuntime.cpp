@@ -1,6 +1,6 @@
 #include "game/runtime/session/SessionWorldRenderRuntime.h"
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/core/ecs/World.h"
 #include "engine/render/Camera3D.h"
 #include "engine/render/IRenderBackend.h"
@@ -56,7 +56,7 @@ std::uint32_t resolvedInstanceCountLocal(const shared_world_batches::WorldIndexe
                : static_cast<std::uint32_t>(batch.instances.size());
 }
 
-void publishGrowlDebug(EngineServices* engineServices,
+void publishGrowlDebug(GameRuntimeServices* engineServices,
                        GameWorld* gameWorld,
                        const std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches) {
     if (!engineServices) return;
@@ -75,7 +75,7 @@ void publishGrowlDebug(EngineServices* engineServices,
     growl.activePasses.reserve(snapshot.drawPasses.size());
 
     for (const auto& pass : snapshot.drawPasses) {
-        EngineGrowlPassDebugStats passStats{};
+        GameGrowlPassDebugStats passStats{};
         passStats.id = pass.id;
         passStats.eid = pass.eid;
         passStats.meshPath = pass.meshPath;
@@ -128,7 +128,7 @@ void publishGrowlDebug(EngineServices* engineServices,
 }
 
 void publishScratchDebug(
-    EngineServices* engineServices,
+    GameRuntimeServices* engineServices,
     GameWorld* gameWorld,
     const std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches) {
     if (!engineServices) return;

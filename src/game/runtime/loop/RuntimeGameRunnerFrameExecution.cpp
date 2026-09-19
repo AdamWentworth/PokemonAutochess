@@ -1,6 +1,6 @@
 #include "game/runtime/loop/RuntimeGameRunnerFrameExecution.h"
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/core/GameLoop.h"
 #include "engine/render/IRenderBackend.h"
 #include "engine/runtime/FixedStep.h"

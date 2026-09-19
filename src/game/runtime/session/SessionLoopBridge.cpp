@@ -1,6 +1,6 @@
 #include "game/runtime/session/SessionLoopBridge.h"
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/core/Paths.h"
 #include "game/GameServices.h"
 #include "game/GameStateManager.h"

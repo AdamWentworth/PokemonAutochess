@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 
 namespace game::runtime::perf_accum {
 
@@ -54,14 +54,14 @@ struct FrameSample {
     std::uint32_t projectedGpuClipPaletteBatches = 0u;
     std::uint32_t projectedCpuRewriteBatches = 0u;
     std::uint32_t projectedIndexedBatchesQueued = 0u;
-    EngineRenderBuildBreakdown renderBreakdown{};
-    EngineFixedPerfBreakdown fixedBreakdown{};
+    GameRenderBuildBreakdown renderBreakdown{};
+    GameFixedPerfBreakdown fixedBreakdown{};
     int fixedTicks = 0;
     int fixedTicksDropped = 0;
 };
 
 struct WindowSummary {
-    EngineFramePerfStats framePerf{};
+    GameFramePerfStats framePerf{};
 };
 
 class RollingAccumulator {
@@ -119,8 +119,8 @@ private:
     double projectedGpuClipPaletteBatches_ = 0.0;
     double projectedCpuRewriteBatches_ = 0.0;
     double projectedIndexedBatchesQueued_ = 0.0;
-    EngineRenderBuildBreakdown renderBreakdown_{};
-    EngineFixedPerfBreakdown fixedBreakdown_{};
+    GameRenderBuildBreakdown renderBreakdown_{};
+    GameFixedPerfBreakdown fixedBreakdown_{};
     int fixedTicks_ = 0;
     int fixedTicksDropped_ = 0;
 };

@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <string>
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/GameWorld.h"
 #include "game/config/GameDataDb.h"
 #include "game/logging/DebugTrace.h"
@@ -70,7 +70,7 @@ int ScriptAPI::applyDamage(int attackerId,
     trace.animationDecision =
         DebugTrace::anim(ctx.speciesLower, ctx.moveLower) ||
         (services_.engineServices &&
-         services_.engineServices->terminalLogMode == EngineTerminalLogMode::AnimationDecision);
+         services_.engineServices->terminalLogMode == GameTerminalLogMode::AnimationDecision);
     trace.enabled = DebugTrace::combat(ctx.speciesLower, ctx.moveLower);
     trace.log = &services_.log;
     trace.speciesLower = ctx.speciesLower;

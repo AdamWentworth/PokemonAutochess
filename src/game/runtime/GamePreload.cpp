@@ -14,7 +14,7 @@
 
 #include "engine/core/GameContext.h"
 #include "engine/core/Paths.h"
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/utils/ResourceManager.h"
 
 #include "game/config/PokemonConfigLoader.h"

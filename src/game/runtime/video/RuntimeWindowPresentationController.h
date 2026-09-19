@@ -9,7 +9,7 @@
 #include "game/runtime/video/RuntimeSdlVideoMode.h"
 
 class Camera3D;
-struct EngineServices;
+struct GameRuntimeServices;
 class IRenderBackend;
 class Window;
 
@@ -17,7 +17,7 @@ namespace game::runtime::window_presentation {
 
 class WindowPresentationController {
 public:
-    WindowPresentationController(EngineServices& services,
+    WindowPresentationController(GameRuntimeServices& services,
                                  std::ostream& out,
                                  std::ostream& err);
 
@@ -61,7 +61,7 @@ private:
     void updateCameraAspect();
 
 private:
-    EngineServices& services;
+    GameRuntimeServices& services;
     std::ostream& out;
     std::ostream& err;
     engine::log::Sink log;

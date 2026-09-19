@@ -1,6 +1,6 @@
 #pragma once
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 
 #include <functional>
 
@@ -12,13 +12,13 @@ struct Result {
     double fixedTickWorkMs = 0.0;
     int fixedTicks = 0;
     int fixedTicksDropped = 0;
-    EngineFixedPerfBreakdown fixedBreakdown{};
+    GameFixedPerfBreakdown fixedBreakdown{};
 };
 
 Result execute(double accumulator,
                double timeStep,
                int maxFixedTicksPerFrame,
-               EngineServices& services,
+               GameRuntimeServices& services,
                const std::function<void(float)>& fixedUpdate);
 
 } // namespace game::runtime::fixed_step_phase

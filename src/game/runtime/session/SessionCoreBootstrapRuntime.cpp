@@ -1,6 +1,6 @@
 #include "game/runtime/session/SessionCoreBootstrapRuntime.h"
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/core/Environment.h"
 #include "engine/core/GameContext.h"
 #include "engine/core/Paths.h"
@@ -102,38 +102,38 @@ void run(const Args& args) {
         args.viewport,
         args.startupRoutes->hasRenderer);
     (*args.services)->renderer = args.renderer;
-    (*args.services)->engineServices = args.ctx->services;
+    (*args.services)->engineServices = args.engineServices;
     (*args.services)->applyVideoMode = args.ctx->applyVideoMode;
     (*args.services)->requestQuit = args.ctx->requestQuit;
     (*args.services)->prepareArenaScene = [store = args.assetStore->get()](const std::string& path, std::string& error) {
         return session_world_backdrop::prepareTravelScene(*store, path, error);
     };
     (*args.services)->discardPreparedArenaScene = session_world_backdrop::discardPreparedTravelScene;
-    if (args.ctx->services) {
-        (*args.services)->videoPreferencesPath = args.ctx->services->videoPreferencesPath;
-        (*args.services)->requestedRendererBackend = args.ctx->services->requestedRendererBackend;
-        (*args.services)->activeRendererBackend = args.ctx->services->activeRendererBackend;
-        (*args.services)->rendererBackendFallback = args.ctx->services->rendererBackendFallback;
-        (*args.services)->gpuVendor = args.ctx->services->gpuVendor;
-        (*args.services)->gpuRenderer = args.ctx->services->gpuRenderer;
-        (*args.services)->availableGpuAdapters = args.ctx->services->availableGpuAdapters;
-        (*args.services)->preferredGpuAdapter = args.ctx->services->preferredGpuAdapter;
-        (*args.services)->gpuDiscrete = args.ctx->services->gpuDiscrete;
-        (*args.services)->vsyncEnabled = args.ctx->services->vsyncEnabled;
-        (*args.services)->fpsCap = args.ctx->services->fpsCap;
-        (*args.services)->graphicsQuality = args.ctx->services->graphicsQuality;
+    if (args.engineServices) {
+        (*args.services)->videoPreferencesPath = args.engineServices->videoPreferencesPath;
+        (*args.services)->requestedRendererBackend = args.engineServices->requestedRendererBackend;
+        (*args.services)->activeRendererBackend = args.engineServices->activeRendererBackend;
+        (*args.services)->rendererBackendFallback = args.engineServices->rendererBackendFallback;
+        (*args.services)->gpuVendor = args.engineServices->gpuVendor;
+        (*args.services)->gpuRenderer = args.engineServices->gpuRenderer;
+        (*args.services)->availableGpuAdapters = args.engineServices->availableGpuAdapters;
+        (*args.services)->preferredGpuAdapter = args.engineServices->preferredGpuAdapter;
+        (*args.services)->gpuDiscrete = args.engineServices->gpuDiscrete;
+        (*args.services)->vsyncEnabled = args.engineServices->vsyncEnabled;
+        (*args.services)->fpsCap = args.engineServices->fpsCap;
+        (*args.services)->graphicsQuality = args.engineServices->graphicsQuality;
         (*args.services)->graphicsQualityGeneration =
-            args.ctx->services->graphicsQualityGeneration == 0u
+            args.engineServices->graphicsQualityGeneration == 0u
                 ? 1u
-                : args.ctx->services->graphicsQualityGeneration;
-        (*args.services)->requireDiscreteGpu = args.ctx->services->requireDiscreteGpu;
-        (*args.services)->characterInkingEnabled = args.ctx->services->characterInkingEnabled;
-        (*args.services)->audioMasterVolume = args.ctx->services->audioMasterVolume;
-        (*args.services)->audioMusicVolume = args.ctx->services->audioMusicVolume;
-        (*args.services)->audioSfxVolume = args.ctx->services->audioSfxVolume;
-        (*args.services)->audioVoiceVolume = args.ctx->services->audioVoiceVolume;
-        (*args.services)->audioMute = args.ctx->services->audioMute;
-        (*args.services)->bootMenuScreen = args.ctx->services->bootMenuScreen;
+                : args.engineServices->graphicsQualityGeneration;
+        (*args.services)->requireDiscreteGpu = args.engineServices->requireDiscreteGpu;
+        (*args.services)->characterInkingEnabled = args.engineServices->characterInkingEnabled;
+        (*args.services)->audioMasterVolume = args.engineServices->audioMasterVolume;
+        (*args.services)->audioMusicVolume = args.engineServices->audioMusicVolume;
+        (*args.services)->audioSfxVolume = args.engineServices->audioSfxVolume;
+        (*args.services)->audioVoiceVolume = args.engineServices->audioVoiceVolume;
+        (*args.services)->audioMute = args.engineServices->audioMute;
+        (*args.services)->bootMenuScreen = args.engineServices->bootMenuScreen;
     }
     if (args.ctx->queryVideoMode) {
         (*args.services)->queryVideoMode = [q = args.ctx->queryVideoMode]() {
@@ -152,8 +152,8 @@ void run(const Args& args) {
     (*args.gameWorld)->setRenderEnabled(args.startupRoutes->hasRenderer);
     (*args.gameWorld)->setLogger(args.log);
     (*args.gameWorld)->setRng(&(*args.services)->rng);
-    (*args.gameWorld)->setEngineServices(args.engineServices ? args.engineServices : args.ctx->services);
-    if (args.ctx->services) (*args.gameWorld)->setResources(args.ctx->services->resources);
+    (*args.gameWorld)->setEngineServices(args.engineServices);
+    if (args.engineServices) (*args.gameWorld)->setResources(args.engineServices->resources);
     (*args.gameWorld)->setData(args.dataDb);
 
     *args.stateManager = std::make_unique<GameStateManager>();

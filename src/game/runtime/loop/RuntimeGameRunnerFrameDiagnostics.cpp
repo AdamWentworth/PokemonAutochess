@@ -11,21 +11,21 @@ namespace game::runtime::runner_frame_diagnostics {
 
 namespace {
 
-EngineFramePerfStats makeInstantPerf(
+GameFramePerfStats makeInstantPerf(
     const game::runtime::perf_accum::FrameSample& sample) {
     game::runtime::perf_accum::RollingAccumulator accumulator;
     accumulator.addFrame(sample);
     return accumulator.makeSummaryAndReset().framePerf;
 }
 
-bool isScratchSpikeFrame(const EngineFramePerfStats& perf) {
+bool isScratchSpikeFrame(const GameFramePerfStats& perf) {
     return perf.renderBuildMs >= 2.5f ||
            perf.renderBreakdown.worldVfxMs >= 1.0f ||
            perf.fixedBreakdown.combatMs >= 0.5f ||
            perf.fixedBreakdown.worldMs >= 0.5f;
 }
 
-bool isPerfHitchFrame(const EngineFramePerfStats& perf, const State& state) {
+bool isPerfHitchFrame(const GameFramePerfStats& perf, const State& state) {
     const bool absoluteFrame = perf.frameMs >= 25.0f;
     const bool frameJump =
         state.previousInstantFrameMs > 0.0f &&
@@ -43,7 +43,7 @@ bool isPerfHitchFrame(const EngineFramePerfStats& perf, const State& state) {
            presentSpike || gpuSpike || combatSpike || worldSpike || vfxSpike || droppedTicks;
 }
 
-std::string perfHitchReason(const EngineFramePerfStats& perf, const State& state) {
+std::string perfHitchReason(const GameFramePerfStats& perf, const State& state) {
     std::string reason;
     const auto appendReason = [&](const char* token) {
         if (!reason.empty()) reason += "+";
@@ -70,8 +70,8 @@ std::string perfHitchReason(const EngineFramePerfStats& perf, const State& state
 }
 
 std::string scratchEmitReason(const State& state,
-                              const EngineScratchDebugStats& scratchDebug,
-                              const EngineFramePerfStats& perf,
+                              const GameScratchDebugStats& scratchDebug,
+                              const GameFramePerfStats& perf,
                               bool modeJustSwitchedToScratch) {
     if (scratchDebug.activeGlowCount == 0u) return {};
 
@@ -101,14 +101,14 @@ std::string scratchEmitReason(const State& state,
 
 } // namespace
 
-State makeInitialState(const EngineServices& services) {
+State makeInitialState(const GameRuntimeServices& services) {
     State state;
     state.previousTerminalLogMode = services.terminalLogMode;
     return state;
 }
 
 void observeAndEmit(State& state,
-                    EngineServices& services,
+                    GameRuntimeServices& services,
                     const Inputs& inputs,
                     std::ostream& out) {
     engine::log::Sink log("RunDiag", &out, nullptr);
@@ -165,28 +165,28 @@ void observeAndEmit(State& state,
         game::runtime::frame_observation::makePerfSample(
             sampleInputs,
             inputs.serviceSnapshot);
-    const EngineFramePerfStats instantPerf = makeInstantPerf(currentFrameSample);
+    const GameFramePerfStats instantPerf = makeInstantPerf(currentFrameSample);
     state.perfAccumulator.addFrame(currentFrameSample);
     if (state.perfAccumulator.readyToEmit()) {
         const auto perfSummary = state.perfAccumulator.makeSummaryAndReset();
         services.framePerf = perfSummary.framePerf;
-        if (services.terminalLogMode == EngineTerminalLogMode::Performance) {
+        if (services.terminalLogMode == GameTerminalLogMode::Performance) {
             log.info(game::runtime::perf_logging::formatPerfLine(services.framePerf));
             log.info(game::runtime::perf_logging::formatPerfJson(services.framePerf));
         }
     }
-    if (services.terminalLogMode == EngineTerminalLogMode::Performance &&
+    if (services.terminalLogMode == GameTerminalLogMode::Performance &&
         isPerfHitchFrame(instantPerf, state)) {
         const std::string reason = perfHitchReason(instantPerf, state);
         log.info(game::runtime::perf_logging::formatPerfHitchLine(instantPerf, reason));
         log.info(game::runtime::perf_logging::formatPerfHitchJson(instantPerf, reason));
     }
 
-    if (services.terminalLogMode == EngineTerminalLogMode::GrowlVfx) {
+    if (services.terminalLogMode == GameTerminalLogMode::GrowlVfx) {
         const std::uint32_t currentGrowlRingCount =
             services.frameGrowlDebug.activeRingCount;
         const bool modeJustSwitchedToGrowl =
-            state.previousTerminalLogMode != EngineTerminalLogMode::GrowlVfx;
+            state.previousTerminalLogMode != GameTerminalLogMode::GrowlVfx;
         const bool growlStartedThisFrame =
             currentGrowlRingCount > state.previousGrowlRingCount;
         if (currentGrowlRingCount > 0u &&
@@ -197,9 +197,9 @@ void observeAndEmit(State& state,
                 services.frameGrowlDebug));
         }
     }
-    if (services.terminalLogMode == EngineTerminalLogMode::ScratchVfx) {
+    if (services.terminalLogMode == GameTerminalLogMode::ScratchVfx) {
         const bool modeJustSwitchedToScratch =
-            state.previousTerminalLogMode != EngineTerminalLogMode::ScratchVfx;
+            state.previousTerminalLogMode != GameTerminalLogMode::ScratchVfx;
         bool currentScratchSpike = false;
         if (modeJustSwitchedToScratch) {
             log.info(
@@ -228,13 +228,13 @@ void observeAndEmit(State& state,
     } else {
         state.previousScratchSpike = false;
     }
-    if (services.terminalLogMode == EngineTerminalLogMode::CombatDecision &&
-        state.previousTerminalLogMode != EngineTerminalLogMode::CombatDecision) {
+    if (services.terminalLogMode == GameTerminalLogMode::CombatDecision &&
+        state.previousTerminalLogMode != GameTerminalLogMode::CombatDecision) {
         log.info(
             "[CombatDecision] Debug mode active; decision spike traces and first-use move traces will emit during combat.");
     }
-    if (services.terminalLogMode == EngineTerminalLogMode::AnimationDecision &&
-        state.previousTerminalLogMode != EngineTerminalLogMode::AnimationDecision) {
+    if (services.terminalLogMode == GameTerminalLogMode::AnimationDecision &&
+        state.previousTerminalLogMode != GameTerminalLogMode::AnimationDecision) {
         log.info(
             "[AnimTrace] Animation Decision mode active; movement, locomotion, and attack animation selection traces will emit during combat.");
     }

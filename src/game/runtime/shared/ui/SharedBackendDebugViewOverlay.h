@@ -9,8 +9,8 @@
 #include <vector>
 
 class Camera3D;
-struct EngineServices;
-struct EngineRenderBuildBreakdown;
+struct GameRuntimeServices;
+struct GameRenderBuildBreakdown;
 struct GameServices;
 class GameWorld;
 
@@ -26,7 +26,7 @@ namespace game::runtime::shared_backend_debug_view {
 
 struct ComposeAndSubmitArgs {
     IRenderBackend* renderer = nullptr;
-    EngineServices* engineServices = nullptr;
+    GameRuntimeServices* engineServices = nullptr;
     GameServices* services = nullptr;
     GameWorld* gameWorld = nullptr;
     Camera3D* camera = nullptr;
@@ -48,7 +48,7 @@ struct ComposeAndSubmitArgs {
     float lineStep = 0.0f;
     float uiScale = 1.0f;
     const float* worldViewProj = nullptr;
-    EngineRenderBuildBreakdown* renderBuildBreakdown = nullptr;
+    GameRenderBuildBreakdown* renderBuildBreakdown = nullptr;
 
     std::vector<IRenderBackend::DebugQuad>* worldBackgroundQuads = nullptr;
     std::vector<IRenderBackend::DebugQuad>* worldQuads = nullptr;

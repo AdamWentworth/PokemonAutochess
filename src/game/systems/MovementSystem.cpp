@@ -2,7 +2,7 @@
 #include "MovementSystem.h"
 #include "game/systems/UnitFacing.h"
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "engine/core/ecs/World.h"
 #include "engine/render/Model.h"
 #include "game/PhaseState.h"
@@ -73,8 +73,8 @@ std::string traceMoveLabel(const PokemonInstance& unit) {
     return move.empty() ? std::string("-") : std::string(move);
 }
 
-bool shouldTraceAnim(const EngineServices* services, const PokemonInstance& unit) {
-    if (services && services->terminalLogMode == EngineTerminalLogMode::AnimationDecision) {
+bool shouldTraceAnim(const GameRuntimeServices* services, const PokemonInstance& unit) {
+    if (services && services->terminalLogMode == GameTerminalLogMode::AnimationDecision) {
         return true;
     }
     return DebugTrace::anim(unit.name, traceMoveName(unit));
@@ -186,7 +186,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     if (!combat || !combat->active) return;
     if (!gameWorld || gameWorld->isBoardResizePauseActive()) return;
 
-    EngineFixedPerfBreakdown* fixedBreakdown =
+    GameFixedPerfBreakdown* fixedBreakdown =
         services.engineServices ? &services.engineServices->frameFixedBreakdown : nullptr;
 
     const auto& cfg = gameWorld->getConfig();

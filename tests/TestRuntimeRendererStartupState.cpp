@@ -1,7 +1,7 @@
 #include <sstream>
 #include <string>
 
-#include "engine/core/EngineServices.h"
+#include "game/runtime/GameRuntimeServices.h"
 #include "game/runtime/renderer/RuntimeRendererStartupState.h"
 #include "TestRenderBackendDoubles.h"
 
@@ -13,7 +13,7 @@ using test::render_doubles::FakeRenderBackendConfig;
 
 bool test_runtime_renderer_startup_state_contract(std::string& outFail) {
     {
-        EngineServices services;
+        GameRuntimeServices services;
         services.requestedRendererBackend = "opengl";
         services.preferredGpuAdapter = "nvidia";
         services.vsyncEnabled = true;
@@ -48,13 +48,13 @@ bool test_runtime_renderer_startup_state_contract(std::string& outFail) {
             services.gpuDiscrete ||
             outputs.discreteRequirementSatisfied ||
             out.str().find("Preferred adapter 'nvidia' was not selected") == std::string::npos) {
-            outFail = "applyAndLog should update EngineServices, preserve the resolved GPU state, and emit mismatch logging.";
+            outFail = "applyAndLog should update GameRuntimeServices, preserve the resolved GPU state, and emit mismatch logging.";
             return false;
         }
     }
 
     {
-        EngineServices services;
+        GameRuntimeServices services;
         services.requestedRendererBackend = "d3d12";
         ConfigurableFakeRenderBackend renderer(FakeRenderBackendConfig{
             .backendId = "d3d12",

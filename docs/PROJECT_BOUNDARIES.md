@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Contract
-Last updated: 2026-09-08
+Last updated: 2026-09-19
 
 Pokemon Autochess is a Phlosion game project, not a fork of the engine. Its
 repository owns everything that would be nonsensical in a racing game or
@@ -16,6 +16,17 @@ shooter.
   VFX bindings, Pokemon model conventions, and all cooked project content;
 - source-neutral published-environment decoding, Route 1 gameplay adaptation,
   and Route 1 presentation/material behavior.
+
+`src/game/render/BoardRenderer.h`, `src/game/ui/BattleFeed.h`,
+`src/game/ui/HealthBarRenderer.h`, and `src/game/ui/HealthBarData.h` own the board
+and combat UI semantics. Generic mesh, text, sprite, and solid-color UI rendering
+remain engine primitives.
+
+`GameRuntimeServices` extends the generic engine host services with per-session
+game state: board flags, shop/round/combat timings, projected-unit counters,
+terminal modes, and Growl/Scratch debugging. Both the runner and editor use it.
+Generic engine hosts receive a game-owned session extension; the engine does
+not need to know the Autochess diagnostic types.
 
 Source-game extraction, qualification tools, reverse-engineering evidence, and
 publication recipes belong to the private `PokemonSwitchAssetResearch`
@@ -36,10 +47,10 @@ board/bench snapping, project commands, and authored-scene editing. Phlosion
 Editor only hosts these capabilities through its generic project-plugin ABI.
 
 The reusable projected-grid UI, tile selection, multi-level stamps, prefab
-palette presentation, ramps, and platform controls come from the declared
-`phlosion.tile-tools` package in the sibling `PhlosionPackages` monorepo. This
-game supplies the Route 1 data and executes its edit requests; it does not own
-the generic package implementation.
+palette presentation, ramps, and platform controls live in the optional
+`phlosion.tile-tools` package in `PhlosionPackages`. The current Blender workflow
+does not declare or load that package. Its module remains a separate editor build
+target; this game does not own the generic package implementation.
 
 Opening a different project must load a different plugin and expose none of
 the Pokemon-specific tools. It sees Tile Tools only if it independently

@@ -3,7 +3,29 @@
 #include <string>
 
 bool test_session_frame_metrics_contract(std::string& outFail) {
-    EngineServices services;
+    EngineServices genericHost;
+    genericHost.graphicsQuality = 2;
+    GameRuntimeServices fallback;
+    if (bindGameRuntimeServices(nullptr, fallback) != nullptr ||
+        bindGameRuntimeServices(&genericHost, fallback) != &fallback ||
+        fallback.graphicsQuality != 2) {
+        outFail = "A generic host must bind isolated game-owned state and preserve engine settings.";
+        return false;
+    }
+    GameRuntimeServices otherFallback;
+    fallback.frameFixedBreakdown.shopMs = 12.0f;
+    bindGameRuntimeServices(&genericHost, otherFallback);
+    if (otherFallback.frameFixedBreakdown.shopMs != 0.0f) {
+        outFail = "Game diagnostics must not leak between sessions sharing an engine host.";
+        return false;
+    }
+    GameRuntimeServices services;
+    services.terminalLogMode = GameTerminalLogMode::ScratchVfx;
+    if (bindGameRuntimeServices(&services, fallback) != &services ||
+        services.terminalLogMode != GameTerminalLogMode::ScratchVfx) {
+        outFail = "Standalone and editor hosts must share their live game diagnostics without copying.";
+        return false;
+    }
     services.frameRenderBuildBreakdown.overlayPrepMs = 9.0f;
 
     game::runtime::session_frame_metrics::publish(
@@ -32,7 +54,7 @@ bool test_session_frame_metrics_contract(std::string& outFail) {
         services.frameProjectedModelUnits != 5u ||
         services.frameProjectedClipSkinnedUnits != 4u) {
         outFail =
-            "SessionFrameMetrics should publish projected counters and visible-unit totals into EngineServices.";
+            "SessionFrameMetrics should publish projected counters and visible-unit totals into GameRuntimeServices.";
         return false;
     }
 
