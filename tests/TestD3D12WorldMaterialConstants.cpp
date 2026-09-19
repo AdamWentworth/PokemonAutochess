@@ -979,10 +979,10 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         tex.materialFlipbook1Frames = 0.45f;
         const auto medium = d3d12i::makeWorldPsConstants(&tex, 1.0f, false, &profile);
         if (!expect(
-                    nearf(medium.materialFlipbook1Fps, 145.64f) &&
-                        nearf(
-                            medium.lightProjectionUvRowU[0],
-                            8023339.0f),
+                nearf(medium.materialFlipbook1Fps, 145.64f) &&
+                    nearf(
+                        medium.lightProjectionUvRowU[0],
+                        8023339.0f),
                 "D3D12 native IkCharacter packing must preserve the Medium tier's two-decimal LOD without corrupting diffusion.",
                 outFail)) {
             return false;
