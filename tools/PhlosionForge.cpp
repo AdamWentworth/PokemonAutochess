@@ -2412,7 +2412,7 @@ bool validateAll(
             editedRoundTrip.nodes.end(),
             [&](const auto &node) {
                 return node.id == createdStableId &&
-                    node.prefabInstance.has_value();
+                       node.prefabInstance.has_value();
             }) ||
         !environment.applyAuthoredScene(
             editedRoundTrip,

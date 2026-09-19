@@ -24,7 +24,7 @@ public:
     const std::string &debugScriptPath() const { return routeScript; }
 
   private:
-    GameStateManager* stateManager = nullptr;
+    GameStateManager *stateManager = nullptr;
     GameWorld* gameWorld = nullptr;
     GameServices& services;
 

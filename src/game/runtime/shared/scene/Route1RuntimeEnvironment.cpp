@@ -8633,7 +8633,7 @@ RuntimeEnvironment::Impl::ensureTerrainTopObject(
                 terrainTiles.end(),
                 [&](const TerrainTileState &candidate) {
                     return candidate.gridX == tile.gridX + direction[0] &&
-                        candidate.gridZ == tile.gridZ + direction[1];
+                           candidate.gridZ == tile.gridZ + direction[1];
                 });
             if (neighbor == terrainTiles.end() ||
                 neighbor->surface != "dirt_path" ||
@@ -14282,7 +14282,7 @@ RuntimeEnvironment::Impl::ensureTerrainSourceReferenceObjects(
 
 std::vector<IRenderBackend::WorldSceneRenderObjectHandle>
 RuntimeEnvironment::Impl::ensureTerrainExactSourceSurfaceObjects(
-    const std::set<GridCell>& sourceCells,
+    const std::set<GridCell> &sourceCells,
     bool receivesProjectedShadow) {
     constexpr glm::vec2 kOpaqueLightLawnUv2{
         -0.101646f, -1.071291f};
@@ -14292,11 +14292,11 @@ RuntimeEnvironment::Impl::ensureTerrainExactSourceSurfaceObjects(
     }
 
     std::string patchKey = receivesProjectedShadow
-        ? "shadow:"
-        : "shadowless:";
-    for (const auto& [gridX, gridZ] : sourceCells) {
+                               ? "shadow:"
+                               : "shadowless:";
+    for (const auto &[gridX, gridZ] : sourceCells) {
         patchKey += std::to_string(gridX) + "," +
-            std::to_string(gridZ) + ";";
+                    std::to_string(gridZ) + ";";
     }
     std::set<GridCell> regionalLawnMaterialCells;
     for (const auto &tile : terrainTiles) {

@@ -666,8 +666,8 @@ for (const auto& unit : units) {
         ? std::max(0.0f, unit.visualScale)
         : std::max(0.05f, unit.visualScale);
     float renderCaptureScale = (unit.fainting || !unit.alive || unit.captureInProgress)
-        ? std::max(0.0f, unit.captureScale)
-        : std::max(0.05f, unit.captureScale);
+                                   ? std::max(0.0f, unit.captureScale)
+                                   : std::max(0.05f, unit.captureScale);
     if (captureSnapForUnit && captureSnapForUnit->phase == 1) {
         const float lateSuckP =
             std::clamp(captureSnapForUnit->absorbLateVisual01, 0.0f, 1.0f);
