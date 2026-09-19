@@ -30,9 +30,7 @@ bool test_ui_hud_formatting_contract(std::string& outFail) {
         outFail = "Card portrait coverage must include all 151 base Kanto species.";
         return false;
     }
-    for (const auto &[name, dex] : {std::pair{"Bulbasaur", 1}, {"Nidoran-F", 29}, {"NidoranF", 29},
-                                   {"Nidoran\xE2\x99\x80", 29}, {"Nidoran-M", 32}, {"Nidoran\xE2\x99\x82", 32},
-                                   {"Farfetch'd", 83}, {"Mr. Mime", 122}, {"mr_mime", 122}, {"Mew", 151}}) {
+    for (const auto &[name, dex] : {std::pair{"Bulbasaur", 1}, {"Nidoran-F", 29}, {"NidoranF", 29}, {"Nidoran\xE2\x99\x80", 29}, {"Nidoran-M", 32}, {"Nidoran\xE2\x99\x82", 32}, {"Farfetch'd", 83}, {"Mr. Mime", 122}, {"mr_mime", 122}, {"Mew", 151}}) {
         const auto *entry = portraits::find(name);
         if (!entry || entry->dex != dex) {
             outFail = "Portrait lookup must preserve gendered species and punctuation aliases.";

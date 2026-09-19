@@ -92,7 +92,7 @@ PreparedSession prepareFromEnvironment(const std::string& prefsPath,
     return prepare(prefsPath, engine::env::get("PAC_RENDER_BACKEND"), logOut, errOut);
 }
 
-void applyToServices(const PreparedSession& session, GameRuntimeServices& services) {
+void applyToServices(const PreparedSession &session, GameRuntimeServices &services) {
     services.bootMenuScreen = session.bootMenuScreen;
     services.requestedRendererBackend = session.requestedBackendName;
     services.activeRendererBackend = game::video::rendererBackendName(session.activeBackend);

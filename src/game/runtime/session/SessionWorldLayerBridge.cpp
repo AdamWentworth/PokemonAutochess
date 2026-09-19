@@ -15,11 +15,11 @@ std::string currentStateScriptPath(GameStateManager* stateManager) {
     if (!stateManager) return {};
     GameState* current = stateManager->getCurrentState();
     if (!current) return {};
-    if (const auto* travel = dynamic_cast<const ArenaTravelState*>(current)) return travel->debugScriptPath();
-    if (const auto* combat = dynamic_cast<const CombatState*>(current)) {
+    if (const auto *travel = dynamic_cast<const ArenaTravelState *>(current)) return travel->debugScriptPath();
+    if (const auto *combat = dynamic_cast<const CombatState *>(current)) {
         return combat->arenaScriptPath();
     }
-    if (const auto* placement = dynamic_cast<const PlacementState*>(current)) {
+    if (const auto *placement = dynamic_cast<const PlacementState *>(current)) {
         return placement->debugScriptPath();
     }
     if (const auto* scripted = dynamic_cast<const ScriptedState*>(current)) {
@@ -64,11 +64,11 @@ std::size_t renderWorldLayer(const Context& context,
             .ensureBackendTextureLoaded = context.ensureBackendTextureLoaded,
         });
     if (renderWorld && !prewarmWorldIndexedOnly && stateManager) {
-        if (auto* travel = dynamic_cast<ArenaTravelState*>(stateManager->getCurrentState())) {
-            const auto& scratch = session_render_scratch::threadScratch();
-            const auto& variant = route1_scene_variants::fromStateScriptPath(travel->debugScriptPath());
+        if (auto *travel = dynamic_cast<ArenaTravelState *>(stateManager->getCurrentState())) {
+            const auto &scratch = session_render_scratch::threadScratch();
+            const auto &variant = route1_scene_variants::fromStateScriptPath(travel->debugScriptPath());
             travel->worldFramePresented(scratch.route1RuntimeEnvironment && scratch.route1RuntimeEnvironment->loaded() &&
-                                       scratch.route1RuntimeSceneId == variant.sceneId);
+                                        scratch.route1RuntimeSceneId == variant.sceneId);
         }
     }
     return result;

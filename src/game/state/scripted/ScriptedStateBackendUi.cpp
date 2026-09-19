@@ -613,9 +613,12 @@ void ScriptedState::renderBackendCardUi(int uiW, int uiH) {
 
     if (!isShopMode) {
         const float alpha = frontendIntro.frame().uiAlpha;
-        for (auto& quad : baseQuads) quad.a *= alpha;
-        for (auto& sprite : sprites) sprite.a *= alpha;
-        for (auto& line : textLines) line.a *= alpha;
+        for (auto &quad : baseQuads)
+            quad.a *= alpha;
+        for (auto &sprite : sprites)
+            sprite.a *= alpha;
+        for (auto &line : textLines)
+            line.a *= alpha;
     }
     if (!baseQuads.empty()) {
         services.renderer->drawDebugQuads(baseQuads.data(), baseQuads.size(), uiW, uiH);

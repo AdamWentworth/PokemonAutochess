@@ -18,22 +18,22 @@ struct Result {
 
 // Prepare the same immutable geometry used by recall and animated send-out,
 // without submitting a visible ball. Safe to repeat during world warmup.
-void prewarmRoundTravelMesh(IRenderBackend& renderer, const runtime::render_model::MeshData& mesh);
+void prewarmRoundTravelMesh(IRenderBackend &renderer, const runtime::render_model::MeshData &mesh);
 
 // Non-null deferredBatches queues cached geometry for the caller's scene pass.
 // Its borrowed mesh pointers remain valid until this thread prepares another mesh.
 Result tryAppend(
-    IRenderBackend& renderer,
+    IRenderBackend &renderer,
     bool hasWorldViewProj,
-    const float* worldViewProj,
+    const float *worldViewProj,
     int drawableW,
     int drawableH,
-    const runtime::render_model::MeshData& mesh,
-    const std::vector<GameWorld::CaptureAttemptRenderSnapshot>& captureSnaps,
+    const runtime::render_model::MeshData &mesh,
+    const std::vector<GameWorld::CaptureAttemptRenderSnapshot> &captureSnaps,
     bool d3d12CapturePrewarmRequested,
     bool treatPokeballAsUntextured,
     bool enableNodeChunkPath,
-    const std::function<shared_backend_pose::PoseEval(int animIndex, float animTimeSec)>& evaluateScenePoseForClipTime,
-    std::vector<shared_world_batches::WorldIndexedBatch>* deferredBatches);
+    const std::function<shared_backend_pose::PoseEval(int animIndex, float animTimeSec)> &evaluateScenePoseForClipTime,
+    std::vector<shared_world_batches::WorldIndexedBatch> *deferredBatches);
 
 } // namespace game::runtime::shared_capture_cached_models

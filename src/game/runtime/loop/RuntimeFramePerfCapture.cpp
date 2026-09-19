@@ -58,8 +58,8 @@ double computeTotalPresentWaitMs(bool rendererHandlesPresentation,
 }
 
 GameRenderBuildBreakdown finalizeRenderBreakdown(double renderBuildMs,
-                                                   float projectedUnitsMs,
-                                                   const GameRenderBuildBreakdown& rawBreakdown) {
+                                                 float projectedUnitsMs,
+                                                 const GameRenderBuildBreakdown &rawBreakdown) {
     GameRenderBuildBreakdown out = rawBreakdown;
     const float attributedMs =
         projectedUnitsMs +

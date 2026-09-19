@@ -35,8 +35,8 @@ namespace game::runtime::session_loop_bridge {
 struct Context {
     LogBus::Logger* log = nullptr;
     session_loop_runtime::PauseState* pauseState = nullptr;
-    GameRuntimeServices* engineServices = nullptr;
-    game::ui::UIViewport* viewport = nullptr;
+    GameRuntimeServices *engineServices = nullptr;
+    game::ui::UIViewport *viewport = nullptr;
     UnitInteractionSystem* unitSystem = nullptr;
     CameraSystem* cameraSystem = nullptr;
     GameStateManager* stateManager = nullptr;
@@ -54,7 +54,7 @@ struct Context {
 
 struct FixedUpdateContext {
     session_loop_runtime::PauseState* pauseState = nullptr;
-    GameRuntimeServices* engineServices = nullptr;
+    GameRuntimeServices *engineServices = nullptr;
     bool usesBackendGameRenderPath = false;
     std::function<void(float)> advanceTime;
     std::function<void()> hydrateBackend;

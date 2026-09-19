@@ -23,7 +23,8 @@ inline std::string speciesKey(std::string_view name) {
 inline const Entry *find(std::string_view species) {
     static const auto lookup = [] {
         std::unordered_map<std::string, const Entry *> map;
-        for (const auto &entry : entries) map.emplace(speciesKey(entry.species), &entry);
+        for (const auto &entry : entries)
+            map.emplace(speciesKey(entry.species), &entry);
         return map;
     }();
     const auto it = lookup.find(speciesKey(species));
@@ -41,7 +42,9 @@ inline void appendPortrait(std::vector<IRenderBackend::DebugSprite> &sprites,
     if (!entry) return;
     IRenderBackend::DebugSprite sprite;
     sprite.texturePath = path(*entry);
-    sprite.x = x; sprite.y = y; sprite.w = sprite.h = size;
+    sprite.x = x;
+    sprite.y = y;
+    sprite.w = sprite.h = size;
     sprite.u0 = static_cast<float>(entry->portrait.x) / entry->width;
     sprite.v0 = static_cast<float>(entry->portrait.y) / entry->height;
     sprite.u1 = static_cast<float>(entry->portrait.x + entry->portrait.w) / entry->width;
@@ -61,10 +64,12 @@ inline void applyCardCrop(IRenderBackend::DebugSprite &sprite, const Entry &entr
         const float aspect = sprite.w / sprite.h;
         if (w / h > aspect) {
             const float fitted = h * aspect;
-            x += (w - fitted) * .5f; w = fitted;
+            x += (w - fitted) * .5f;
+            w = fitted;
         } else {
             const float fitted = w / aspect;
-            y += (h - fitted) * .5f; h = fitted;
+            y += (h - fitted) * .5f;
+            h = fitted;
         }
     }
     sprite.u0 = x / entry.width;

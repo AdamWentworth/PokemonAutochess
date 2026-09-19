@@ -218,9 +218,9 @@ bool writeJson(
 }
 
 bool compileEnvironmentPatch(
-    const fs::path& sourcePath,
-    const fs::path& outputPath,
-    std::string& outError) {
+    const fs::path &sourcePath,
+    const fs::path &outputPath,
+    std::string &outError) {
     if (outputPath.extension() != ".phpatch") {
         outError =
             "Compiled environment patches must use the .phpatch extension.";
@@ -233,7 +233,7 @@ bool compileEnvironmentPatch(
     engine::assets::phlosion::EnvironmentPatchDocument document;
     if (!engine::assets::phlosion::parseEnvironmentPatchDocument(
             std::string(
-                reinterpret_cast<const char*>(sourceBytes.data()),
+                reinterpret_cast<const char *>(sourceBytes.data()),
                 sourceBytes.size()),
             document,
             &outError)) {
@@ -247,7 +247,7 @@ bool compileEnvironmentPatch(
         binary =
             engine::assets::phlosion::serializeEnvironmentPatchBinary(
                 document);
-    } catch (const std::exception& exception) {
+    } catch (const std::exception &exception) {
         outError =
             "Could not compile environment patch " +
             sourcePath.string() + ": " + exception.what();
@@ -272,8 +272,8 @@ bool compileEnvironmentPatch(
         return false;
     }
     std::size_t triangleCount = 0u;
-    for (const auto& mesh : verification.meshes) {
-        for (const auto& group : mesh.materialGroups) {
+    for (const auto &mesh : verification.meshes) {
+        for (const auto &group : mesh.materialGroups) {
             triangleCount += group.indices.size() / 3u;
         }
     }
@@ -1867,7 +1867,7 @@ bool validateRoute1LayoutPrefabCoverage(
     std::size_t terrainCount = 0u;
     std::size_t boardGroundPrototypeCount = 0u;
     std::size_t environmentMeshPatchCount = 0u;
-    for (const auto& object : environment.layoutObjects()) {
+    for (const auto &object : environment.layoutObjects()) {
         const bool environmentMeshPatch =
             object.targetKind == "environment_mesh_patch";
         if (!stableIds.insert(object.stableId).second ||
@@ -1876,7 +1876,7 @@ bool validateRoute1LayoutPrefabCoverage(
              !prefabIds.contains(object.prefabAssetId))) {
             outError =
                 "Route 1 editable object does not have one valid source-bound PHLO prefab: " +
-                    object.stableId;
+                object.stableId;
             return false;
         }
         for (std::size_t axis = 0u; axis < 3u; ++axis) {
@@ -1923,7 +1923,7 @@ bool validateRoute1LayoutPrefabCoverage(
         static_cast<std::size_t>(std::count_if(
             environment.authoredScene().nodes.begin(),
             environment.authoredScene().nodes.end(),
-            [](const auto& node) {
+            [](const auto &node) {
                 return node.enabled && node.meshPatch.has_value();
             }));
     if (importedCount != 156u || terrainCount != 23u ||
@@ -2410,7 +2410,7 @@ bool validateAll(
         std::none_of(
             editedRoundTrip.nodes.begin(),
             editedRoundTrip.nodes.end(),
-            [&](const auto& node) {
+            [&](const auto &node) {
                 return node.id == createdStableId &&
                     node.prefabInstance.has_value();
             }) ||
@@ -2812,8 +2812,8 @@ int main(int argc, char** argv) {
                       std::string_view(argv[1]) == "validate-authored-environment")) {
         std::string error;
         const bool passed = std::string_view(argv[1]) == "export-route1-authoring-kit"
-            ? tools::route1_authoring::exportKit(argv[2], error)
-            : tools::route1_authoring::validateScene(argv[2], error);
+                                ? tools::route1_authoring::exportKit(argv[2], error)
+                                : tools::route1_authoring::validateScene(argv[2], error);
         if (!passed) std::cerr << "[Phlosion Forge] " << error << '\n';
         return passed ? 0 : 1;
     }

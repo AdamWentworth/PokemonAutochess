@@ -264,7 +264,7 @@ bool test_script_api_contract(std::string& outFail) {
     if (!expect(services.engineServices->graphicsQuality == 1,
                 "setGraphicsQualityPreference should mirror graphics quality to GameRuntimeServices.", outFail)) return false;
     if (!expect(services.graphicsQualityGeneration != graphicsGenerationBefore &&
-                services.engineServices->graphicsQualityGeneration == services.graphicsQualityGeneration,
+                    services.engineServices->graphicsQualityGeneration == services.graphicsQualityGeneration,
                 "setGraphicsQualityPreference should bump and mirror the quality generation.", outFail)) return false;
     if (!expect(api.setGraphicsQualityPreference(99), "setGraphicsQualityPreference should sanitize high input.", outFail)) return false;
     if (!expect(api.getGraphicsQualityPreference() == static_cast<int>(game::video::GraphicsQuality::Ultra),
@@ -304,15 +304,15 @@ bool test_script_api_contract(std::string& outFail) {
                 api.getAudioMutePreference(),
                 "audio preference getters should reflect saved values.", outFail)) return false;
     if (!expect(services.engineServices->audioMasterVolume == 65 &&
-                services.engineServices->audioMusicVolume == 55 &&
-                services.engineServices->audioSfxVolume == 45 &&
-                services.engineServices->audioVoiceVolume == 35 &&
-                services.engineServices->audioMute,
+                    services.engineServices->audioMusicVolume == 55 &&
+                    services.engineServices->audioSfxVolume == 45 &&
+                    services.engineServices->audioVoiceVolume == 35 &&
+                    services.engineServices->audioMute,
                 "audio preference setters should mirror to GameRuntimeServices.", outFail)) return false;
     if (!expect(services.engineServices->requestedRendererBackend == rendererBackendPref &&
-                services.engineServices->requireDiscreteGpu &&
-                services.engineServices->preferredGpuAdapter == "NVIDIA GeForce GTX 1050" &&
-                services.engineServices->characterInkingEnabled,
+                    services.engineServices->requireDiscreteGpu &&
+                    services.engineServices->preferredGpuAdapter == "NVIDIA GeForce GTX 1050" &&
+                    services.engineServices->characterInkingEnabled,
                 "video preference setters should mirror advanced display settings to GameRuntimeServices.", outFail)) return false;
 
     const game::video::Preferences savedPrefs =

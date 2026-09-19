@@ -162,7 +162,7 @@ bool test_backend_card_layout_model_contract(std::string& outFail) {
             const float ballX = width * (in.starterCentersU[i] - backdrop.u0) / (backdrop.u1 - backdrop.u0);
             const float tableBottom = height * (.71f - backdrop.v0) / (backdrop.v1 - backdrop.v0);
             if (std::abs(buttons[i].x + buttons[i].w * .5f - ballX) > .01f ||
-                buttons[i].y < tableBottom || std::abs(buttons[i].w / buttons[i].h - 176.0f/120.0f) > .001f) {
+                buttons[i].y < tableBottom || std::abs(buttons[i].w / buttons[i].h - 176.0f / 120.0f) > .001f) {
                 outFail = "starter artwork must stay below the table and centered under its ball after viewport cropping";
                 return false;
             }
@@ -203,20 +203,20 @@ bool test_backend_card_layout_model_contract(std::string& outFail) {
     for (const auto [width, height] : {std::pair{480, 320}, {844, 512}, {2560, 1080}}) {
         for (int frame = 0; frame < 116; ++frame) {
             const auto sprites = cameraSequenceSprites(sequence, "lab.png", 1.6f, width, height,
-                                                        (frame + (frame == 115 ? -.25f : .25f)) / 115.0f);
+                                                       (frame + (frame == 115 ? -.25f : .25f)) / 115.0f);
             if (sprites.size() != 1 || sprites[0].a != 1) {
                 outFail = "camera playback must use one opaque sample without crossfade ghosting";
                 return false;
             }
             {
-                const auto& sprite = sprites[0];
+                const auto &sprite = sprites[0];
                 const int tile = frame % 8;
-                const float x = (tile % 4)*804.0f, y = (tile / 4)*504.0f;
-                const float aspect = (sprite.u1 - sprite.u0)*3216 / ((sprite.v1 - sprite.v0)*1008);
-                if (sprite.texturePath != "camera_" + std::to_string(frame/8) + ".png" ||
-                    sprite.u0*3216 < x+1.9f || sprite.u1*3216 > x+802.1f ||
-                    sprite.v0*1008 < y+1.9f || sprite.v1*1008 > y+502.1f ||
-                    std::abs(aspect - static_cast<float>(width)/height) > .001f) {
+                const float x = (tile % 4) * 804.0f, y = (tile / 4) * 504.0f;
+                const float aspect = (sprite.u1 - sprite.u0) * 3216 / ((sprite.v1 - sprite.v0) * 1008);
+                if (sprite.texturePath != "camera_" + std::to_string(frame / 8) + ".png" ||
+                    sprite.u0 * 3216 < x + 1.9f || sprite.u1 * 3216 > x + 802.1f ||
+                    sprite.v0 * 1008 < y + 1.9f || sprite.v1 * 1008 > y + 502.1f ||
+                    std::abs(aspect - static_cast<float>(width) / height) > .001f) {
                     outFail = "camera sampling must stay within the padded frame and preserve aspect after resize";
                     return false;
                 }

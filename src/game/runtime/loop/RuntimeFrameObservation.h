@@ -62,7 +62,7 @@ struct SampleInputs {
     int fixedTicksDropped = 0;
 };
 
-ServiceSnapshot captureServiceSnapshot(const GameRuntimeServices& services);
+ServiceSnapshot captureServiceSnapshot(const GameRuntimeServices &services);
 
 game::runtime::perf_accum::FrameSample makePerfSample(const SampleInputs& inputs,
                                                       const ServiceSnapshot& snapshot);

@@ -47,7 +47,7 @@ void PlacementState::onEnter() {
         flow.flushCommands();
         std::string error;
         if (!game::runtime::arena_scene_activation::applyGameplay(services.assets,
-                game::runtime::route1_scene_variants::fromStateScriptPath(routeScript), *gameWorld, &error))
+                                                                  game::runtime::route1_scene_variants::fromStateScriptPath(routeScript), *gameWorld, &error))
             throw std::runtime_error("Cannot activate starter arena: " + error);
     }
     game::logging::flow::notePlacementStateEntered(starterName);

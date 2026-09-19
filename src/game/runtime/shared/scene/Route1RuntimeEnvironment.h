@@ -239,8 +239,8 @@ bool route1TerrainCleanupCarrierAtOrBelowBoundaryCeiling(
     const std::array<std::array<float, 3>, 3>& positionsCm,
     float boundaryCeilingCm) noexcept;
 bool route1TerrainCleanupCarrierIntersectsCellFootprint(
-    const std::array<std::array<float, 3>, 3>& positionsCm,
-    const std::array<std::int32_t, 2>& cell) noexcept;
+    const std::array<std::array<float, 3>, 3> &positionsCm,
+    const std::array<std::int32_t, 2> &cell) noexcept;
 void route1TerrainClampCleanupCarrierToOwnedCell(
     std::array<std::array<float, 3>, 3>& positionsCm,
     const std::array<std::int32_t, 2>& ownerCell,
@@ -304,18 +304,18 @@ public:
         const engine::assets::phlosion::AuthoredSceneDocument& document,
         std::string* outError = nullptr);
     bool applyAuthoredScene(
-        const engine::assets::phlosion::AuthoredSceneDocument& document,
-        const engine::IAssetStore& projectStore,
-        std::string* outError = nullptr);
+        const engine::assets::phlosion::AuthoredSceneDocument &document,
+        const engine::IAssetStore &projectStore,
+        std::string *outError = nullptr);
     // Applies the document and the requested editor terrain-preview policy in
     // one layout-dependent rebuild. This avoids cooking the complete authored
     // terrain once for the production path and immediately cooking it again
     // for Terrain Patch V2 during scene activation.
     bool applyAuthoredScene(
-        const engine::assets::phlosion::AuthoredSceneDocument& document,
-        const engine::IAssetStore& projectStore,
+        const engine::assets::phlosion::AuthoredSceneDocument &document,
+        const engine::IAssetStore &projectStore,
         bool terrainPatchV2PreviewEnabled,
-        std::string* outError = nullptr);
+        std::string *outError = nullptr);
     bool setLayoutObjectOverride(
         const std::string& stableId,
         const std::array<float, 3>& translationCm,
@@ -373,12 +373,12 @@ public:
         std::vector<shared_world_batches::WorldIndexedBatch>& out);
 
 private:
-    bool applyAuthoredSceneInternal(
-        const engine::assets::phlosion::AuthoredSceneDocument& document,
-        const engine::IAssetStore* projectStore,
-        std::string* outError);
-    struct Impl;
-    std::unique_ptr<Impl> impl_;
+  bool applyAuthoredSceneInternal(
+      const engine::assets::phlosion::AuthoredSceneDocument &document,
+      const engine::IAssetStore *projectStore,
+      std::string *outError);
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
 };
 
 // Mounts the canonical Route 1 environment exclusively from its cooked PHSC.

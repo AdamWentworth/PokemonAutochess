@@ -65,7 +65,7 @@ bool GameWorld::buildDebugStateSnapshot(DebugStateSnapshot& out) const {
         snap.fainting = unit.fainting;
         snap.captureInProgress = unit.captureInProgress;
         snap.coverRevealRemainingSec = std::max(unit.coverRevealRemainingSec,
-            unit.attackTimerSec > 0.0f ? unit.attackTimerSec + game::arena::kAttackRevealSeconds : 0.0f);
+                                                unit.attackTimerSec > 0.0f ? unit.attackTimerSec + game::arena::kAttackRevealSeconds : 0.0f);
         snap.patrol = unit.patrol;
         snap.targetMemory = unit.targetMemory;
         out.boardUnits.push_back(std::move(snap));
@@ -108,7 +108,7 @@ bool GameWorld::buildDebugStateSnapshot(DebugStateSnapshot& out) const {
         snap.fainting = unit.fainting;
         snap.captureInProgress = unit.captureInProgress;
         snap.coverRevealRemainingSec = std::max(unit.coverRevealRemainingSec,
-            unit.attackTimerSec > 0.0f ? unit.attackTimerSec + game::arena::kAttackRevealSeconds : 0.0f);
+                                                unit.attackTimerSec > 0.0f ? unit.attackTimerSec + game::arena::kAttackRevealSeconds : 0.0f);
         snap.patrol = unit.patrol;
         snap.targetMemory = unit.targetMemory;
         out.benchUnits.push_back(std::move(snap));

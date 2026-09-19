@@ -52,7 +52,7 @@ bool test_ledge_jump_rendering(std::string &outFail) {
     for (const std::string species : {"bulbasaur", "rattata"}) {
         const auto *stats = db.pokemon.getStats(species);
         const std::string path = "assets/models/" + stats->model;
-        auto& mesh = meshes[modelIndex++];
+        auto &mesh = meshes[modelIndex++];
         if (!runtime::render_model::loadMeshFromCache(path, mesh, &outFail)) return false;
         const auto &roles = runtime::session_backend_unit_hydration::ensureBackendAnimRoles(path, &mesh, rolesCache);
         PokemonInstance unit;
@@ -190,19 +190,30 @@ bool test_ledge_jump_rendering(std::string &outFail) {
             }
         }
         game::arena::ArenaMapData cover;
-        cover.cover.push_back({"hidden", {{{{-1000,-1000},{1000,-1000},{1000,1000},{-1000,1000}}}}});
-        world.setCombatMapRules(std::make_shared<game::arena::AuthoredCombatMap>(cover, game::arena::Cell{0,0}));
-        unit.side=PokemonSide::Enemy;unit.ledgeJump={};unit.airState=AirLocomotionState::Grounded;
-        unit.position=world.gridToWorld(3,3);
-        for (bool debugView : {true,false,true}) {
+        cover.cover.push_back({"hidden", {{{{-1000, -1000}, {1000, -1000}, {1000, 1000}, {-1000, 1000}}}}});
+        world.setCombatMapRules(std::make_shared<game::arena::AuthoredCombatMap>(cover, game::arena::Cell{0, 0}));
+        unit.side = PokemonSide::Enemy;
+        unit.ledgeJump = {};
+        unit.airState = AirLocomotionState::Grounded;
+        unit.position = world.gridToWorld(3, 3);
+        for (bool debugView : {true, false, true}) {
             world.setShowConcealedUnits(debugView);
-            frame.clear();batches.clear();quads.clear();lines.clear();textLines.clear();sprites.clear();
-            triangles.clear();worldTriangles.clear();depth.clear();worldDepth.clear();
+            frame.clear();
+            batches.clear();
+            quads.clear();
+            lines.clear();
+            textLines.clear();
+            sprites.clear();
+            triangles.clear();
+            worldTriangles.clear();
+            depth.clear();
+            worldDepth.clear();
             runtime::shared_projected_render_items::beginProjectedRenderItemsFrame(items);
-            runtime::shared_projected_units::drawProjectedUnits(args,{unit});
-            const bool submitted=!frame.drawClasses.empty() || !batches.empty();
-            if (submitted!=debugView || (!debugView && (!quads.empty() || !lines.empty() || !textLines.empty() || !sprites.empty() || !triangles.empty() || !worldTriangles.empty()))) {
-                outFail="Concealment leaked a model, shadow or HUD submission, or debug view failed.";return false;
+            runtime::shared_projected_units::drawProjectedUnits(args, {unit});
+            const bool submitted = !frame.drawClasses.empty() || !batches.empty();
+            if (submitted != debugView || (!debugView && (!quads.empty() || !lines.empty() || !textLines.empty() || !sprites.empty() || !triangles.empty() || !worldTriangles.empty()))) {
+                outFail = "Concealment leaked a model, shadow or HUD submission, or debug view failed.";
+                return false;
             }
         }
         world.setShowConcealedUnits(false);

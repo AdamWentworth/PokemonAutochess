@@ -21,9 +21,9 @@ public:
     void handleInput(const InputEvent& event) override;
     void update(float deltaTime) override;
     void render() override;
-    const std::string& debugScriptPath() const { return routeScript; }
+    const std::string &debugScriptPath() const { return routeScript; }
 
-private:
+  private:
     GameStateManager* stateManager = nullptr;
     GameWorld* gameWorld = nullptr;
     GameServices& services;

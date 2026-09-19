@@ -80,7 +80,7 @@ bool sampleClipBoundMaterialAnimation(
 // a retained loop01 controller may supply the repeating idle emission. Retain
 // the geometry in the render cache and return the exact active source gate.
 float sampleMeshVisibilityAlpha(
-    const runtime::render_model::MeshData& mesh,
+    const runtime::render_model::MeshData &mesh,
     int animationIndex,
     std::size_t submeshIndex,
     float animationTimeSec,

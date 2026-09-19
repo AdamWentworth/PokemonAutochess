@@ -106,11 +106,11 @@ private:
 };
 
 class PatchTextStore final : public engine::IAssetStore {
-public:
+  public:
     bool readText(
-        const std::string& virtualPath,
-        std::string& outText,
-        std::string* outError) const override {
+        const std::string &virtualPath,
+        std::string &outText,
+        std::string *outError) const override {
         const auto found = texts.find(virtualPath);
         if (found == texts.end()) {
             if (outError) *outError = "missing patch text";
@@ -120,9 +120,9 @@ public:
         return true;
     }
     bool readBytes(
-        const std::string& virtualPath,
-        std::vector<std::uint8_t>& outBytes,
-        std::string* outError) const override {
+        const std::string &virtualPath,
+        std::vector<std::uint8_t> &outBytes,
+        std::string *outError) const override {
         const auto found = texts.find(virtualPath);
         if (found == texts.end()) {
             if (outError) *outError = "missing patch bytes";
@@ -131,7 +131,7 @@ public:
         outBytes.assign(found->second.begin(), found->second.end());
         return true;
     }
-    bool exists(const std::string& virtualPath) const override {
+    bool exists(const std::string &virtualPath) const override {
         return texts.contains(virtualPath);
     }
     std::unordered_map<std::string, std::string> texts;
@@ -201,9 +201,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>
         beforePatchBatches;
     environment.appendIndexedBatches(0.0f, beforePatchBatches);
-    const auto terrainIndexCount = [](const auto& batches) {
+    const auto terrainIndexCount = [](const auto &batches) {
         std::size_t count = 0u;
-        for (const auto& batch : batches) {
+        for (const auto &batch : batches) {
             if (batch.geometryCacheKey.find("route1:terrain-") ==
                     std::string::npos &&
                 batch.geometryCacheKey.find(":mesh:29:") ==
@@ -225,8 +225,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 continue;
             }
             const std::size_t indexCount = batch.sharedIndices
-                ? batch.sharedIndexCount
-                : batch.indices.size();
+                                               ? batch.sharedIndexCount
+                                               : batch.indices.size();
             count += indexCount * batch.instances.size();
         }
         return count;
@@ -251,16 +251,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             .geometrySha256 =
                 "B2604501D1941FD8A643E596EF866F68D8E90D5455EF1BFAE4A8D973DAC4BC44",
             .coordinateSystem = "source_centimetres_xyz_y_up"},
-        .meshes = {EnvironmentPatchMesh{
-            .id = "proof/runtime-triangle",
-            .displayName = "Runtime Patch Triangle",
-            .vertices = {patchA, patchB, patchC},
-            .materialGroups = {EnvironmentPatchMaterialGroup{
-                .materialIndex = 19u,
-                .indices = {0u, 1u, 2u}}}}},
-        .terrainReplacement = EnvironmentPatchTerrainReplacement{
-            .tileSizeCm = 100.0f,
-            .cells = {{17, -19}}}};
+        .meshes = {EnvironmentPatchMesh{.id = "proof/runtime-triangle", .displayName = "Runtime Patch Triangle", .vertices = {patchA, patchB, patchC}, .materialGroups = {EnvironmentPatchMaterialGroup{.materialIndex = 19u, .indices = {0u, 1u, 2u}}}}},
+        .terrainReplacement = EnvironmentPatchTerrainReplacement{.tileSizeCm = 100.0f, .cells = {{17, -19}}}};
     PatchTextStore patchStore;
     constexpr char kPatchPath[] =
         "tests/generated/runtime-proof.patch.json";
@@ -270,7 +262,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     const auto environmentFolder = std::find_if(
         authored.nodes.begin(),
         authored.nodes.end(),
-        [](const auto& node) {
+        [](const auto &node) {
             return node.folder() && node.displayName == "Environment";
         });
     std::string environmentFolderId;
@@ -306,10 +298,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     const auto filteredTerrain = std::find_if(
         patchBatches.begin(),
         patchBatches.end(),
-        [](const auto& batch) {
+        [](const auto &batch) {
             return batch.geometryCacheKey.find(
-                ":terrain-replacement-mask:") !=
-                std::string::npos;
+                       ":terrain-replacement-mask:") !=
+                   std::string::npos;
         });
     if (filteredTerrain == patchBatches.end() ||
         !filteredTerrain->sharedIndices ||
@@ -319,7 +311,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             "Terrain replacement masking did not publish cached shared index storage.";
         return false;
     }
-    const auto* cachedTerrainIndices =
+    const auto *cachedTerrainIndices =
         filteredTerrain->sharedIndices;
     const auto cachedTerrainIndexCount =
         filteredTerrain->sharedIndexCount;
@@ -329,9 +321,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     const auto repeatedFilteredTerrain = std::find_if(
         repeatedPatchBatches.begin(),
         repeatedPatchBatches.end(),
-        [&](const auto& batch) {
+        [&](const auto &batch) {
             return batch.geometryCacheKey ==
-                filteredTerrain->geometryCacheKey;
+                   filteredTerrain->geometryCacheKey;
         });
     if (repeatedFilteredTerrain == repeatedPatchBatches.end() ||
         repeatedFilteredTerrain->sharedIndices !=
@@ -345,10 +337,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     const bool foundPatchBatch = std::any_of(
         patchBatches.begin(),
         patchBatches.end(),
-        [](const auto& batch) {
+        [](const auto &batch) {
             return batch.geometryCacheKey.find(
-                ":patch:mesh-patch/runtime-proof:mesh:0:group:0") !=
-                std::string::npos;
+                       ":patch:mesh-patch/runtime-proof:mesh:0:group:0") !=
+                   std::string::npos;
         });
     if (!foundPatchBatch) {
         outFail =
@@ -358,9 +350,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     if (std::none_of(
             environment.layoutObjects().begin(),
             environment.layoutObjects().end(),
-            [](const auto& object) {
+            [](const auto &object) {
                 return object.stableId == "mesh-patch/runtime-proof" &&
-                    object.targetKind == "environment_mesh_patch";
+                       object.targetKind == "environment_mesh_patch";
             })) {
         outFail =
             "The rendered environment patch is missing from the editor hierarchy projection.";
@@ -370,7 +362,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         std::none_of(
             environment.authoredScene().nodes.begin(),
             environment.authoredScene().nodes.end(),
-            [](const auto& node) {
+            [](const auto &node) {
                 return node.meshPatch.has_value();
             })) {
         outFail =
@@ -814,9 +806,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     }
     std::erase_if(
         loweredLawnLayout.authoredTerrainTiles,
-        [](const route1::AuthoredTerrainTile& tile) {
+        [](const route1::AuthoredTerrainTile &tile) {
             return tile.gridX >= 16 && tile.gridX <= 21 &&
-                tile.gridZ == -12;
+                   tile.gridZ == -12;
         });
     for (std::int32_t gridX = 16; gridX <= 21; ++gridX) {
         auto ledgeBaseLawn = authoredTileFromSource(
@@ -863,7 +855,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool staleLedgeCleanupOverlay = false;
     std::string staleLedgeCleanupOverlayKey;
     std::array<std::int32_t, 2> staleLedgeCleanupOverlayCell{};
-    for (const auto& batch : loweredLawnBatches) {
+    for (const auto &batch : loweredLawnBatches) {
         bool broadCleanupMesh = false;
         for (std::uint32_t meshIndex = 16u;
              meshIndex <= 27u;
@@ -878,19 +870,19 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         if (!broadCleanupMesh) {
             continue;
         }
-        const auto* vertices = batch.sharedVertices
-            ? batch.sharedVertices
-            : batch.vertices.data();
+        const auto *vertices = batch.sharedVertices
+                                   ? batch.sharedVertices
+                                   : batch.vertices.data();
         const std::size_t vertexCount = batch.sharedVertices
-            ? batch.sharedVertexCount
-            : batch.vertices.size();
-        const auto* indices = batch.sharedIndices
-            ? batch.sharedIndices
-            : batch.indices.data();
+                                            ? batch.sharedVertexCount
+                                            : batch.vertices.size();
+        const auto *indices = batch.sharedIndices
+                                  ? batch.sharedIndices
+                                  : batch.indices.data();
         const std::size_t indexCount = batch.sharedIndices
-            ? batch.sharedIndexCount
-            : batch.indices.size();
-        const auto inspectInstance = [&](const auto& matrix) {
+                                           ? batch.sharedIndexCount
+                                           : batch.indices.size();
+        const auto inspectInstance = [&](const auto &matrix) {
             for (std::size_t index = 0u;
                  vertices && indices && index + 2u < indexCount;
                  index += 3u) {
@@ -902,7 +894,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         valid = false;
                         break;
                     }
-                    const auto& vertex = vertices[vertexIndex];
+                    const auto &vertex = vertices[vertexIndex];
                     const auto sourcePoint = transformPoint(
                         sourceFromWorld,
                         transformPoint(
@@ -935,7 +927,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         if (batch.instances.empty()) {
             inspectInstance(batch.modelMatrix);
         } else {
-            for (const auto& instance : batch.instances) {
+            for (const auto &instance : batch.instances) {
                 inspectInstance(instance.modelMatrix);
                 if (staleLedgeCleanupOverlay) {
                     break;
@@ -1048,18 +1040,18 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         if (batch.geometryCacheKey.find(
                 "mesh:0:group:0:terrain-mask:") !=
             std::string::npos) {
-            const auto* overlayVertices = batch.sharedVertices
-                ? batch.sharedVertices
-                : batch.vertices.data();
+            const auto *overlayVertices = batch.sharedVertices
+                                              ? batch.sharedVertices
+                                              : batch.vertices.data();
             const std::size_t overlayVertexCount = batch.sharedVertices
-                ? batch.sharedVertexCount
-                : batch.vertices.size();
-            const auto* overlayIndices = batch.sharedIndices
-                ? batch.sharedIndices
-                : batch.indices.data();
+                                                       ? batch.sharedVertexCount
+                                                       : batch.vertices.size();
+            const auto *overlayIndices = batch.sharedIndices
+                                             ? batch.sharedIndices
+                                             : batch.indices.data();
             const std::size_t overlayIndexCount = batch.sharedIndices
-                ? batch.sharedIndexCount
-                : batch.indices.size();
+                                                      ? batch.sharedIndexCount
+                                                      : batch.indices.size();
             for (std::size_t index = 0u;
                  overlayVertices && overlayIndices &&
                  index < overlayIndexCount;
@@ -1069,7 +1061,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     ledgeBaseGroundOverlayIndicesValid = false;
                     continue;
                 }
-                const auto& vertex = overlayVertices[vertexIndex];
+                const auto &vertex = overlayVertices[vertexIndex];
                 retainedSourceGroundShelfAtLedgeBase =
                     retainedSourceGroundShelfAtLedgeBase ||
                     (vertex.x >= 1600.0f && vertex.x <= 2200.0f &&
@@ -3166,9 +3158,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     auto regionalMaterialHandoffLayout = environment.layout();
     std::erase_if(
         regionalMaterialHandoffLayout.authoredTerrainTiles,
-        [](const route1::AuthoredTerrainTile& tile) {
+        [](const route1::AuthoredTerrainTile &tile) {
             return tile.gridX == 22 &&
-                (tile.gridZ == -11 || tile.gridZ == -10);
+                   (tile.gridZ == -11 || tile.gridZ == -10);
         });
     auto regionalLawnSocket = authoredTileFromSource(
         22, -10, 1, "light_lawn", "auto");
@@ -3198,38 +3190,38 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     const auto regionalLawnTile = std::find_if(
         environment.terrainTiles().begin(),
         environment.terrainTiles().end(),
-        [](const route1::TerrainTileState& tile) {
+        [](const route1::TerrainTileState &tile) {
             return tile.gridX == 22 && tile.gridZ == -10;
         });
     bool foundGeneratedLawnSocketTriangle = false;
     bool retainedSourceLawnSocketTriangle = false;
-    for (const auto& batch : regionalMaterialHandoffBatches) {
+    for (const auto &batch : regionalMaterialHandoffBatches) {
         const bool generatedSurface =
             batch.geometryCacheKey.find(
                 "route1:terrain-authored-surface:") !=
             std::string::npos;
         const auto materialIndex = batch.sharedTemplate
-            ? batch.sharedTemplate->sourceMaterialIndex
-            : batch.sourceMaterialIndex;
+                                       ? batch.sharedTemplate->sourceMaterialIndex
+                                       : batch.sourceMaterialIndex;
         const bool sourceGround = materialIndex == 19u &&
-            batch.geometryCacheKey.starts_with(
-                "published-environment:");
+                                  batch.geometryCacheKey.starts_with(
+                                      "published-environment:");
         if (!generatedSurface && !sourceGround) {
             continue;
         }
-        const auto* vertices = batch.sharedVertices
-            ? batch.sharedVertices
-            : batch.vertices.data();
+        const auto *vertices = batch.sharedVertices
+                                   ? batch.sharedVertices
+                                   : batch.vertices.data();
         const auto vertexCount = batch.sharedVertices
-            ? batch.sharedVertexCount
-            : batch.vertices.size();
-        const auto* indices = batch.sharedIndices
-            ? batch.sharedIndices
-            : batch.indices.data();
+                                     ? batch.sharedVertexCount
+                                     : batch.vertices.size();
+        const auto *indices = batch.sharedIndices
+                                  ? batch.sharedIndices
+                                  : batch.indices.data();
         const auto indexCount = batch.sharedIndices
-            ? batch.sharedIndexCount
-            : batch.indices.size();
-        for (const auto& instance : batch.instances) {
+                                    ? batch.sharedIndexCount
+                                    : batch.indices.size();
+        for (const auto &instance : batch.instances) {
             for (std::size_t index = 0u;
                  vertices && indices && index + 2u < indexCount;
                  index += 3u) {
@@ -3243,7 +3235,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         valid = false;
                         break;
                     }
-                    const auto& vertex = vertices[vertexIndex];
+                    const auto &vertex = vertices[vertexIndex];
                     const auto worldPoint = transformPoint(
                         instance.modelMatrix,
                         {vertex.x, vertex.y, vertex.z});
@@ -3297,7 +3289,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     // the runtime fast path. The fixture mutates the environment below, which
     // can reallocate that registry; retain an owned diagnostic snapshot rather
     // than dereferencing stale shared geometry/material pointers afterward.
-    for (auto& batch : canonicalBenchReferenceBatches) {
+    for (auto &batch : canonicalBenchReferenceBatches) {
         if (batch.sharedTemplate) {
             batch.sourceMaterialIndex =
                 batch.sharedTemplate->sourceMaterialIndex;
@@ -3321,9 +3313,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     auto benchCornerLayout = environment.layout();
     std::erase_if(
         benchCornerLayout.authoredTerrainTiles,
-        [](const route1::AuthoredTerrainTile& tile) {
+        [](const route1::AuthoredTerrainTile &tile) {
             return tile.gridX >= 16 && tile.gridX <= 19 &&
-                tile.gridZ >= -12 && tile.gridZ <= -11;
+                   tile.gridZ >= -12 && tile.gridZ <= -11;
         });
     for (std::int32_t gridX = 16; gridX <= 19; ++gridX) {
         auto lawn = authoredTileFromSource(
@@ -3339,9 +3331,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         std::move(benchDirt));
     std::erase_if(
         benchCornerLayout.authoredTerrainTiles,
-        [](const route1::AuthoredTerrainTile& tile) {
+        [](const route1::AuthoredTerrainTile &tile) {
             return tile.gridX >= 22 && tile.gridX <= 24 &&
-                (tile.gridZ == -11 || tile.gridZ == -10);
+                   (tile.gridZ == -11 || tile.gridZ == -10);
         });
     for (std::int32_t gridX = 22; gridX <= 24; ++gridX) {
         auto lawn = authoredTileFromSource(
@@ -3373,23 +3365,23 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     bool replacementLawnUsesCleanSelector = true;
     constexpr float kCleanLawnUv2U = -0.101646f;
     constexpr float kCleanLawnUv2V = -1.071291f;
-    for (const auto& batch : benchCornerBatches) {
+    for (const auto &batch : benchCornerBatches) {
         if (batch.geometryCacheKey.find(
                 "route1:terrain-authored-surface:") ==
             std::string::npos) {
             continue;
         }
-        const auto* vertices = batch.sharedVertices
-            ? batch.sharedVertices
-            : batch.vertices.data();
+        const auto *vertices = batch.sharedVertices
+                                   ? batch.sharedVertices
+                                   : batch.vertices.data();
         const auto vertexCount = batch.sharedVertices
-            ? batch.sharedVertexCount
-            : batch.vertices.size();
-        for (const auto& instance : batch.instances) {
+                                     ? batch.sharedVertexCount
+                                     : batch.vertices.size();
+        for (const auto &instance : batch.instances) {
             for (std::size_t vertexIndex = 0u;
                  vertices && vertexIndex < vertexCount;
                  ++vertexIndex) {
-                const auto& vertex = vertices[vertexIndex];
+                const auto &vertex = vertices[vertexIndex];
                 const auto worldPoint = transformPoint(
                     instance.modelMatrix,
                     {vertex.x, vertex.y, vertex.z});
@@ -3429,23 +3421,23 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     float maximumWestLawnUv0Difference = 0.0f;
     float maximumWestLawnUv1Difference = 0.0f;
     float maximumWestLawnColorDifference = 0.0f;
-    for (const auto& batch : benchCornerBatches) {
+    for (const auto &batch : benchCornerBatches) {
         if (batch.geometryCacheKey.find(
                 "route1:terrain-authored-surface:") ==
             std::string::npos) {
             continue;
         }
-        const auto* vertices = batch.sharedVertices
-            ? batch.sharedVertices
-            : batch.vertices.data();
+        const auto *vertices = batch.sharedVertices
+                                   ? batch.sharedVertices
+                                   : batch.vertices.data();
         const auto vertexCount = batch.sharedVertices
-            ? batch.sharedVertexCount
-            : batch.vertices.size();
-        for (const auto& instance : batch.instances) {
+                                     ? batch.sharedVertexCount
+                                     : batch.vertices.size();
+        for (const auto &instance : batch.instances) {
             for (std::size_t vertexIndex = 0u;
                  vertices && vertexIndex < vertexCount;
                  ++vertexIndex) {
-                const auto& vertex = vertices[vertexIndex];
+                const auto &vertex = vertices[vertexIndex];
                 const auto worldPoint = transformPoint(
                     instance.modelMatrix,
                     {vertex.x, vertex.y, vertex.z});
@@ -3465,7 +3457,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         sourcePoint[1] * 10.0)),
                     static_cast<std::int64_t>(std::llround(
                         sourcePoint[2] * 10.0))};
-                auto& field = westLawnSeamFields[key];
+                auto &field = westLawnSeamFields[key];
                 const std::array<float, 2> uv0{vertex.u, vertex.v};
                 const std::array<float, 2> uv1{
                     vertex.sourceUv1U,
@@ -3512,7 +3504,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     const auto pairedWestLawnPositionCount = std::count_if(
         westLawnSeamFields.begin(),
         westLawnSeamFields.end(),
-        [](const auto& entry) {
+        [](const auto &entry) {
             return entry.second.sampleCount >= 2u;
         });
     if (pairedWestLawnPositionCount < 12u ||
@@ -3542,23 +3534,23 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     };
     std::map<GeneratedBoundaryKey, GeneratedBoundaryPair>
         generatedBoundarySamples;
-    for (const auto& batch : benchCornerBatches) {
+    for (const auto &batch : benchCornerBatches) {
         if (batch.geometryCacheKey.find(
                 "route1:terrain-authored-surface:") ==
             std::string::npos) {
             continue;
         }
-        const auto* vertices = batch.sharedVertices
-            ? batch.sharedVertices
-            : batch.vertices.data();
+        const auto *vertices = batch.sharedVertices
+                                   ? batch.sharedVertices
+                                   : batch.vertices.data();
         const auto vertexCount = batch.sharedVertices
-            ? batch.sharedVertexCount
-            : batch.vertices.size();
-        for (const auto& instance : batch.instances) {
+                                     ? batch.sharedVertexCount
+                                     : batch.vertices.size();
+        for (const auto &instance : batch.instances) {
             for (std::size_t vertexIndex = 0u;
                  vertices && vertexIndex < vertexCount;
                  ++vertexIndex) {
-                const auto& vertex = vertices[vertexIndex];
+                const auto &vertex = vertices[vertexIndex];
                 const auto worldPoint = transformPoint(
                     instance.modelMatrix,
                     {vertex.x, vertex.y, vertex.z});
@@ -3583,11 +3575,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     .uv2 = {
                         vertex.sourceUv2U,
                         vertex.sourceUv2V},
-                    .color = {
-                        vertex.r,
-                        vertex.g,
-                        vertex.b,
-                        vertex.a}};
+                    .color = {vertex.r, vertex.g, vertex.b, vertex.a}};
                 const GeneratedBoundaryKey key{
                     static_cast<std::int64_t>(std::llround(
                         sourcePoint[0] * 10.0)),
@@ -3595,7 +3583,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         sourcePoint[1] * 10.0)),
                     static_cast<std::int64_t>(std::llround(
                         sourcePoint[2] * 10.0))};
-                auto& pair = generatedBoundarySamples[key];
+                auto &pair = generatedBoundarySamples[key];
                 (lawnBoundary ? pair.lawn : pair.dirt)
                     .push_back(sample);
             }
@@ -3609,18 +3597,16 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     float maximumUv0Difference = 0.0f;
     float maximumUv2RepeatDifference = 0.0f;
     float maximumColorDifference = 0.0f;
-    for (const auto& [position, pair] : generatedBoundarySamples) {
+    for (const auto &[position, pair] : generatedBoundarySamples) {
         (void)position;
-        for (const auto& lawn : pair.lawn) {
-            for (const auto& dirt : pair.dirt) {
-                maximumUv0Difference = std::max({
-                    maximumUv0Difference,
-                    std::abs(lawn.uv0[0] - dirt.uv0[0]),
-                    std::abs(lawn.uv0[1] - dirt.uv0[1])});
-                maximumUv2RepeatDifference = std::max({
-                    maximumUv2RepeatDifference,
-                    repeatDifference(lawn.uv2[0], dirt.uv2[0]),
-                    repeatDifference(lawn.uv2[1], dirt.uv2[1])});
+        for (const auto &lawn : pair.lawn) {
+            for (const auto &dirt : pair.dirt) {
+                maximumUv0Difference = std::max({maximumUv0Difference,
+                                                 std::abs(lawn.uv0[0] - dirt.uv0[0]),
+                                                 std::abs(lawn.uv0[1] - dirt.uv0[1])});
+                maximumUv2RepeatDifference = std::max({maximumUv2RepeatDifference,
+                                                       repeatDifference(lawn.uv2[0], dirt.uv2[0]),
+                                                       repeatDifference(lawn.uv2[1], dirt.uv2[1])});
                 for (std::size_t channel = 0u;
                      channel < lawn.color.size();
                      ++channel) {
@@ -3656,49 +3642,48 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
         return false;
     }
     constexpr std::array<std::array<std::int32_t, 2>, 4>
-        preservedBenchCells{{
-            {17, -9},
-            {18, -9},
-            {17, -10},
-            {18, -10}}};
+        preservedBenchCells{{{17, -9},
+                             {18, -9},
+                             {17, -10},
+                             {18, -10}}};
     using BenchSourceCounts = std::array<std::size_t, 4>;
     const auto inspectBenchBatches =
-        [&](const auto& inspectedBatches,
-            BenchSourceCounts& sourceCounts,
-            bool& generatedPreservedCell,
-            bool& generatedCorner,
-            bool& sourceCrossesCanonicalWestEdge,
-            bool& retainedCanonicalWestSide,
-            bool& foundGeneratedWestEdgeCarrier,
-            bool& generatedWestDirtTransitionCarrier,
-            bool& generatedWestCleanDirtCarrier) {
-            for (const auto& batch : inspectedBatches) {
+        [&](const auto &inspectedBatches,
+            BenchSourceCounts &sourceCounts,
+            bool &generatedPreservedCell,
+            bool &generatedCorner,
+            bool &sourceCrossesCanonicalWestEdge,
+            bool &retainedCanonicalWestSide,
+            bool &foundGeneratedWestEdgeCarrier,
+            bool &generatedWestDirtTransitionCarrier,
+            bool &generatedWestCleanDirtCarrier) {
+            for (const auto &batch : inspectedBatches) {
                 const bool generatedSurface =
                     batch.geometryCacheKey.find(
                         "route1:terrain-authored-surface:") !=
                     std::string::npos;
                 const auto materialIndex = batch.sharedTemplate
-                    ? batch.sharedTemplate->sourceMaterialIndex
-                    : batch.sourceMaterialIndex;
+                                               ? batch.sharedTemplate->sourceMaterialIndex
+                                               : batch.sourceMaterialIndex;
                 const bool sourceGround = materialIndex == 19u &&
-                    batch.geometryCacheKey.starts_with(
-                        "published-environment:");
+                                          batch.geometryCacheKey.starts_with(
+                                              "published-environment:");
                 if (!generatedSurface && !sourceGround) {
                     continue;
                 }
-                const auto* vertices = batch.sharedVertices
-                    ? batch.sharedVertices
-                    : batch.vertices.data();
+                const auto *vertices = batch.sharedVertices
+                                           ? batch.sharedVertices
+                                           : batch.vertices.data();
                 const auto vertexCount = batch.sharedVertices
-                    ? batch.sharedVertexCount
-                    : batch.vertices.size();
-                const auto* indices = batch.sharedIndices
-                    ? batch.sharedIndices
-                    : batch.indices.data();
+                                             ? batch.sharedVertexCount
+                                             : batch.vertices.size();
+                const auto *indices = batch.sharedIndices
+                                          ? batch.sharedIndices
+                                          : batch.indices.data();
                 const auto indexCount = batch.sharedIndices
-                    ? batch.sharedIndexCount
-                    : batch.indices.size();
-                for (const auto& instance : batch.instances) {
+                                            ? batch.sharedIndexCount
+                                            : batch.indices.size();
+                for (const auto &instance : batch.instances) {
                     for (std::size_t index = 0u;
                          vertices && indices && index + 2u < indexCount;
                          index += 3u) {
@@ -3713,14 +3698,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                 valid = false;
                                 break;
                             }
-                            const auto& vertex = vertices[vertexIndex];
+                            const auto &vertex = vertices[vertexIndex];
                             const auto worldPoint = transformPoint(
                                 instance.modelMatrix,
                                 {vertex.x, vertex.y, vertex.z});
                             points[corner] = transformPoint(
                                 sourceFromWorld, worldPoint);
                             sourceTransition = sourceTransition ||
-                                vertex.sourceUv2V > 0.5f;
+                                               vertex.sourceUv2V > 0.5f;
                             if (generatedSurface &&
                                 std::abs(points[corner][0] - 1700.0) <=
                                     2.0 &&
@@ -3767,8 +3752,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                 generatedPreservedCell || generatedSurface;
                         }
                         generatedCorner = generatedCorner ||
-                            (generatedSurface &&
-                             cellX == 17 && cellZ == -11);
+                                          (generatedSurface &&
+                                           cellX == 17 && cellZ == -11);
                         if (!sourceGround || !sourceTransition) {
                             continue;
                         }
@@ -3862,25 +3847,29 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     std::size_t cleanWestDirtVertexCount = 0u;
     bool westDirtContainsNonDirtSelector = false;
     float maximumBenchTriangleUv2USpan = 0.0f;
-    for (const auto& batch : benchCornerBatches) {
+    for (const auto &batch : benchCornerBatches) {
         if (batch.geometryCacheKey.find(
                 "route1:terrain-authored-surface:") ==
             std::string::npos) {
             continue;
         }
-        const auto* vertices = batch.sharedVertices
-            ? batch.sharedVertices : batch.vertices.data();
+        const auto *vertices = batch.sharedVertices
+                                   ? batch.sharedVertices
+                                   : batch.vertices.data();
         const auto vertexCount = batch.sharedVertices
-            ? batch.sharedVertexCount : batch.vertices.size();
-        const auto* indices = batch.sharedIndices
-            ? batch.sharedIndices : batch.indices.data();
+                                     ? batch.sharedVertexCount
+                                     : batch.vertices.size();
+        const auto *indices = batch.sharedIndices
+                                  ? batch.sharedIndices
+                                  : batch.indices.data();
         const auto indexCount = batch.sharedIndices
-            ? batch.sharedIndexCount : batch.indices.size();
-        for (const auto& instance : batch.instances) {
+                                    ? batch.sharedIndexCount
+                                    : batch.indices.size();
+        for (const auto &instance : batch.instances) {
             for (std::size_t vertexIndex = 0u;
                  vertices && vertexIndex < vertexCount;
                  ++vertexIndex) {
-                const auto& vertex = vertices[vertexIndex];
+                const auto &vertex = vertices[vertexIndex];
                 const auto sourcePoint = transformPoint(
                     sourceFromWorld,
                     transformPoint(
@@ -4019,7 +4008,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         valid = false;
                         break;
                     }
-                    const auto& vertex = vertices[vertexIndex];
+                    const auto &vertex = vertices[vertexIndex];
                     const auto sourcePoint = transformPoint(
                         sourceFromWorld,
                         transformPoint(
@@ -4205,28 +4194,28 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
     std::set<DonorTriangleKey> donorTriangles;
     bool foundDonorTriangle = false;
     bool duplicateDonorTriangle = false;
-    for (const auto& batch : donorSocketBatches) {
+    for (const auto &batch : donorSocketBatches) {
         if (batch.geometryCacheKey.find(
                 "terrain-source-reference-patch:") ==
             std::string::npos) {
             continue;
         }
-        const auto* vertices = batch.sharedVertices
-            ? batch.sharedVertices
-            : batch.vertices.data();
+        const auto *vertices = batch.sharedVertices
+                                   ? batch.sharedVertices
+                                   : batch.vertices.data();
         const auto vertexCount = batch.sharedVertices
-            ? batch.sharedVertexCount
-            : batch.vertices.size();
-        const auto* indices = batch.sharedIndices
-            ? batch.sharedIndices
-            : batch.indices.data();
+                                     ? batch.sharedVertexCount
+                                     : batch.vertices.size();
+        const auto *indices = batch.sharedIndices
+                                  ? batch.sharedIndices
+                                  : batch.indices.data();
         const auto indexCount = batch.sharedIndices
-            ? batch.sharedIndexCount
-            : batch.indices.size();
+                                    ? batch.sharedIndexCount
+                                    : batch.indices.size();
         const auto materialIndex = batch.sharedTemplate
-            ? batch.sharedTemplate->sourceMaterialIndex
-            : batch.sourceMaterialIndex;
-        for (const auto& instance : batch.instances) {
+                                       ? batch.sharedTemplate->sourceMaterialIndex
+                                       : batch.sourceMaterialIndex;
+        for (const auto &instance : batch.instances) {
             for (std::size_t index = 0u;
                  vertices && indices && index + 2u < indexCount;
                  index += 3u) {
@@ -4240,7 +4229,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         valid = false;
                         break;
                     }
-                    const auto& vertex = vertices[vertexIndex];
+                    const auto &vertex = vertices[vertexIndex];
                     const auto position = transformPoint(
                         instance.modelMatrix,
                         {vertex.x, vertex.y, vertex.z});
@@ -4258,10 +4247,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 foundDonorTriangle = true;
                 std::sort(triangle.begin(), triangle.end());
                 if (!donorTriangles.emplace(
-                        materialIndex,
-                        triangle[0],
-                        triangle[1],
-                        triangle[2]).second) {
+                                       materialIndex,
+                                       triangle[0],
+                                       triangle[1],
+                                       triangle[2])
+                         .second) {
                     duplicateDonorTriangle = true;
                 }
             }
@@ -4282,7 +4272,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                   std::array<std::int32_t, 2>{17, -10}},
         std::pair{&variants::kRoute1_5,
                   std::array<std::int32_t, 2>{17, -19}}};
-    for (const auto& [variant, expectedOrigin] : variantCases) {
+    for (const auto &[variant, expectedOrigin] : variantCases) {
         route1::RuntimeEnvironment variantEnvironment;
         route1::BoardLayoutTransform variantLayout;
         engine::assets::phlosion::AuthoredSceneDocument
@@ -4327,7 +4317,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 std::string(variant->sceneId);
             return false;
         }
-        const auto& variantStats = variantEnvironment.stats();
+        const auto &variantStats = variantEnvironment.stats();
         if (variantStats.shadowTriangleCount == 0u ||
             (variant == &variants::kRoute1 &&
              variantStats.shadowGroundTriangleCount == 0u) ||
@@ -4353,12 +4343,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 return false;
             }
             constexpr std::array<std::array<std::int32_t, 2>, 8>
-                southClearingTintHandoffCells{{
-                    {26, -17}, {26, -16},
-                    {26, -15}, {26, -14},
-                    {27, -17}, {27, -16},
-                    {27, -15}, {27, -14}}};
-            const auto& southClearingTiles =
+                southClearingTintHandoffCells{{{26, -17}, {26, -16}, {26, -15}, {26, -14}, {27, -17}, {27, -16}, {27, -15}, {27, -14}}};
+            const auto &southClearingTiles =
                 variantEnvironment.terrainTiles();
             struct SourceRestoreProbe {
                 std::int32_t gridX = 0;
@@ -4376,13 +4362,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     {13, -14, "light_lawn", "flat", 3},
                 }};
             std::string invalidSourceRestoreCells;
-            for (const auto& probe : sourceRestoreProbes) {
+            for (const auto &probe : sourceRestoreProbes) {
                 const auto found = std::find_if(
                     southClearingTiles.begin(),
                     southClearingTiles.end(),
-                    [&](const auto& tile) {
+                    [&](const auto &tile) {
                         return tile.gridX == probe.gridX &&
-                            tile.gridZ == probe.gridZ;
+                               tile.gridZ == probe.gridZ;
                     });
                 if (found != southClearingTiles.end() &&
                     found->authored &&
@@ -4407,8 +4393,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     invalidSourceRestoreCells += ",";
                 }
                 invalidSourceRestoreCells += "(" +
-                    std::to_string(probe.gridX) + "," +
-                    std::to_string(probe.gridZ) + ")";
+                                             std::to_string(probe.gridX) + "," +
+                                             std::to_string(probe.gridZ) + ")";
             }
             if (!invalidSourceRestoreCells.empty()) {
                 outFail =
@@ -4442,38 +4428,38 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     {22, -4, 21, -4, 1, 0},
                 }};
             std::string rebuiltUnchangedSourceLedgeCells;
-            for (const auto& probe : unchangedSourceLedgeProbes) {
+            for (const auto &probe : unchangedSourceLedgeProbes) {
                 const auto findCell = [&](std::int32_t gridX,
                                           std::int32_t gridZ) {
                     const auto found = std::find_if(
                         southClearingTiles.begin(),
                         southClearingTiles.end(),
-                        [&](const route1::TerrainTileState& tile) {
+                        [&](const route1::TerrainTileState &tile) {
                             return tile.gridX == gridX &&
-                                tile.gridZ == gridZ;
+                                   tile.gridZ == gridZ;
                         });
                     return found == southClearingTiles.end()
-                        ? nullptr
-                        : &*found;
+                               ? nullptr
+                               : &*found;
                 };
-                const auto* crown = findCell(probe.highX, probe.highZ);
-                const auto* contact = findCell(probe.lowX, probe.lowZ);
-                const auto sourceEquivalent = [](const auto* tile) {
+                const auto *crown = findCell(probe.highX, probe.highZ);
+                const auto *contact = findCell(probe.lowX, probe.lowZ);
+                const auto sourceEquivalent = [](const auto *tile) {
                     return tile && !tile->authored &&
-                        tile->reason.empty() && tile->sourceOccupied &&
-                        !tile->sourceReference &&
-                        tile->surface == "light_lawn" &&
-                        tile->surface == tile->sourceSurface &&
-                        tile->shape == "flat" &&
-                        tile->shape == tile->sourceShape &&
-                        tile->elevationLevel ==
-                            tile->sourceElevationLevel &&
-                        !tile->normalizeSourceTint &&
-                        !tile->cleanSuppressedEncounterGrassTint &&
-                        !tile->regionalMaterialHandoffOnly &&
-                        !tile->rebuildContinuousMaterialFields &&
-                        !tile->sourceLedgeCarrierDisplaced &&
-                        !tile->terrainPatchV2Core;
+                           tile->reason.empty() && tile->sourceOccupied &&
+                           !tile->sourceReference &&
+                           tile->surface == "light_lawn" &&
+                           tile->surface == tile->sourceSurface &&
+                           tile->shape == "flat" &&
+                           tile->shape == tile->sourceShape &&
+                           tile->elevationLevel ==
+                               tile->sourceElevationLevel &&
+                           !tile->normalizeSourceTint &&
+                           !tile->cleanSuppressedEncounterGrassTint &&
+                           !tile->regionalMaterialHandoffOnly &&
+                           !tile->rebuildContinuousMaterialFields &&
+                           !tile->sourceLedgeCarrierDisplaced &&
+                           !tile->terrainPatchV2Core;
                 };
                 std::size_t ledgeEdge = 0u;
                 if (probe.lowX > probe.highX) {
@@ -4484,9 +4470,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     ledgeEdge = 3u;
                 }
                 const auto profile = crown && contact
-                    ? route1::route1TerrainSharedEdgeProfile(
-                          *crown, contact, ledgeEdge)
-                    : route1::TerrainSharedEdgeProfile{};
+                                         ? route1::route1TerrainSharedEdgeProfile(
+                                               *crown, contact, ledgeEdge)
+                                         : route1::TerrainSharedEdgeProfile{};
                 if (sourceEquivalent(crown) &&
                     sourceEquivalent(contact) &&
                     crown->elevationLevel == probe.highLevel &&
@@ -4498,10 +4484,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     rebuiltUnchangedSourceLedgeCells += ",";
                 }
                 rebuiltUnchangedSourceLedgeCells += "(" +
-                    std::to_string(probe.highX) + "," +
-                    std::to_string(probe.highZ) + "->" +
-                    std::to_string(probe.lowX) + "," +
-                    std::to_string(probe.lowZ) + ")";
+                                                    std::to_string(probe.highX) + "," +
+                                                    std::to_string(probe.highZ) + "->" +
+                                                    std::to_string(probe.lowX) + "," +
+                                                    std::to_string(probe.lowZ) + ")";
             }
             if (!rebuiltUnchangedSourceLedgeCells.empty()) {
                 outFail =
@@ -4510,13 +4496,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 return false;
             }
             std::string missingTintHandoffCells;
-            for (const auto& cell : southClearingTintHandoffCells) {
+            for (const auto &cell : southClearingTintHandoffCells) {
                 const auto found = std::find_if(
                     southClearingTiles.begin(),
                     southClearingTiles.end(),
-                    [&](const route1::TerrainTileState& tile) {
+                    [&](const route1::TerrainTileState &tile) {
                         return tile.gridX == cell[0] &&
-                            tile.gridZ == cell[1];
+                               tile.gridZ == cell[1];
                     });
                 const bool missing =
                     found == southClearingTiles.end() ||
@@ -4528,20 +4514,21 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         missingTintHandoffCells += ",";
                     }
                     missingTintHandoffCells += "(" +
-                        std::to_string(cell[0]) + "," +
-                        std::to_string(cell[1]) + ":" +
-                        (found == southClearingTiles.end()
-                            ? "absent"
-                            : found->surface + "/source-" +
-                                std::to_string(found->sourceOccupied) +
-                                "/authored-" +
-                                std::to_string(found->authored)) + ")";
+                                               std::to_string(cell[0]) + "," +
+                                               std::to_string(cell[1]) + ":" +
+                                               (found == southClearingTiles.end()
+                                                    ? "absent"
+                                                    : found->surface + "/source-" +
+                                                          std::to_string(found->sourceOccupied) +
+                                                          "/authored-" +
+                                                          std::to_string(found->authored)) +
+                                               ")";
                 }
             }
             const auto outsideTintHandoff = std::find_if(
                 southClearingTiles.begin(),
                 southClearingTiles.end(),
-                [](const route1::TerrainTileState& tile) {
+                [](const route1::TerrainTileState &tile) {
                     return tile.gridX == 28 && tile.gridZ == -16;
                 });
             if (!missingTintHandoffCells.empty() ||
@@ -4594,8 +4581,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     variantEnvironment.layout());
             bool foundSouthClearingFieldRock = false;
             bool maskedSouthClearingFieldRock = false;
-            for (const auto& batch : variantBatches) {
-                const auto& material =
+            for (const auto &batch : variantBatches) {
+                const auto &material =
                     game::runtime::shared_world_batches::
                         resolvedMaterialBatch(batch);
                 if (material.sourceMaterialIndex == 16u) {
@@ -4640,12 +4627,11 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                      {{7.833333f, -2.166667f}}},
                     {{{2450.0, -950.0}},
                      {{8.166667f, -2.166667f}}},
-            }};
+                }};
             std::array<bool, sourceLawnAlbedoProbes.size()>
                 foundSourceLawnAlbedoProbe{};
             constexpr std::array<std::array<std::int32_t, 2>, 4>
-                sourceLedgeDirections{{
-                    {0, 1}, {1, 0}, {0, -1}, {-1, 0}}};
+                sourceLedgeDirections{{{0, 1}, {1, 0}, {0, -1}, {-1, 0}}};
             for (std::size_t probe = 0u;
                  probe < sourceLawnAlbedoProbes.size();
                  ++probe) {
@@ -4660,9 +4646,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 const auto tile = std::find_if(
                     southClearingTiles.begin(),
                     southClearingTiles.end(),
-                    [&](const route1::TerrainTileState& candidate) {
+                    [&](const route1::TerrainTileState &candidate) {
                         return candidate.gridX == gridX &&
-                            candidate.gridZ == gridZ;
+                               candidate.gridZ == gridZ;
                     });
                 if (tile == southClearingTiles.end() ||
                     tile->authored || !tile->sourceOccupied ||
@@ -4678,16 +4664,16 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 for (std::size_t edge = 0u;
                      edge < sourceLedgeDirections.size();
                      ++edge) {
-                    const auto& direction =
+                    const auto &direction =
                         sourceLedgeDirections[edge];
                     const auto neighbor = std::find_if(
                         southClearingTiles.begin(),
                         southClearingTiles.end(),
-                        [&](const route1::TerrainTileState& candidate) {
+                        [&](const route1::TerrainTileState &candidate) {
                             return candidate.gridX ==
-                                    gridX + direction[0] &&
-                                candidate.gridZ ==
-                                    gridZ + direction[1];
+                                       gridX + direction[0] &&
+                                   candidate.gridZ ==
+                                       gridZ + direction[1];
                         });
                     if (neighbor == southClearingTiles.end()) {
                         continue;
@@ -4781,9 +4767,9 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             std::array<RampTintField, 4>
                 oneSidedLoweredRampTintFields{};
             const auto accumulateRampField = [repeatDifference](
-                    RampBoundaryField& field,
-                    const auto& vertex,
-                    bool compareGeometry) {
+                                                 RampBoundaryField &field,
+                                                 const auto &vertex,
+                                                 bool compareGeometry) {
                 const std::array<float, 2> uv0{
                     vertex.u, vertex.v};
                 const std::array<float, 2> uv1{
@@ -4803,14 +4789,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 } else {
                     for (std::size_t channel = 0u; channel < 2u;
                          ++channel) {
-                        field.maximumDifference = std::max({
-                            field.maximumDifference,
-                            repeatDifference(
-                                uv0[channel], field.uv0[channel]),
-                            repeatDifference(
-                                uv1[channel], field.uv1[channel]),
-                            repeatDifference(
-                                uv2[channel], field.uv2[channel])});
+                        field.maximumDifference = std::max({field.maximumDifference,
+                                                            repeatDifference(
+                                                                uv0[channel], field.uv0[channel]),
+                                                            repeatDifference(
+                                                                uv1[channel], field.uv1[channel]),
+                                                            repeatDifference(
+                                                                uv2[channel], field.uv2[channel])});
                     }
                     for (std::size_t channel = 0u; channel < 4u;
                          ++channel) {
@@ -4829,23 +4814,23 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 }
                 ++field.sampleCount;
             };
-            for (const auto& batch : variantBatches) {
+            for (const auto &batch : variantBatches) {
                 if (batch.geometryCacheKey.find(
                         "route1:terrain-authored-surface:") ==
                     std::string::npos) {
                     continue;
                 }
-                const auto* vertices = batch.sharedVertices
-                    ? batch.sharedVertices
-                    : batch.vertices.data();
+                const auto *vertices = batch.sharedVertices
+                                           ? batch.sharedVertices
+                                           : batch.vertices.data();
                 const auto vertexCount = batch.sharedVertices
-                    ? batch.sharedVertexCount
-                    : batch.vertices.size();
-                for (const auto& instance : batch.instances) {
+                                             ? batch.sharedVertexCount
+                                             : batch.vertices.size();
+                for (const auto &instance : batch.instances) {
                     for (std::size_t vertexIndex = 0u;
                          vertices && vertexIndex < vertexCount;
                          ++vertexIndex) {
-                        const auto& vertex = vertices[vertexIndex];
+                        const auto &vertex = vertices[vertexIndex];
                         const auto sourcePoint = transformPoint(
                             variantSourceFromWorld,
                             transformPoint(
@@ -4855,12 +4840,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                              probe < sourceLawnAlbedoProbes.size();
                              ++probe) {
                             if (std::abs(sourcePoint[0] -
-                                    sourceLawnAlbedoProbes[probe]
-                                        .sourceXZ[0]) >
+                                         sourceLawnAlbedoProbes[probe]
+                                             .sourceXZ[0]) >
                                     0.1 ||
                                 std::abs(sourcePoint[2] -
-                                    sourceLawnAlbedoProbes[probe]
-                                        .sourceXZ[1]) >
+                                         sourceLawnAlbedoProbes[probe]
+                                             .sourceXZ[1]) >
                                     0.1) {
                                 continue;
                             }
@@ -4880,7 +4865,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                              ++ramp) {
                             const double expectedX =
                                 1650.0 + static_cast<double>(ramp) * 100.0;
-                            auto& materialProbe =
+                            auto &materialProbe =
                                 southClearingRampMaterialProbes[ramp];
                             const bool atCenterX =
                                 std::abs(sourcePoint[0] - expectedX) <= 0.1;
@@ -4927,9 +4912,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                         sourcePoint[2] - boundaryZ) > 0.1) {
                                     continue;
                                 }
-                                auto& field =
-                                    southClearingRampBoundaryFields[
-                                        ramp * 2u + side];
+                                auto &field =
+                                    southClearingRampBoundaryFields[ramp * 2u + side];
                                 accumulateRampField(
                                     field, vertex, false);
                             }
@@ -4950,13 +4934,12 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                         maximumSouthClearingRampSourceLightingDifference,
                                         std::abs(
                                             color[channel] -
-                                            southClearingRampSourceLighting[
-                                                channel]));
+                                            southClearingRampSourceLighting[channel]));
                             }
                         }
                         for (std::size_t ramp = 0u;
                              ramp <
-                                 loweredSouthClearingRampLighting.size();
+                             loweredSouthClearingRampLighting.size();
                              ++ramp) {
                             const double expectedX =
                                 1750.0 +
@@ -4982,11 +4965,10 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                         maximumLoweredSouthClearingRampLightingDifference,
                                         std::abs(
                                             color[channel] -
-                                            loweredSouthClearingRampLighting[
-                                                ramp][channel]));
+                                            loweredSouthClearingRampLighting[ramp][channel]));
                             }
                         }
-                        for (auto& probe : untouchedSourceRampProbes) {
+                        for (auto &probe : untouchedSourceRampProbes) {
                             if (std::abs(
                                     sourcePoint[0] -
                                     probe.sourceXZ[0]) > 0.1 ||
@@ -5044,9 +5026,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                 if (std::abs(sourcePoint[2] - sampleZ) > 0.1) {
                                     continue;
                                 }
-                                auto& field =
-                                    southClearingRampLateralBoundaryFields[
-                                        boundary * 3u + slopeSample];
+                                auto &field =
+                                    southClearingRampLateralBoundaryFields[boundary * 3u + slopeSample];
                                 accumulateRampField(
                                     field, vertex, true);
                             }
@@ -5072,9 +5053,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                         sourcePoint[2] - sampleZ) > 0.1) {
                                     continue;
                                 }
-                                auto& field =
-                                    loweredRampLateralBoundaryFields[
-                                        boundary * 3u + slopeSample];
+                                auto &field =
+                                    loweredRampLateralBoundaryFields[boundary * 3u + slopeSample];
                                 accumulateRampField(
                                     field, vertex, true);
                             }
@@ -5096,7 +5076,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                 vertex.g,
                                 vertex.b,
                                 vertex.a};
-                            auto& field =
+                            auto &field =
                                 oneSidedLoweredRampTintFields[ramp];
                             if (field.sampleCount == 0u) {
                                 field.color = color;
@@ -5116,44 +5096,44 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     }
                 }
             }
-            const auto& terrainFieldStats =
+            const auto &terrainFieldStats =
                 variantEnvironment.stats();
             if (terrainFieldStats
-                    .terrainLawnCompatibleBoundarySampleCount == 0u ||
+                        .terrainLawnCompatibleBoundarySampleCount == 0u ||
                 terrainFieldStats
-                    .terrainLawnDerivativeBoundarySampleCount == 0u ||
+                        .terrainLawnDerivativeBoundarySampleCount == 0u ||
                 terrainFieldStats
-                    .terrainLawnSourceAppearanceAnchorSampleCount == 0u ||
+                        .terrainLawnSourceAppearanceAnchorSampleCount == 0u ||
                 terrainFieldStats
-                    .terrainLawnMaterialOverlayCellCount == 0u ||
+                        .terrainLawnMaterialOverlayCellCount == 0u ||
                 terrainFieldStats
-                    .terrainLawnMaximumBoundaryUv01Difference > 0.001f ||
+                        .terrainLawnMaximumBoundaryUv01Difference > 0.001f ||
                 terrainFieldStats
-                    .terrainLawnMaximumBoundaryColorDifference > 0.001f ||
+                        .terrainLawnMaximumBoundaryColorDifference > 0.001f ||
                 terrainFieldStats
-                    .terrainLawnMaximumSourceBoundaryUv01Difference >
-                        0.001f ||
+                        .terrainLawnMaximumSourceBoundaryUv01Difference >
+                    0.001f ||
                 terrainFieldStats
-                    .terrainLawnMaximumSourceBoundaryColorDifference >
-                        0.001f ||
+                        .terrainLawnMaximumSourceBoundaryColorDifference >
+                    0.001f ||
                 terrainFieldStats
-                    .terrainLawnMaximumUv01DerivativeRestart > 0.05f ||
+                        .terrainLawnMaximumUv01DerivativeRestart > 0.05f ||
                 terrainFieldStats
-                    .terrainLawnMaximumColorDerivativeRestart > 0.10f ||
+                        .terrainLawnMaximumColorDerivativeRestart > 0.10f ||
                 terrainFieldStats
-                    .terrainLawnMaximumNormalDerivativeRestart > 0.04f ||
+                        .terrainLawnMaximumNormalDerivativeRestart > 0.04f ||
                 terrainFieldStats
-                    .terrainLawnMaximumSourceAppearanceAnchorUv1Difference >
-                        0.001f ||
+                        .terrainLawnMaximumSourceAppearanceAnchorUv1Difference >
+                    0.001f ||
                 terrainFieldStats
-                    .terrainLawnMaximumSourceAppearanceAnchorColorDifference >
-                        0.001f ||
+                        .terrainLawnMaximumSourceAppearanceAnchorColorDifference >
+                    0.001f ||
                 terrainFieldStats
-                    .terrainLawnMaximumSourceUv01DerivativeRestart >
-                        0.05f ||
+                        .terrainLawnMaximumSourceUv01DerivativeRestart >
+                    0.05f ||
                 terrainFieldStats
-                    .terrainLawnMaximumSourceColorDerivativeRestart >
-                        0.10f) {
+                        .terrainLawnMaximumSourceColorDerivativeRestart >
+                    0.10f) {
                 outFail =
                     "South Clearing's generated material-19 surface is not one repeat-equivalent world field across every rebuilt tile boundary (samples=" +
                     std::to_string(
@@ -5249,18 +5229,14 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     if (!missing.empty()) {
                         missing += ",";
                     }
-                    missing += "(" + std::to_string(
-                        static_cast<std::int32_t>(
-                            std::floor(
-                                sourceLawnAlbedoProbes[probe]
-                                    .sourceXZ[0] /
-                                100.0))) + "," +
-                        std::to_string(
-                            static_cast<std::int32_t>(
-                                std::floor(
-                                    sourceLawnAlbedoProbes[probe]
-                                        .sourceXZ[1] /
-                                    100.0))) + ")";
+                    missing += "(" + std::to_string(static_cast<std::int32_t>(std::floor(sourceLawnAlbedoProbes[probe].sourceXZ[0] / 100.0))) + "," +
+                               std::to_string(
+                                   static_cast<std::int32_t>(
+                                       std::floor(
+                                           sourceLawnAlbedoProbes[probe]
+                                               .sourceXZ[1] /
+                                           100.0))) +
+                               ")";
                 }
                 outFail =
                     "South Clearing neither retained source-equivalent lawn ledges nor regenerated the remaining lawn cells inside the repeat-equivalent decoded LGPE albedo branch (missing=" +
@@ -5296,7 +5272,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             for (std::size_t probeIndex = 0u;
                  probeIndex < untouchedSourceRampProbes.size();
                  ++probeIndex) {
-                const auto& probe =
+                const auto &probe =
                     untouchedSourceRampProbes[probeIndex];
                 if (probe.found &&
                     probe.maximumDifference <= 0.001f) {
@@ -5315,7 +5291,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             for (std::size_t ramp = 0u;
                  ramp < southClearingRampMaterialProbes.size();
                  ++ramp) {
-                const auto& probe =
+                const auto &probe =
                     southClearingRampMaterialProbes[ramp];
                 foundCompleteRampMaterialField =
                     foundCompleteRampMaterialField &&
@@ -5324,7 +5300,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 if (ramp == 0u) {
                     continue;
                 }
-                const auto& previous =
+                const auto &previous =
                     southClearingRampMaterialProbes[ramp - 1u];
                 for (std::size_t channel = 0u; channel < 2u;
                      ++channel) {
@@ -5356,12 +5332,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::to_string(foundCompleteRampMaterialField) +
                     ", uv0-derivative=" +
                     std::to_string(
-                        maximumRampUv0DerivativeDifference) + ").";
+                        maximumRampUv0DerivativeDifference) +
+                    ").";
                 return false;
             }
             float maximumRampBoundaryFieldDifference = 0.0f;
             bool foundCompleteRampBoundaryField = true;
-            for (const auto& field :
+            for (const auto &field :
                  southClearingRampBoundaryFields) {
                 foundCompleteRampBoundaryField =
                     foundCompleteRampBoundaryField &&
@@ -5377,12 +5354,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::to_string(foundCompleteRampBoundaryField) +
                     ", field-difference=" +
                     std::to_string(
-                        maximumRampBoundaryFieldDifference) + ").";
+                        maximumRampBoundaryFieldDifference) +
+                    ").";
                 return false;
             }
             float maximumRampLateralFieldDifference = 0.0f;
             bool foundCompleteRampLateralField = true;
-            for (const auto& field :
+            for (const auto &field :
                  southClearingRampLateralBoundaryFields) {
                 foundCompleteRampLateralField =
                     foundCompleteRampLateralField &&
@@ -5398,12 +5376,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::to_string(foundCompleteRampLateralField) +
                     ", field-difference=" +
                     std::to_string(
-                        maximumRampLateralFieldDifference) + ").";
+                        maximumRampLateralFieldDifference) +
+                    ").";
                 return false;
             }
             float maximumLoweredRampLateralFieldDifference = 0.0f;
             bool foundCompleteLoweredRampLateralField = true;
-            for (const auto& field :
+            for (const auto &field :
                  loweredRampLateralBoundaryFields) {
                 foundCompleteLoweredRampLateralField =
                     foundCompleteLoweredRampLateralField &&
@@ -5427,7 +5406,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             for (std::size_t ramp = 0u;
                  ramp < oneSidedLoweredRampTintFields.size();
                  ++ramp) {
-                const auto& field =
+                const auto &field =
                     oneSidedLoweredRampTintFields[ramp];
                 if (field.sampleCount >= 3u &&
                     field.maximumDifference <= 0.001f) {
@@ -5461,7 +5440,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             bool forcedDarkLightLawnCrownCarrier = false;
             constexpr std::array<float, 3> raisedLawnTint{
                 0.180392161f, 0.482352942f, 0.431372553f};
-            for (const auto& batch : variantBatches) {
+            for (const auto &batch : variantBatches) {
                 replacedIntactSourceCorner =
                     replacedIntactSourceCorner ||
                     batch.geometryCacheKey.find(
@@ -5498,13 +5477,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     batch.geometryCacheKey.find("27,-13;") !=
                         std::string::npos;
                 if (regionalCornerCapUnderlay) {
-                    const auto* vertices = batch.sharedVertices
-                        ? batch.sharedVertices
-                        : batch.vertices.data();
+                    const auto *vertices = batch.sharedVertices
+                                               ? batch.sharedVertices
+                                               : batch.vertices.data();
                     const auto vertexCount = batch.sharedVertices
-                        ? batch.sharedVertexCount
-                        : batch.vertices.size();
-                    for (const auto& instance : batch.instances) {
+                                                 ? batch.sharedVertexCount
+                                                 : batch.vertices.size();
+                    for (const auto &instance : batch.instances) {
                         for (std::size_t vertexIndex = 0u;
                              vertices && vertexIndex < vertexCount;
                              ++vertexIndex) {
@@ -5541,13 +5520,13 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 if (batch.geometryCacheKey.find(
                         "route1:terrain-authored-surface:") !=
                     std::string::npos) {
-                    const auto* vertices = batch.sharedVertices
-                        ? batch.sharedVertices
-                        : batch.vertices.data();
+                    const auto *vertices = batch.sharedVertices
+                                               ? batch.sharedVertices
+                                               : batch.vertices.data();
                     const auto vertexCount = batch.sharedVertices
-                        ? batch.sharedVertexCount
-                        : batch.vertices.size();
-                    for (const auto& instance : batch.instances) {
+                                                 ? batch.sharedVertexCount
+                                                 : batch.vertices.size();
+                    for (const auto &instance : batch.instances) {
                         for (std::size_t vertexIndex = 0u;
                              vertices && vertexIndex < vertexCount;
                              ++vertexIndex) {
@@ -5560,8 +5539,8 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                      vertices[vertexIndex].z}));
                             for (std::size_t cap = 0u;
                                  cap <
-                                     generatedIntactSourceCornerCapInteriors
-                                         .size();
+                                 generatedIntactSourceCornerCapInteriors
+                                     .size();
                                  ++cap) {
                                 generatedIntactSourceCornerCapInteriors[cap] =
                                     generatedIntactSourceCornerCapInteriors[cap] ||
@@ -5580,7 +5559,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                      cell < replacedSouthLedgeCliffs.size();
                      ++cell) {
                     const std::string cellKey = "cell-" +
-                        std::to_string(21u + cell) + "--19:edge-0:";
+                                                std::to_string(21u + cell) + "--19:edge-0:";
                     replacedSouthLedgeCliffs[cell] =
                         replacedSouthLedgeCliffs[cell] ||
                         batch.geometryCacheKey.find(
@@ -5597,7 +5576,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                              "route1:terrain-exact-source-surface:") !=
                              std::string::npos &&
                          batch.geometryCacheKey.find(
-                              std::to_string(21u + cell) + ",-19;") !=
+                             std::to_string(21u + cell) + ",-19;") !=
                              std::string::npos);
                     retainedSouthLedgeLowerContacts[cell] =
                         retainedSouthLedgeLowerContacts[cell] ||
@@ -5619,29 +5598,28 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     continue;
                 }
                 foundLightLawnCrownCarrier = true;
-                const auto* vertices = batch.sharedVertices
-                    ? batch.sharedVertices
-                    : batch.vertices.data();
+                const auto *vertices = batch.sharedVertices
+                                           ? batch.sharedVertices
+                                           : batch.vertices.data();
                 const std::size_t vertexCount = batch.sharedVertices
-                    ? batch.sharedVertexCount
-                    : batch.vertices.size();
+                                                    ? batch.sharedVertexCount
+                                                    : batch.vertices.size();
                 const std::size_t outerRowCount = vertexCount / 2u;
                 const bool entireContactRowForcedDark =
                     vertices && outerRowCount > 0u &&
                     std::all_of(
                         vertices,
                         vertices + outerRowCount,
-                        [&](const auto& vertex) {
-                            return
-                                std::abs(
-                                    vertex.r - raisedLawnTint[0]) <=
-                                    0.001f &&
-                                std::abs(
-                                    vertex.g - raisedLawnTint[1]) <=
-                                    0.001f &&
-                                std::abs(
-                                    vertex.b - raisedLawnTint[2]) <=
-                                    0.001f;
+                        [&](const auto &vertex) {
+                            return std::abs(
+                                       vertex.r - raisedLawnTint[0]) <=
+                                       0.001f &&
+                                   std::abs(
+                                       vertex.g - raisedLawnTint[1]) <=
+                                       0.001f &&
+                                   std::abs(
+                                       vertex.b - raisedLawnTint[2]) <=
+                                       0.001f;
                         });
                 forcedDarkLightLawnCrownCarrier =
                     forcedDarkLightLawnCrownCarrier ||
@@ -5710,26 +5688,29 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     std::to_string(retainedIntactSourceCornerCap) +
                     ", regional-source-caps=" +
                     std::to_string(
-                        regionalizedIntactSourceCornerCaps[0]) + "," +
+                        regionalizedIntactSourceCornerCaps[0]) +
+                    "," +
                     std::to_string(
                         regionalizedIntactSourceCornerCaps[1]) +
                     ", generated-source-cap-interiors=" +
                     std::to_string(
                         generatedIntactSourceCornerCapInteriors[0]) +
-                    "," + std::to_string(
-                        generatedIntactSourceCornerCapInteriors[1]) +
+                    "," + std::to_string(generatedIntactSourceCornerCapInteriors[1]) +
                     ", source-cap-underlay=" +
                     std::to_string(
-                        regionalCornerCapUnderlayVertexCount) + "/" +
+                        regionalCornerCapUnderlayVertexCount) +
+                    "/" +
                     std::to_string(
-                        invalidRegionalCornerCapUnderlayDepth) + "/" +
+                        invalidRegionalCornerCapUnderlayDepth) +
+                    "/" +
                     std::to_string(
                         invalidRegionalCornerCapUnderlaySelector) +
                     ", light-crown=" +
                     std::to_string(foundLightLawnCrownCarrier) +
                     ", forced-dark=" +
                     std::to_string(
-                        forcedDarkLightLawnCrownCarrier) + ").";
+                        forcedDarkLightLawnCrownCarrier) +
+                    ").";
                 return false;
             }
             constexpr std::array<std::array<double, 2>, 3>
@@ -5744,22 +5725,28 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 canonicalSurfaceProbeCounts{};
             constexpr std::array<std::array<double, 2>, 15>
                 southThreeRowRegionalProbes{{
-                    {2050.0, -1950.0}, {2150.0, -1950.0},
-                    {2250.0, -1950.0}, {2350.0, -1950.0},
+                    {2050.0, -1950.0},
+                    {2150.0, -1950.0},
+                    {2250.0, -1950.0},
+                    {2350.0, -1950.0},
                     {2450.0, -1950.0},
-                    {2050.0, -1850.0}, {2150.0, -1850.0},
-                    {2250.0, -1850.0}, {2350.0, -1850.0},
+                    {2050.0, -1850.0},
+                    {2150.0, -1850.0},
+                    {2250.0, -1850.0},
+                    {2350.0, -1850.0},
                     {2450.0, -1850.0},
-                    {2050.0, -1750.0}, {2150.0, -1750.0},
-                    {2250.0, -1750.0}, {2350.0, -1750.0},
+                    {2050.0, -1750.0},
+                    {2150.0, -1750.0},
+                    {2250.0, -1750.0},
+                    {2350.0, -1750.0},
                     {2450.0, -1750.0},
                 }};
             std::array<std::size_t, 15>
                 southThreeRowRegionalProbeCounts{};
-            for (const auto& batch : variantBatches) {
+            for (const auto &batch : variantBatches) {
                 const auto materialIndex = batch.sharedTemplate
-                    ? batch.sharedTemplate->sourceMaterialIndex
-                    : batch.sourceMaterialIndex;
+                                               ? batch.sharedTemplate->sourceMaterialIndex
+                                               : batch.sourceMaterialIndex;
                 if (materialIndex != 19u) {
                     continue;
                 }
@@ -5774,19 +5761,19 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 if (!donorSurface && !canonicalSurface) {
                     continue;
                 }
-                const auto* vertices = batch.sharedVertices
-                    ? batch.sharedVertices
-                    : batch.vertices.data();
+                const auto *vertices = batch.sharedVertices
+                                           ? batch.sharedVertices
+                                           : batch.vertices.data();
                 const auto vertexCount = batch.sharedVertices
-                    ? batch.sharedVertexCount
-                    : batch.vertices.size();
-                const auto* indices = batch.sharedIndices
-                    ? batch.sharedIndices
-                    : batch.indices.data();
+                                             ? batch.sharedVertexCount
+                                             : batch.vertices.size();
+                const auto *indices = batch.sharedIndices
+                                          ? batch.sharedIndices
+                                          : batch.indices.data();
                 const auto indexCount = batch.sharedIndices
-                    ? batch.sharedIndexCount
-                    : batch.indices.size();
-                for (const auto& instance : batch.instances) {
+                                            ? batch.sharedIndexCount
+                                            : batch.indices.size();
+                for (const auto &instance : batch.instances) {
                     for (std::size_t index = 0u;
                          vertices && indices &&
                          index + 2u < indexCount;
@@ -5803,7 +5790,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                 valid = false;
                                 break;
                             }
-                            const auto& vertex = vertices[vertexIndex];
+                            const auto &vertex = vertices[vertexIndex];
                             triangle[corner] = transformPoint(
                                 variantSourceFromWorld,
                                 transformPoint(
@@ -5837,25 +5824,25 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                 return std::abs(
                     difference - std::round(difference));
             };
-            for (const auto& batch : variantBatches) {
+            for (const auto &batch : variantBatches) {
                 if (batch.geometryCacheKey.find(
                         "route1:terrain-authored-surface:") ==
                     std::string::npos) {
                     continue;
                 }
-                const auto* vertices = batch.sharedVertices
-                    ? batch.sharedVertices
-                    : batch.vertices.data();
+                const auto *vertices = batch.sharedVertices
+                                           ? batch.sharedVertices
+                                           : batch.vertices.data();
                 const auto vertexCount = batch.sharedVertices
-                    ? batch.sharedVertexCount
-                    : batch.vertices.size();
-                const auto* indices = batch.sharedIndices
-                    ? batch.sharedIndices
-                    : batch.indices.data();
+                                             ? batch.sharedVertexCount
+                                             : batch.vertices.size();
+                const auto *indices = batch.sharedIndices
+                                          ? batch.sharedIndices
+                                          : batch.indices.data();
                 const auto indexCount = batch.sharedIndices
-                    ? batch.sharedIndexCount
-                    : batch.indices.size();
-                for (const auto& instance : batch.instances) {
+                                            ? batch.sharedIndexCount
+                                            : batch.indices.size();
+                for (const auto &instance : batch.instances) {
                     for (std::size_t index = 0u;
                          vertices && indices &&
                          index + 2u < indexCount;
@@ -5874,7 +5861,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                 valid = false;
                                 break;
                             }
-                            const auto& vertex = vertices[vertexIndex];
+                            const auto &vertex = vertices[vertexIndex];
                             triangle[corner] = transformPoint(
                                 variantSourceFromWorld,
                                 transformPoint(
@@ -5905,7 +5892,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                         if (std::abs(denominator) <= 0.000001) {
                             continue;
                         }
-                        for (const auto& probe :
+                        for (const auto &probe :
                              retiredSourceDirtTintProbes) {
                             if (!containsXZ(
                                     triangle, probe[0], probe[1])) {
@@ -5945,7 +5932,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                     for (std::size_t vertexIndex = 0u;
                          vertices && vertexIndex < vertexCount;
                          ++vertexIndex) {
-                        const auto& vertex = vertices[vertexIndex];
+                        const auto &vertex = vertices[vertexIndex];
                         const auto worldPoint = transformPoint(
                             instance.modelMatrix,
                             {vertex.x, vertex.y, vertex.z});
@@ -5961,7 +5948,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
                                 sourcePoint[0] * 10.0)),
                             static_cast<std::int64_t>(std::llround(
                                 sourcePoint[2] * 10.0))};
-                        auto& field = boundaryFields[key];
+                        auto &field = boundaryFields[key];
                         const std::array<float, 2> uv0{
                             vertex.u, vertex.v};
                         const std::array<float, 2> uv1{
@@ -6044,7 +6031,7 @@ bool test_route1_cooked_environment_contract(std::string& outFail) {
             const auto pairedPositionCount = std::count_if(
                 boundaryFields.begin(),
                 boundaryFields.end(),
-                [](const auto& entry) {
+                [](const auto &entry) {
                     return entry.second.sampleCount >= 2u;
                 });
             const bool missingDonorSurface = std::any_of(

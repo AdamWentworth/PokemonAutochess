@@ -33,7 +33,7 @@ namespace game::runtime::session_startup_runtime {
 namespace {
 
 constexpr char kSharedCapturePokeballPath[] = "assets/models/pokeball.glb";
-constexpr std::array<const char*, 9> kStartupScriptPrewarmPaths = {
+constexpr std::array<const char *, 9> kStartupScriptPrewarmPaths = {
     "scripts/states/main_menu.lua",
     "scripts/states/starter.lua",
     "scripts/ui/starter_menu.lua",

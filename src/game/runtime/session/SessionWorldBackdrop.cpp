@@ -2037,9 +2037,9 @@ bool routeThemeUsesAuthoredRoute1Fallback(ArenaBackdropTheme theme) noexcept {
     }
 }
 
-bool prepareTravelScene(const engine::IAssetStore& store, const std::string& scriptPath, std::string& error) {
-    const auto& variant = route1_scene_variants::fromStateScriptPath(scriptPath);
-    auto& scratch = session_render_scratch::threadScratch();
+bool prepareTravelScene(const engine::IAssetStore &store, const std::string &scriptPath, std::string &error) {
+    const auto &variant = route1_scene_variants::fromStateScriptPath(scriptPath);
+    auto &scratch = session_render_scratch::threadScratch();
     if (scratch.preparedTravelEnvironment && scratch.preparedTravelSceneId == variant.sceneId) return true;
     auto candidate = std::make_shared<route1_environment::RuntimeEnvironment>();
     if (!route1_environment::loadCookedEnvironment(store, *candidate, nullptr, &error) ||
@@ -2050,7 +2050,7 @@ bool prepareTravelScene(const engine::IAssetStore& store, const std::string& scr
 }
 
 void discardPreparedTravelScene() {
-    auto& scratch = session_render_scratch::threadScratch();
+    auto &scratch = session_render_scratch::threadScratch();
     scratch.preparedTravelEnvironment.reset();
     scratch.preparedTravelSceneId.clear();
 }

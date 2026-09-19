@@ -4,7 +4,7 @@
 
 namespace game::runtime::session_frame_metrics {
 
-void publish(GameRuntimeServices* engineServices, const FrameMetrics& metrics) {
+void publish(GameRuntimeServices *engineServices, const FrameMetrics &metrics) {
     if (!engineServices) return;
 
     engineServices->frameVisibleAnimatedUnits = metrics.visibleAnimatedUnits;

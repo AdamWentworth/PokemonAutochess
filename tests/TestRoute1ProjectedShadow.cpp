@@ -3,7 +3,7 @@
 
 #include <string>
 
-bool test_route1_projected_shadow_cache_contract(std::string& outFail) {
+bool test_route1_projected_shadow_cache_contract(std::string &outFail) {
     using namespace game::runtime;
     using namespace engine::render::backend;
     using I = IRenderBackend;
@@ -33,7 +33,7 @@ bool test_route1_projected_shadow_cache_contract(std::string& outFail) {
         1.0f, 1.0f, 1.0f, 1.0f, 0.0f);
 
     route1_projected_shadow::Atlas atlas;
-    const std::vector<published_environment_scene::PreparedScene*> scenes{&scene};
+    const std::vector<published_environment_scene::PreparedScene *> scenes{&scene};
     const std::array<float, 3> center{};
     if (!atlas.build(scenes, center, 64, 64, &outFail)) return false;
     if (atlas.stats().writtenPixelCount == 0u) {
@@ -44,11 +44,11 @@ bool test_route1_projected_shadow_cache_contract(std::string& outFail) {
     const auto originalKey = atlas.textureKey();
     const auto verifyAttachment = [&]() {
         atlas.attach(scenes);
-        const auto& attached = scene.registry.materials.front();
+        const auto &attached = scene.registry.materials.front();
         return attached.projectedShadowTextureKey == atlas.textureKey() &&
-            attached.projectedShadowTextureCacheKey == atlas.textureKey() &&
-            attached.projectedShadowTextureRgba == atlas.rgba().data() &&
-            attached.projectedShadowMatrix == atlas.projection();
+               attached.projectedShadowTextureCacheKey == atlas.textureKey() &&
+               attached.projectedShadowTextureRgba == atlas.rgba().data() &&
+               attached.projectedShadowMatrix == atlas.projection();
     };
     if (!verifyAttachment()) {
         outFail = "Shadow receiver did not receive the current atlas binding.";
@@ -57,7 +57,7 @@ bool test_route1_projected_shadow_cache_contract(std::string& outFail) {
 
     // Removing ground/grass casters must not retrieve the previous GPU image.
     if (!atlas.build(scenes, center, 64, 64,
-            {.includeGroundCasters = false}, &outFail)) return false;
+                     {.includeGroundCasters = false}, &outFail)) return false;
     const auto emptyKey = atlas.textureKey();
     if (atlas.stats().writtenPixelCount != 0u || atlas.rgba() == originalPixels ||
         emptyKey == originalKey || !verifyAttachment()) {
@@ -75,7 +75,8 @@ bool test_route1_projected_shadow_cache_contract(std::string& outFail) {
     }
 
     // Editing geometry in place needs a new image even without changing scene ID.
-    for (auto& vertex : vertices) vertex.x += 400.0f;
+    for (auto &vertex : vertices)
+        vertex.x += 400.0f;
     if (!atlas.build(scenes, center, 64, 64, &outFail)) return false;
     if (atlas.rgba() == originalPixels || atlas.textureKey() == originalKey ||
         atlas.textureKey() == emptyKey || !verifyAttachment()) {
@@ -93,9 +94,9 @@ bool test_route1_projected_shadow_cache_contract(std::string& outFail) {
 
     // Empty images with the same byte count but different shapes are distinct.
     if (!atlas.build(scenes, center, 32, 64,
-            {.includeGroundCasters = false}, &outFail) ||
+                     {.includeGroundCasters = false}, &outFail) ||
         !independentAtlas.build(scenes, center, 64, 32,
-            {.includeGroundCasters = false}, &outFail)) return false;
+                                {.includeGroundCasters = false}, &outFail)) return false;
     if (atlas.rgba() != independentAtlas.rgba() ||
         atlas.textureKey() == independentAtlas.textureKey()) {
         outFail = "Shadow texture identity must include image dimensions.";

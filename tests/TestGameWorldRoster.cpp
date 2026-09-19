@@ -36,14 +36,14 @@ bool test_gameworld_spawn_bench_flow(std::string& outFail) {
             return false;
         }
         adjacentBench.setGapCells(1);
-        if (adjacentBench.isInBenchZone({0,0,4.5f}) ||
-            !adjacentBench.isInBenchZone({0,0,5.5f}) ||
+        if (adjacentBench.isInBenchZone({0, 0, 4.5f}) ||
+            !adjacentBench.isInBenchZone({0, 0, 5.5f}) ||
             !near3(adjacentBench.getSlotPosition(0), oneCellGapBench.getSlotPosition(0))) {
             outFail = "Bench interaction did not follow a scene's changed gap.";
             return false;
         }
         adjacentBench.setGapCells(0);
-        if (!adjacentBench.isInBenchZone({0,0,4.5f}) || adjacentBench.isInBenchZone({0,0,5.5f})) {
+        if (!adjacentBench.isInBenchZone({0, 0, 4.5f}) || adjacentBench.isInBenchZone({0, 0, 5.5f})) {
             outFail = "Bench interaction retained the previous scene's gap.";
             return false;
         }

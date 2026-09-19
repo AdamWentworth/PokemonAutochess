@@ -68,8 +68,8 @@ struct Context {
     LogBus::Logger* log = nullptr;
     engine::log::Sink* consoleLog = nullptr;
     session_loop_runtime::PauseState* pauseState = nullptr;
-    GameRuntimeServices* engineServices = nullptr;
-    game::ui::UIViewport* viewport = nullptr;
+    GameRuntimeServices *engineServices = nullptr;
+    game::ui::UIViewport *viewport = nullptr;
     UnitInteractionSystem* unitSystem = nullptr;
     CameraSystem* cameraSystem = nullptr;
     GameStateManager* stateManager = nullptr;

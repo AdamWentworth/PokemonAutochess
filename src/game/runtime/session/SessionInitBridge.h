@@ -60,8 +60,8 @@ struct Context {
     GameContext* ctx = nullptr;
     Camera3D** camera = nullptr;
     IRenderBackend** renderer = nullptr;
-    GameRuntimeServices** engineServices = nullptr;
-    GameRuntimeServices* fallbackRuntimeServices = nullptr;
+    GameRuntimeServices **engineServices = nullptr;
+    GameRuntimeServices *fallbackRuntimeServices = nullptr;
     std::function<void(const std::string&)>* setTitleCallback = nullptr;
     render::RenderRoutes* startupRoutes = nullptr;
     bool* allowBackendMenuBackdrop = nullptr;

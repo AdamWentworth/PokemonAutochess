@@ -25,7 +25,7 @@ struct Args {
     const IRenderBackend::WorldSceneView* worldSceneView = nullptr;
     const IRenderBackend::WorldSceneFrame* worldSceneFrame = nullptr;
     std::vector<shared_world_batches::WorldIndexedBatch>* worldIndexedBatches = nullptr;
-    GameRenderBuildBreakdown* renderBuildBreakdown = nullptr;
+    GameRenderBuildBreakdown *renderBuildBreakdown = nullptr;
 };
 
 void submitOpaqueAndIndexedWorldContent(const Args& args);

@@ -72,7 +72,7 @@ struct ProjectedBackdropArgs {
 };
 
 ArenaBackdropTheme routeThemeFromScriptPath(const std::string& stateScriptPath);
-bool prepareTravelScene(const engine::IAssetStore& store, const std::string& scriptPath, std::string& error);
+bool prepareTravelScene(const engine::IAssetStore &store, const std::string &scriptPath, std::string &error);
 void discardPreparedTravelScene();
 // Temporary content policy: until a route receives its own authored world,
 // retain the route theme identity but resolve its environment to the complete

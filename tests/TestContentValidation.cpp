@@ -149,7 +149,7 @@ bool test_content_invariants(std::string &outFail) {
         }
     }
 
-    const std::array<std::pair<const char*, const char*>, 2> pidgeyFamilyModels{{
+    const std::array<std::pair<const char *, const char *>, 2> pidgeyFamilyModels{{
         {"pidgey", "0016_Pidgey_SurfaceStudyMarkingPreserved"},
         {"pidgeotto", "0017_Pidgeotto_SVSurface"},
     }};

@@ -44,7 +44,7 @@ Result appendProjectedWorldView(const Args& args) {
     // items. Build/upload their cache in the initial world warmup instead of
     // blocking the editor when the first recall ball becomes visible.
     if (args.renderer && args.supportsWorldIndexedMeshes) {
-        if (const auto* ball = args.ensureBackendMeshLoaded("assets/models/pokeball.glb"))
+        if (const auto *ball = args.ensureBackendMeshLoaded("assets/models/pokeball.glb"))
             shared_capture_cached_models::prewarmRoundTravelMesh(*args.renderer, *ball);
     }
     const runtime::render_prep_projection::BoardBounds boardBounds =
@@ -112,11 +112,10 @@ Result appendProjectedWorldView(const Args& args) {
         const float motionLength = glm::length(motion);
         const bool moving = motionLength > 0.001f;
         if (moving) motion /= motionLength;
-        encounterGrassInteractors.push_back({
-            .worldPosition = {unit.position.x, unit.position.y, unit.position.z},
-            .worldMotionDirection = {motion.x, 0.0f, motion.z},
-            .motionStrength = moving ? std::clamp(unit.movementSpeed / 1.4f, 0.35f, 1.0f) : 0.0f,
-            .contactStrength = moving ? 1.0f : 0.65f});
+        encounterGrassInteractors.push_back({.worldPosition = {unit.position.x, unit.position.y, unit.position.z},
+                                             .worldMotionDirection = {motion.x, 0.0f, motion.z},
+                                             .motionStrength = moving ? std::clamp(unit.movementSpeed / 1.4f, 0.35f, 1.0f) : 0.0f,
+                                             .contactStrength = moving ? 1.0f : 0.65f});
     }
 
     out.worldBackdropComposeMs =

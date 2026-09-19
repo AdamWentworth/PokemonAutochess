@@ -52,8 +52,7 @@ class FrontendIntro {
     IntroFrame frame() const {
         if (!config_.enabled) return {};
         if (elapsed_ >= duration()) {
-            return {.centerU = config_.focusU, .centerV = config_.focusV,
-                    .zoom = config_.zoom, .uiAlpha = 1.0f, .selectionReady = true};
+            return {.centerU = config_.focusU, .centerV = config_.focusV, .zoom = config_.zoom, .uiAlpha = 1.0f, .selectionReady = true};
         }
         const float move = ease((elapsed_ - config_.holdSeconds) / config_.moveSeconds);
         const float fadeStart = config_.holdSeconds + config_.moveSeconds + config_.settleSeconds;
@@ -63,8 +62,7 @@ class FrontendIntro {
             .centerV = .5f + (config_.focusV - .5f) * move,
             .zoom = 1.0f + (config_.zoom - 1.0f) * move,
             .uiAlpha = ease((elapsed_ - fadeStart) / config_.fadeSeconds),
-            .selectionReady = elapsed_ >= duration()
-        };
+            .selectionReady = elapsed_ >= duration()};
     }
 
   private:

@@ -836,7 +836,7 @@ bool sampleClipBoundMaterialAnimation(
 }
 
 float sampleMeshVisibilityAlpha(
-    const runtime::render_model::MeshData& mesh,
+    const runtime::render_model::MeshData &mesh,
     int animationIndex,
     std::size_t submeshIndex,
     float animationTimeSec,
@@ -919,9 +919,9 @@ float sampleMeshVisibilityAlpha(
         selectedTrack != mesh.animationMeshVisibility[
             static_cast<std::size_t>(animationIndex)].end();
     if (softNativeEffect && !game::runtime::shared_backend_pose::
-            animationOwnsNativeEffectVisibility(
-                mesh,
-                animationIndex)) {
+                                animationOwnsNativeEffectVisibility(
+                                    mesh,
+                                    animationIndex)) {
         const int overlayIndex = game::runtime::shared_backend_pose::
             continuousNativeOverlayAnimationIndex(mesh);
         if (overlayIndex >= 0 && overlayIndex != animationIndex &&

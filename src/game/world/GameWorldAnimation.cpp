@@ -24,7 +24,7 @@ using WorldTraceClock = std::chrono::steady_clock;
 constexpr double kWorldHitchUpdateThresholdMs = 8.0;
 constexpr double kWorldPendingDamageThresholdMs = 2.0;
 
-bool shouldTraceWorldHitch(const GameRuntimeServices* services) {
+bool shouldTraceWorldHitch(const GameRuntimeServices *services) {
     return services && services->terminalLogMode == GameTerminalLogMode::Performance;
 }
 
@@ -61,7 +61,7 @@ std::string traceMoveLabel(const PokemonInstance& unit) {
     return move.empty() ? std::string("-") : std::string(move);
 }
 
-bool shouldTraceAnim(const GameRuntimeServices* services, const PokemonInstance& unit) {
+bool shouldTraceAnim(const GameRuntimeServices *services, const PokemonInstance &unit) {
     if (services && services->terminalLogMode == GameTerminalLogMode::AnimationDecision) {
         return true;
     }
@@ -119,13 +119,13 @@ void emitAnimTrace(LogBus::Logger* logger,
             " " + details);
 }
 
-void emitAnimSelectionTrace(LogBus::Logger* logger,
-                            const GameRuntimeServices* services,
+void emitAnimSelectionTrace(LogBus::Logger *logger,
+                            const GameRuntimeServices *services,
                             std::string_view stage,
-                            const PokemonInstance& unit,
+                            const PokemonInstance &unit,
                             int previousAnim,
                             float previousAnimTime,
-                            const std::string& reason) {
+                            const std::string &reason) {
     if (!shouldTraceAnim(services, unit)) return;
 
     std::ostringstream trace;
@@ -179,7 +179,7 @@ void GameWorld::tickPokemonAnimation(PokemonInstance& unit, float dt) {
     unit.coverRevealRemainingSec = std::max(0.0f, unit.coverRevealRemainingSec - dt);
     if (unit.attackTimerSec > 0.0f)
         unit.coverRevealRemainingSec = std::max(unit.coverRevealRemainingSec,
-            std::max(0.0f, unit.attackTimerSec - dt) + game::arena::kAttackRevealSeconds);
+                                                std::max(0.0f, unit.attackTimerSec - dt) + game::arena::kAttackRevealSeconds);
     if (unit.fainting) {
         updateFaint(unit, dt);
         return;
@@ -474,8 +474,10 @@ void GameWorld::update(float dt)
     if (teamTravelVisuals_.active) {
         // Travel is a pause in gameplay; only idle presentation clocks continue.
         sharedLoopAnimTimeSec += dt;
-        for (auto& unit : pokemons) unit.animTimeSec += dt;
-        for (auto& unit : benchPokemons) unit.animTimeSec += dt;
+        for (auto &unit : pokemons)
+            unit.animTimeSec += dt;
+        for (auto &unit : benchPokemons)
+            unit.animTimeSec += dt;
         return;
     }
     const bool traceWorld = shouldTraceWorldHitch(engineServices);

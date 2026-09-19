@@ -5,8 +5,8 @@
 
 namespace {
 
-void accumulateRenderBreakdown(GameRenderBuildBreakdown& total,
-                               const GameRenderBuildBreakdown& frame) {
+void accumulateRenderBreakdown(GameRenderBuildBreakdown &total,
+                               const GameRenderBuildBreakdown &frame) {
     total.worldComposeMs += frame.worldComposeMs;
     total.worldBackdropMs += frame.worldBackdropMs;
     total.worldVfxMs += frame.worldVfxMs;
@@ -23,8 +23,8 @@ void accumulateRenderBreakdown(GameRenderBuildBreakdown& total,
     total.otherMs += frame.otherMs;
 }
 
-GameRenderBuildBreakdown averageRenderBreakdown(const GameRenderBuildBreakdown& total,
-                                                  double frames) {
+GameRenderBuildBreakdown averageRenderBreakdown(const GameRenderBuildBreakdown &total,
+                                                double frames) {
     GameRenderBuildBreakdown out{};
     out.worldComposeMs = static_cast<float>(total.worldComposeMs / frames);
     out.worldBackdropMs = static_cast<float>(total.worldBackdropMs / frames);
@@ -44,8 +44,8 @@ GameRenderBuildBreakdown averageRenderBreakdown(const GameRenderBuildBreakdown& 
     return out;
 }
 
-void accumulateFixedBreakdown(GameFixedPerfBreakdown& total,
-                              const GameFixedPerfBreakdown& frame) {
+void accumulateFixedBreakdown(GameFixedPerfBreakdown &total,
+                              const GameFixedPerfBreakdown &frame) {
     total.preUpdateMs += frame.preUpdateMs;
     total.updatePhaseMs += frame.updatePhaseMs;
     total.postUpdateMs += frame.postUpdateMs;
@@ -71,8 +71,8 @@ void accumulateFixedBreakdown(GameFixedPerfBreakdown& total,
     total.worldMs += frame.worldMs;
 }
 
-GameFixedPerfBreakdown averageFixedBreakdown(const GameFixedPerfBreakdown& total,
-                                               double frames) {
+GameFixedPerfBreakdown averageFixedBreakdown(const GameFixedPerfBreakdown &total,
+                                             double frames) {
     GameFixedPerfBreakdown out{};
     out.preUpdateMs = static_cast<float>(total.preUpdateMs / frames);
     out.updatePhaseMs = static_cast<float>(total.updatePhaseMs / frames);
@@ -175,7 +175,7 @@ bool RollingAccumulator::readyToEmit() const {
 WindowSummary RollingAccumulator::makeSummaryAndReset() {
     WindowSummary summary;
     const double frames = std::max(1, frameCount_);
-    GameFramePerfStats& out = summary.framePerf;
+    GameFramePerfStats &out = summary.framePerf;
     out.fps = static_cast<float>(static_cast<double>(frameCount_) / std::max(0.000001, fpsTimer_));
     out.frameMs = static_cast<float>(frameMs_ / frames);
     out.fixedMs = static_cast<float>(fixedMs_ / frames);

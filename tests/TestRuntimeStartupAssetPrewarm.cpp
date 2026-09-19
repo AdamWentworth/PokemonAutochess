@@ -50,7 +50,10 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
             makeTempFile(tempRoot / "portraits" / "small_portrait.png", 128u).string();
 
         const auto configPath = tempRoot / "pokemon.json";
-        { std::ofstream config(configPath); config << R"({"bulbasaur":{"model":"0001_Bulbasaur.phmodel"},"nidoran-f":{"model":"0029_NidoranF.phmodel"}})"; }
+        {
+            std::ofstream config(configPath);
+            config << R"({"bulbasaur":{"model":"0001_Bulbasaur.phmodel"},"nidoran-f":{"model":"0029_NidoranF.phmodel"}})";
+        }
         GameDataDb data;
         if (!data.pokemon.loadConfig(configPath.string())) {
             outFail = "Could not load portrait prewarm fixture.";
@@ -96,7 +99,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
                 smallPortrait,
             },
             Callbacks{
-                .setTitle = [&](const std::string& title) { titles.push_back(title); },
+                .setTitle = [&](const std::string &title) { titles.push_back(title); },
                 .renderBootLoading = [&](float progress) { progressValues.push_back(progress); },
                 .pumpPreloadEvents = []() { return true; },
                 .requestQuit = [&]() { ++requestQuitCalls; },
@@ -128,9 +131,9 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
                         return ParticleVfxStats{8u, 8u};
                     },
                 .prewarmSpriteTextures =
-                    [&](const std::vector<std::string>& paths) { spritePrewarmCalls.push_back(paths); },
+                    [&](const std::vector<std::string> &paths) { spritePrewarmCalls.push_back(paths); },
                 .prewarmBackendCardUi =
-                    [&](int, int, const std::vector<std::string>& paths) {
+                    [&](int, int, const std::vector<std::string> &paths) {
                         cardUiPaths = paths;
                     },
             },
@@ -218,7 +221,7 @@ bool test_runtime_startup_asset_prewarm_contract(std::string& outFail) {
         const auto embedded = game::runtime::startup_asset_prewarm::run(
             Options{.usesBackendRenderPath = true, .uiSpritePrewarmEnabled = true},
             {"assets/ui/frame_gold.png", bigPortrait},
-            Callbacks{.prewarmSpriteTextures = [&](const auto& paths) { spritePrewarmCalls.push_back(paths); }},
+            Callbacks{.prewarmSpriteTextures = [&](const auto &paths) { spritePrewarmCalls.push_back(paths); }},
             log);
         if (embedded.cardUiPrewarmed || embedded.cardArtRequested == 0 || spritePrewarmCalls.size() != 2 ||
             std::find(spritePrewarmCalls.back().begin(), spritePrewarmCalls.back().end(),

@@ -30,9 +30,9 @@ bool test_editor_preview_catalog_contract(std::string& outFail) {
     std::ifstream projectFile("phlosion.project.json");
     const auto project = nlohmann::json::parse(projectFile);
     std::unordered_set<std::string> sceneIds;
-    for (const auto& scene : project.at("scenes")) {
+    for (const auto &scene : project.at("scenes")) {
         const auto id = scene.at("scene_id").get<std::string>();
-        const auto* variant = game::runtime::route1_scene_variants::find(id);
+        const auto *variant = game::runtime::route1_scene_variants::find(id);
         if (!variant || variant->arenaBundlePath.empty() || variant->usesSourceTerrain) {
             outFail = "The active editor scene catalog must contain only Blender-authored arenas: " + id;
             return false;

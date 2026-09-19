@@ -421,7 +421,7 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             game::runtime::route1_terrain_ledges::resolve(
                 derivedFieldTiles,
                 joinedSourceTiles);
-        const auto* rebuiltDerivedBoundary =
+        const auto *rebuiltDerivedBoundary =
             game::runtime::route1_terrain_ledges::find(
                 derivedFieldLedges, {0, 0}, 1u);
         if (!rebuiltDerivedBoundary) {
@@ -738,15 +738,13 @@ bool test_route1_runtime_environment_contract(std::string& outFail) {
             return false;
         }
         const std::array<std::array<float, 3>, 3>
-            broadCleanupCarrier{{
-                {1600.0f, 52.0f, -1250.0f},
-                {2250.0f, 100.0f, -1250.0f},
-                {2250.0f, 52.0f, -1050.0f}}};
+            broadCleanupCarrier{{{1600.0f, 52.0f, -1250.0f},
+                                 {2250.0f, 100.0f, -1250.0f},
+                                 {2250.0f, 52.0f, -1050.0f}}};
         const std::array<std::array<float, 3>, 3>
-            boundaryOnlyCarrier{{
-                {1700.0f, 50.0f, -1200.0f},
-                {1800.0f, 50.0f, -1200.0f},
-                {1750.0f, 100.0f, -1250.0f}}};
+            boundaryOnlyCarrier{{{1700.0f, 50.0f, -1200.0f},
+                                 {1800.0f, 50.0f, -1200.0f},
+                                 {1750.0f, 100.0f, -1250.0f}}};
         if (!route1TerrainCleanupCarrierIntersectsCellFootprint(
                 broadCleanupCarrier,
                 {18, -12}) ||

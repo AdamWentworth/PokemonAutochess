@@ -4550,7 +4550,8 @@ bool load(
             // Authored materials may reuse the shared SSS transport without
             // changing the provenance of their mesh or unrelated eye materials.
             const std::string authoredSurfaceModel = material.at(
-                "runtime_translation").value("authored_surface_model", std::string{});
+                                                                 "runtime_translation")
+                                                         .value("authored_surface_model", std::string{});
             if (!authoredSurfaceModel.empty() &&
                 (authoredSurfaceModel != "sss" ||
                  material.value("shader_family", std::string{}) != "SSS" ||
@@ -4850,23 +4851,23 @@ bool load(
                 ((nativePlainEye || nativeTransparentLayer ||
                   nativeScarletGastlyEye) &&
                  !bakeLayeredEmission(
-                    root,
-                    material,
-                    emissiveTexture,
-                    clipBoundEyeUv,
-                    layeredEmissionBaked,
-                    outError)) ||
+                     root,
+                     material,
+                     emissiveTexture,
+                     clipBoundEyeUv,
+                     layeredEmissionBaked,
+                     outError)) ||
                 (nativePlainEye && !bakeEyeHighlightEmission(
-                    root,
-                    material,
-                    emissiveTexture,
-                    layeredEmissionBaked,
-                    outError)) ||
+                                       root,
+                                       material,
+                                       emissiveTexture,
+                                       layeredEmissionBaked,
+                                       outError)) ||
                 (nativeLgpeLayered && !bakeLgpeLayeredColor(
-                    root,
-                    material,
-                    baseTexture,
-                    outError)) ||
+                                          root,
+                                          material,
+                                          baseTexture,
+                                          outError)) ||
                 ((!nativeUnlitDisplaced || nativeLitDisplaced) &&
                  !nativeScarletAccessory &&
                  !bakeLayeredBaseColor(
@@ -4877,16 +4878,16 @@ bool load(
                      nullptr,
                      outError)) ||
                 (nativeScarletEye && !bakeScarletEyeFinalColor(
-                    root,
-                    material,
-                    scarletEyeHighlightCenter,
-                    baseTexture,
-                    outError)) ||
+                                         root,
+                                         material,
+                                         scarletEyeHighlightCenter,
+                                         baseTexture,
+                                         outError)) ||
                 (!nativeUnlitDisplaced && !bakeLayeredNormal(
-                    root,
-                    material,
-                    normalTexture,
-                    outError))) {
+                                              root,
+                                              material,
+                                              normalTexture,
+                                              outError))) {
                 return false;
             }
             if (nativeKangaskhanBabyEyeMaterial) {
@@ -5241,18 +5242,10 @@ bool load(
                               glm::vec3(subsurfaceColor),
                               glm::vec3(0.0f));
                       }()
-                    : nativeIkCharacterEyeLighting
-                    ? glm::max(
-                          glm::vec3(nativeEyeEyelidColor),
-                          glm::vec3(0.0f))
-                    : nativeIkCharacterLighting
-                    ? glm::vec3(
-                          std::max(0.0f, nativeRimOffset),
-                          std::max(1.0f, nativeRimContrast),
-                          1.0f)
-                    : layeredEmissionBaked
-                    ? glm::vec3(1.0f)
-                    : glm::vec3(0.0f));
+                : nativeIkCharacterEyeLighting ? glm::max(glm::vec3(nativeEyeEyelidColor), glm::vec3(0.0f))
+                : nativeIkCharacterLighting    ? glm::vec3(std::max(0.0f, nativeRimOffset), std::max(1.0f, nativeRimContrast), 1.0f)
+                : layeredEmissionBaked         ? glm::vec3(1.0f)
+                                               : glm::vec3(0.0f));
             float displacementHeight = 0.0f;
             float emissionIntensity = 1.0f;
             float specularIntensity = 0.04f;
@@ -5424,28 +5417,28 @@ bool load(
                 : nativeSss
                     ? game::runtime::render_model::
                           kNativeSssMaterialMode
-                    : nativeIkCharacterEyeLighting
+                : nativeIkCharacterEyeLighting
                     ? game::runtime::render_model::
                           kNativeIkCharacterEyeMaterialMode
-                    : nativeIkCharacterLighting
+                : nativeIkCharacterLighting
                     ? game::runtime::render_model::
                           kNativeIkCharacterMaterialMode
-                    : nativeUnlitDisplaced
+                : nativeUnlitDisplaced
                     ? game::runtime::render_model::
                           kNativeLayeredUnlitMaterialMode
-                    : (nativeGastlyFace || nativeGastlyEye)
-                        ? game::runtime::render_model::
-                              kNativeFacialOverlayMaterialMode
-                    : clipBoundEyeUv
-                        ? (nativeEyeSurface && !nativePlaFlatAnimatedEye
-                               ? game::runtime::render_model::
-                                     kNativeAnimatedEyeClearCoatMaterialMode
-                               : game::runtime::render_model::
-                                     kNativeAnimatedEyeMaterialMode)
-                    : nativeEyeSurface
-                        ? game::runtime::render_model::
-                              kNativeEyeClearCoatMaterialMode
-                        : 2u);
+                : (nativeGastlyFace || nativeGastlyEye)
+                    ? game::runtime::render_model::
+                          kNativeFacialOverlayMaterialMode
+                : clipBoundEyeUv
+                    ? (nativeEyeSurface && !nativePlaFlatAnimatedEye
+                           ? game::runtime::render_model::
+                                 kNativeAnimatedEyeClearCoatMaterialMode
+                           : game::runtime::render_model::
+                                 kNativeAnimatedEyeMaterialMode)
+                : nativeEyeSurface
+                    ? game::runtime::render_model::
+                          kNativeEyeClearCoatMaterialMode
+                    : 2u);
             float resolvedMaterialFlags =
                 nativeSss
                     ? (nativeScarletSssFibre
@@ -5455,7 +5448,7 @@ bool load(
                                  kNativeSssSurfaceDefault)
                 : nativeIkCharacterSurface
                     ? 0.0f
-                    : nativeUnlitDisplaced
+                : nativeUnlitDisplaced
                     // Lit native smoke uses the displaced material transport,
                     // but unlike authored Unlit flame it receives the native
                     // half-Lambert/rim response. Flag 3 preserves exact UV
@@ -5476,15 +5469,15 @@ bool load(
                                   : 3.0f)
                            : (hasExactContinuousMaterialTrack ? 2.0f : 1.0f))
                     : nativeGastlyFace
-                        ? 4.0f
-                    : nativeScarletGastlyEye
-                        ? static_cast<float>(
-                              game::runtime::render_model::
-                                  kNativeFrontFacingOnlyMaterialFlagBit)
-                        : nativeIkCharacterSpecularStrength
-                            ? game::runtime::render_model::
-                                  kNativeSpecularStrengthMaterialFlag
-                            : 0.0f;
+                          ? 4.0f
+                      : nativeScarletGastlyEye
+                          ? static_cast<float>(
+                                game::runtime::render_model::
+                                    kNativeFrontFacingOnlyMaterialFlagBit)
+                      : nativeIkCharacterSpecularStrength
+                          ? game::runtime::render_model::
+                                kNativeSpecularStrengthMaterialFlag
+                          : 0.0f;
             if (nativeGastlyEye) {
                 // A real Z-A Gastly eye selects mode 35 before the older
                 // facial-overlay fallback. Mode 35 owns all four parameter

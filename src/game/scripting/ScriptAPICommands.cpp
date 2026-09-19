@@ -433,7 +433,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
         const auto& c = std::get<PushCombatStateCommand>(cmd);
         if (manager_) {
             // A shop changes the encounter script, not the retained arena.
-            const auto* shop = dynamic_cast<const ScriptedState*>(manager_->getCurrentState());
+            const auto *shop = dynamic_cast<const ScriptedState *>(manager_->getCurrentState());
             const std::string arena = shop ? shop->arenaScriptPath() : std::string{};
             manager_->pushState(std::make_unique<CombatState>(manager_, world_, services_, c.scriptPath, false, arena));
         }
@@ -471,7 +471,7 @@ void ScriptAPI::applyCommand(const Command& cmd) {
         if (!u || !isCombatActive(*u)) return;
         const glm::ivec2 target{c.col, c.row};
         if (!canCommitStep(*world_, *u, c.col, c.row)) return;
-        for (const auto& other : world_->getPokemons()) {
+        for (const auto &other : world_->getPokemons()) {
             if (!other.alive && !other.captureInProgress && !(other.fainting && config().faintBlockTiles)) continue;
             if (other.id == u->id) continue;
 

@@ -12,20 +12,20 @@ namespace game::runtime::runner_frame_diagnostics {
 namespace {
 
 GameFramePerfStats makeInstantPerf(
-    const game::runtime::perf_accum::FrameSample& sample) {
+    const game::runtime::perf_accum::FrameSample &sample) {
     game::runtime::perf_accum::RollingAccumulator accumulator;
     accumulator.addFrame(sample);
     return accumulator.makeSummaryAndReset().framePerf;
 }
 
-bool isScratchSpikeFrame(const GameFramePerfStats& perf) {
+bool isScratchSpikeFrame(const GameFramePerfStats &perf) {
     return perf.renderBuildMs >= 2.5f ||
            perf.renderBreakdown.worldVfxMs >= 1.0f ||
            perf.fixedBreakdown.combatMs >= 0.5f ||
            perf.fixedBreakdown.worldMs >= 0.5f;
 }
 
-bool isPerfHitchFrame(const GameFramePerfStats& perf, const State& state) {
+bool isPerfHitchFrame(const GameFramePerfStats &perf, const State &state) {
     const bool absoluteFrame = perf.frameMs >= 25.0f;
     const bool frameJump =
         state.previousInstantFrameMs > 0.0f &&
@@ -43,7 +43,7 @@ bool isPerfHitchFrame(const GameFramePerfStats& perf, const State& state) {
            presentSpike || gpuSpike || combatSpike || worldSpike || vfxSpike || droppedTicks;
 }
 
-std::string perfHitchReason(const GameFramePerfStats& perf, const State& state) {
+std::string perfHitchReason(const GameFramePerfStats &perf, const State &state) {
     std::string reason;
     const auto appendReason = [&](const char* token) {
         if (!reason.empty()) reason += "+";
@@ -69,9 +69,9 @@ std::string perfHitchReason(const GameFramePerfStats& perf, const State& state) 
     return reason;
 }
 
-std::string scratchEmitReason(const State& state,
-                              const GameScratchDebugStats& scratchDebug,
-                              const GameFramePerfStats& perf,
+std::string scratchEmitReason(const State &state,
+                              const GameScratchDebugStats &scratchDebug,
+                              const GameFramePerfStats &perf,
                               bool modeJustSwitchedToScratch) {
     if (scratchDebug.activeGlowCount == 0u) return {};
 
@@ -101,16 +101,16 @@ std::string scratchEmitReason(const State& state,
 
 } // namespace
 
-State makeInitialState(const GameRuntimeServices& services) {
+State makeInitialState(const GameRuntimeServices &services) {
     State state;
     state.previousTerminalLogMode = services.terminalLogMode;
     return state;
 }
 
-void observeAndEmit(State& state,
-                    GameRuntimeServices& services,
-                    const Inputs& inputs,
-                    std::ostream& out) {
+void observeAndEmit(State &state,
+                    GameRuntimeServices &services,
+                    const Inputs &inputs,
+                    std::ostream &out) {
     engine::log::Sink log("RunDiag", &out, nullptr);
     const double submitMs =
         game::runtime::frame_perf_capture::computeSubmitMs(

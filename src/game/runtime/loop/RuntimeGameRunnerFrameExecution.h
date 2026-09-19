@@ -18,8 +18,8 @@ struct Inputs {
     int maxFixedTicksPerFrame = 0;
     int drawableW = 0;
     int drawableH = 0;
-    GameRuntimeServices& services;
-    GameLoop& game;
+    GameRuntimeServices &services;
+    GameLoop &game;
     IRenderBackend* renderer = nullptr;
     std::function<void()> swapBuffers;
 };

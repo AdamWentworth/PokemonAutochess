@@ -500,22 +500,13 @@ void CombatState::drawShopHud(int uiW, int uiH, bool showSellOverlay) {
     shopUi->render(in);
 }
 
-CombatState::CombatState(GameStateManager* manager,
-                         GameWorld* world,
-                         GameServices& svc,
-                         const std::string& path,
+CombatState::CombatState(GameStateManager *manager,
+                         GameWorld *world,
+                         GameServices &svc,
+                         const std::string &path,
                          bool resumeFromSnapshotMode,
                          std::string arenaScriptPath)
-    : stateManager(manager)
-    , gameWorld(world)
-    , services(svc)
-    , script(world, manager, svc)
-    , combatMessage()
-    , loadedScriptPath(path)
-    , arenaScriptPath_(arenaScriptPath.empty() ? path : arenaScriptPath)
-    , reuseActiveArena_(!arenaScriptPath.empty() && !resumeFromSnapshotMode)
-    , resumeFromSnapshot(resumeFromSnapshotMode)
-{
+    : stateManager(manager), gameWorld(world), services(svc), script(world, manager, svc), combatMessage(), loadedScriptPath(path), arenaScriptPath_(arenaScriptPath.empty() ? path : arenaScriptPath), reuseActiveArena_(!arenaScriptPath.empty() && !resumeFromSnapshotMode), resumeFromSnapshot(resumeFromSnapshotMode) {
     const double tConstructStart = game::logging::flow::nowMs();
     if (!script.loadScript(path)) {
         game::log::error(&services.log, std::string("[CombatState] Failed to load combat script: ") + path);
@@ -526,7 +517,6 @@ CombatState::CombatState(GameStateManager* manager,
         "script=" + path +
         " resume=" + std::to_string(resumeFromSnapshot ? 1 : 0) +
         " load_script=" + game::logging::flow::formatMs(tConstructEnd - tConstructStart));
-
 }
 
 CombatState::~CombatState() = default;
@@ -648,7 +638,7 @@ bool CombatState::tryFinishNativeRouteFlow() {
     stateManager->popState();
     stateManager->pushState(
         std::make_unique<ArenaTravelState>(*gameWorld, services, arenaScriptPath_,
-                                          *stateManager, nativeRouteNextShopScriptPath));
+                                           *stateManager, nativeRouteNextShopScriptPath));
     return true;
 }
 

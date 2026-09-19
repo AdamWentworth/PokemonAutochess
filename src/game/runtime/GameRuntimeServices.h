@@ -156,10 +156,10 @@ struct GameRuntimeServices : EngineServices {
 };
 
 // Generic engine hosts supply only engine services; the game owns the additional state.
-inline GameRuntimeServices* bindGameRuntimeServices(
-    EngineServices* host, GameRuntimeServices& fallback) {
+inline GameRuntimeServices *bindGameRuntimeServices(
+    EngineServices *host, GameRuntimeServices &fallback) {
     if (!host) return nullptr;
-    if (auto* runtime = dynamic_cast<GameRuntimeServices*>(host)) return runtime;
-    static_cast<EngineServices&>(fallback) = *host;
+    if (auto *runtime = dynamic_cast<GameRuntimeServices *>(host)) return runtime;
+    static_cast<EngineServices &>(fallback) = *host;
     return &fallback;
 }

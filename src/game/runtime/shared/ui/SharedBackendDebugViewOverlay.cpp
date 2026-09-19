@@ -72,7 +72,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
     auto& textLines = *args.textLines;
     auto& sprites = *args.sprites;
     GameRenderBuildBreakdown localRenderBreakdown{};
-    GameRenderBuildBreakdown* renderBuildBreakdown =
+    GameRenderBuildBreakdown *renderBuildBreakdown =
         args.renderBuildBreakdown ? args.renderBuildBreakdown : &localRenderBreakdown;
     const float precomposedWorldMs = renderBuildBreakdown->worldComposeMs;
     const float precomposedWorldBackdropMs = renderBuildBreakdown->worldBackdropMs;
@@ -90,29 +90,29 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
     };
     const auto composeStart = clock::now();
     const auto *inspected = renderWorld && gameWorld ? gameWorld->inspectedUnit() : nullptr;
-        if (showPerfOverlay && engineServices) {
-            const GameFramePerfStats& perf = engineServices->framePerf;
-            if (perf.fps > 0.0f) {
-                const float fpsNorm = std::clamp(perf.fps / 120.0f, 0.0f, 1.0f);
-                IRenderBackend::DebugQuad fpsBarBg;
-                fpsBarBg.x = edgePad;
-                fpsBarBg.y = std::max(8.0f, edgePad - lineStep * 0.2f);
-                fpsBarBg.w = std::clamp(220.0f * uiScale, 140.0f, 320.0f);
-                fpsBarBg.h = std::clamp(10.0f * uiScale, 8.0f, 16.0f);
-                fpsBarBg.r = 0.15f;
-                fpsBarBg.g = 0.15f;
-                fpsBarBg.b = 0.18f;
-                fpsBarBg.a = 1.0f;
-                overlayQuads.push_back(fpsBarBg);
+    if (showPerfOverlay && engineServices) {
+        const GameFramePerfStats &perf = engineServices->framePerf;
+        if (perf.fps > 0.0f) {
+            const float fpsNorm = std::clamp(perf.fps / 120.0f, 0.0f, 1.0f);
+            IRenderBackend::DebugQuad fpsBarBg;
+            fpsBarBg.x = edgePad;
+            fpsBarBg.y = std::max(8.0f, edgePad - lineStep * 0.2f);
+            fpsBarBg.w = std::clamp(220.0f * uiScale, 140.0f, 320.0f);
+            fpsBarBg.h = std::clamp(10.0f * uiScale, 8.0f, 16.0f);
+            fpsBarBg.r = 0.15f;
+            fpsBarBg.g = 0.15f;
+            fpsBarBg.b = 0.18f;
+            fpsBarBg.a = 1.0f;
+            overlayQuads.push_back(fpsBarBg);
 
-                IRenderBackend::DebugQuad fpsBar = fpsBarBg;
-                fpsBar.w *= fpsNorm;
-                fpsBar.r = (fpsNorm < 0.5f) ? 0.85f : 0.30f;
-                fpsBar.g = (fpsNorm < 0.5f) ? 0.28f : 0.88f;
-                fpsBar.b = 0.30f;
-                overlayQuads.push_back(fpsBar);
-            }
+            IRenderBackend::DebugQuad fpsBar = fpsBarBg;
+            fpsBar.w *= fpsNorm;
+            fpsBar.r = (fpsNorm < 0.5f) ? 0.85f : 0.30f;
+            fpsBar.g = (fpsNorm < 0.5f) ? 0.28f : 0.88f;
+            fpsBar.b = 0.30f;
+            overlayQuads.push_back(fpsBar);
         }
+    }
 
         const auto appendText = [&](float x,
                                     float y,
@@ -132,7 +132,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         };
 
         if (engineServices) {
-            const GameFramePerfStats& perf = engineServices->framePerf;
+            const GameFramePerfStats &perf = engineServices->framePerf;
             if (perf.fps > 0.0f) {
                 std::ostringstream perfLine;
                 perfLine << std::fixed << std::setprecision(1)
@@ -184,7 +184,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
             const auto details = unit_details_hud::layout(drawableW, drawableH);
             const float labelY = inspected ? details.y + details.h + 2 * uiScale : edgePad + lineStep * 2.0f;
             appendText(edgePad, labelY,
-                "SHOW CONCEALED UNITS - F10: player vision", 0.85f * uiScale, glm::vec3(1.0f, 0.80f, 0.35f));
+                       "SHOW CONCEALED UNITS - F10: player vision", 0.85f * uiScale, glm::vec3(1.0f, 0.80f, 0.35f));
         }
         const std::string cachedMode = (services ? services->gameMode : std::string("classic"));
         RoundPhase cachedRoundPhase = RoundPhase::Planning;

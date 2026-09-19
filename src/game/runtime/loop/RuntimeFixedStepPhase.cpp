@@ -9,8 +9,8 @@ namespace game::runtime::fixed_step_phase {
 Result execute(double accumulator,
                double timeStep,
                int maxFixedTicksPerFrame,
-               GameRuntimeServices& services,
-               const std::function<void(float)>& fixedUpdate) {
+               GameRuntimeServices &services,
+               const std::function<void(float)> &fixedUpdate) {
     using clock = std::chrono::high_resolution_clock;
 
     Result out;

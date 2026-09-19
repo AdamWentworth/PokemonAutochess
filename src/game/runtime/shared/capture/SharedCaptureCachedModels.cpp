@@ -14,29 +14,28 @@
 
 namespace game::runtime::shared_capture_cached_models {
 
-void prewarmRoundTravelMesh(IRenderBackend& renderer, const runtime::render_model::MeshData& mesh) {
+void prewarmRoundTravelMesh(IRenderBackend &renderer, const runtime::render_model::MeshData &mesh) {
     const glm::mat4 identity(1.0f);
     const std::vector<GameWorld::CaptureAttemptRenderSnapshot> noBalls;
     std::vector<shared_world_batches::WorldIndexedBatch> noDraws;
-    (void)tryAppend(renderer, true, glm::value_ptr(identity), 1, 1, mesh, noBalls,
-                    true, true, false, [](int, float) { return shared_backend_pose::PoseEval{}; }, &noDraws);
+    (void)tryAppend(renderer, true, glm::value_ptr(identity), 1, 1, mesh, noBalls, true, true, false, [](int, float) { return shared_backend_pose::PoseEval{}; }, &noDraws);
 }
 
 Result tryAppend(
-    IRenderBackend& renderer,
+    IRenderBackend &renderer,
     bool hasWorldViewProj,
-    const float* worldViewProj,
+    const float *worldViewProj,
     int drawableW,
     int drawableH,
-    const runtime::render_model::MeshData& mesh,
-    const std::vector<GameWorld::CaptureAttemptRenderSnapshot>& captureSnaps,
+    const runtime::render_model::MeshData &mesh,
+    const std::vector<GameWorld::CaptureAttemptRenderSnapshot> &captureSnaps,
     bool d3d12CapturePrewarmRequested,
     bool treatPokeballAsUntextured,
     bool enableNodeChunkPath,
-    const std::function<shared_backend_pose::PoseEval(int animIndex, float animTimeSec)>& evaluateScenePoseForClipTime,
-    std::vector<shared_world_batches::WorldIndexedBatch>* deferredBatches) {
+    const std::function<shared_backend_pose::PoseEval(int animIndex, float animTimeSec)> &evaluateScenePoseForClipTime,
+    std::vector<shared_world_batches::WorldIndexedBatch> *deferredBatches) {
     Result result;
-    const char* backendId = renderer.backendId();
+    const char *backendId = renderer.backendId();
     if (!deferredBatches && (!backendId || std::string(backendId) != "d3d12")) return result;
     if (!hasWorldViewProj || !worldViewProj) return result;
     result.handled = true;
@@ -52,9 +51,9 @@ Result tryAppend(
         std::string geomKey;
     };
     struct CaptureMeshCache {
-        const IRenderBackend* renderer = nullptr;
+        const IRenderBackend *renderer = nullptr;
         std::string backendId;
-        const runtime::render_model::MeshData* sourceMesh = nullptr;
+        const runtime::render_model::MeshData *sourceMesh = nullptr;
         std::size_t sourceVertexCount = 0u;
         std::size_t sourceIndexCount = 0u;
         std::vector<CaptureSubmeshCache> submeshes;
@@ -101,10 +100,10 @@ Result tryAppend(
         std::size_t totalRigidIndices = 0u;
 
         for (std::size_t si = 0; si < batchCount; ++si) {
-            auto& sub = sFastCache.submeshes[si];
+            auto &sub = sFastCache.submeshes[si];
             sub.nodeIndex = (si < submeshNodeFallback.size() && submeshNodeFallback[si] >= 0)
-                ? submeshNodeFallback[si]
-                : fallbackNode;
+                                ? submeshNodeFallback[si]
+                                : fallbackNode;
             if (si < mesh.submeshAlphaMode.size()) sub.alphaMode = mesh.submeshAlphaMode[si];
             if (si < mesh.submeshAlphaCutoff.size()) sub.alphaCutoff = mesh.submeshAlphaCutoff[si];
             sub.geomKey = "assets/models/pokeball.glb#cachedsubmesh:" + std::to_string(si);
@@ -121,8 +120,8 @@ Result tryAppend(
             sub.localIndices.reserve(indexCount);
 
             const glm::vec3 subColor = (si < mesh.submeshBaseColors.size())
-                ? glm::clamp(glm::vec3(mesh.submeshBaseColors[si]), 0.0f, 1.0f)
-                : glm::vec3(1.0f);
+                                           ? glm::clamp(glm::vec3(mesh.submeshBaseColors[si]), 0.0f, 1.0f)
+                                           : glm::vec3(1.0f);
             const glm::mat4 bindNodeGlobal =
                 (sub.nodeIndex >= 0 && static_cast<std::size_t>(sub.nodeIndex) < mesh.bindNodeGlobals.size())
                     ? mesh.bindNodeGlobals[static_cast<std::size_t>(sub.nodeIndex)]
@@ -136,7 +135,7 @@ Result tryAppend(
                     sub.localIndices.push_back(it->second);
                     continue;
                 }
-                const auto& src = mesh.vertices[srcIdx];
+                const auto &src = mesh.vertices[srcIdx];
                 glm::vec3 color = subColor;
                 if (srcIdx < mesh.vertexBaseColors.size()) {
                     color = glm::clamp(mesh.vertexBaseColors[srcIdx], 0.0f, 1.0f);
@@ -158,7 +157,7 @@ Result tryAppend(
                 static_cast<std::uint32_t>(sFastCache.rigidCombinedVertices.size());
             sFastCache.rigidCombinedVertices.reserve(totalRigidVerts);
             sFastCache.rigidCombinedIndices.reserve(totalRigidIndices);
-            for (const auto& lv : sub.localVertices) {
+            for (const auto &lv : sub.localVertices) {
                 const glm::vec3 bindPos = glm::vec3(bindNodeGlobal * glm::vec4(lv.x, lv.y, lv.z, 1.0f));
                 auto v = lv;
                 v.x = bindPos.x;
@@ -187,7 +186,7 @@ Result tryAppend(
             didPrewarmAny = true;
         }
         if (!sFastCache.submeshesPrewarmed) {
-            for (const auto& sub : sFastCache.submeshes) {
+            for (const auto &sub : sFastCache.submeshes) {
                 if (sub.localVertices.empty() || sub.localIndices.size() < 3u) continue;
                 renderer.prewarmWorldIndexedMeshCached(
                     sub.geomKey.c_str(),
@@ -216,10 +215,10 @@ Result tryAppend(
     }
 
     const glm::mat4 viewProjM = glm::make_mat4(worldViewProj);
-    const auto submitModel = [&](const std::string& geometryKey,
-                                 const std::vector<IRenderBackend::WorldMeshVertex>& vertices,
-                                 const std::vector<std::uint32_t>& indices,
-                                 const glm::mat4& model) {
+    const auto submitModel = [&](const std::string &geometryKey,
+                                 const std::vector<IRenderBackend::WorldMeshVertex> &vertices,
+                                 const std::vector<std::uint32_t> &indices,
+                                 const glm::mat4 &model) {
         if (deferredBatches) {
             // Keep the immutable mesh on the GPU and queue only its transform.
             // Copying this dense ball into D3D12's dynamic upload ring can exceed
@@ -239,7 +238,7 @@ Result tryAppend(
                 indices.data(), indices.size(), glm::value_ptr(mvp), drawableW, drawableH);
         }
     };
-    for (const auto& snap : captureSnaps) {
+    for (const auto &snap : captureSnaps) {
         if (snap.timeLeftSec <= 0.0f) continue;
 
         const float baseScale =
@@ -267,7 +266,7 @@ Result tryAppend(
             continue;
         }
 
-        for (const auto& sub : sFastCache.submeshes) {
+        for (const auto &sub : sFastCache.submeshes) {
             if (sub.localVertices.empty() || sub.localIndices.size() < 3u) continue;
             glm::mat4 nodeGlobal(1.0f);
             if (hasCaptureClipPose &&

@@ -27,7 +27,7 @@ public:
 
     void shutdown() override {}
 
-    GameRuntimeServices* services = nullptr;
+    GameRuntimeServices *services = nullptr;
     int fixedUpdateCalls = 0;
     int renderCalls = 0;
     int lastRenderW = 0;

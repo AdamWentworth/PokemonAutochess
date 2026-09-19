@@ -199,7 +199,7 @@ void handleEvent(const InputEvent& event, const Context& context) {
                     const bool inspecting = context.gameWorld && context.gameWorld->inspectedUnit();
                     if (context.gameWorld) context.gameWorld->clearInspectedUnit();
                     const bool itemCleared = context.inventoryDependencies &&
-                        session_backend_inventory_ui::clearSelection(context.inventoryDependencies());
+                                             session_backend_inventory_ui::clearSelection(context.inventoryDependencies());
                     return inspecting || itemCleared;
                 },
             .handleInventoryInput =

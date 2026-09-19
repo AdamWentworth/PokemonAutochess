@@ -193,7 +193,7 @@ void GameWorld::setBenchGapCells(int gapCells) {
     if (benchGapCells_ == gapCells) return;
     benchGapCells_ = gapCells;
     const float cellSize = getBoardCellSize();
-    for (auto& unit : benchPokemons) {
+    for (auto &unit : benchPokemons) {
         const int slot = benchSlotFromPosition(unit.position, cellSize);
         unit.position = benchSlotToWorld(slot, cellSize);
         unit.moveFrom = unit.moveTo = unit.position;

@@ -73,7 +73,7 @@ std::string traceMoveLabel(const PokemonInstance& unit) {
     return move.empty() ? std::string("-") : std::string(move);
 }
 
-bool shouldTraceAnim(const GameRuntimeServices* services, const PokemonInstance& unit) {
+bool shouldTraceAnim(const GameRuntimeServices *services, const PokemonInstance &unit) {
     if (services && services->terminalLogMode == GameTerminalLogMode::AnimationDecision) {
         return true;
     }
@@ -156,7 +156,7 @@ struct PlannerUnit {
     int row = 0;
     float speed = 0.0f;
     game::arena::Actor target;
-    const PokemonInstance* targetUnit = nullptr;
+    const PokemonInstance *targetUnit = nullptr;
     int enemyCol = -1;
     int enemyRow = -1;
     bool adjacentToEnemy = false;
@@ -186,12 +186,12 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     if (!combat || !combat->active) return;
     if (!gameWorld || gameWorld->isBoardResizePauseActive()) return;
 
-    GameFixedPerfBreakdown* fixedBreakdown =
+    GameFixedPerfBreakdown *fixedBreakdown =
         services.engineServices ? &services.engineServices->frameFixedBreakdown : nullptr;
 
     const auto& cfg = gameWorld->getConfig();
     const auto map = gameWorld->combatMap();
-    auto& boardUnits = gameWorld->getPokemons();
+    auto &boardUnits = gameWorld->getPokemons();
     const int totalCells = cfg.cols * cfg.rows;
 
     const auto planStart = Clock::now();
@@ -288,8 +288,8 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     // Existing moves were reserved before sorting. Only idle units compete for
     // new steps; an in-flight move can never lose its reservation to a winner
     // chosen later. Newly accepted corridors immediately constrain later paths.
-    for (const PlannerUnit& entry : units) {
-        PokemonInstance& unit = *entry.unit;
+    for (const PlannerUnit &entry : units) {
+        PokemonInstance &unit = *entry.unit;
         if (unit.isMoving && hasCommittedMove(unit)) continue;
         if (unit.attackTimerSec > 0.0f) continue;
         if (entry.enemyCol != -1) unit.patrol = {};
@@ -304,8 +304,8 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
         // Read after earlier planners have committed: two approaching units
         // must agree on the same meeting point even within a single update.
         const auto targetDestination = entry.targetUnit && entry.targetUnit->isMoving && hasCommittedMove(*entry.targetUnit)
-            ? game::arena::Cell{entry.targetUnit->committedDest.x, entry.targetUnit->committedDest.y}
-            : entry.target.cell;
+                                           ? game::arena::Cell{entry.targetUnit->committedDest.x, entry.targetUnit->committedDest.y}
+                                           : entry.target.cell;
         game::arena::Cell next;
         const char *intent = "pursue";
         if (entry.enemyCol != -1) {
@@ -322,7 +322,7 @@ void MovementSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
                     if (hasCommittedMove(boardUnits[i])) {
                         const auto from = gameWorld->worldToGrid(boardUnits[i].moveFrom);
                         game::arena::reserveStep(map, {from.x, from.y},
-                            {boardUnits[i].committedDest.x, boardUnits[i].committedDest.y}, knownBlocked);
+                                                 {boardUnits[i].committedDest.x, boardUnits[i].committedDest.y}, knownBlocked);
                     }
                 }
                 next = game::arena::firstInvestigationStep(map, observer, unit.targetMemory, knownBlocked);

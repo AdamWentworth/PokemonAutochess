@@ -260,8 +260,8 @@ std::pair<int, int> ScriptAPI::nearestEnemyCell(int unitId) const {
 
 bool ScriptAPI::canEngageEnemy(int unitId, int targetId) const {
     if (!world_) return false;
-    const auto* unit = world_->findUnitById(unitId);
-    const auto* target = world_->findUnitById(targetId);
+    const auto *unit = world_->findUnitById(unitId);
+    const auto *target = world_->findUnitById(targetId);
     return unit && target && isCombatActive(*unit) && isCombatActive(*target) &&
            unit->side != target->side &&
            world_->combatMap().canEngageMelee(world_->combatActor(*unit), world_->combatActor(*target));

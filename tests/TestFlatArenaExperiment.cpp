@@ -104,14 +104,14 @@ bool test_flat_arena_experiment_contract(std::string &error) {
             check(bundle.map.reserveCells.contains({x, -11}) && bundle.map.reserveCells.contains({x, 0}),
                   "Detached bench cells disagree with the dirt pads");
             for (int z : {-10, -1}) {
-                const auto* gap = bundle.map.tileAt(x, z);
+                const auto *gap = bundle.map.tileAt(x, z);
                 check(gap && gap->height == 0 && gap->ramp == 0 && gap->surface == 0 &&
-                          !bundle.map.playableCells.contains({x,z}) && !bundle.map.reserveCells.contains({x,z}),
+                          !bundle.map.playableCells.contains({x, z}) && !bundle.map.reserveCells.contains({x, z}),
                       "Benches need a lawn gap outside the board and reserve cells");
             }
         }
         for (int x = 17; x <= 21; ++x) {
-            const auto* shelf = bundle.map.tileAt(x,-12);
+            const auto *shelf = bundle.map.tileAt(x, -12);
             check(shelf && shelf->height == 1 && shelf->ramp == 0 && shelf->surface == 0,
                   "The rear bench needs a full grass shelf halfway up the bank");
         }
@@ -119,14 +119,14 @@ bool test_flat_arena_experiment_contract(std::string &error) {
         // cannot hide a full-height rock face behind a correct centre sample.
         for (int z = -17; z <= 1; ++z)
             for (int x = 13; x <= 28; ++x)
-                for (auto delta : {game::arena::Cell{1,0}, game::arena::Cell{0,1}}) {
-                    const auto* cell = bundle.map.tileAt(x,z);
-                    const auto* neighbor = bundle.map.tileAt(x+delta.x,z+delta.z);
+                for (auto delta : {game::arena::Cell{1, 0}, game::arena::Cell{0, 1}}) {
+                    const auto *cell = bundle.map.tileAt(x, z);
+                    const auto *neighbor = bundle.map.tileAt(x + delta.x, z + delta.z);
                     check(cell && neighbor, "The arena surroundings have a missing terrain tile");
-                    for (float t : {0.f,.5f,1.f}) {
+                    for (float t : {0.f, .5f, 1.f}) {
                         const float px = (x + (delta.x ? 1.f : t)) * 100;
                         const float pz = (z + (delta.z ? 1.f : t)) * 100;
-                        check(std::abs(cell->heightAt(px,pz)-neighbor->heightAt(px,pz)) <= 50.001f,
+                        check(std::abs(cell->heightAt(px, pz) - neighbor->heightAt(px, pz)) <= 50.001f,
                               "Arena ledges must not expose more than one half-metre rock face");
                     }
                 }
@@ -134,14 +134,14 @@ bool test_flat_arena_experiment_contract(std::string &error) {
         // Check actual height continuity along the route behind the enemy bench.
         float lastHeight = 0;
         for (int z : {-11, -12, -13, -14}) {
-            const auto* ramp = bundle.map.tileAt(23,z);
+            const auto *ramp = bundle.map.tileAt(23, z);
             check(ramp != nullptr, "The route behind the north bench has a missing tile");
-            check(std::abs(ramp->heightAt(2350, (z+1)*100) - lastHeight) < .001f,
+            check(std::abs(ramp->heightAt(2350, (z + 1) * 100) - lastHeight) < .001f,
                   "The route exit contains an impassable vertical step");
-            lastHeight = ramp->heightAt(2350, z*100);
-            check(bundle.map.coverAt(2350, (z+.5f)*100).empty(), "Encounter grass blocks the route exit");
+            lastHeight = ramp->heightAt(2350, z * 100);
+            check(bundle.map.coverAt(2350, (z + .5f) * 100).empty(), "Encounter grass blocks the route exit");
         }
-        check(std::abs(lastHeight-100) < .001f, "The grass ramp does not join the upper route");
+        check(std::abs(lastHeight - 100) < .001f, "The grass ramp does not join the upper route");
         for (int row = 0; row < 8; ++row)
             for (int col = 0; col < 8; ++col) {
                 using game::arena::Cell;
@@ -156,7 +156,7 @@ bool test_flat_arena_experiment_contract(std::string &error) {
         check(original.load(store, std::string(variants::kRoute1Pilot.arenaBundlePath), &error), error);
         check(!original.map.cover.empty(), "Original entrance lost its encounter grass");
         check(activation::applyGameplay(store, variants::kRoute1Pilot, world, &error), error);
-        check(world.getBenchGapCells() == 0 && std::abs(world.getBenchPokemons()[0].position.z-originalBenchZ) < .001f,
+        check(world.getBenchGapCells() == 0 && std::abs(world.getBenchPokemons()[0].position.z - originalBenchZ) < .001f,
               "Returning to the entrance did not restore its original bench placement");
         check(activation::applyGameplay(store, variant, world, &error), error);
         game::vfx::SampledEffectClip clip;

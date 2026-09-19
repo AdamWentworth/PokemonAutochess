@@ -55,7 +55,11 @@ class StarterRecordingBackend final : public IRenderBackend {
     void drawDebugLines(const DebugLine *values, std::size_t count, int, int) override {
         lines.insert(lines.end(), values, values + count);
     }
-    void clear() { sprites.clear(); quads.clear(); lines.clear(); }
+    void clear() {
+        sprites.clear();
+        quads.clear();
+        lines.clear();
+    }
     std::vector<DebugSprite> sprites;
     std::vector<DebugQuad> quads;
     std::vector<DebugLine> lines;
@@ -94,7 +98,7 @@ PokemonInstance makeUnit(const GameConfigData& cfg,
 }
 } // namespace
 
-bool test_arena_travel_contract(std::string& outFail) {
+bool test_arena_travel_contract(std::string &outFail) {
     GameConfigData cfg;
     GameDataDb db;
     LogBus::Logger log;
@@ -110,7 +114,10 @@ bool test_arena_travel_contract(std::string& outFail) {
     services.renderer = &renderer;
     GameWorld world(cfg);
     auto first = makeUnit(cfg, "bulbasaur", PokemonSide::Player, 1, 5, "tackle");
-    first.level = 5; first.hp = 67; first.energy = 23; first.xp = 19;
+    first.level = 5;
+    first.hp = 67;
+    first.energy = 23;
+    first.xp = 19;
     first.rotation.y = 137;
     auto second = makeUnit(cfg, "squirtle", PokemonSide::Player, 6, 6, "tackle");
     auto bench = makeUnit(cfg, "pidgey", PokemonSide::Player, 0, 0, "tackle");
@@ -119,7 +126,7 @@ bool test_arena_travel_contract(std::string& outFail) {
     world.getBenchPokemons() = {bench};
     int prepared = 0;
     bool failLoad = false;
-    services.prepareArenaScene = [&](const std::string&, std::string& error) {
+    services.prepareArenaScene = [&](const std::string &, std::string &error) {
         ++prepared;
         if (failLoad) error = "Injected load failure";
         return !failLoad;
@@ -128,86 +135,114 @@ bool test_arena_travel_contract(std::string& outFail) {
     travel.onEnter();
     const auto sourcePosition = world.findUnitById(first.id)->position;
     auto tick = [&]() { travel.update(1.0f/60); world.update(1.0f/60); };
-    for (int i = 0; i < 70; ++i) tick();
+    for (int i = 0; i < 70; ++i)
+        tick();
     game::runtime::shared_capture::SnapshotCache balls;
     if (!balls.refresh(&world) || balls.snaps.size() != 3 || world.countActiveCaptureAttempts() != 0 ||
         !world.isBoardInteractionLocked() || !services.presentationPausesRounds) {
-        outFail = "recall must render all team balls without capture attempts and lock gameplay"; return false;
+        outFail = "recall must render all team balls without capture attempts and lock gameplay";
+        return false;
     }
-    const auto* recalling = world.teamTravelVisuals().find(first.id);
+    const auto *recalling = world.teamTravelVisuals().find(first.id);
     if (!recalling || recalling->light < .9f || recalling->ballScale <= 0 ||
         glm::length(recalling->ballPosition - sourcePosition) < world.getBoardCellSize() ||
         recalling->unitOffset == glm::vec3(0) || world.findUnitById(first.id)->position != sourcePosition) {
-        outFail = "recall must connect a separate visible ball to the body and draw the body toward it without moving the gameplay unit"; return false;
+        outFail = "recall must connect a separate visible ball to the body and draw the body toward it without moving the gameplay unit";
+        return false;
     }
-    for (int i = 0; i < 200; ++i) tick();
+    for (int i = 0; i < 200; ++i)
+        tick();
     if (prepared != 1 || travel.phase() != ArenaTravelState::Phase::Load || travel.coverAlpha() != 1 ||
         travel.debugScriptPath() != "scripts/states/route1_pilot.lua") {
-        outFail = "prefetched destination cannot activate before a fully covered frame has actually been drawn"; return false;
+        outFail = "prefetched destination cannot activate before a fully covered frame has actually been drawn";
+        return false;
     }
     travel.render();
     tick();
-    for (int i = 0; i < 90; ++i) tick();
+    for (int i = 0; i < 90; ++i)
+        tick();
     if (prepared != 2 || travel.phase() != ArenaTravelState::Phase::Warm || travel.coverAlpha() != 1) {
-        outFail = "destination must remain covered until world rendering confirms it is ready"; return false;
+        outFail = "destination must remain covered until world rendering confirms it is ready";
+        return false;
     }
     travel.worldFramePresented(true);
     tick();
     if (travel.phase() != ArenaTravelState::Phase::Warm) {
-        outFail = "one destination draw must not unlock travel"; return false;
+        outFail = "one destination draw must not unlock travel";
+        return false;
     }
     travel.worldFramePresented(true);
-    for (int i = 0; i < 60 && travel.phase() != ArenaTravelState::Phase::Throw; ++i) tick();
+    for (int i = 0; i < 60 && travel.phase() != ArenaTravelState::Phase::Throw; ++i)
+        tick();
     if (travel.phase() != ArenaTravelState::Phase::Throw) {
-        outFail = "the destination reveal must lead to a ball throw before send-out"; return false;
+        outFail = "the destination reveal must lead to a ball throw before send-out";
+        return false;
     }
     const auto launch = world.teamTravelVisuals().find(first.id)->ballPosition;
     const auto destination = world.findUnitById(first.id)->position;
-    for (int i = 0; i < 18; ++i) tick();
+    for (int i = 0; i < 18; ++i)
+        tick();
     const auto airborne = *world.teamTravelVisuals().find(first.id);
     if (airborne.scale != 0 || airborne.light != 0 || airborne.ballClip != 0 || airborne.ballScale <= 0 ||
         airborne.ballPitchDeg <= 0 || world.findUnitById(first.id)->position != destination ||
         !balls.refresh(&world) || balls.findByTarget(first.id)->presentationPitchDeg != airborne.ballPitchDeg) {
-        outFail = "arrival balls must travel closed and spinning while Pokemon remain hidden and their cells stay fixed"; return false;
+        outFail = "arrival balls must travel closed and spinning while Pokemon remain hidden and their cells stay fixed";
+        return false;
     }
-    for (int i = 0; i < 60 && travel.phase() == ArenaTravelState::Phase::Throw; ++i) tick();
+    for (int i = 0; i < 60 && travel.phase() == ArenaTravelState::Phase::Throw; ++i)
+        tick();
     const auto landing = world.teamTravelVisuals().find(first.id)->ballPosition;
-    if (travel.phase() != ArenaTravelState::Phase::SendOut || glm::length(landing-launch) < world.getBoardCellSize() ||
+    if (travel.phase() != ArenaTravelState::Phase::SendOut || glm::length(landing - launch) < world.getBoardCellSize() ||
         airborne.ballPosition.y <= std::max(launch.y, landing.y) ||
-        glm::length(glm::vec2(landing.x-destination.x, landing.z-destination.z)) > world.getBoardCellSize()) {
-        outFail = "ball throws must arc above both endpoints and arrive at their assigned slot before opening"; return false;
+        glm::length(glm::vec2(landing.x - destination.x, landing.z - destination.z)) > world.getBoardCellSize()) {
+        outFail = "ball throws must arc above both endpoints and arrive at their assigned slot before opening";
+        return false;
     }
-    for (int i = 0; i < 100; ++i) tick();
-    const auto* arrived = world.findUnitById(first.id);
-    const auto* reserve = world.findUnitById(bench.id);
+    for (int i = 0; i < 100; ++i)
+        tick();
+    const auto *arrived = world.findUnitById(first.id);
+    const auto *reserve = world.findUnitById(bench.id);
     if (travel.phase() != ArenaTravelState::Phase::Ready || world.isBoardInteractionLocked() ||
         !world.teamTravelVisuals().units.empty() || !arrived || !reserve ||
         arrived->hp != 67 || arrived->energy != 23 || arrived->xp != 19 || arrived->level != 5 ||
-        arrived->rotation.y != 137 || world.worldToGrid(arrived->position) != glm::ivec2(1,5) ||
+        arrived->rotation.y != 137 || world.worldToGrid(arrived->position) != glm::ivec2(1, 5) ||
         world.travelBenchSlot(reserve->position) != 4 || world.getPokemons().size() != 2 ||
         world.getBenchPokemons().size() != 1 || arrived->captureInProgress) {
-        outFail = "arrival must retain identities, stats, facing, board cells and bench slots without duplicates"; return false;
+        outFail = "arrival must retain identities, stats, facing, board cells and bench slots without duplicates";
+        return false;
     }
     const auto position = arrived->position;
     failLoad = true;
     travel.handleInput(InputEvent::KeyDownEvent(InputEvent::Key::R));
-    for (int i = 0; i < 200; ++i) { tick(); travel.render(); }
+    for (int i = 0; i < 200; ++i) {
+        tick();
+        travel.render();
+    }
     if (travel.phase() != ArenaTravelState::Phase::Failed || world.findUnitById(first.id)->position != position ||
         world.teamTravelVisuals().active || world.isBoardInteractionLocked() ||
         travel.debugScriptPath() != "scripts/states/route1_south_clearing.lua") {
-        outFail = "failed scene preparation must leave the team visible and unchanged in the original arena"; return false;
+        outFail = "failed scene preparation must leave the team visible and unchanged in the original arena";
+        return false;
     }
     travel.onExit();
-    if (services.presentationPausesRounds) { outFail = "leaving travel must release its round pause"; return false; }
+    if (services.presentationPausesRounds) {
+        outFail = "leaving travel must release its round pause";
+        return false;
+    }
     // Overlapping source placements get distinct destinations without moving the valid first slot.
     failLoad = false;
     world.findUnitById(second.id)->position = world.findUnitById(first.id)->position;
     travel.onEnter();
-    for (int i = 0; i < 360; ++i) { tick(); travel.render(); travel.worldFramePresented(true); }
+    for (int i = 0; i < 360; ++i) {
+        tick();
+        travel.render();
+        travel.worldFramePresented(true);
+    }
     if (travel.phase() != ArenaTravelState::Phase::Ready ||
-        world.worldToGrid(world.findUnitById(first.id)->position) != glm::ivec2(1,5) ||
-        world.worldToGrid(world.findUnitById(second.id)->position) == glm::ivec2(1,5)) {
-        outFail = "fallback placement must reserve valid cells first and resolve overlaps deterministically"; return false;
+        world.worldToGrid(world.findUnitById(first.id)->position) != glm::ivec2(1, 5) ||
+        world.worldToGrid(world.findUnitById(second.id)->position) == glm::ivec2(1, 5)) {
+        outFail = "fallback placement must reserve valid cells first and resolve overlaps deterministically";
+        return false;
     }
     engine::ecs::World ecs;
     auto phaseEntity = ecs.create();
@@ -215,17 +250,19 @@ bool test_arena_travel_contract(std::string& outFail) {
     rounds.debugSetPhase(RoundPhase::Planning, .1f);
     rounds.update(ecs, .2f);
     if (rounds.getCurrentPhase() != RoundPhase::Planning) {
-        outFail = "travel preview must not consume the planning clock"; return false;
+        outFail = "travel preview must not consume the planning clock";
+        return false;
     }
     travel.onExit();
     rounds.update(ecs, .2f);
     if (rounds.getCurrentPhase() != RoundPhase::Battle) {
-        outFail = "round timing must resume when the travel preview exits"; return false;
+        outFail = "round timing must resume when the travel preview exits";
+        return false;
     }
     return true;
 }
 
-bool test_arena_round_transition_contract(std::string& outFail) {
+bool test_arena_round_transition_contract(std::string &outFail) {
     GameConfigData cfg;
     GameDataDb db;
     LogBus::Logger log;
@@ -250,7 +287,7 @@ bool test_arena_round_transition_contract(std::string& outFail) {
     GameStateManager manager;
     const std::string arena = "scripts/states/route1_flat_experiment.lua";
     manager.pushState(std::make_unique<CombatState>(&manager, &world, services, arena, true));
-    const auto* arenaRules = world.combatMap().rules;
+    const auto *arenaRules = world.combatMap().rules;
     const auto original = world.findUnitById(unit.id)->position;
     world.findUnitById(unit.id)->position = world.gridToWorld(3, 1);
     world.findUnitById(unit.id)->hp = 31;
@@ -258,46 +295,55 @@ bool test_arena_round_transition_contract(std::string& outFail) {
     const auto battlePosition = world.findUnitById(unit.id)->position;
     // Scene preparation is forbidden for a round that retains its loaded arena.
     int loads = 0;
-    services.prepareArenaScene = [&](const auto&, auto&) { ++loads; return false; };
+    services.prepareArenaScene = [&](const auto &, auto &) { ++loads; return false; };
     manager.update(3.1f);
-    auto* travel = dynamic_cast<ArenaTravelState*>(manager.getCurrentState());
+    auto *travel = dynamic_cast<ArenaTravelState *>(manager.getCurrentState());
     if (!travel || world.findUnitById(unit.id)->position != battlePosition || world.findUnitById(unit.id)->hp != 31) {
-        outFail = "Round completion must recall at the battle position before restoring or healing."; return false;
+        outFail = "Round completion must recall at the battle position before restoring or healing.";
+        return false;
     }
     services.renderEnabled = true;
-    for (int i = 0; i < 80; ++i) manager.update(1.0f/60);
-    const auto* visual = world.teamTravelVisuals().find(unit.id);
+    for (int i = 0; i < 80; ++i)
+        manager.update(1.0f / 60);
+    const auto *visual = world.teamTravelVisuals().find(unit.id);
     if (!visual || visual->ballScale <= 0 || visual->light <= 0 || !world.isBoardInteractionLocked()) {
-        outFail = "Real round flow must show the ball/beam and keep placement locked during recall."; return false;
+        outFail = "Real round flow must show the ball/beam and keep placement locked during recall.";
+        return false;
     }
-    for (int i = 0; i < 180; ++i) manager.update(1.0f/60);
+    for (int i = 0; i < 180; ++i)
+        manager.update(1.0f / 60);
     if (travel->phase() != ArenaTravelState::Phase::Load || world.findUnitById(unit.id)->position != battlePosition) {
-        outFail = "Simulation ticks must not restore the team before a covered frame is rendered."; return false;
+        outFail = "Simulation ticks must not restore the team before a covered frame is rendered.";
+        return false;
     }
     manager.render();
-    manager.update(1.0f/60);
+    manager.update(1.0f / 60);
     if (travel->phase() != ArenaTravelState::Phase::Warm || world.findUnitById(unit.id)->position != original ||
         !world.findUnitById(fainted.id)->alive || world.findUnitById(unit.id)->hp != 100 || loads != 0) {
-        outFail = "Covered round reset must restore the saved formation, heal fainted units and retain the loaded arena."; return false;
+        outFail = "Covered round reset must restore the saved formation, heal fainted units and retain the loaded arena.";
+        return false;
     }
-    for (int i = 0; i < 180; ++i) manager.update(1.0f/60);
+    for (int i = 0; i < 180; ++i)
+        manager.update(1.0f / 60);
     if (travel->phase() != ArenaTravelState::Phase::Warm) {
-        outFail = "Arrival must wait for real destination draws, including in the editor."; return false;
+        outFail = "Arrival must wait for real destination draws, including in the editor.";
+        return false;
     }
     travel->worldFramePresented(true);
     travel->worldFramePresented(true);
     bool sawThrow = false, sawSend = false;
-    for (int i = 0; i < 200 && dynamic_cast<ArenaTravelState*>(manager.getCurrentState()); ++i) {
-        manager.update(1.0f/60);
-        if (const auto* active = dynamic_cast<ArenaTravelState*>(manager.getCurrentState())) {
+    for (int i = 0; i < 200 && dynamic_cast<ArenaTravelState *>(manager.getCurrentState()); ++i) {
+        manager.update(1.0f / 60);
+        if (const auto *active = dynamic_cast<ArenaTravelState *>(manager.getCurrentState())) {
             sawThrow |= active->phase() == ArenaTravelState::Phase::Throw;
             sawSend |= active->phase() == ArenaTravelState::Phase::SendOut;
         }
     }
-    auto* shop = dynamic_cast<ScriptedState*>(manager.getCurrentState());
+    auto *shop = dynamic_cast<ScriptedState *>(manager.getCurrentState());
     if (!shop || !sawThrow || !sawSend || services.presentationPausesRounds || world.teamTravelVisuals().active ||
         shop->arenaScriptPath() != arena || world.travelBenchSlot(world.findUnitById(bench.id)->position) != 4) {
-        outFail = "Both arrival phases must finish before opening the shop, preserving arena and bench slots."; return false;
+        outFail = "Both arrival phases must finish before opening the shop, preserving arena and bench slots.";
+        return false;
     }
     // The editor can resize its embedded viewport without a window event.
     // Render the resized shop, then exercise the real Ready callback at its
@@ -471,7 +517,7 @@ bool test_starter_frontend_selection_contract(std::string &outFail) {
             }
             const float ballCenters[] = {.330508f, .496782f, .669492f};
             for (int i = 0; i < 3; ++i) {
-                const auto& image = renderer.sprites[1 + i * 2];
+                const auto &image = renderer.sprites[1 + i * 2];
                 const float ballX = backdrop.w * (ballCenters[i] - backdrop.u0) / (backdrop.u1 - backdrop.u0);
                 if (std::abs(image.x + image.w * .5f - ballX) > 1.0f) {
                     outFail = "starter script must align the clickable artwork with each displayed Pokeball";
@@ -515,8 +561,8 @@ bool test_starter_frontend_selection_contract(std::string &outFail) {
                 return false;
             }
             manager.update(5.1f);
-            auto* combat = dynamic_cast<CombatState*>(manager.getCurrentState());
-            const auto* selected = world.findUnitById(starterId);
+            auto *combat = dynamic_cast<CombatState *>(manager.getCurrentState());
+            const auto *selected = world.findUnitById(starterId);
             if (!combat || !usesFlatArena() || !selected || selected->name != names[choice] ||
                 selected->level != 5 || glm::length(selected->position - starterPosition) > .001f ||
                 services.gameMode != mode) {

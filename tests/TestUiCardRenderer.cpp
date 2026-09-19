@@ -60,12 +60,14 @@ bool test_ui_card_renderer_contract(std::string& outFail) {
     }
 
     for (const auto &entry : artwork::entries) {
-        for (const auto size : {std::pair{90.25f,61.0f}, std::pair{220.0f,150.0f},
-                                std::pair{180.0f,180.0f}, std::pair{300.0f,120.0f}}) {
+        for (const auto size : {std::pair{90.25f, 61.0f}, std::pair{220.0f, 150.0f},
+                                std::pair{180.0f, 180.0f}, std::pair{300.0f, 120.0f}}) {
             auto card = in;
             card.speciesName = std::string(entry.species);
-            card.w = size.first; card.h = size.second;
-            card.u0 = card.v0 = 0; card.u1 = card.v1 = 1;
+            card.w = size.first;
+            card.h = size.second;
+            card.u0 = card.v0 = 0;
+            card.u1 = card.v1 = 1;
             std::vector<IRenderBackend::DebugQuad> cardQuads;
             std::vector<IRenderBackend::DebugSprite> cardSprites, portraitSprites;
             game::runtime::ui_card_renderer::appendCard(cardQuads, &cardSprites, card);
@@ -88,7 +90,8 @@ bool test_ui_card_renderer_contract(std::string& outFail) {
         }
     }
     {
-        auto item = in; item.item = true;
+        auto item = in;
+        item.item = true;
         std::vector<IRenderBackend::DebugQuad> itemQuads;
         std::vector<IRenderBackend::DebugSprite> itemSprites;
         game::runtime::ui_card_renderer::appendCard(itemQuads, &itemSprites, item);

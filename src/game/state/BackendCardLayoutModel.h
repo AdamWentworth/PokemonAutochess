@@ -106,7 +106,7 @@ inline std::vector<Button> buildButtons(const BuildInput& in) {
         const float panelPadding = std::max(12.0f, 24 * scale);
         const float panelTop = (in.uiH - imageH) * .5f + in.starterPanelTopV * imageH;
         float width = std::min(imageW * in.starterWidthU,
-                              (in.uiH - footer - panelPadding - panelTop) * 176 / 120);
+                               (in.uiH - footer - panelPadding - panelTop) * 176 / 120);
         std::vector<float> centers;
         for (float u : in.starterCentersU) {
             if (!std::isfinite(u) || u < 0 || u > 1) return out;

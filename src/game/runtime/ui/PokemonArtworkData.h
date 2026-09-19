@@ -5,7 +5,9 @@
 #include <string_view>
 
 namespace game::runtime::pokemon_artwork {
-struct PixelRect { int x, y, w, h; };
+struct PixelRect {
+    int x, y, w, h;
+};
 struct Entry {
     std::string_view species;
     int dex;

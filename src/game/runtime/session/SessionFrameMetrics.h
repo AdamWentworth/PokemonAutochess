@@ -29,6 +29,6 @@ struct FrameMetrics {
     float worldDepthFlushMs = 0.0f;
 };
 
-void publish(GameRuntimeServices* engineServices, const FrameMetrics& metrics);
+void publish(GameRuntimeServices *engineServices, const FrameMetrics &metrics);
 
 } // namespace game::runtime::session_frame_metrics

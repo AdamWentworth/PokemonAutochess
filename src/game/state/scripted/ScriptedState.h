@@ -26,19 +26,19 @@ class GameStateManager;
 // this state will build and drive a simple card UI for selection.
 class ScriptedState : public GameState {
 public:
-    ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& services, const std::string& scriptPath,
-                  std::string arenaScriptPath = {});
+  ScriptedState(GameStateManager *manager, GameWorld *world, GameServices &services, const std::string &scriptPath,
+                std::string arenaScriptPath = {});
 
-    ~ScriptedState() override;
+  ~ScriptedState() override;
 
-    void onEnter() override;
-    void onExit() override;
-    void handleInput(const InputEvent& event) override;
-    void update(float deltaTime) override;
-    void render() override;
-    bool shouldRenderWorld() const override { return renderWorld; }
-    const std::string& debugScriptPath() const { return scriptPath; }
-    const std::string& arenaScriptPath() const { return arenaScriptPath_; }
+  void onEnter() override;
+  void onExit() override;
+  void handleInput(const InputEvent &event) override;
+  void update(float deltaTime) override;
+  void render() override;
+  bool shouldRenderWorld() const override { return renderWorld; }
+  const std::string &debugScriptPath() const { return scriptPath; }
+  const std::string &arenaScriptPath() const { return arenaScriptPath_; }
 
 private:
     void ensureCardUI();

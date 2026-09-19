@@ -56,9 +56,9 @@ std::uint32_t resolvedInstanceCountLocal(const shared_world_batches::WorldIndexe
                : static_cast<std::uint32_t>(batch.instances.size());
 }
 
-void publishGrowlDebug(GameRuntimeServices* engineServices,
-                       GameWorld* gameWorld,
-                       const std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches) {
+void publishGrowlDebug(GameRuntimeServices *engineServices,
+                       GameWorld *gameWorld,
+                       const std::vector<shared_world_batches::WorldIndexedBatch> &worldIndexedBatches) {
     if (!engineServices) return;
 
     engineServices->frameGrowlDebug = {};
@@ -128,9 +128,9 @@ void publishGrowlDebug(GameRuntimeServices* engineServices,
 }
 
 void publishScratchDebug(
-    GameRuntimeServices* engineServices,
-    GameWorld* gameWorld,
-    const std::vector<shared_world_batches::WorldIndexedBatch>& worldIndexedBatches) {
+    GameRuntimeServices *engineServices,
+    GameWorld *gameWorld,
+    const std::vector<shared_world_batches::WorldIndexedBatch> &worldIndexedBatches) {
     if (!engineServices) return;
 
     engineServices->frameScratchDebug = {};
@@ -262,8 +262,8 @@ std::size_t render(const Args& args) {
     const auto layout =
         game::runtime::session_render_layout::build(*args.config, args.drawableW, args.drawableH);
     const int benchGapCells = args.gameWorld
-        ? args.gameWorld->getBenchGapCells()
-        : args.config->benchGapCells;
+                                  ? args.gameWorld->getBenchGapCells()
+                                  : args.config->benchGapCells;
 
     const bool showWorldBackdrop = runtime::render::shouldRenderBackendWorldBackdrop(
         args.routes,
@@ -388,7 +388,8 @@ std::size_t render(const Args& args) {
                         .cellH = layout.cellH,
                         .sharedUnitHudCfg = layout.sharedUnitHudCfg,
                     },
-                    scratch).visibleAnimatedUnits;
+                    scratch)
+                    .visibleAnimatedUnits;
         }
     }
     if (args.renderWorld && args.gameWorld) {

@@ -209,7 +209,7 @@ Resolution resolve(
             // keep the established source ledge path; rebuilding those here
             // would unnecessarily replace a whole canonical ledge run.
             const auto derivedMaterialFieldDisplacesSourceCarrier =
-                [](const TerrainTileState& candidate) {
+                [](const TerrainTileState &candidate) {
                     if (candidate.authored ||
                         !candidate.rebuildContinuousMaterialFields) {
                         return false;
@@ -219,8 +219,8 @@ Resolution resolve(
                     // Only core-derived fields or cells whose cleanup carrier
                     // was actually displaced own a replacement ledge.
                     return candidate.terrainPatchV2RegionId == 0u ||
-                        candidate.terrainPatchV2Core ||
-                        candidate.sourceLedgeCarrierDisplaced;
+                           candidate.terrainPatchV2Core ||
+                           candidate.sourceLedgeCarrierDisplaced;
                 };
             const bool derivedMaterialFieldOwnsBoundary =
                 derivedMaterialFieldDisplacesSourceCarrier(tile) ||

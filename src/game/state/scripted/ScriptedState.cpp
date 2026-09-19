@@ -5,16 +5,9 @@
 #include "game/runtime/session/SessionDebugSnapshot.h"
 #include <iostream>
 
-
-ScriptedState::ScriptedState(GameStateManager* manager, GameWorld* world, GameServices& svc, const std::string& path,
+ScriptedState::ScriptedState(GameStateManager *manager, GameWorld *world, GameServices &svc, const std::string &path,
                              std::string arenaScriptPath)
-    : stateManager(manager)
-    , gameWorld(world)
-    , services(svc)
-    , arenaScriptPath_(std::move(arenaScriptPath))
-    , scriptPath(path)
-    , script(world, manager, svc)
-{
+    : stateManager(manager), gameWorld(world), services(svc), arenaScriptPath_(std::move(arenaScriptPath)), scriptPath(path), script(world, manager, svc) {
     const double tConstructStart = game::logging::flow::nowMs();
     if (!script.loadScript(scriptPath)) {
         std::cerr << "[ScriptedState] Failed to load script: " << scriptPath << "\n";
@@ -89,7 +82,7 @@ void ScriptedState::resetFrontendIntro() {
     frontendCameraSequence = {};
     sol::optional<sol::table> sequence = S["frontend_backdrop_sequence"];
     if (config.enabled && sequence) {
-        auto& camera = frontendCameraSequence;
+        auto &camera = frontendCameraSequence;
         camera.atlasPrefix = sequence->get_or("atlas_prefix", std::string());
         camera.finalImage = sequence->get_or("final_image", std::string());
         camera.frameCount = sequence->get_or("frame_count", 0);

@@ -18,7 +18,7 @@ struct Result {
 Result execute(double accumulator,
                double timeStep,
                int maxFixedTicksPerFrame,
-               GameRuntimeServices& services,
-               const std::function<void(float)>& fixedUpdate);
+               GameRuntimeServices &services,
+               const std::function<void(float)> &fixedUpdate);
 
 } // namespace game::runtime::fixed_step_phase

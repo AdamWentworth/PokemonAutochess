@@ -34,11 +34,11 @@ struct Inputs {
     game::runtime::frame_perf_capture::BackendFrameOutputs backendPerf{};
 };
 
-State makeInitialState(const GameRuntimeServices& services);
+State makeInitialState(const GameRuntimeServices &services);
 
-void observeAndEmit(State& state,
-                    GameRuntimeServices& services,
-                    const Inputs& inputs,
-                    std::ostream& out);
+void observeAndEmit(State &state,
+                    GameRuntimeServices &services,
+                    const Inputs &inputs,
+                    std::ostream &out);
 
 } // namespace game::runtime::runner_frame_diagnostics

@@ -105,7 +105,7 @@ void run(const Args& args) {
     (*args.services)->engineServices = args.engineServices;
     (*args.services)->applyVideoMode = args.ctx->applyVideoMode;
     (*args.services)->requestQuit = args.ctx->requestQuit;
-    (*args.services)->prepareArenaScene = [store = args.assetStore->get()](const std::string& path, std::string& error) {
+    (*args.services)->prepareArenaScene = [store = args.assetStore->get()](const std::string &path, std::string &error) {
         return session_world_backdrop::prepareTravelScene(*store, path, error);
     };
     (*args.services)->discardPreparedArenaScene = session_world_backdrop::discardPreparedTravelScene;

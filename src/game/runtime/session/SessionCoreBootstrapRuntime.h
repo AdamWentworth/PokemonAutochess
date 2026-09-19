@@ -51,8 +51,8 @@ struct Args {
     GameContext* ctx = nullptr;
     Camera3D* camera = nullptr;
     IRenderBackend* renderer = nullptr;
-    GameRuntimeServices* engineServices = nullptr;
-    const render::RenderRoutes* startupRoutes = nullptr;
+    GameRuntimeServices *engineServices = nullptr;
+    const render::RenderRoutes *startupRoutes = nullptr;
     ::GameDataDb* dataDb = nullptr;
     LogBus::Logger* log = nullptr;
     ScriptEventBus* scriptEvents = nullptr;

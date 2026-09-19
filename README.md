@@ -144,8 +144,8 @@ validation command; add `-IncludeBlender -Capture` to qualify authoring and visu
 The tracked `phlosion.project.json` names this project's cooked content mount,
 scene catalog, startup scene, and generated editor-project adapter. The editor
 does not fall back to loose Game Freak caches. Build and verify the
-Engine-owned editor and game-owned plugin as one pair (the default builds both
-Debug and Release):
+Engine-owned editor and game-owned plugin as one pair (the default builds
+Debug, Release, and RelWithDebInfo):
 
 ```powershell
 cd D:\Projects\Games\PokemonAutochess
@@ -178,9 +178,10 @@ cd D:\Projects\Phlosion\PhlosionEngine
 .\build\Release\PhlosionEditor.exe D:\Projects\Games\PokemonAutochess\phlosion.project.json
 ```
 
-The plugin is written to `.phlosion/editor/<configuration>` and the declared
-Tile Tools package to `.phlosion/packages/<configuration>`; both remain
-untracked. The Engine-owned editor provides the project browser, docked
+The plugin is written to `.phlosion/editor/<configuration>` and the optional
+Tile Tools module to `.phlosion/packages/<configuration>`; both remain
+untracked. The current Blender workflow does not load Tile Tools. The
+Engine-owned editor provides the project browser, docked
 hierarchy, inspector, asset view, console, remembered multi-monitor placement,
 and camera navigation over the real cooked Route 1 environment. The central
 Viewport has explicit Scene and Game surfaces. Route 1 opens in frozen Edit

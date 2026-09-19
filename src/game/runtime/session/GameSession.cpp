@@ -104,7 +104,7 @@ struct GameSession::Impl {
     // Pointers (engine-owned)
     Camera3D* camera = nullptr;
     IRenderBackend* renderer = nullptr;
-    GameRuntimeServices* engineServices = nullptr;
+    GameRuntimeServices *engineServices = nullptr;
     GameRuntimeServices fallbackRuntimeServices;
 
     // Injected db (owned; loader instances).

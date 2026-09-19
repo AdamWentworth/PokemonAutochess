@@ -4,22 +4,26 @@
 #include "engine/ui/TextRenderer.h"
 #include <algorithm>
 #include <glad/glad.h>
-#include <SDL2/SDL_ttf.h>   // NEW: for TTF_FontHeight()
+#include <SDL2/SDL_ttf.h> // NEW: for TTF_FontHeight()
 
-BattleFeed::BattleFeed(const std::string& fontPath, int fontSize) {
+BattleFeed::BattleFeed(const std::string &fontPath, int fontSize) {
     text = std::make_unique<TextRenderer>(fontPath, fontSize);
 }
 
-void BattleFeed::push(const std::string& msg, const glm::vec3& color, float lifetime) {
+void BattleFeed::push(const std::string &msg, const glm::vec3 &color, float lifetime) {
     if (msg.empty()) return;
     lines.push_back({msg, color, 0.f, lifetime});
-    while ((int)lines.size() > maxLines) lines.pop_front();
+    while ((int)lines.size() > maxLines)
+        lines.pop_front();
 }
 
-void BattleFeed::clear() { lines.clear(); }
+void BattleFeed::clear() {
+    lines.clear();
+}
 
 void BattleFeed::update(float dt) {
-    for (auto& l : lines) l.age += dt;
+    for (auto &l : lines)
+        l.age += dt;
     while (!lines.empty() && lines.front().age >= lines.front().lifetime) {
         lines.pop_front();
     }
@@ -45,18 +49,18 @@ void BattleFeed::render(int screenW, int screenH) {
 
     // Use font height for consistent line spacing
     int fh = 24;
-    if (TTF_Font* f = text->getFont()) {
+    if (TTF_Font *f = text->getFont()) {
         fh = TTF_FontHeight(f);
         if (fh <= 0) fh = 24;
     }
-    const float lineH = fh * scale;  // scaled pixel height per line
+    const float lineH = fh * scale; // scaled pixel height per line
 
     float x = alignRight ? (screenW - padX) : padX;
     // Start either from explicit baseline or one line-height above bottom padding.
     float y = hasBaselineYOverride ? baselineYOverride : (screenH - padY - lineH);
 
     for (int i = static_cast<int>(lines.size()) - 1; i >= 0; --i) {
-        const auto& ln = lines[i];
+        const auto &ln = lines[i];
 
         // Compute fade alpha (last 25% of lifetime)
         float t = std::clamp(ln.age / ln.lifetime, 0.f, 1.f);
@@ -94,12 +98,15 @@ void BattleFeed::render(int screenW, int screenH) {
     if (depthWasEnabled) glEnable(GL_DEPTH_TEST);
 }
 
-std::vector<std::string> BattleFeed::wrap(const std::string& s, float maxWidth, float scale) {
+std::vector<std::string> BattleFeed::wrap(const std::string &s, float maxWidth, float scale) {
     std::vector<std::string> out;
     std::string cur, word;
 
-    auto flush = [&](){
-        if (!cur.empty()) { out.push_back(cur); cur.clear(); }
+    auto flush = [&]() {
+        if (!cur.empty()) {
+            out.push_back(cur);
+            cur.clear();
+        }
     };
 
     for (size_t i = 0; i <= s.size(); ++i) {

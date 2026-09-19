@@ -23,15 +23,16 @@ struct TravelUnitVisual {
 struct TeamTravelVisuals {
     bool active = false;
     std::vector<TravelUnitVisual> units;
-    const TravelUnitVisual* find(int id) const {
-        for (const auto& unit : units) if (unit.id == id) return &unit;
+    const TravelUnitVisual *find(int id) const {
+        for (const auto &unit : units)
+            if (unit.id == id) return &unit;
         return nullptr;
     }
 };
 
 inline float travelEase(float t) {
     t = std::clamp(t, 0.0f, 1.0f);
-    return t*t*(3.0f - 2.0f*t);
+    return t * t * (3.0f - 2.0f * t);
 }
 
 } // namespace game::presentation

@@ -23,7 +23,7 @@ bool SnapshotCache::refresh(const GameWorld* gameWorld) {
     byTargetId.clear();
     if (!gameWorld) return false;
     gameWorld->buildCaptureAttemptRenderSnapshots(snaps);
-    for (const auto& visual : gameWorld->teamTravelVisuals().units) {
+    for (const auto &visual : gameWorld->teamTravelVisuals().units) {
         if (visual.ballScale <= 0) continue;
         GameWorld::CaptureAttemptRenderSnapshot snap;
         snap.targetId = visual.id;

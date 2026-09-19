@@ -11,17 +11,16 @@
 #include <algorithm>
 #include <cmath>
 
-BoardRenderer::BoardRenderer(int rows, int cols, float cellSize, ShaderCache* shaderCache)
-    : rows(rows), cols(cols), cellSize(cellSize)
-{
+BoardRenderer::BoardRenderer(int rows, int cols, float cellSize, ShaderCache *shaderCache)
+    : rows(rows), cols(cols), cellSize(cellSize) {
     this->shaderCache = shaderCache;
     initGrid();
     initBench(); // NEW
     gridShader = shaderCache ? shaderCache->get(
-                   "assets/shaders/engine/grid.vert",
-                   "assets/shaders/engine/grid.frag")
-                : std::make_shared<Shader>("assets/shaders/engine/grid.vert", "assets/shaders/engine/grid.frag");
-mvpLocation = glGetUniformLocation(gridShader->getID(), "u_MVP");
+                                   "assets/shaders/engine/grid.vert",
+                                   "assets/shaders/engine/grid.frag")
+                             : std::make_shared<Shader>("assets/shaders/engine/grid.vert", "assets/shaders/engine/grid.frag");
+    mvpLocation = glGetUniformLocation(gridShader->getID(), "u_MVP");
 
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
@@ -33,7 +32,7 @@ BoardRenderer::~BoardRenderer() {
     shutdown();
 }
 
-void BoardRenderer::draw(const Camera3D& camera) {
+void BoardRenderer::draw(const Camera3D &camera) {
     gridShader->use();
     glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * glm::mat4(1.0f);
     glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
@@ -41,7 +40,7 @@ void BoardRenderer::draw(const Camera3D& camera) {
     glDrawArrays(GL_LINES, 0, (GLsizei)(gridVertices.size() / 3));
 }
 
-void BoardRenderer::drawBench(const Camera3D& camera) {
+void BoardRenderer::drawBench(const Camera3D &camera) {
     gridShader->use();
     glm::mat4 mvp = camera.getProjectionMatrix() * camera.getViewMatrix() * glm::mat4(1.0f);
     glUniformMatrix4fv(mvpLocation, 1, GL_FALSE, &mvp[0][0]);
@@ -75,7 +74,7 @@ void BoardRenderer::rebuildGeometryBuffer() {
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, allVertices.size() * sizeof(float), allVertices.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(0);
 }
 
@@ -101,10 +100,10 @@ void BoardRenderer::initGrid() {
 
 void BoardRenderer::initBench() {
     benchVertices.clear();
-    float benchY = 0.01f;  // Slightly above ground
+    float benchY = 0.01f;      // Slightly above ground
     float slotSize = cellSize; // Make bench use same cell size as board
     float totalWidth = 8 * slotSize;
-    float startX = -totalWidth / 2.0f; // Centered
+    float startX = -totalWidth / 2.0f;              // Centered
     float startZ = (rows * cellSize) / 2.0f + 0.5f; // Just in front of the grid
 
     for (int i = 0; i <= 8; ++i) {
@@ -118,21 +117,21 @@ void BoardRenderer::initBench() {
     }
 }
 
-std::string BoardRenderer::loadShaderSource(const char* path) {
+std::string BoardRenderer::loadShaderSource(const char *path) {
     std::ifstream file(path);
     std::stringstream ss;
     ss << file.rdbuf();
     return ss.str();
 }
 
-unsigned int BoardRenderer::compileShader(const char* src, unsigned int type) {
+unsigned int BoardRenderer::compileShader(const char *src, unsigned int type) {
     unsigned int shader = glCreateShader(type);
     glShaderSource(shader, 1, &src, nullptr);
     glCompileShader(shader);
     return shader;
 }
 
-unsigned int BoardRenderer::createShaderProgram(const char* vertPath, const char* fragPath) {
+unsigned int BoardRenderer::createShaderProgram(const char *vertPath, const char *fragPath) {
     std::string vertSrc = loadShaderSource(vertPath);
     std::string fragSrc = loadShaderSource(fragPath);
     unsigned int vert = compileShader(vertSrc.c_str(), GL_VERTEX_SHADER);

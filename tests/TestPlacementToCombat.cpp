@@ -152,11 +152,11 @@ bool test_combat_route_finishes_headless(std::string& outFail) {
 
     manager.update(3.1f);
 
-    if (!dynamic_cast<ArenaTravelState*>(manager.getCurrentState())) {
+    if (!dynamic_cast<ArenaTravelState *>(manager.getCurrentState())) {
         outFail = "Normal combat completion must enter the shared recall/arrival sequence.";
         return false;
     }
-    for (int i = 0; i < 360 && dynamic_cast<ArenaTravelState*>(manager.getCurrentState()); ++i)
+    for (int i = 0; i < 360 && dynamic_cast<ArenaTravelState *>(manager.getCurrentState()); ++i)
         manager.update(1.0f / 60.0f);
 
     GameState* current = manager.getCurrentState();

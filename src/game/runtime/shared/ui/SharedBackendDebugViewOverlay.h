@@ -26,8 +26,8 @@ namespace game::runtime::shared_backend_debug_view {
 
 struct ComposeAndSubmitArgs {
     IRenderBackend* renderer = nullptr;
-    GameRuntimeServices* engineServices = nullptr;
-    GameServices* services = nullptr;
+    GameRuntimeServices *engineServices = nullptr;
+    GameServices *services = nullptr;
     GameWorld* gameWorld = nullptr;
     Camera3D* camera = nullptr;
     engine::ecs::World* ecsWorld = nullptr;
@@ -48,7 +48,7 @@ struct ComposeAndSubmitArgs {
     float lineStep = 0.0f;
     float uiScale = 1.0f;
     const float* worldViewProj = nullptr;
-    GameRenderBuildBreakdown* renderBuildBreakdown = nullptr;
+    GameRenderBuildBreakdown *renderBuildBreakdown = nullptr;
 
     std::vector<IRenderBackend::DebugQuad>* worldBackgroundQuads = nullptr;
     std::vector<IRenderBackend::DebugQuad>* worldQuads = nullptr;

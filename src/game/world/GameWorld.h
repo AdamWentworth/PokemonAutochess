@@ -160,8 +160,8 @@ public:
     void setLogger(LogBus::Logger* logger) { log = logger; }
     void setRenderEnabled(bool enabled) { renderEnabled = enabled; }
     void setRng(engine::IRandom* rngIn) { rng = rngIn; }
-    void setEngineServices(GameRuntimeServices* servicesIn) { engineServices = servicesIn; }
-    LogBus::Logger* getLogger() const { return log; }
+    void setEngineServices(GameRuntimeServices *servicesIn) { engineServices = servicesIn; }
+    LogBus::Logger *getLogger() const { return log; }
     const GameDataDb* getData() const { return data; }
     const GameConfigData& getConfig() const { return config; }
     game::arena::CombatMapView combatMap() const;
@@ -292,9 +292,9 @@ public:
     bool hasBattleStartPositions() const { return !battleStartPositions.empty(); }
     void setBoardInteractionLocked(bool locked) { boardInteractionLocked = locked; }
     bool isBoardInteractionLocked() const { return boardInteractionLocked; }
-    game::presentation::TeamTravelVisuals& teamTravelVisuals() { return teamTravelVisuals_; }
-    const game::presentation::TeamTravelVisuals& teamTravelVisuals() const { return teamTravelVisuals_; }
-    int travelBenchSlot(const glm::vec3& pos) const { return benchSlotFromPosition(pos, getBoardCellSize()); }
+    game::presentation::TeamTravelVisuals &teamTravelVisuals() { return teamTravelVisuals_; }
+    const game::presentation::TeamTravelVisuals &teamTravelVisuals() const { return teamTravelVisuals_; }
+    int travelBenchSlot(const glm::vec3 &pos) const { return benchSlotFromPosition(pos, getBoardCellSize()); }
     glm::vec3 travelBenchPosition(int slot) const { return benchSlotToWorld(slot, getBoardCellSize()); }
     bool isBoardResizePauseActive() const { return boardResizePauseSec > 0.0f; }
     void setUnitDragActive(bool active) { unitDragActive = active; }
@@ -318,7 +318,7 @@ private:
     bool showConcealedUnits_ = false;
     bool renderEnabled = false;
     engine::IRandom* rng = nullptr;
-    GameRuntimeServices* engineServices = nullptr;
+    GameRuntimeServices *engineServices = nullptr;
 
     std::vector<PokemonInstance> pokemons;
     std::vector<PokemonInstance> benchPokemons;

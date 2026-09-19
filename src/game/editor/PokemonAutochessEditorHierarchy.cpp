@@ -66,20 +66,20 @@ engine::editor::EditorProjectLayoutObject environmentObjectView(
         .displayName = object.displayName.c_str(),
         .typeName =
             object.targetKind == "environment_mesh_patch"
-            ? "Blender Environment Mesh Patch"
+                ? "Blender Environment Mesh Patch"
             : object.authored
-            ? "Authored Prefab Instance"
+                ? "Authored Prefab Instance"
             : object.targetKind == "canonical_terrain_assembly"
-            ? "Source Terrain Assembly"
+                ? "Source Terrain Assembly"
             : object.targetKind == "canonical_mesh_group"
-            ? "Source Mesh Group"
+                ? "Source Mesh Group"
             : object.targetKind == "gameplay_board_ground_prototype"
-            ? "Gameplay Ground Prefab"
+                ? "Gameplay Ground Prefab"
             : object.targetKind == "canonical_tree_instance"
-            ? "Tree Prefab Placement"
+                ? "Tree Prefab Placement"
             : object.targetKind == "encounter_grass_record"
-            ? "Encounter Grass Prefab Placement"
-            : "Environment Prefab Placement",
+                ? "Encounter Grass Prefab Placement"
+                : "Environment Prefab Placement",
         .coordinateSystem = "Source centimetres (XYZ, Y-up)",
         .reason = object.reason.c_str(),
         .targetKind = object.targetKind.c_str(),

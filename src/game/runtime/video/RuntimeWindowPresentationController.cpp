@@ -16,9 +16,9 @@
 
 namespace game::runtime::window_presentation {
 
-WindowPresentationController::WindowPresentationController(GameRuntimeServices& servicesIn,
-                                                           std::ostream& outIn,
-                                                           std::ostream& errIn)
+WindowPresentationController::WindowPresentationController(GameRuntimeServices &servicesIn,
+                                                           std::ostream &outIn,
+                                                           std::ostream &errIn)
     : services(servicesIn), out(outIn), err(errIn), log("Video", &outIn, &errIn) {}
 
 void WindowPresentationController::setPreferencesPath(std::string prefsPathIn) {

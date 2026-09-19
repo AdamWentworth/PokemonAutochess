@@ -29,11 +29,8 @@ RoundPhase RoundSystem::toPhaseEnum(const std::string& s) {
     return RoundPhase::Planning;
 }
 
-RoundSystem::RoundSystem(GameServices& services, engine::ecs::Entity phaseEntity_)
-    : script(/*world*/ nullptr, /*manager*/ nullptr, services)
-    , services_(services)
-    , phaseEntity(phaseEntity_)
-{
+RoundSystem::RoundSystem(GameServices &services, engine::ecs::Entity phaseEntity_)
+    : script(/*world*/ nullptr, /*manager*/ nullptr, services), services_(services), phaseEntity(phaseEntity_) {
     if (!script.loadScript(kRoundSystemScript)) {
         std::cerr << "[RoundSystem] Failed to load " << kRoundSystemScript << "\n";
         currentPhase = RoundPhase::Planning;

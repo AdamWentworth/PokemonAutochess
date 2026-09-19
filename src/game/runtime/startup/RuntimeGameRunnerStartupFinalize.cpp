@@ -25,13 +25,13 @@ const char* glStringOrUnknown(GLenum token) {
 namespace game::runtime::runner_startup_finalize {
 
 Result activateRendererAndInitializePresentation(
-    IRenderBackend& renderer,
-    GameRuntimeServices& services,
-    game::runtime::window_presentation::WindowPresentationController& presentation,
-    std::unique_ptr<Camera3D>& camera,
-    const std::function<void(float)>& renderBootLoading,
-    std::ostream& logOut,
-    std::ostream& errOut) {
+    IRenderBackend &renderer,
+    GameRuntimeServices &services,
+    game::runtime::window_presentation::WindowPresentationController &presentation,
+    std::unique_ptr<Camera3D> &camera,
+    const std::function<void(float)> &renderBootLoading,
+    std::ostream &logOut,
+    std::ostream &errOut) {
     engine::log::Sink log("RuntimeStartupFinalize", &logOut, &errOut);
     Result out;
 

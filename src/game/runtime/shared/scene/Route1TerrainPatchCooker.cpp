@@ -40,9 +40,9 @@ bool startsRegionalCook(const TerrainTileState& tile) {
         tile.shape != tile.sourceShape ||
         tile.sourceReference.has_value();
     return sourceAppearanceChanged ||
-        (tile.cleanSuppressedEncounterGrassTint &&
-         !tile.regionalMaterialHandoffOnly) ||
-        tile.rebuildContinuousMaterialFields;
+           (tile.cleanSuppressedEncounterGrassTint &&
+            !tile.regionalMaterialHandoffOnly) ||
+           tile.rebuildContinuousMaterialFields;
 }
 
 std::array<GridPoint, 4> edgeStarts(const GridCell& cell) {

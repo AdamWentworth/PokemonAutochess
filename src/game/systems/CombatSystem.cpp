@@ -57,7 +57,7 @@ std::unordered_map<std::string, int>& combatDecisionColdStartTraceCounts() {
     return counts;
 }
 
-bool shouldTraceCombatMoveColdStart(const GameRuntimeServices* services, const std::string& moveName) {
+bool shouldTraceCombatMoveColdStart(const GameRuntimeServices *services, const std::string &moveName) {
     if (!game::combat_decision_trace::isTerminalModeEnabled(services) || moveName.empty()) {
         return false;
     }
@@ -965,7 +965,7 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
     if (!combat || !combat->active) return;
     if (!gameWorld || gameWorld->isBoardResizePauseActive()) return;
 
-    GameFixedPerfBreakdown* fixedBreakdown =
+    GameFixedPerfBreakdown *fixedBreakdown =
         services.engineServices ? &services.engineServices->frameFixedBreakdown : nullptr;
 
     const auto planStart = Clock::now();
@@ -1091,7 +1091,8 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
             // neighbor arriving later must not steal an ongoing engagement.
             const auto focus = focusedTarget_.find(unit.id);
             targetId = focus != focusedTarget_.end() && api->canEngageEnemy(unit.id, focus->second)
-                ? focus->second : unit.bestAdjacentEnemyId;
+                           ? focus->second
+                           : unit.bestAdjacentEnemyId;
         }
         if (decisionTraceMode) {
             unitTrace.targetId = targetId;
@@ -1112,7 +1113,7 @@ void CombatSystem::update(engine::ecs::World& ecsWorld, float deltaTime) {
 
         const auto validateStart = decisionTraceMode ? Clock::now() : Clock::time_point{};
         const bool targetValid = cycleLocked ? targetExistsForLock(targetId)
-                                            : api->canEngageEnemy(unit.id, targetId);
+                                             : api->canEngageEnemy(unit.id, targetId);
         if (decisionTraceMode) {
             unitTrace.targetValid = targetValid;
             unitTrace.validateMs = elapsedPlanMs(validateStart, Clock::now());

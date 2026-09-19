@@ -39,25 +39,25 @@ public:
         std::string* outError = nullptr);
 
     bool build(
-        const std::vector<published_environment_scene::PreparedScene*>& scenes,
-        const std::array<float, 3>& sourceCenterCm,
-        const BuildOptions& options,
-        std::string* outError = nullptr);
+        const std::vector<published_environment_scene::PreparedScene *> &scenes,
+        const std::array<float, 3> &sourceCenterCm,
+        const BuildOptions &options,
+        std::string *outError = nullptr);
 
     bool build(
-        const std::vector<published_environment_scene::PreparedScene*>& scenes,
-        const std::array<float, 3>& sourceCenterCm,
+        const std::vector<published_environment_scene::PreparedScene *> &scenes,
+        const std::array<float, 3> &sourceCenterCm,
         int atlasWidth,
         int atlasHeight,
-        std::string* outError = nullptr);
+        std::string *outError = nullptr);
 
     bool build(
-        const std::vector<published_environment_scene::PreparedScene*>& scenes,
-        const std::array<float, 3>& sourceCenterCm,
+        const std::vector<published_environment_scene::PreparedScene *> &scenes,
+        const std::array<float, 3> &sourceCenterCm,
         int atlasWidth,
         int atlasHeight,
-        const BuildOptions& options,
-        std::string* outError = nullptr);
+        const BuildOptions &options,
+        std::string *outError = nullptr);
 
     void attach(
         const std::vector<published_environment_scene::PreparedScene*>& scenes) const;

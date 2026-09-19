@@ -29,8 +29,8 @@ namespace game::runtime::session_startup_bridge {
 struct Context {
     GameContext* ctx = nullptr;
     IRenderBackend* renderer = nullptr;
-    GameRuntimeServices* engineServices = nullptr;
-    const ::GameDataDb* dataDb = nullptr;
+    GameRuntimeServices *engineServices = nullptr;
+    const ::GameDataDb *dataDb = nullptr;
     const ::GameConfigData* config = nullptr;
     GameServices* services = nullptr;
     GameWorld* gameWorld = nullptr;

@@ -134,10 +134,7 @@ game::arena::Actor GameWorld::combatActor(const PokemonInstance &unit) const {
     const auto cell = worldToGrid(unit.position);
     const auto centre = gridToWorld(cell.x, cell.y);
     const float size = std::max(config.cellSize, 0.0001f);
-    return {unit.id, static_cast<int>(unit.side), {cell.x, cell.y}, unit.traversalCapabilities,
-            unit.ledgeJump.active(), unit.airState == AirLocomotionState::Grounded,
-            unit.coverRevealRemainingSec > 0.0f || unit.attackTimerSec > 0.0f || unit.captureInProgress,
-            (unit.position.x - centre.x) / size, (unit.position.z - centre.z) / size};
+    return {unit.id, static_cast<int>(unit.side), {cell.x, cell.y}, unit.traversalCapabilities, unit.ledgeJump.active(), unit.airState == AirLocomotionState::Grounded, unit.coverRevealRemainingSec > 0.0f || unit.attackTimerSec > 0.0f || unit.captureInProgress, (unit.position.x - centre.x) / size, (unit.position.z - centre.z) / size};
 }
 
 bool GameWorld::canTeamPerceive(PokemonSide team, const PokemonInstance &target) const {

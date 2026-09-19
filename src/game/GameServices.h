@@ -41,7 +41,7 @@ struct GameServices {
     engine::ecs::Entity combatStateEntity{};
     game::ui::UIViewport* viewport = nullptr;
     IRenderBackend* renderer = nullptr;
-    GameRuntimeServices* engineServices = nullptr;
+    GameRuntimeServices *engineServices = nullptr;
     bool renderEnabled = false;
     std::string gameMode = "classic";
     bool hasStartedGame = false;
@@ -49,7 +49,7 @@ struct GameServices {
     std::function<VideoMode()> queryVideoMode;
     std::function<void()> requestQuit;
     // Prepare a destination during setup/planning; travel rechecks it under cover.
-    std::function<bool(const std::string&, std::string&)> prepareArenaScene;
+    std::function<bool(const std::string &, std::string &)> prepareArenaScene;
     std::function<void()> discardPreparedArenaScene;
     bool presentationPausesRounds = false;
 

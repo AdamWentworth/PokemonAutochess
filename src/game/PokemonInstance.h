@@ -186,7 +186,6 @@ struct PokemonInstance {
     // Airborne queued attack can request a specific anim index.
     int queuedAttackAnimIndex = -1;
 
-
     // --- Flight visuals (optional; visual-only) ---
     // Enabled by explicit airborne metadata or configured flyer species.
     bool usesAirLocomotion = false;

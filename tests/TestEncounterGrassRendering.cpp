@@ -129,7 +129,9 @@ bool test_encounter_grass_rendering(std::string &outFail) {
         GameWorld world(config);
         if (!game::runtime::arena_scene_activation::apply(store, *variant, environment, false, true, &outFail) ||
             !game::runtime::arena_scene_activation::applyGameplay(store, *variant, world, &outFail)) return false;
-        const auto actor = variant == &variants::kRoute1NorthEntrance ? world.gridToWorld(4, 6) : variant == &variants::kRoute1Pilot ? world.gridToWorld(7, 4) : variant == &variants::kRoute1NorthTerraces ? world.gridToWorld(7, 3) : world.gridToWorld(6, 3);
+        const auto actor = variant == &variants::kRoute1NorthEntrance ? world.gridToWorld(4, 6) : variant == &variants::kRoute1Pilot       ? world.gridToWorld(7, 4)
+                                                                                              : variant == &variants::kRoute1NorthTerraces ? world.gridToWorld(7, 3)
+                                                                                                                                           : world.gridToWorld(6, 3);
         std::vector<Batch> cached;
         environment.setEncounterGrassInteractors({});
         environment.updateAnimation(0);

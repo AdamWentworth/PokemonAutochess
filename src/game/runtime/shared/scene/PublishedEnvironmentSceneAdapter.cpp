@@ -2621,10 +2621,10 @@ bool prepareCanonicalScene(
 }
 
 bool prepareCanonicalSceneWithMaterials(
-    const game::assets::published_environment::CanonicalScene& source,
-    const game::assets::published_environment::CanonicalScene& materialSource,
-    PreparedScene& out,
-    std::string* outError) {
+    const game::assets::published_environment::CanonicalScene &source,
+    const game::assets::published_environment::CanonicalScene &materialSource,
+    PreparedScene &out,
+    std::string *outError) {
     PreparedScene prepared;
     // The shared registry's render-object lookup is keyed by registry address.
     // This local PreparedScene occupies a reusable stack address across
@@ -2661,7 +2661,7 @@ bool prepareCanonicalSceneWithMaterials(
     for (std::size_t textureIndex = 0u;
          textureIndex < materialSource.textures.size();
          ++textureIndex) {
-        const auto& texture = materialSource.textures[textureIndex];
+        const auto &texture = materialSource.textures[textureIndex];
         buildMipStorage(texture, prepared.textureStorage[textureIndex]);
         textureByName.emplace(
             texture.name,
@@ -2673,8 +2673,8 @@ bool prepareCanonicalSceneWithMaterials(
     for (std::size_t materialIndex = 0u;
          materialIndex < materialSource.materials.size();
          ++materialIndex) {
-        const auto& sourceMaterial = materialSource.materials[materialIndex];
-        auto& storage = prepared.materialStorage[materialIndex];
+        const auto &sourceMaterial = materialSource.materials[materialIndex];
+        auto &storage = prepared.materialStorage[materialIndex];
         storage.sourceMaterialIndex = sourceMaterial.sourceIndex;
 
         IRenderBackend::WorldSceneMaterial material{};
@@ -2982,7 +2982,7 @@ bool prepareCanonicalSceneWithMaterials(
 
             const std::uint64_t triangleCount =
                 sourceGroup.indices.size() / 3u;
-            const auto& sourceMaterial =
+            const auto &sourceMaterial =
                 materialSource.materials[sourceGroup.materialIndex];
             const auto materialHandle =
                 materialHandles[sourceGroup.materialIndex];

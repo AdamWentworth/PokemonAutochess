@@ -41,8 +41,8 @@ namespace game::runtime::session_world_render_runtime {
 
 struct Args {
     IRenderBackend* renderer = nullptr;
-    GameRuntimeServices* engineServices = nullptr;
-    GameServices* services = nullptr;
+    GameRuntimeServices *engineServices = nullptr;
+    GameServices *services = nullptr;
     GameWorld* gameWorld = nullptr;
     Camera3D* camera = nullptr;
     engine::ecs::World* ecsWorld = nullptr;

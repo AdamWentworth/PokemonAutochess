@@ -1,5 +1,6 @@
 param(
-    [string]$ClangFormatPath = $env:PAC_CLANG_FORMAT
+    [string]$ClangFormatPath = $env:PAC_CLANG_FORMAT,
+    [switch]$Fix
 )
 
 $ErrorActionPreference = "Stop"
@@ -96,7 +97,11 @@ foreach ($f in $files) {
     # Most older source files predate the current clang-format policy. Check
     # only lines introduced or modified by this change so CI prevents new
     # formatting debt without requiring an unrelated whole-file rewrite.
-    & $clangFormat -n --Werror @lineArguments -- $f
+    if ($Fix) {
+        & $clangFormat -i @lineArguments -- $f
+    } else {
+        & $clangFormat -n --Werror @lineArguments -- $f
+    }
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Format issues in $f"
         $failed = $true

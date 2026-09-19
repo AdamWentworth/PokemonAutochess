@@ -4,7 +4,7 @@
 
 namespace game::runtime::frame_observation {
 
-ServiceSnapshot captureServiceSnapshot(const GameRuntimeServices& services) {
+ServiceSnapshot captureServiceSnapshot(const GameRuntimeServices &services) {
     ServiceSnapshot out;
     out.visibleAnimatedUnits = services.frameVisibleAnimatedUnits;
     out.particleCount = services.frameParticleCount;

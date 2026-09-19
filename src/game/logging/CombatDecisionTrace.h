@@ -8,7 +8,7 @@
 
 namespace game::combat_decision_trace {
 
-inline bool isTerminalModeEnabled(const GameRuntimeServices* services) {
+inline bool isTerminalModeEnabled(const GameRuntimeServices *services) {
     return services && services->terminalLogMode == GameTerminalLogMode::CombatDecision;
 }
 

@@ -36,10 +36,10 @@ void restoreStateStack(const SessionSnapshotMetadata& session,
         } else {
             std::string error;
             if (!arena_scene_activation::applyGameplay(services->assets,
-                    route1_scene_variants::fromStateScriptPath(session.stateScriptPath), *gameWorld, &error))
+                                                       route1_scene_variants::fromStateScriptPath(session.stateScriptPath), *gameWorld, &error))
                 throw std::runtime_error("Cannot restore round arena: " + error);
             stateManager->clearAndPushState(std::make_unique<ArenaTravelState>(*gameWorld, *services, session.stateScriptPath,
-                                                                             *stateManager, session.roundNextShopScriptPath));
+                                                                               *stateManager, session.roundNextShopScriptPath));
         }
         return;
     }
@@ -73,7 +73,7 @@ void restoreStateStack(const SessionSnapshotMetadata& session,
         if (!session.arenaScriptPath.empty()) {
             std::string error;
             if (!arena_scene_activation::applyGameplay(services->assets,
-                    route1_scene_variants::fromStateScriptPath(session.arenaScriptPath), *gameWorld, &error))
+                                                       route1_scene_variants::fromStateScriptPath(session.arenaScriptPath), *gameWorld, &error))
                 throw std::runtime_error("Cannot restore shop arena: " + error);
         }
         stateManager->clearAndPushState(std::make_unique<ScriptedState>(
@@ -134,15 +134,15 @@ SessionSnapshotMetadata captureSessionMetadata(GameStateManager* stateManager,
 
     if (stateManager) {
         if (GameState* current = stateManager->getCurrentState()) {
-            if (const auto* travel = dynamic_cast<const ArenaTravelState*>(current)) {
+            if (const auto *travel = dynamic_cast<const ArenaTravelState *>(current)) {
                 out.stateKind = "arena_travel";
                 out.stateScriptPath = travel->debugScriptPath();
                 out.roundNextShopScriptPath = travel->nextShopScriptPath();
-            } else if (const auto* combat = dynamic_cast<const CombatState*>(current)) {
+            } else if (const auto *combat = dynamic_cast<const CombatState *>(current)) {
                 out.stateKind = "combat";
                 out.stateScriptPath = combat->debugScriptPath();
                 out.arenaScriptPath = combat->arenaScriptPath();
-            } else if (const auto* scripted = dynamic_cast<const ScriptedState*>(current)) {
+            } else if (const auto *scripted = dynamic_cast<const ScriptedState *>(current)) {
                 out.stateKind = "scripted";
                 out.stateScriptPath = scripted->debugScriptPath();
                 out.arenaScriptPath = scripted->arenaScriptPath();

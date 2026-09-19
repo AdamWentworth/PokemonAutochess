@@ -40,7 +40,7 @@ PreparedSession prepareFromEnvironment(const std::string& prefsPath,
                                        std::ostream& logOut,
                                        std::ostream& errOut);
 
-void applyToServices(const PreparedSession& session, GameRuntimeServices& services);
+void applyToServices(const PreparedSession &session, GameRuntimeServices &services);
 
 } // namespace game::runtime::startup_session
 

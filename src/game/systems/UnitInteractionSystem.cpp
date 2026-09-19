@@ -21,7 +21,7 @@ float horizontalDistance(const glm::vec3& a, const glm::vec3& b) {
 
 } // namespace
 
-UnitInteractionSystem::UnitInteractionSystem(Camera3D* cam, GameWorld* world, unsigned int w, unsigned int h)
+UnitInteractionSystem::UnitInteractionSystem(Camera3D *cam, GameWorld *world, unsigned int w, unsigned int h)
     : camera(cam),
       gameWorld(world),
       screenW(w),

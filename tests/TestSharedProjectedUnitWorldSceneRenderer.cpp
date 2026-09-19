@@ -375,9 +375,10 @@ bool test_shared_projected_unit_world_scene_multiple_rigid_batches(std::string& 
         result = {};
         const bool rendered = game::runtime::shared_projected_unit_world_scene::tryRenderProjectedUnitModelWorldScene(args, result);
         std::size_t instances = 0;
-        for (const auto& drawClass : worldSceneFrame.drawClasses) instances += drawClass.instances.size();
+        for (const auto &drawClass : worldSceneFrame.drawClasses)
+            instances += drawClass.instances.size();
         if (!expect(rendered && instances == (frame >= 1.0f && frame < 85.0f ? 2u : 1u),
-                "Hidden opaque meshes must leave the world/shadow submission, and reappear without rebuilding cached geometry.", outFail)) return false;
+                    "Hidden opaque meshes must leave the world/shadow submission, and reappear without rebuilding cached geometry.", outFail)) return false;
     }
 
     return true;

@@ -9,7 +9,7 @@
 
 namespace game::scratch_trace {
 
-inline bool isTerminalModeEnabled(const GameRuntimeServices* services) {
+inline bool isTerminalModeEnabled(const GameRuntimeServices *services) {
     return services && services->terminalLogMode == GameTerminalLogMode::ScratchVfx;
 }
 
@@ -24,7 +24,7 @@ inline bool isScratchMove(std::string_view moveName) {
     return true;
 }
 
-inline bool shouldTrace(const GameRuntimeServices* services, std::string_view moveName) {
+inline bool shouldTrace(const GameRuntimeServices *services, std::string_view moveName) {
     return isTerminalModeEnabled(services) && isScratchMove(moveName);
 }
 

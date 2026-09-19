@@ -245,10 +245,10 @@ bool Atlas::build(
 }
 
 bool Atlas::build(
-    const std::vector<published_environment_scene::PreparedScene*>& scenes,
-    const std::array<float, 3>& sourceCenterCm,
-    const BuildOptions& options,
-    std::string* outError) {
+    const std::vector<published_environment_scene::PreparedScene *> &scenes,
+    const std::array<float, 3> &sourceCenterCm,
+    const BuildOptions &options,
+    std::string *outError) {
     return build(
         scenes,
         sourceCenterCm,
@@ -274,12 +274,12 @@ bool Atlas::build(
 }
 
 bool Atlas::build(
-    const std::vector<published_environment_scene::PreparedScene*>& scenes,
-    const std::array<float, 3>& sourceCenterCm,
+    const std::vector<published_environment_scene::PreparedScene *> &scenes,
+    const std::array<float, 3> &sourceCenterCm,
     int atlasWidth,
     int atlasHeight,
-    const BuildOptions& options,
-    std::string* outError) {
+    const BuildOptions &options,
+    std::string *outError) {
     if (scenes.empty()) {
         return fail(outError, "Route 1 projected-shadow build has no scenes");
     }

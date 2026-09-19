@@ -57,7 +57,7 @@ int64_t cellKey(int col, int row) {
     return (static_cast<int64_t>(row) << 32) | static_cast<uint32_t>(col);
 }
 
-bool facesDirection(const PokemonInstance& unit, const glm::vec3& delta) {
+bool facesDirection(const PokemonInstance &unit, const glm::vec3 &delta) {
     const glm::vec2 motion(delta.x, delta.z);
     if (glm::length(motion) <= 1e-5f) return true;
     const float yaw = glm::radians(unit.rotation.y);
@@ -256,7 +256,7 @@ bool test_ledge_jump_movement(std::string &outFail) {
     return true;
 }
 
-bool test_movement_collision_regressions(std::string& outFail) {
+bool test_movement_collision_regressions(std::string &outFail) {
     GameConfigData cfg;
     GameDataDb db;
     LogBus::Logger log;
@@ -273,7 +273,7 @@ bool test_movement_collision_regressions(std::string& outFail) {
     engine::ecs::World ecs(&core);
     const auto combat = ecs.create();
     ecs.add<game::CombatActive>(combat, game::CombatActive{true});
-    const auto commit = [&](PokemonInstance& unit, int col, int row, float progress) {
+    const auto commit = [&](PokemonInstance &unit, int col, int row, float progress) {
         unit.moveFrom = unit.position;
         unit.moveTo = gridToWorld(cfg, col, row);
         unit.position = glm::mix(unit.moveFrom, unit.moveTo, progress);
@@ -286,63 +286,64 @@ bool test_movement_collision_regressions(std::string& outFail) {
     // over combat/Lua facing, including a new queued commit and in-flight move.
     for (bool scripted : {false, true}) {
         for (bool airborne : {false, true}) {
-            for (int dx = -1; dx <= 1; ++dx) for (int dz = -1; dz <= 1; ++dz) {
-                if (dx == 0 && dz == 0) continue;
-                GameWorld world(cfg);
-                auto& units = world.getPokemons();
-                units.push_back(makeUnit(cfg, "mover", PokemonSide::Player, 3, 3));
-                units.push_back(makeUnit(cfg, "target", PokemonSide::Enemy, 3 - 2*dx, 3 - 2*dz, 0));
-                auto& mover = units[0];
-                mover.usesAirLocomotion = airborne;
-                mover.airState = airborne ? AirLocomotionState::Airborne : AirLocomotionState::Grounded;
-                const glm::vec3 direction(static_cast<float>(dx), 0, static_cast<float>(dz));
-                ScriptAPI api(&world, nullptr, services);
-                if (scripted) {
+            for (int dx = -1; dx <= 1; ++dx)
+                for (int dz = -1; dz <= 1; ++dz) {
+                    if (dx == 0 && dz == 0) continue;
+                    GameWorld world(cfg);
+                    auto &units = world.getPokemons();
+                    units.push_back(makeUnit(cfg, "mover", PokemonSide::Player, 3, 3));
+                    units.push_back(makeUnit(cfg, "target", PokemonSide::Enemy, 3 - 2 * dx, 3 - 2 * dz, 0));
+                    auto &mover = units[0];
+                    mover.usesAirLocomotion = airborne;
+                    mover.airState = airborne ? AirLocomotionState::Airborne : AirLocomotionState::Grounded;
+                    const glm::vec3 direction(static_cast<float>(dx), 0, static_cast<float>(dz));
+                    ScriptAPI api(&world, nullptr, services);
+                    if (scripted) {
+                        api.faceTarget(mover.id, units[1].id);
+                        api.commitMove(mover.id, 3 + dx, 3 + dz);
+                        api.faceEnemy(mover.id, std::nullopt, std::nullopt);
+                        api.flush();
+                        if (!mover.isMoving || !facesDirection(mover, direction)) {
+                            outFail = "Queued movement must face its step immediately, regardless of enemy-facing command order.";
+                            return false;
+                        }
+                    } else {
+                        commit(mover, 3 + dx, 3 + dz, .25f);
+                    }
+                    MovementSystem movement(&world, services, combat);
+                    for (int tick = 0; tick < 3; ++tick) {
+                        const auto before = mover.position;
+                        movement.update(ecs, .03f);
+                        if (glm::distance(before, mover.position) <= 1e-5f || !facesDirection(mover, mover.position - before)) {
+                            outFail = "A traversing unit faced its enemy instead of its actual motion.";
+                            return false;
+                        }
+                        // Combat runs after movement and can issue either command.
+                        api.faceTarget(mover.id, units[1].id);
+                        api.faceEnemy(mover.id, 3 - 2 * dx, 3 - 2 * dz);
+                        api.flush();
+                        if (!facesDirection(mover, direction)) {
+                            outFail = "Target-facing overrode walking/flying direction.";
+                            return false;
+                        }
+                    }
+                    mover.isMoving = false;
+                    mover.committedDest = {-1, -1};
                     api.faceTarget(mover.id, units[1].id);
-                    api.commitMove(mover.id, 3 + dx, 3 + dz);
-                    api.faceEnemy(mover.id, std::nullopt, std::nullopt);
                     api.flush();
-                    if (!mover.isMoving || !facesDirection(mover, direction)) {
-                        outFail = "Queued movement must face its step immediately, regardless of enemy-facing command order.";
+                    if (!facesDirection(mover, units[1].position - mover.position)) {
+                        outFail = "A stopped unit must resume facing its combat target.";
                         return false;
                     }
-                } else {
-                    commit(mover, 3 + dx, 3 + dz, .25f);
-                }
-                MovementSystem movement(&world, services, combat);
-                for (int tick = 0; tick < 3; ++tick) {
-                    const auto before = mover.position;
-                    movement.update(ecs, .03f);
-                    if (glm::distance(before, mover.position) <= 1e-5f || !facesDirection(mover, mover.position - before)) {
-                        outFail = "A traversing unit faced its enemy instead of its actual motion.";
-                        return false;
-                    }
-                    // Combat runs after movement and can issue either command.
+                    const float yaw = mover.rotation.y;
+                    units[1].position = mover.position + glm::vec3(0, 1, 0);
                     api.faceTarget(mover.id, units[1].id);
-                    api.faceEnemy(mover.id, 3 - 2*dx, 3 - 2*dz);
                     api.flush();
-                    if (!facesDirection(mover, direction)) {
-                        outFail = "Target-facing overrode walking/flying direction.";
+                    if (!std::isfinite(mover.rotation.y) || std::abs(mover.rotation.y - yaw) > .001f) {
+                        outFail = "Pure height changes must not reset horizontal facing.";
                         return false;
                     }
                 }
-                mover.isMoving = false;
-                mover.committedDest = {-1, -1};
-                api.faceTarget(mover.id, units[1].id);
-                api.flush();
-                if (!facesDirection(mover, units[1].position - mover.position)) {
-                    outFail = "A stopped unit must resume facing its combat target.";
-                    return false;
-                }
-                const float yaw = mover.rotation.y;
-                units[1].position = mover.position + glm::vec3(0, 1, 0);
-                api.faceTarget(mover.id, units[1].id);
-                api.flush();
-                if (!std::isfinite(mover.rotation.y) || std::abs(mover.rotation.y - yaw) > .001f) {
-                    outFail = "Pure height changes must not reset horizontal facing.";
-                    return false;
-                }
-            }
         }
     }
 
@@ -353,14 +354,15 @@ bool test_movement_collision_regressions(std::string& outFail) {
     for (bool variedSpeeds : {false, true}) {
         for (float dt : {1.0f / 120.0f, 1.0f / 30.0f, .2f}) {
             GameWorld world(cfg);
-            auto& units = world.getPokemons();
+            auto &units = world.getPokemons();
             const float speeds[] = {1.0f, 1.2f, .9f, 1.2f, 1.1f, 1.3f};
-            for (int row : {6, 1}) for (int col = 1; col <= 6; ++col)
-                units.push_back(makeUnit(cfg, "crowded_lane", row == 6 ? PokemonSide::Player : PokemonSide::Enemy,
-                                         col, row, variedSpeeds ? speeds[col - 1] : 1.0f));
+            for (int row : {6, 1})
+                for (int col = 1; col <= 6; ++col)
+                    units.push_back(makeUnit(cfg, "crowded_lane", row == 6 ? PokemonSide::Player : PokemonSide::Enemy,
+                                             col, row, variedSpeeds ? speeds[col - 1] : 1.0f));
             MovementSystem movement(&world, services, combat);
             movement.update(ecs, 0.0f);
-            for (const auto& unit : units) {
+            for (const auto &unit : units) {
                 const auto cell = world.worldToGrid(unit.position);
                 if (unit.targetMemory.cell != game::arena::Cell{cell.x, cell.y == 6 ? 1 : 6} ||
                     unit.committedDest != glm::ivec2(cell.x, cell.y == 6 ? 5 : 2)) {
@@ -381,10 +383,11 @@ bool test_movement_collision_regressions(std::string& outFail) {
             }
             for (int tick = 0; tick < static_cast<int>(5.0f / dt); ++tick) {
                 std::vector<glm::vec3> before;
-                for (const auto& unit : units) before.push_back(unit.position);
+                for (const auto &unit : units)
+                    before.push_back(unit.position);
                 movement.update(ecs, dt);
                 for (std::size_t i = 0; i < units.size(); ++i) {
-                    const auto& unit = units[i];
+                    const auto &unit = units[i];
                     const float forward = unit.side == PokemonSide::Player ? -1.0f : 1.0f;
                     if ((unit.position.z - before[i].z) * forward < -1e-5f ||
                         (!variedSpeeds && std::abs(unit.position.x - before[i].x) > 1e-5f)) {
@@ -395,7 +398,7 @@ bool test_movement_collision_regressions(std::string& outFail) {
                     }
                 }
             }
-            for (const auto& unit : units) {
+            for (const auto &unit : units) {
                 if (!api.isAdjacentToEnemy(unit.id)) {
                     outFail = "Crowded opening failed to reach melee within five seconds.";
                     return false;
@@ -423,7 +426,8 @@ bool test_movement_collision_regressions(std::string& outFail) {
                         movement.update(ecs, dt);
                         if ((horizontal ? units[0].position.x : units[0].position.z) < beforeA - 0.00001f ||
                             (horizontal ? units[1].position.x : units[1].position.z) > beforeB + 0.00001f) {
-                            outFail = "Head-on approach reversed before meeting."; return false;
+                            outFail = "Head-on approach reversed before meeting.";
+                            return false;
                         }
                         if (glm::distance(units[0].position, units[1].position) < cfg.cellSize - 0.001f) {
                             outFail = "Head-on meeting bypassed physical separation.";
@@ -455,7 +459,7 @@ bool test_movement_collision_regressions(std::string& outFail) {
     // already committed destination before the slow unit reaches its midpoint.
     {
         GameWorld world(cfg);
-        auto& units = world.getPokemons();
+        auto &units = world.getPokemons();
         units.push_back(makeUnit(cfg, "slow", PokemonSide::Player, 1, 1, .25f));
         units.push_back(makeUnit(cfg, "fast", PokemonSide::Player, 1, 3, 2.0f));
         units.push_back(makeUnit(cfg, "target", PokemonSide::Enemy, 5, 2, 0.0f));
@@ -474,7 +478,7 @@ bool test_movement_collision_regressions(std::string& outFail) {
     // even after rounding the moving position to the destination cell.
     {
         GameWorld world(cfg);
-        auto& units = world.getPokemons();
+        auto &units = world.getPokemons();
         units.push_back(makeUnit(cfg, "leader", PokemonSide::Player, 2, 2, .25f));
         units.push_back(makeUnit(cfg, "follower", PokemonSide::Player, 1, 2, 4.0f));
         units.push_back(makeUnit(cfg, "target", PokemonSide::Enemy, 6, 2, 0.0f));
@@ -489,7 +493,7 @@ bool test_movement_collision_regressions(std::string& outFail) {
     // Two occupied flank cells must not be treated as a diagonal shortcut.
     {
         GameWorld world(cfg);
-        auto& units = world.getPokemons();
+        auto &units = world.getPokemons();
         units.push_back(makeUnit(cfg, "runner", PokemonSide::Player, 1, 1));
         units.push_back(makeUnit(cfg, "east_blocker", PokemonSide::Player, 2, 1, 0.0f));
         units.push_back(makeUnit(cfg, "south_blocker", PokemonSide::Player, 1, 2, 0.0f));
@@ -504,7 +508,7 @@ bool test_movement_collision_regressions(std::string& outFail) {
     // Reservations end on arrival, so queuing cannot permanently seal a lane.
     {
         GameWorld world(cfg);
-        auto& units = world.getPokemons();
+        auto &units = world.getPokemons();
         units.push_back(makeUnit(cfg, "leader", PokemonSide::Player, 2, 2));
         units.push_back(makeUnit(cfg, "follower", PokemonSide::Player, 1, 2));
         units.push_back(makeUnit(cfg, "target", PokemonSide::Enemy, 6, 2, 0.0f));
@@ -596,27 +600,28 @@ bool test_movement_collision_regressions(std::string& outFail) {
     }
     // Watch complete multi-unit approaches at different fixed steps and speeds.
     // Check swept separation, not just cell occupancy at the end of a frame.
-    for (float dt : {1.0f/120.0f, 1.0f/30.0f, .2f}) {
+    for (float dt : {1.0f / 120.0f, 1.0f / 30.0f, .2f}) {
         GameWorld world(cfg), reversed(cfg);
-        auto& units = world.getPokemons();
+        auto &units = world.getPokemons();
         for (int row : {0, 1, 6, 7}) {
             for (int col : {0, 2, 4, 6}) {
                 units.push_back(makeUnit(cfg, "crowd", row < 2 ? PokemonSide::Enemy : PokemonSide::Player,
-                                         col, row, .6f+.3f*static_cast<float>((col+row)%5)));
+                                         col, row, .6f + .3f * static_cast<float>((col + row) % 5)));
             }
         }
         reversed.getPokemons() = units;
         std::reverse(reversed.getPokemons().begin(), reversed.getPokemons().end());
         MovementSystem movement(&world, services, combat), reverseMovement(&reversed, services, combat);
         bool approached = false;
-        for (int tick = 0; tick < static_cast<int>(12.0f/dt); ++tick) {
+        for (int tick = 0; tick < static_cast<int>(12.0f / dt); ++tick) {
             std::vector<glm::vec2> before;
-            for (const auto& unit : units) before.emplace_back(unit.position.x, unit.position.z);
+            for (const auto &unit : units)
+                before.emplace_back(unit.position.x, unit.position.z);
             movement.update(ecs, dt);
             reverseMovement.update(ecs, dt);
             for (std::size_t i = 0; i < units.size(); ++i) {
-                const auto& unit = units[i];
-                const auto* otherOrder = reversed.findUnitById(unit.id);
+                const auto &unit = units[i];
+                const auto *otherOrder = reversed.findUnitById(unit.id);
                 if (!otherOrder || glm::distance(unit.position, otherOrder->position) > 1e-5f ||
                     unit.committedDest != otherOrder->committedDest) {
                     outFail = "Movement conflicts depend on unit storage order.";
@@ -629,12 +634,12 @@ bool test_movement_collision_regressions(std::string& outFail) {
                 }
                 approached = approached || glm::distance(now, before[i]) > 1e-5f;
                 for (std::size_t j = 0; j < i; ++j) {
-                    const glm::vec2 relativeStart = before[i]-before[j];
-                    const glm::vec2 relativeEnd = now-glm::vec2(units[j].position.x, units[j].position.z);
-                    const glm::vec2 travel = relativeEnd-relativeStart;
+                    const glm::vec2 relativeStart = before[i] - before[j];
+                    const glm::vec2 relativeEnd = now - glm::vec2(units[j].position.x, units[j].position.z);
+                    const glm::vec2 travel = relativeEnd - relativeStart;
                     const float lengthSq = glm::dot(travel, travel);
-                    const float t = lengthSq > 1e-10f ? std::clamp(-glm::dot(relativeStart, travel)/lengthSq, 0.0f, 1.0f) : 0.0f;
-                    if (glm::length(relativeStart+travel*t) < cfg.cellSize*.68f) {
+                    const float t = lengthSq > 1e-10f ? std::clamp(-glm::dot(relativeStart, travel) / lengthSq, 0.0f, 1.0f) : 0.0f;
+                    if (glm::length(relativeStart + travel * t) < cfg.cellSize * .68f) {
                         outFail = "Units crossed or overlapped during a movement step at tick " + std::to_string(tick);
                         return false;
                     }

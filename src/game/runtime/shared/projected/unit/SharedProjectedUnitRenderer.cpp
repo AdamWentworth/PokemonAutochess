@@ -471,7 +471,7 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
         std::vector<int> eligibleUnitIds;
         eligibleUnitIds.reserve(units.size());
         for (const auto& unit : units) {
-        if (args.gameWorld && !args.gameWorld->isVisibleToPlayer(unit)) continue;
+            if (args.gameWorld && !args.gameWorld->isVisibleToPlayer(unit)) continue;
             if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
             if (!unit.alive && unit.visualScale <= 0.0001f && !unit.captureInProgress) continue;
             eligibleUnitIds.push_back(unit.id);
@@ -487,7 +487,7 @@ void drawProjectedUnits(const Args& args, const std::vector<PokemonInstance>& un
     const std::uint64_t poseCacheFrame = ++g_cachedScenePoseFrameCounter;
     pruneScenePoseCache(poseCacheFrame);
 for (const auto& unit : units) {
-        if (args.gameWorld && !args.gameWorld->isVisibleToPlayer(unit)) continue;
+    if (args.gameWorld && !args.gameWorld->isVisibleToPlayer(unit)) continue;
     if (!unit.alive && !unit.captureInProgress && !unit.fainting) continue;
     if (!unit.alive && unit.visualScale <= 0.0001f && !unit.captureInProgress) continue;
     const glm::vec3 coarseWorldPos =
@@ -612,7 +612,7 @@ for (const auto& unit : units) {
     const float attackPulse = applyProceduralAttackMotion ? pose.attackPulse : 1.0f;
     const float proceduralBobY = applyProceduralLocomotionMotion ? pose.bobY : 0.0f;
     const float proceduralFaintDrop = applyProceduralLocomotionMotion ? pose.faintDrop : 0.0f;
-    const auto* travelVisual = args.gameWorld ? args.gameWorld->teamTravelVisuals().find(unit.id) : nullptr;
+    const auto *travelVisual = args.gameWorld ? args.gameWorld->teamTravelVisuals().find(unit.id) : nullptr;
     const glm::vec3 animatedCenter =
         unit.position + attackOffset +
         (travelVisual ? travelVisual->unitOffset : glm::vec3(0)) +
@@ -651,13 +651,13 @@ for (const auto& unit : units) {
     if (travelVisual) {
         const auto color = travelVisual->sendingOut ? glm::vec3(.75f, .9f, 1.0f) : glm::vec3(1.0f, .08f, .12f);
         if (travelVisual->light > 0.0f) {
-            const glm::vec3 beamEnd = animatedCenter + glm::vec3(0, worldCellSize*.35f*travelVisual->scale, 0);
+            const glm::vec3 beamEnd = animatedCenter + glm::vec3(0, worldCellSize * .35f * travelVisual->scale, 0);
             projectedDebug.appendProjectedLine(travelVisual->ballPosition, beamEnd,
-                color.r, color.g, color.b, travelVisual->light*.3f, 9.0f);
+                                               color.r, color.g, color.b, travelVisual->light * .3f, 9.0f);
             projectedDebug.appendProjectedLine(travelVisual->ballPosition, beamEnd,
-                color.r, color.g, color.b, travelVisual->light, 4.0f);
+                                               color.r, color.g, color.b, travelVisual->light, 4.0f);
             projectedDebug.appendProjectedLine(travelVisual->ballPosition, beamEnd,
-                1.0f, .65f, .65f, travelVisual->light, 1.5f);
+                                               1.0f, .65f, .65f, travelVisual->light, 1.5f);
         }
         if (travelVisual->scale <= .001f) continue;
     }

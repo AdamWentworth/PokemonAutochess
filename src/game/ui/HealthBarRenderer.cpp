@@ -11,18 +11,16 @@ void HealthBarRenderer::init() {
     // Fallback: compile directly (no cache). Prefer init(shaders).
     shader = std::make_shared<Shader>(
         "assets/shaders/ui/healthbar.vert",
-        "assets/shaders/ui/healthbar.frag"
-    );
+        "assets/shaders/ui/healthbar.frag");
 }
 
-void HealthBarRenderer::init(ShaderCache& shaders) {
+void HealthBarRenderer::init(ShaderCache &shaders) {
     shader = shaders.get(
         "assets/shaders/ui/healthbar.vert",
-        "assets/shaders/ui/healthbar.frag"
-    );
+        "assets/shaders/ui/healthbar.frag");
 }
 
-void HealthBarRenderer::setFont(const std::string& fontPath, int fontSize, ShaderCache* shaders) {
+void HealthBarRenderer::setFont(const std::string &fontPath, int fontSize, ShaderCache *shaders) {
     levelFontSize = std::max(8, fontSize);
     levelText = std::make_unique<TextRenderer>(fontPath, levelFontSize, shaders);
 }
@@ -36,17 +34,17 @@ void HealthBarRenderer::ensureRingGeometry() {
     glBindVertexArray(ringVAO);
     glBindBuffer(GL_ARRAY_BUFFER, ringVBO);
     glBufferData(GL_ARRAY_BUFFER, 0, nullptr, GL_DYNAMIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void *)0);
     glEnableVertexAttribArray(0);
     glBindVertexArray(0);
 }
 
-void HealthBarRenderer::renderRingArc(const glm::vec2& center,
+void HealthBarRenderer::renderRingArc(const glm::vec2 &center,
                                       float innerR,
                                       float outerR,
                                       float startRad,
                                       float endRad,
-                                      const glm::vec3& color) {
+                                      const glm::vec3 &color) {
     if (!shader) return;
     ensureRingGeometry();
 
@@ -78,7 +76,7 @@ void HealthBarRenderer::renderRingArc(const glm::vec2& center,
     glBindVertexArray(0);
 }
 
-void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
+void HealthBarRenderer::render(const std::vector<HealthBarData> &healthBars) {
     if (!shader) return;
 
     glDisable(GL_DEPTH_TEST);
@@ -95,13 +93,13 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
     glm::mat4 projection = glm::ortho(0.0f, screenWidth, screenHeight, 0.0f);
     shader->setUniform("u_Projection", projection);
 
-    for (const auto& hb : healthBars) {
+    for (const auto &hb : healthBars) {
         const float cellPx = (hb.cellPx > 0.0f) ? hb.cellPx : 50.0f;
         const float width = cellPx * 0.45f;
-        const float hpH   = cellPx * 0.07f;
-        const float enH   = cellPx * 0.06f;
-        const float yOffset = cellPx * 0.35f;      // top of HP bar
-        const float gap     = cellPx * 0.03f;      // space between HP and Energy bar
+        const float hpH = cellPx * 0.07f;
+        const float enH = cellPx * 0.06f;
+        const float yOffset = cellPx * 0.35f; // top of HP bar
+        const float gap = cellPx * 0.03f;     // space between HP and Energy bar
 
         const float ringOuter = cellPx * 0.155f;
         const float ringInner = cellPx * 0.135f;
@@ -121,12 +119,12 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
         renderQuad();
 
         // Foreground
-        float percent = static_cast<float>(hb.currentHP)/hb.maxHP;
+        float percent = static_cast<float>(hb.currentHP) / hb.maxHP;
         glm::vec3 color = hb.isEnemy ? glm::vec3(1.0f, 0.0f, 0.0f)
                                      : glm::vec3(0.0f, 1.0f, 0.0f);
 
         glm::mat4 modelFg = glm::translate(glm::mat4(1.0f), glm::vec3(pos, 0.0f));
-        modelFg = glm::scale(modelFg, glm::vec3(width*percent, hpH, 1.0f));
+        modelFg = glm::scale(modelFg, glm::vec3(width * percent, hpH, 1.0f));
         shader->setUniform("u_Model", modelFg);
         shader->setUniform("u_Color", color);
         renderQuad();
@@ -144,7 +142,7 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
 
         // Foreground (energy)
         glm::mat4 eFg = glm::translate(glm::mat4(1.0f), glm::vec3(ePos, 0.0f));
-        eFg = glm::scale(eFg, glm::vec3(width*eFrac, enH, 1.0f));
+        eFg = glm::scale(eFg, glm::vec3(width * eFrac, enH, 1.0f));
         shader->setUniform("u_Model", eFg);
         shader->setUniform("u_Color", glm::vec3(0.95f, 0.65f, 0.20f)); // yellow/orange
         renderQuad();
@@ -186,13 +184,13 @@ void HealthBarRenderer::render(const std::vector<HealthBarData>& healthBars) {
 void HealthBarRenderer::renderQuad() {
     static unsigned int VAO = 0, VBO;
     if (VAO == 0) {
-        float vertices[] = {0.0f,0.0f, 1.0f,0.0f, 1.0f,1.0f, 0.0f,1.0f};
+        float vertices[] = {0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f};
         glGenVertexArrays(1, &VAO);
         glGenBuffers(1, &VBO);
         glBindVertexArray(VAO);
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2*sizeof(float), (void*)0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void *)0);
         glEnableVertexAttribArray(0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);

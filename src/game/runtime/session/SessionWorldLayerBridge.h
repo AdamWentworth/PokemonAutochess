@@ -44,8 +44,8 @@ std::string currentStateScriptPath(GameStateManager* stateManager);
 
 struct Context {
     IRenderBackend* renderer = nullptr;
-    GameRuntimeServices* engineServices = nullptr;
-    GameServices* services = nullptr;
+    GameRuntimeServices *engineServices = nullptr;
+    GameServices *services = nullptr;
     GameWorld* gameWorld = nullptr;
     Camera3D* camera = nullptr;
     engine::ecs::World* ecsWorld = nullptr;

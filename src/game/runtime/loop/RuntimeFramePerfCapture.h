@@ -51,7 +51,7 @@ double computeTotalPresentWaitMs(bool rendererHandlesPresentation,
                                  double presentWaitMs);
 
 GameRenderBuildBreakdown finalizeRenderBreakdown(double renderBuildMs,
-                                                   float projectedUnitsMs,
-                                                   const GameRenderBuildBreakdown& rawBreakdown);
+                                                 float projectedUnitsMs,
+                                                 const GameRenderBuildBreakdown &rawBreakdown);
 
 } // namespace game::runtime::frame_perf_capture

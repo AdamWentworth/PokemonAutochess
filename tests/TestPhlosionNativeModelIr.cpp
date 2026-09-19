@@ -618,8 +618,8 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                 return false;
             }
             for (std::size_t i = 0; i < mesh.vertices.size(); ++i) {
-                const auto& before = mesh.vertices[i];
-                const auto& after = declaredMesh.vertices[i];
+                const auto &before = mesh.vertices[i];
+                const auto &after = declaredMesh.vertices[i];
                 if (before.position != after.position || before.normal != after.normal ||
                     before.tangent != after.tangent || before.uv != after.uv ||
                     before.j0 != after.j0 || before.w0 != after.w0) {

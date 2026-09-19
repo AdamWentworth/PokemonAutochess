@@ -17,13 +17,13 @@ struct OpenGlStrings {
     std::string glslVersion;
 };
 
-game::runtime::renderer_activation::Inputs makeActivationInputs(const GameRuntimeServices& services,
-                                                                const IRenderBackend& renderer,
-                                                                const OpenGlStrings& openGlStrings);
+game::runtime::renderer_activation::Inputs makeActivationInputs(const GameRuntimeServices &services,
+                                                                const IRenderBackend &renderer,
+                                                                const OpenGlStrings &openGlStrings);
 
-game::runtime::renderer_activation::Outputs applyAndLog(GameRuntimeServices& services,
-                                                        const game::runtime::renderer_activation::Inputs& inputs,
-                                                        std::ostream& logOut);
+game::runtime::renderer_activation::Outputs applyAndLog(GameRuntimeServices &services,
+                                                        const game::runtime::renderer_activation::Inputs &inputs,
+                                                        std::ostream &logOut);
 
 } // namespace game::runtime::renderer_startup_state
 

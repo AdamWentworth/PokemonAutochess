@@ -143,7 +143,7 @@ void appendFallbackTriangles(const Args& args) {
                 ? mesh->triangleSubmesh[triIdx]
                 : static_cast<std::uint16_t>(0u);
         if (static_cast<std::size_t>(triSubmeshIndex) < prep.submeshVisibilityAlpha.size() &&
-                prep.submeshVisibilityAlpha[triSubmeshIndex] <= 0.0f) continue;
+            prep.submeshVisibilityAlpha[triSubmeshIndex] <= 0.0f) continue;
 
         bool needsLitNormalsForSubmesh = true;
         bool needsTangentsForSubmesh = true;

@@ -22,22 +22,22 @@ class TextRenderer;
 
 class CombatState : public GameState {
 public:
-    CombatState(GameStateManager* manager,
-                GameWorld* world,
-                GameServices& services,
-                const std::string& scriptPath,
-                bool resumeFromSnapshot = false,
-                std::string arenaScriptPath = {});
-    ~CombatState() override;
+  CombatState(GameStateManager *manager,
+              GameWorld *world,
+              GameServices &services,
+              const std::string &scriptPath,
+              bool resumeFromSnapshot = false,
+              std::string arenaScriptPath = {});
+  ~CombatState() override;
 
-    void onEnter() override;
-    void onExit() override;
-    void handleInput(const InputEvent& event) override;
-    void update(float deltaTime) override;
-    void render() override;
-    const std::string& debugScriptPath() const { return loadedScriptPath; }
-    const std::string& arenaScriptPath() const { return arenaScriptPath_; }
-    void configureEditorPreviewPhase(RoundPhase phase);
+  void onEnter() override;
+  void onExit() override;
+  void handleInput(const InputEvent &event) override;
+  void update(float deltaTime) override;
+  void render() override;
+  const std::string &debugScriptPath() const { return loadedScriptPath; }
+  const std::string &arenaScriptPath() const { return arenaScriptPath_; }
+  void configureEditorPreviewPhase(RoundPhase phase);
 
 private:
     bool shouldUseBackendShopUi() const;
