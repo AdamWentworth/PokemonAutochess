@@ -23,6 +23,10 @@ endif()
 option(PAC_ENABLE_WARNINGS "Enable compiler warning flags for project sources" ON)
 option(PAC_WARNINGS_AS_ERRORS "Treat compiler warnings as errors for project sources" ${_pac_werror_default})
 option(PAC_ENABLE_RUNTIME_SMOKE_TESTS "Run short executable startup smoke tests for renderer backends" OFF)
+option(PAC_ENABLE_PRIVATE_ASSET_TESTS
+    "Register tests that require the ignored private source/cooked content corpus" OFF)
+set(PAC_PRIVATE_CONTENT_ROOT "${CMAKE_SOURCE_DIR}" CACHE PATH
+    "Root that private-content test prerequisites are resolved against")
 option(PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG
     "Compile selected render/runtime hotpath files with optimization in Debug"
     ON)
@@ -1199,70 +1203,247 @@ if (BUILD_TESTING)
         message(FATAL_ERROR "Duplicate PAC test names found in ${PAC_TEST_MAIN_FILE}.")
     endif()
 
-    set(PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE TRUE)
-    foreach(required_private_asset IN ITEMS
-        "${CMAKE_SOURCE_DIR}/assets/models/0001_Bulbasaur_SV.phmodel"
-        "${CMAKE_SOURCE_DIR}/assets/meshes/growl_1076_mesh.glb"
-        "${CMAKE_SOURCE_DIR}/assets/shaders"
-        "${CMAKE_SOURCE_DIR}/content/phlosion/scenes/route1.phscene"
-        "${CMAKE_SOURCE_DIR}/content/phlosion/environment/flat-experiment/arena.phscene")
-        if (NOT EXISTS "${required_private_asset}")
-            set(PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE FALSE)
-        endif()
-    endforeach()
+    # ---------------- Explicit private-content test suites ----------------
+    # Hosted CI has no private corpus, so content tests are opt-in. With the
+    # default OFF the source suite is explicit and every omitted test is
+    # enumerated with its declared prerequisites in the coverage manifest.
+    # With -DPAC_ENABLE_PRIVATE_ASSET_TESTS=ON every intended content test is
+    # registered, and configuration fails with the missing identities instead
+    # of silently shrinking coverage. Prerequisites are declared per suite, so
+    # a retired source file cannot gate suites that do not read it.
+    set(PAC_PRIVATE_TEST_SUITES
+        native-model-ir
+        runtime-media-fixtures
+        importer-source-inputs
+        cooked-route1-content
+    )
+    if (WIN32)
+        list(APPEND PAC_PRIVATE_TEST_SUITES private-inventory-tools)
+    endif()
 
-    set(PAC_PRIVATE_ASSET_TEST_NAMES
-        starter_frontend_selection_contract
-        placement_to_combat_headless
-        end_to_end_headless
-        arena_travel_contract
-        arena_round_transition_contract
+    set(PAC_PRIVATE_SUITE_native-model-ir_TESTS
+        content_invariants
+        model_parse_smoke
+        model_asset_smoke
+        animset_roles_smoke
+        animset_roles_prefer_best_idle_match
+        native_starter_motion_sets_preserved
+        animset_model_name_smoke
+        animset_clip_name_smoke
+        native_charmander_family_fire_contract
         ledge_jump_asset_roles
         ledge_jump_rendering
+        placement_to_combat_headless
+        starter_frontend_selection_contract
+        session_legacy_world_view_contract
+        shared_projected_unit_renderer_gastly_tongue_timeline_contract
+        shared_projected_unit_renderer_idle_clip_loop_closure_contract
+        shared_projected_unit_renderer_idle_fixed_step_wrap_contract
+    )
+    # Canonical native model IR: the source-side import products the model,
+    # animation-set and starter-motion contracts decode. These are not cooked
+    # runtime objects.
+    set(PAC_PRIVATE_SUITE_native-model-ir_PREREQUISITES
+        assets/models/0001_Bulbasaur_SV.phmodel
+        assets/models/0004_Charmander_SV.phmodel
+        assets/models/0025_Pikachu_SV.phmodel
+        assets/models/0092_Gastly_ZA.phmodel
+    )
+
+    set(PAC_PRIVATE_SUITE_runtime-media-fixtures_TESTS
+        end_to_end_headless
         ui_image_path_contract
+        ui_card_visuals_contract
+        ui_card_renderer_contract
+        render_prep_unit_visuals_contract
+    )
+    # Backdrop, portrait and card payloads referenced by the headless UI cases.
+    set(PAC_PRIVATE_SUITE_runtime-media-fixtures_PREREQUISITES
+        assets/images/charmander.png
+        assets/images/item_placeholder.png
+        assets/ui/frame_gold.png
+        assets/ui/pokemon/tcg/004.jpg
+        assets/ui/backdrops/oaks_lab_intro_7.png
+        assets/ui/backdrops/oaks_lab_table.png
+    )
+
+    set(PAC_PRIVATE_SUITE_importer-source-inputs_TESTS
+        shared_authored_vfx_preview_mesh_loader_contract
+        render_pipeline_smoke
+    )
+    # Genuine importer/source inputs. The authored GLB and Growl CSV meshes are
+    # legitimate prerequisites for these cases only, because these are the
+    # contracts that parse the source-shaped mesh and shader inputs.
+    set(PAC_PRIVATE_SUITE_importer-source-inputs_PREREQUISITES
+        assets/models/pokeball.glb
+        assets/meshes/growl_1076_mesh.glb
+        assets/meshes/leer_1254_mesh_vsin.csv
+        assets/shaders
+    )
+
+    set(PAC_PRIVATE_SUITE_cooked-route1-content_TESTS
+        content_invariants
         native_charmander_family_fire_contract
+        arena_travel_contract
+        arena_round_transition_contract
         route1_cooked_environment_contract
         route1_arena_pilot_contract
         route1_south_clearing_contract
         route1_north_terraces_contract
-        flat_arena_experiment_contract
         route1_north_entrance_contract
+        flat_arena_experiment_contract
         encounter_grass_rendering
-        render_prep_unit_visuals_contract
-        ui_card_visuals_contract
-        ui_card_renderer_contract
-        content_invariants
-        model_parse_smoke
-        model_asset_smoke
-        session_legacy_world_view_contract
-        animset_roles_smoke
-        animset_roles_prefer_best_idle_match
-        native_starter_motion_sets_preserved
-        render_pipeline_smoke
-        animset_model_name_smoke
-        animset_clip_name_smoke
         shared_projected_unit_renderer_gastly_tongue_timeline_contract
         shared_projected_unit_renderer_idle_clip_loop_closure_contract
         shared_projected_unit_renderer_idle_fixed_step_wrap_contract
-        shared_authored_vfx_preview_mesh_loader_contract
+    )
+    # Cooked runtime content: the schema-2 manifest, the Route 1 PHSC archive,
+    # authored scene patches and the published typed objects the runtime loads
+    # by asset identity.
+    set(PAC_PRIVATE_SUITE_cooked-route1-content_PREREQUISITES
+        content/phlosion/cook_manifest.json
+        content/phlosion/scenes/route1.phscene
+        content/phlosion/environment/arena-pilot/terrain.phpatch
+        content/phlosion/vfx/earthquake-experiment
+        content/phlosion/objects
     )
 
-    if (PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE)
-        message(STATUS "Private asset qualification tests are enabled.")
+    set(PAC_PRIVATE_SUITE_private-inventory-tools_TESTS
+        PAC_Tools.kanto_model_promotions
+    )
+    set(PAC_PRIVATE_SUITE_private-inventory-tools_PREREQUISITES
+        assets/models/0001_Bulbasaur_SV.phmodel
+        content/phlosion/cook_manifest.json
+    )
+
+    function(pac_private_json_string out_var value)
+        string(REPLACE "\\" "\\\\" _escaped "${value}")
+        string(REPLACE "\"" "\\\"" _escaped "${_escaped}")
+        set(${out_var} "\"${_escaped}\"" PARENT_SCOPE)
+    endfunction()
+
+    set(PAC_PRIVATE_ASSET_TEST_NAMES)
+    set(PAC_PRIVATE_DECLARED_TEST_NAMES)
+    set(_pac_suite_json_entries)
+    foreach(suite IN LISTS PAC_PRIVATE_TEST_SUITES)
+        set(_suite_tests ${PAC_PRIVATE_SUITE_${suite}_TESTS})
+        set(_suite_prereqs ${PAC_PRIVATE_SUITE_${suite}_PREREQUISITES})
+        set(_suite_missing)
+        foreach(_prereq IN LISTS _suite_prereqs)
+            if (NOT EXISTS "${PAC_PRIVATE_CONTENT_ROOT}/${_prereq}")
+                list(APPEND _suite_missing "${_prereq}")
+            endif()
+        endforeach()
+        list(LENGTH _suite_missing _suite_missing_count)
+        if (PAC_ENABLE_PRIVATE_ASSET_TESTS)
+            if (_suite_missing_count GREATER 0)
+                string(REPLACE ";" ", " _missing_text "${_suite_missing}")
+                message(FATAL_ERROR
+                    "Private content suite '${suite}' is missing declared inputs under "
+                    "'${PAC_PRIVATE_CONTENT_ROOT}': ${_missing_text}. Restore the private "
+                    "source/cooked corpus, or configure the explicit source suite with "
+                    "-DPAC_ENABLE_PRIVATE_ASSET_TESTS=OFF.")
+            endif()
+            set(_suite_status "enabled")
+            message(STATUS "Private content suite '${suite}' enabled: ${_suite_tests}")
+        else()
+            set(_suite_status "excluded")
+        endif()
+        foreach(_test IN LISTS _suite_tests)
+            if (_test IN_LIST PAC_TEST_NAMES)
+                if (NOT _test IN_LIST PAC_PRIVATE_ASSET_TEST_NAMES)
+                    list(APPEND PAC_PRIVATE_ASSET_TEST_NAMES "${_test}")
+                endif()
+            endif()
+            if (NOT _test IN_LIST PAC_PRIVATE_DECLARED_TEST_NAMES)
+                list(APPEND PAC_PRIVATE_DECLARED_TEST_NAMES "${_test}")
+            endif()
+        endforeach()
+
+        set(_prereq_json "")
+        foreach(_item IN LISTS _suite_prereqs)
+            pac_private_json_string(_quoted "${_item}")
+            if (_prereq_json STREQUAL "")
+                set(_prereq_json "${_quoted}")
+            else()
+                string(APPEND _prereq_json ", ${_quoted}")
+            endif()
+        endforeach()
+        set(_missing_json "")
+        foreach(_item IN LISTS _suite_missing)
+            pac_private_json_string(_quoted "${_item}")
+            if (_missing_json STREQUAL "")
+                set(_missing_json "${_quoted}")
+            else()
+                string(APPEND _missing_json ", ${_quoted}")
+            endif()
+        endforeach()
+        set(_tests_json "")
+        foreach(_item IN LISTS _suite_tests)
+            pac_private_json_string(_quoted "${_item}")
+            if (_tests_json STREQUAL "")
+                set(_tests_json "${_quoted}")
+            else()
+                string(APPEND _tests_json ", ${_quoted}")
+            endif()
+        endforeach()
+        list(APPEND _pac_suite_json_entries
+            "    {\n      \"name\": \"${suite}\",\n      \"status\": \"${_suite_status}\",\n      \"prerequisites\": [${_prereq_json}],\n      \"missing\": [${_missing_json}],\n      \"tests\": [${_tests_json}]\n    }")
+    endforeach()
+
+    # A suite that names a contract tests/TestMain.cpp no longer defines would
+    # silently shrink the content scope, so every declared name must resolve.
+    # PAC_Tools.* contracts are registered separately and run validators.
+    set(_pac_unknown_declared_tests)
+    foreach(_test IN LISTS PAC_PRIVATE_DECLARED_TEST_NAMES)
+        if (_test MATCHES "^PAC_Tools\\.")
+            continue()
+        endif()
+        if (NOT _test IN_LIST PAC_TEST_NAMES)
+            list(APPEND _pac_unknown_declared_tests "${_test}")
+        endif()
+    endforeach()
+    if (_pac_unknown_declared_tests)
+        string(REPLACE ";" ", " _pac_unknown_declared_text "${_pac_unknown_declared_tests}")
+        message(FATAL_ERROR
+            "Private content suites declare contract tests that ${PAC_TEST_MAIN_FILE} "
+            "no longer defines: ${_pac_unknown_declared_text}. Update the "
+            "PAC_PRIVATE_SUITE_*_TESTS lists so the coverage manifest stays honest.")
+    endif()
+    list(LENGTH PAC_PRIVATE_ASSET_TEST_NAMES PAC_PRIVATE_TEST_COUNT)
+    list(LENGTH PAC_PRIVATE_DECLARED_TEST_NAMES PAC_PRIVATE_DECLARED_COUNT)
+    if (PAC_ENABLE_PRIVATE_ASSET_TESTS)
+        set(PAC_PRIVATE_EXCLUDED_COUNT 0)
+    else()
+        set(PAC_PRIVATE_EXCLUDED_COUNT ${PAC_PRIVATE_DECLARED_COUNT})
+    endif()
+    list(LENGTH PAC_PRIVATE_TEST_SUITES PAC_PRIVATE_SUITE_COUNT)
+    if (PAC_ENABLE_PRIVATE_ASSET_TESTS AND PAC_PRIVATE_TEST_COUNT EQUAL 0)
+        message(FATAL_ERROR
+            "PAC_ENABLE_PRIVATE_ASSET_TESTS=ON registered no private content contracts; "
+            "the declared suites no longer match tests/TestMain.cpp.")
+    endif()
+    if (PAC_ENABLE_PRIVATE_ASSET_TESTS)
+        message(STATUS
+            "Private content tests enabled: ${PAC_PRIVATE_DECLARED_COUNT} contract tests in ${PAC_PRIVATE_SUITE_COUNT} suites.")
     else()
         message(STATUS
-            "Private asset qualification tests are omitted because the ignored source/cooked corpus is unavailable.")
+            "Private content tests excluded (source suite): ${PAC_PRIVATE_DECLARED_COUNT} contracts not registered. "
+            "Coverage manifest: ${CMAKE_BINARY_DIR}/ci/coverage-manifest.json")
     endif()
 
     set(PAC_REGISTERED_TEST_NAMES)
     foreach(test_name IN LISTS PAC_TEST_NAMES)
-        if (NOT PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE AND
+        if (NOT PAC_ENABLE_PRIVATE_ASSET_TESTS AND
             test_name IN_LIST PAC_PRIVATE_ASSET_TEST_NAMES)
             continue()
         endif()
         add_test(NAME PAC_Tests.${test_name} COMMAND PAC_Tests --filter ${test_name})
         list(APPEND PAC_REGISTERED_TEST_NAMES "${test_name}")
     endforeach()
+    if (PAC_REGISTERED_TEST_NAMES STREQUAL "")
+        message(FATAL_ERROR "No PAC_Tests contracts were registered for this configuration.")
+    endif()
 
     # Ensure tests run with repo root as working directory so relative config/script paths resolve.
     set(PAC_ALL_TESTS)
@@ -1272,17 +1453,51 @@ if (BUILD_TESTING)
 
     set_tests_properties(${PAC_ALL_TESTS} PROPERTIES
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        ENVIRONMENT "PHLOSION_DATA_ROOT=${CMAKE_SOURCE_DIR};PHLOSION_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets"
+        ENVIRONMENT "PHLOSION_DATA_ROOT=${PAC_PRIVATE_CONTENT_ROOT};PHLOSION_ASSET_ROOT=${PAC_PRIVATE_CONTENT_ROOT}/assets"
         TIMEOUT 120
     )
-    if (PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE)
+    if (PAC_ENABLE_PRIVATE_ASSET_TESTS)
         set(PAC_PRIVATE_ASSET_CTESTS)
         foreach(test_name IN LISTS PAC_PRIVATE_ASSET_TEST_NAMES)
             list(APPEND PAC_PRIVATE_ASSET_CTESTS PAC_Tests.${test_name})
         endforeach()
         set_tests_properties(${PAC_PRIVATE_ASSET_CTESTS} PROPERTIES
-            LABELS private-assets
+            LABELS "private-assets;private-content"
         )
+        # Strict cooked-asset semantics for the suites that exercise the game
+        # and renderer load paths, so a missing cooked PHLO object fails instead
+        # of silently falling back to raw sources. The base data/asset roots are
+        # repeated because setting ENVIRONMENT replaces the whole property.
+        set(_pac_private_base_env
+            "PHLOSION_DATA_ROOT=${PAC_PRIVATE_CONTENT_ROOT};PHLOSION_ASSET_ROOT=${PAC_PRIVATE_CONTENT_ROOT}/assets")
+        set(_pac_private_strict_env
+            "${_pac_private_base_env};PHLOSION_REQUIRE_COOKED_ASSETS=1;PHLOSION_TRACE_ASSET_LOADS=1")
+        # importer-source-inputs deliberately decodes the authored GLB/CSV
+        # sources, so it clears the strict flags and keeps its declared source
+        # semantics even when a strict environment is inherited.
+        set(_pac_private_source_env
+            "${_pac_private_base_env};PHLOSION_REQUIRE_COOKED_ASSETS=0;PHLOSION_TRACE_ASSET_LOADS=0")
+        foreach(suite IN LISTS PAC_PRIVATE_TEST_SUITES)
+            if (suite STREQUAL "private-inventory-tools")
+                continue()
+            endif()
+            set(_pac_suite_ctests)
+            foreach(test_name IN LISTS PAC_PRIVATE_SUITE_${suite}_TESTS)
+                if (test_name IN_LIST PAC_REGISTERED_TEST_NAMES)
+                    list(APPEND _pac_suite_ctests PAC_Tests.${test_name})
+                endif()
+            endforeach()
+            if (NOT _pac_suite_ctests)
+                continue()
+            endif()
+            if (suite STREQUAL "importer-source-inputs")
+                set_tests_properties(${_pac_suite_ctests} PROPERTIES
+                    ENVIRONMENT "${_pac_private_source_env}")
+            else()
+                set_tests_properties(${_pac_suite_ctests} PROPERTIES
+                    ENVIRONMENT "${_pac_private_strict_env}")
+            endif()
+        endforeach()
         set_tests_properties(PAC_Tests.model_parse_smoke PROPERTIES
             TIMEOUT 600
         )
@@ -1296,6 +1511,42 @@ if (BUILD_TESTING)
         )
     endif()
 
+    # Machine-readable coverage manifest consumed by tools/run_ctest_ci.ps1.
+    if (PAC_ENABLE_PRIVATE_ASSET_TESTS)
+        set(_pac_coverage_mode "content")
+    else()
+        set(_pac_coverage_mode "source")
+    endif()
+    list(LENGTH PAC_REGISTERED_TEST_NAMES _pac_registered_count)
+    string(REPLACE ";" ",\n" _pac_suites_json "${_pac_suite_json_entries}")
+    set(_pac_excluded_entries)
+    if (NOT PAC_ENABLE_PRIVATE_ASSET_TESTS)
+    foreach(_test IN LISTS PAC_PRIVATE_DECLARED_TEST_NAMES)
+        set(_member_suites)
+        foreach(suite IN LISTS PAC_PRIVATE_TEST_SUITES)
+            if (_test IN_LIST PAC_PRIVATE_SUITE_${suite}_TESTS)
+                list(APPEND _member_suites "${suite}")
+            endif()
+        endforeach()
+        set(_member_json "")
+        foreach(_member IN LISTS _member_suites)
+            pac_private_json_string(_quoted "${_member}")
+            if (_member_json STREQUAL "")
+                set(_member_json "${_quoted}")
+            else()
+                string(APPEND _member_json ", ${_quoted}")
+            endif()
+        endforeach()
+        list(APPEND _pac_excluded_entries
+            "    {\n      \"name\": \"${_test}\",\n      \"requires_suites\": [${_member_json}],\n      \"reason\": \"PAC_ENABLE_PRIVATE_ASSET_TESTS is OFF (explicit source suite). Enable the private content suite with the restored corpus to register it.\"\n    }")
+    endforeach()
+    endif()
+    string(REPLACE ";" ",\n" _pac_excluded_json "${_pac_excluded_entries}")
+    pac_private_json_string(_pac_root_json "${PAC_PRIVATE_CONTENT_ROOT}")
+    set(PAC_COVERAGE_MANIFEST "${CMAKE_BINARY_DIR}/ci/coverage-manifest.json")
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/ci")
+    file(WRITE "${PAC_COVERAGE_MANIFEST}"
+        "{\n  \"schema\": \"pac-ci-coverage-manifest-v1\",\n  \"mode\": \"${_pac_coverage_mode}\",\n  \"private_content_root\": ${_pac_root_json},\n  \"counts\": {\n    \"registered_contract_tests\": ${_pac_registered_count},\n    \"private_content_tests\": ${PAC_PRIVATE_DECLARED_COUNT},\n    \"excluded_private_tests\": ${PAC_PRIVATE_EXCLUDED_COUNT},\n    \"suites\": ${PAC_PRIVATE_SUITE_COUNT}\n  },\n  \"suites\": [\n${_pac_suites_json}\n  ],\n  \"excluded_tests\": [\n${_pac_excluded_json}\n  ]\n}\n")
     if (WIN32)
         # A native CTest launch inherits PowerShell 7 module paths verbatim.
         # Let Windows PowerShell resolve its own standard modules in each child.
@@ -1306,7 +1557,25 @@ if (BUILD_TESTING)
                 -File ${CMAKE_SOURCE_DIR}/tools/test_ci_workflow.ps1)
         set_tests_properties(PAC_Tools.ci_workflow_contract PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 30
+            TIMEOUT 60
+        )
+
+        add_test(
+            NAME PAC_Tools.ci_coverage_contract
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/test_ci_coverage_contract.ps1)
+        set_tests_properties(PAC_Tools.ci_coverage_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 60
+        )
+
+        add_test(
+            NAME PAC_Tools.private_content_preflight_contract
+            COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
+                -File ${CMAKE_SOURCE_DIR}/tools/test_private_content_preflight.ps1)
+        set_tests_properties(PAC_Tools.private_content_preflight_contract PROPERTIES
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            TIMEOUT 60
         )
 
         add_test(
@@ -1428,15 +1697,15 @@ if (BUILD_TESTING)
             TIMEOUT 30
         )
 
-        if (PAC_PRIVATE_ASSET_QUALIFICATION_AVAILABLE)
+        if (PAC_ENABLE_PRIVATE_ASSET_TESTS)
             add_test(
                 NAME PAC_Tools.kanto_model_promotions
                 COMMAND ${PAC_TEST_POWERSHELL} -NoProfile -ExecutionPolicy Bypass
                     -File ${CMAKE_SOURCE_DIR}/tools/assets/validate_kanto_model_promotions.ps1)
             set_tests_properties(PAC_Tools.kanto_model_promotions PROPERTIES
                 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                TIMEOUT 30
-                LABELS private-assets
+                TIMEOUT 60
+                LABELS "private-assets;private-content"
             )
         endif()
 

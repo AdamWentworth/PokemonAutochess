@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-09-19
+Last updated: 2026-09-20
 
 Goal: catch real regressions while keeping correctness, performance evidence,
 preview tooling, and docs maintenance trustworthy.
@@ -16,6 +16,26 @@ preview tooling, and docs maintenance trustworthy.
 - Native Charmander-family fire-material and Growl shared-path coverage
 - Optional runtime smoke tests when `PAC_ENABLE_RUNTIME_SMOKE_TESTS` is enabled
 - Docs hygiene validation via `tools/check_docs_hygiene.ps1`
+
+### Source and content scopes
+
+CMake separates asset-independent contracts from private-content contracts:
+
+- `-DPAC_ENABLE_PRIVATE_ASSET_TESTS=OFF` (default) configures the explicit
+  source suite. Every omitted private contract is enumerated with its suites and
+  declared prerequisites in `build/ci/coverage-manifest.json`.
+- `-DPAC_ENABLE_PRIVATE_ASSET_TESTS=ON` registers every intended content
+  contract and fails configuration with the exact missing identities instead of
+  silently registering fewer tests.
+- `tools/full_check.ps1` opts into the content suite explicitly and accepts
+  `-SourceScope` for the asset-independent suite, so the local one-command check
+  never depends on presence-based registration.
+
+Hosted CI runs the source scope only. A green hosted run means the
+asset-independent C++ contracts, tooling contracts, docs hygiene, data
+validation and formatting passed; it never claims the private-content suite or
+the three-API GPU qualification. The [CI runbook](CI.md) records the current
+job split and the local supplements.
 
 ## Required Local Validation
 Authored regular/shiny model promotion also follows the
@@ -149,6 +169,26 @@ Character shader ownership changes also run
 - Switch backend preference and restart from the Display menu
 - Confirm no missing material/model regressions and no backend-only crashes
 
+## Content Qualification
+
+`tools/qualify_content.ps1` is the local publish-scope gate for the private
+corpus. It preflights the published bundle (asset catalog hash, promotion
+registry, cook manifest schema and object paths, cooked objects, cooked
+dependencies and authored scene), builds every default target the way the
+hosted build does, runs `PhlosionForge validate` for deep typed-object and
+dependency hash integrity, keeps the promotion and native-payload validators,
+validates the data packs through `PAC_ValidateData`, runs CTest with strict
+cooked assets and render/asset fallback rejection, and records the dirty code
+state, resolved dependency revisions, content identity, selected and excluded
+suites, and per-step logs in
+`debug/ci_qualification/content-qualification-report.json`.
+
+Missing or stale content fails the run early with the exact missing identity,
+and the entrypoint never syncs, cooks or promotes content unless `-SyncDepot`
+plus an explicit `-DepotRoot` is supplied. `-IncludeVisual` adds the three-API
+renderer qualification; `-IncludeEditor` adds the editor workflow check and
+requires an existing paired editor build.
+
 ## Renderer Qualification
 
 Use the aggregate local GPU gate before declaring a renderer checkpoint ready:
@@ -198,6 +238,10 @@ This harness currently:
 - captures deterministic runtime screenshots on `OpenGL`, `Vulkan`, and `D3D12`
 - checks coarse HUD and gameplay board regions for plausible brightness/color
   content instead of relying on pixel-perfect parity
+- preflights the cooked bundle and the display adapters, then rejects render or
+  asset fallback diagnostics in the captured logs; a missing corpus or a
+  software-only adapter is reported as unqualified instead of running to a
+  timeout. `-SkipPreflight` exists only for unusual local diagnostics
 
 Optional one-command local check:
 

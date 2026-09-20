@@ -151,8 +151,12 @@ ctest --test-dir build -C Debug --output-on-failure
 ```
 
 The [test plan](docs/TEST_PLAN.md) separates CPU contracts, private-asset checks,
-editor pairing and native GPU qualification. Hosted CI does not replace the
-three-API visual checks on the local GPU workstation.
+editor pairing and native GPU qualification. Hosted CI is asset-independent and
+runs the explicit source suite; restore the private corpus and run
+`.\tools\qualify_content.ps1` for the content scope. See the
+[CI runbook](docs/CI.md) for the job split and the current infrastructure gaps.
+Hosted CI does not replace the three-API visual checks on the local GPU
+workstation.
 
 The September 19 material-boundary refactor preserved **45 editor captures and
 30 native model regions pixel-for-pixel** against their same-renderer baselines.

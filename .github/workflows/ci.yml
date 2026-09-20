@@ -2,20 +2,76 @@ name: CI
 
 on:
   push:
+    branches:
+      - master
   pull_request:
   workflow_dispatch:
-  schedule:
-    - cron: '0 13 * * *'
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name != 'schedule' }}
+  cancel-in-progress: true
 
 jobs:
-  windows:
+  # Secret-free contract checks. This job runs for every pull request, including
+  # forks and Dependabot, and never reads a repository secret.
+  source-contracts:
+    name: Source contracts
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Script syntax
+        run: powershell -ExecutionPolicy Bypass -File tools/check_script_syntax.ps1
+      - name: Workflow trust and pin contract
+        run: powershell -ExecutionPolicy Bypass -File tools/test_ci_workflow.ps1
+      - name: Coverage manifest contract
+        run: powershell -ExecutionPolicy Bypass -File tools/test_ci_coverage_contract.ps1
+      - name: Content preflight contract
+        run: powershell -ExecutionPolicy Bypass -File tools/test_private_content_preflight.ps1
+      - name: CTest wrapper contract
+        run: powershell -ExecutionPolicy Bypass -File tools/test_ci_ctest_wrapper.ps1
+      - name: Hardware preflight contract
+        run: powershell -ExecutionPolicy Bypass -File tools/test_ci_hardware_preflight.ps1
+      - name: Qualification support contract
+        run: powershell -ExecutionPolicy Bypass -File tools/test_ci_qualification_support.ps1
+      - name: Content qualification entrypoint contract
+        run: powershell -ExecutionPolicy Bypass -File tools/test_qualify_content_entrypoint.ps1
+      - name: Phlosion dependency pin contract
+        run: powershell -ExecutionPolicy Bypass -File tools/test_phlosion_dependency_pins.ps1
+      - name: Catalog and promotion contract
+        run: powershell -ExecutionPolicy Bypass -File tools/assets/test_kanto_model_promotions.ps1
+      - name: Install clang-format
+        run: choco install llvm --no-progress -y
+      - name: Format check
+        env:
+          FORMAT_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: powershell -ExecutionPolicy Bypass -File tools/format_check.ps1
+      - name: Report skipped full-build coverage
+        if: ${{ github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || github.event.pull_request.user.login == 'dependabot[bot]' || github.actor == 'dependabot[bot]') }}
+        shell: pwsh
+        run: |
+          $message = 'Full Windows build, CTest and PAC_ValidateData were skipped: untrusted pull requests (forks and Dependabot) do not receive repository secrets, so the pinned Phlosion VFX dependency cannot be checked out. Only the secret-free source contract checks ran; private-content and GPU qualification remain local.'
+          Write-Host "::warning title=CI coverage incomplete::$message"
+          if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
+            Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '### CI coverage incomplete'
+            Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value $message
+          }
+
+  # Full build, private dependency, and test coverage. Trusted events only:
+  # master push, manual dispatch, and same-repository pull requests that are not
+  # Dependabot. This workflow deliberately has no target-event trigger that
+  # would hand secrets to untrusted forks.
+  windows-build:
+    name: Windows build and tests
+    needs: source-contracts
+    if: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]' && github.actor != 'dependabot[bot]') }}
     runs-on: windows-latest
     timeout-minutes: 45
     env:
@@ -28,6 +84,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Checkout Phlosion VFX
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -45,17 +102,16 @@ jobs:
         run: |
           git clone https://github.com/microsoft/vcpkg "${{ env.VCPKG_ROOT }}"
           git -C "${{ env.VCPKG_ROOT }}" checkout --detach "${{ env.VCPKG_COMMIT }}"
-          & "${{ env.VCPKG_ROOT }}\\bootstrap-vcpkg.bat"
-      - name: Install clang-format
-        run: choco install llvm --no-progress -y
-      - name: Format check
-        env:
-          FORMAT_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-        run: powershell -ExecutionPolicy Bypass -File tools/format_check.ps1
-      - name: Script syntax
-        run: powershell -ExecutionPolicy Bypass -File tools/check_script_syntax.ps1
+          & "${{ env.VCPKG_ROOT }}\bootstrap-vcpkg.bat"
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPHLOSION_VFX_SOURCE_DIR="${{ github.workspace }}/external/PhlosionVFX" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON
+        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPHLOSION_VFX_SOURCE_DIR="${{ github.workspace }}/external/PhlosionVFX" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON -DPAC_ENABLE_PRIVATE_ASSET_TESTS=OFF
+      - name: Report configured scope
+        run: |
+          if (-not (Test-Path -LiteralPath build/ci/coverage-manifest.json -PathType Leaf)) {
+            Write-Host "::error title=Coverage manifest::CMake did not write build/ci/coverage-manifest.json."
+            exit 1
+          }
+          Get-Content -LiteralPath build/ci/coverage-manifest.json -Raw
       - name: Fast arena contracts (no renderer linkage)
         run: |
           cmake --build build --config Debug --target PAC_ArenaLogicTests
@@ -64,53 +120,19 @@ jobs:
       - name: Build
         run: cmake --build build --config Debug
       - name: Test
-        run: powershell -ExecutionPolicy Bypass -File tools/run_ctest_ci.ps1 -BuildDir build -Config Debug
+        run: powershell -ExecutionPolicy Bypass -File tools/run_ctest_ci.ps1 -BuildDir build -Config Debug -ExpectedMode source
       - name: Docs hygiene
         run: powershell -ExecutionPolicy Bypass -File tools/check_docs_hygiene.ps1
       - name: Validate data
         run: cmake --build build --config Debug --target PAC_ValidateData
-
-  windows-runtime-visual-smoke:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-    runs-on: windows-latest
-    timeout-minutes: 30
-    env:
-      VCPKG_ROOT: ${{ github.workspace }}\vcpkg
-      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\vcpkg_cache,readwrite
-      VCPKG_DISABLE_METRICS: 1
-      VCPKG_COMMIT: b7ba15730cadac50ce5092223efc92972c0afc5b
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Checkout Phlosion VFX
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: AdamWentworth/PhlosionVFX
-          ref: 8d169ffac2895cb6ef62cd570d7cfaa9542b1190
-          path: external/PhlosionVFX
-          ssh-key: ${{ secrets.PHLOSION_VFX_DEPLOY_KEY }}
-          persist-credentials: false
-      - name: Cache vcpkg binaries
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ github.workspace }}\vcpkg_cache
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
-      - name: Install vcpkg
-        run: |
-          git clone https://github.com/microsoft/vcpkg "${{ env.VCPKG_ROOT }}"
-          git -C "${{ env.VCPKG_ROOT }}" checkout --detach "${{ env.VCPKG_COMMIT }}"
-          & "${{ env.VCPKG_ROOT }}\\bootstrap-vcpkg.bat"
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPHLOSION_VFX_SOURCE_DIR="${{ github.workspace }}/external/PhlosionVFX" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON
-      - name: Build runtime smoke target
-        run: cmake --build build --config Debug --target PokemonAutochess
-      - name: Runtime visual smoke
-        run: powershell -ExecutionPolicy Bypass -File tools/runtime_visual_smoke.ps1 -BuildDir build -Config Debug -Backends d3d12
-      - name: Upload visual smoke artifacts
+      - name: Upload public CI evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: windows-runtime-visual-smoke-artifacts
+          name: windows-ci-evidence
           path: |
-            debug/runtime_visual_smoke
+            build/ci/coverage-manifest.json
+            build/ci/ctest.log
+            build/ci/ctest-summary.json
+            build/Testing/Temporary/LastTestsFailed.log
           if-no-files-found: warn

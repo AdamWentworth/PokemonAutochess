@@ -11,11 +11,14 @@ if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
 }
 $RepoRoot = [IO.Path]::GetFullPath($RepoRoot)
 
+# --others includes newly added but not yet staged scripts, which a plain
+# ls-files misses; --exclude-standard keeps ignored scratch and build output out
+# of the gate. Without this a brand new script could be pushed unparsed.
 $trackedPowerShell = @(
-    & git -C $RepoRoot ls-files -- '*.ps1' '*.psm1'
+    & git -C $RepoRoot ls-files --cached --others --exclude-standard -- '*.ps1' '*.psm1'
 )
 if ($LASTEXITCODE -ne 0) {
-    throw "Could not enumerate tracked PowerShell files."
+    throw "Could not enumerate PowerShell files."
 }
 
 $parseFailures = [System.Collections.Generic.List[string]]::new()

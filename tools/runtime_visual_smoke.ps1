@@ -8,10 +8,57 @@ param(
     [int]$ScreenshotFrame = 120,
     [double]$FixedFrameDtSeconds = (1.0 / 60.0),
     [int]$AutoQuitSeconds = 8,
-    [int]$WaitTimeoutSeconds = 75
+    [int]$WaitTimeoutSeconds = 75,
+    [string]$RepoRoot = "",
+    [switch]$SkipPreflight
 )
 
 $ErrorActionPreference = "Stop"
+
+Import-Module (Join-Path $PSScriptRoot "ci/ContentPreflight.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "ci/CiCoverage.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "ci/HardwarePreflight.psm1") -Force
+Import-Module (Join-Path $PSScriptRoot "ci/QualificationSupport.psm1") -Force
+
+# PowerShell variable names are case-insensitive, so assigning a local
+# `$repoRoot` would overwrite the `-RepoRoot` parameter and silently ignore a
+# caller override. The parameter is read once into a distinctly named
+# script-scope value that every path and the child working directory use.
+$script:RuntimeSmokeRepoRoot = if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+} else {
+    [IO.Path]::GetFullPath($RepoRoot)
+}
+
+function Assert-VisualSmokePreflight {
+    param([Parameter(Mandatory = $true)] [string]$Root)
+
+    $problems = New-Object 'System.Collections.Generic.List[string]'
+
+    $content = Invoke-PacContentPreflight -RepoRoot $Root
+    if (-not $content.ok) {
+        foreach ($entry in @($content.errors)) { $problems.Add([string]$entry) }
+        foreach ($entry in @($content.missing)) {
+            $problems.Add(("missing cooked runtime path: {0}" -f [string]$entry.path))
+        }
+    }
+
+    # The shared hardware preflight is the single source of truth for what
+    # counts as a real GPU, so the smoke and the qualification entrypoint can
+    # never disagree about a Basic Render Driver session.
+    $hardware = Get-PacHardwareAssessment
+    Write-Host ("[RuntimeSmoke] Video adapters: {0}" -f ($hardware.adapters -join ", "))
+    foreach ($problem in @($hardware.problems)) {
+        $problems.Add(("GPU: {0}" -f [string]$problem))
+    }
+
+    if ($problems.Count -gt 0) {
+        throw (
+            "Runtime visual smoke preflight is unqualified:{0}{1}" -f
+                [Environment]::NewLine,
+                ($problems -join [Environment]::NewLine))
+    }
+}
 
 function Resolve-GameExePath {
     param(
@@ -107,7 +154,14 @@ function Restore-SmokeEnv {
     param([hashtable]$Backup)
 
     foreach ($entry in $Backup.GetEnumerator()) {
-        [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, "Process")
+        # A null or empty backup value means the variable was not set before the
+        # capture. Windows PowerShell removes it when set to null while
+        # PowerShell 7 stores an empty string, so removal is explicit.
+        if ([string]::IsNullOrEmpty($entry.Value)) {
+            Remove-Item -LiteralPath ("Env:" + [string]$entry.Key) -ErrorAction SilentlyContinue
+        } else {
+            [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value, "Process")
+        }
     }
 }
 
@@ -150,13 +204,21 @@ function Invoke-RuntimeCapture {
         Set-SmokeEnvVar -Name "PHLOSION_BACKEND_SCREENSHOT_PATH" -Value $shotPath -Backup $backup
         Set-SmokeEnvVar -Name "PHLOSION_BACKEND_SCREENSHOT_FRAME" -Value "$ScreenshotFrame" -Backup $backup
         Set-SmokeEnvVar -Name "PHLOSION_BACKEND_SCREENSHOT_DEFER" -Value "1" -Backup $backup
+        # Strict cooked-asset semantics for the game process: a missing cooked
+        # PHLO object must fail the capture instead of silently decoding a raw
+        # source mesh. The values are scoped to this capture and restored below.
+        $strictCooked = Get-PacStrictCookedEnvironmentVariable
+        foreach ($strictName in @($strictCooked.Keys)) {
+            Set-SmokeEnvVar -Name $strictName -Value ([string]$strictCooked[$strictName]) -Backup $backup
+        }
 
         if (Test-Path $shotPath) { Remove-Item $shotPath -Force }
         if (Test-Path $stdoutPath) { Remove-Item $stdoutPath -Force }
         if (Test-Path $stderrPath) { Remove-Item $stderrPath -Force }
 
         $process = Start-Process -FilePath $ExePath `
-            -WorkingDirectory (Resolve-Path ".").Path `
+            -WorkingDirectory $script:RuntimeSmokeRepoRoot `
+            -WindowStyle Hidden `
             -RedirectStandardOutput $stdoutPath `
             -RedirectStandardError $stderrPath `
             -PassThru
@@ -164,6 +226,11 @@ function Invoke-RuntimeCapture {
         if (-not $process.WaitForExit($WaitTimeoutSeconds * 1000)) {
             Stop-Process -Id $process.Id -Force
             throw "Runtime visual smoke for backend '$Backend' timed out before screenshot capture."
+        }
+        # A crash or an asset-integrity abort can still write a screenshot, so
+        # the process exit code is part of the smoke result.
+        if ($process.ExitCode -ne 0) {
+            throw "Runtime visual smoke for backend '$Backend' exited with code $($process.ExitCode)."
         }
 
         if (-not (Test-Path $shotPath)) {
@@ -180,6 +247,13 @@ function Invoke-RuntimeCapture {
         }
 
         Write-Host "[RuntimeSmoke][$Backend] $shotLine"
+        $runtimeDiagnostics = @()
+        foreach ($diagnosticPath in @($stdoutPath, $stderrPath)) {
+            if (Test-Path -LiteralPath $diagnosticPath) {
+                $runtimeDiagnostics += @(Get-Content -LiteralPath $diagnosticPath -ErrorAction SilentlyContinue)
+            }
+        }
+        Assert-CiRuntimeOutput -Lines $runtimeDiagnostics -Context ("runtime visual smoke ({0})" -f $Backend)
         return @{
             ScreenshotPath = $shotPath
             StdoutPath = $stdoutPath
@@ -304,10 +378,19 @@ function Assert-RuntimeImageRegion {
     }
 }
 
-$exePath = Resolve-GameExePath -BuildDir $BuildDir -Config $Config
-$repoRoot = (Resolve-Path ".").Path
-$outputDirAbs = Join-Path $repoRoot $OutputDir
-$snapshotAbs = (Resolve-Path $SnapshotPath).Path
+$repoRoot = $script:RuntimeSmokeRepoRoot
+$buildDirAbs = Resolve-PacQualificationPath -RepoRoot $repoRoot -PathValue $BuildDir
+
+if (-not $SkipPreflight) {
+    Write-Host "[RuntimeSmoke] Preflight: cooked content and GPU adapter."
+    Assert-VisualSmokePreflight -Root $repoRoot
+} else {
+    Write-Host "[RuntimeSmoke] Preflight skipped by -SkipPreflight. This diagnostic mode only inspects image captures and must not be reported as a qualification run."
+}
+
+$exePath = Resolve-GameExePath -BuildDir $buildDirAbs -Config $Config
+$outputDirAbs = Resolve-PacQualificationPath -RepoRoot $repoRoot -PathValue $OutputDir
+$snapshotAbs = (Resolve-Path (Resolve-PacQualificationPath -RepoRoot $repoRoot -PathValue $SnapshotPath)).Path
 New-Item -ItemType Directory -Path $outputDirAbs -Force | Out-Null
 
 $selectedResolution = Select-SmokeResolution -SupportedResolutions $SupportedResolutions
@@ -362,4 +445,10 @@ foreach ($backend in $Backends) {
         -MinAvgLuma 0.34
 }
 
-Write-Host "[RuntimeSmoke] PASS"
+if ($SkipPreflight) {
+    # -SkipPreflight only inspects captures; it never proves the cooked bundle
+    # or a real adapter, so it must not print the qualification PASS line.
+    Write-Host "[RuntimeSmoke] DIAGNOSTIC only: preflight was skipped. This run proves nothing about cooked content or GPU readiness and must not be reported as a qualification pass."
+} else {
+    Write-Host "[RuntimeSmoke] PASS"
+}
