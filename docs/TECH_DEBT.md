@@ -2,11 +2,12 @@
 
 Status: Active
 Type: Tracker
-Last updated: 2026-08-20
+Last updated: 2026-09-19
 
 This file stays intentionally short. It tracks strategic debt that still drives
-engineering priority; concrete file-by-file issues live in
-`OUTSTANDING_ISSUES.md`.
+future engineering choices; current constraints live in
+[Outstanding issues](OUTSTANDING_ISSUES.md). These are retained risks, not an
+active feature plan for the repository presentation pass.
 
 ## Strategic Debt
 1. No merge-blocking performance regression gate in CI.
@@ -18,10 +19,10 @@ engineering priority; concrete file-by-file issues live in
      gate and perf smoke remains local-first until we have a self-hosted GPU or
      similarly controlled benchmark runner.
 
-2. Shared projected render/build CPU is still the main steady-state hotspot.
-   - The projected-runtime first pass is complete, but the next biggest wins
-     are still in shared runtime render preparation/submission and better perf
-     verification, not in generic startup work.
+2. Shared projected render/build CPU needs fresh measurement before optimization.
+   - Earlier profiles identified shared render preparation/submission as a
+     significant cost. Reproduce the workload before treating this as the next
+     bottleneck; historical timings are not current performance guarantees.
 
 3. Runtime and renderer coordination still rely on a few broad owner files.
    - `src/game/runtime/session/GameSession.cpp`,
@@ -30,8 +31,9 @@ engineering priority; concrete file-by-file issues live in
      carry more coordination than ideal.
 
 4. Renderer interfaces and backend families are broader than ideal.
-   - `src/engine/render/IRenderBackend.h` and the D3D12/OpenGL mega-files still
-     concentrate too much change risk.
+   - The generic backend interfaces and backend families in Phlosion Engine
+     remain broad maintenance surfaces. They are dependency-owned; the game
+     owns the shared projected presentation adapters.
 
 5. Tooling and documentation still lean on manual discipline in a few places.
    - Preview visuals now have a first automated smoke harness, and local perf

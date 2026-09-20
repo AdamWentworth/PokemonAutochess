@@ -161,8 +161,10 @@ pointer retain support for their original source backup.
 The LGPE cooked environment remains required for materials and prefab geometry.
 
 The Blender viewport is a layout preview; Phlosion is the visual authority.
-Use OpenGL for this pilot. The existing Direct3D material defect also affects
-the original route and remains separate renderer work.
+OpenGL, Vulkan and Direct3D 12 are supported. The earlier OpenGL-only material
+restriction predates the [current material verification](CHARACTER_MATERIALS.md#boundary-verification-2026-09-19).
+That record qualifies its listed scenes and models; new terrain/prop edits still
+require their own applicable visual checks on all three APIs.
 
 ## Current ownership and recovery
 

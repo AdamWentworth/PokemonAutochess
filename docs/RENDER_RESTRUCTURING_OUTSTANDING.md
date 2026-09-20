@@ -1,91 +1,39 @@
-# Render Restructuring Outstanding Work
+# Renderer restructuring candidates
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-03-31
+Last updated: 2026-09-19
 
-This doc tracks the renderer restructuring work that is still outstanding after
-the earlier retained-path and persistent-render-item cleanup. Historical plans
-and Phase 1 design detail stay in `docs/archive/`.
+Renderer restructuring is deferred while repository presentation and ownership
+cleanup are the focus. The [March planning record](archive/2026-03-31-render-restructuring.md)
+is historical. Its D3D12-first sequencing does not override the current
+[three-renderer parity contract](RENDERER_PARITY_CONTRACT.md).
 
-## Current State
-- The repo already has meaningful GPU offloads in the projected model path:
-  - GPU clip skinning
-  - GPU node-global composition
-  - rigid-node GPU transform reuse
-  - persistent projected render-item ownership in
-    `src/game/runtime/shared/projected/core/SharedProjectedRenderItems.*`
-- That means the renderer is no longer at the "make the GPU do anything"
-  stage.
-- The main remaining problem is structural CPU work around per-unit prep,
-  per-batch setup, and backend submission overhead.
+## Existing foundation
 
-## What Phase 1 Already Bought Us
-- Persistent projected render items now exist.
-- Dynamic vs static projected item state is explicit.
-- The world-scene path and shared backend-mesh path can both reuse stable item
-  identity instead of treating every batch as fully transient.
+The projected path already has GPU clip skinning, reusable transforms and retained
+render items. Field and character shader policy now belongs to the game; generic
+rendering and standard PBR belong to Phlosion Engine. Material ownership extraction
+is complete, as recorded in [character materials](CHARACTER_MATERIALS.md#boundary-verification-2026-09-19).
 
-This means the old Phase 1 spec is not redundant history, but most of its
-design is now represented in code rather than active planning.
+## Conditions for future work
 
-## Outstanding Work
+- Capture a fresh Release profile at fixed content, resolution, timing, inking
+  and backend settings before choosing a bottleneck.
+- Consider repeated projected-model preparation, compatible animated submission,
+  draw/descriptor churn and static/dynamic payload residency only where the
+  measured workload justifies a change.
+- Keep generic backend work in Phlosion Engine and game presentation decisions
+  in Pokemon Autochess. Do not reintroduce material-specific engine policy.
+- An implementation may differ between APIs, but accepted behavior must be
+  verified on OpenGL, Vulkan and Direct3D 12, including the editor when affected.
+  A faster result on one API does not excuse missing content on another.
+- GPU-side animation sampling is a possible later investigation, not an active
+  implementation milestone.
 
-### 1. Make the persistent-item path pay off more clearly
-- Keep reducing repeated per-frame projected model prep and queue emission work.
-- Watch:
-  - `projected_model_prep_ms`
-  - `projected_model_geometry_ms`
-  - `render_build_ms`
+## Acceptance
 
-### 2. D3D12-first skinned instancing / shared animated submission
-- This is still the next major restructuring slice.
-- Goal:
-  - batch more animated compatible content together
-  - reduce per-unit submission/state overhead
-  - reduce draw and descriptor churn in dense scenes
-- Watch:
-  - `render_world_indexed_ms`
-  - draw count
-  - D3D12 descriptor-table activity
-  - total `render_build_ms`
-
-### 3. Static vs dynamic skin payload residency
-- Only continue this lane where it helps the measured instancing/submission
-  path.
-- Do not treat it as a standalone win if it does not remove enough upstream CPU
-  structure.
-
-### 4. GPU-side animation sampling
-- Still a possible later phase, not the immediate next step.
-- It should follow the more structural submission/dataflow work rather than
-  replace it.
-
-### 5. OpenGL decision point
-- After the D3D12-first restructuring work proves out, decide what subset is
-  worth porting cleanly to `OpenGL`.
-- Do not force parity-first porting if it blocks a clearly worthwhile D3D12
-  design.
-
-## What Is Not The Right Focus
-- Repeating small cache/container rewrites that do not reduce structural hot
-  work.
-- Forcing `OpenGL` parity on a D3D12-specific restructuring idea before the
-  D3D12 result is clearly proven.
-- Treating every CPU bucket as equally important when the measured wall is
-  still shared projected build/submission work.
-
-## Success Signals
-- Dense-scene `render_build_ms` continues trending down.
-- `projected_model_prep_ms` and `render_world_indexed_ms` move materially, not
-  just noise-level tenths.
-- The renderer submits fewer animated batches for comparable visible content.
-- New restructuring slices reduce CPU structure without breaking the current
-  visual result.
-
-## Historical Context
-- Broad historical plan:
-  - `docs/archive/RENDER_RESTRUCTURING_PLAN.md`
-- Detailed Phase 1 design spec:
-  - `docs/archive/RENDER_PHASE1_PERSISTENT_RENDER_ITEMS_SPEC.md`
-
+Use [the test plan](TEST_PLAN.md) and [renderer qualification](RENDERER_PARITY_CONTRACT.md).
+Require comparable before/after measurements, native expected-content checks and
+cross-backend visual results. Preserve runtime smoothness and report the limits
+of local GPU coverage. No new restructuring is required for the present docs/media pass.

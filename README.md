@@ -56,6 +56,8 @@ separate repositories and verification boundaries.
 
 *Bulbasaur, Charmander and Squirtle battle Pidgey and Rattata on the Blender-authored Route 1 Flat Dirt Experiment, the current editor startup map. Captured in the native Direct3D 12 game.*
 
+[Watch the eight-second combat clip](docs/assets/readme/route1-flat-combat.mp4) · 1080p, 16:9, character inking and performance diagnostics off.
+
 | Bulbasaur | Charmander | Squirtle |
 | --- | --- | --- |
 | [![Bulbasaur in the editor model preview](docs/assets/readme/bulbasaur-material.png)](docs/assets/readme/bulbasaur-material.png) | [![Charmander with its tail flame in the editor model preview](docs/assets/readme/charmander-material.png)](docs/assets/readme/charmander-material.png) | [![Squirtle in the editor model preview](docs/assets/readme/squirtle-material.png)](docs/assets/readme/squirtle-material.png) |

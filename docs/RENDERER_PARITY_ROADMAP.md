@@ -2,11 +2,16 @@
 
 Status: Active
 Type: Roadmap
-Last updated: 2026-08-20
+Last updated: 2026-09-19
 
-This is the current renderer roadmap for the repo. It replaces the older
-"pre-merge D3D12 gate" and generic housework framing with one current parity
-and performance roadmap.
+This records renderer capabilities and conditional future performance work.
+The current maintenance scope is [repository cleanup](REPO_CLEANUP_ROADMAP.md);
+it does not schedule the optimization backlog below. The detailed technical
+checkpoint dates from August 20. The later [September 19 material verification](CHARACTER_MATERIALS.md#boundary-verification-2026-09-19)
+records the game-owned material extraction and its exact coverage.
+
+All three native APIs remain equally supported. Generic backend work belongs
+to Phlosion Engine; Pokemon-specific presentation and material policy belong here.
 
 ## Relationship To The Contract
 - `docs/RENDERER_PARITY_CONTRACT.md` is the hard baseline that all active backends

@@ -2,13 +2,13 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-09-09
+Last updated: 2026-09-19
 
 **Route 1 - North Terraces** (`routes/route1-north-terraces`) is the third
 Blender-authored Route 1 arena. Entrance, South Clearing and North Terraces are
 successive route landmarks, approximately one quarter, halfway and three quarters
 along the route. These are composition landmarks, not measured route distances.
-South Entrance remains the startup map; each arena has an independent source.
+The Flat Dirt Experiment is the editor startup map; each arena has an independent source.
 [North Entrance](BLENDER_NORTH_ENTRANCE.md) completes the sequence nine tiles
 farther north, with an eastern board alignment that includes the source ramp.
 
@@ -16,7 +16,9 @@ farther north, with an eastern board alignment that includes the source ramp.
 
 Open `tools/environment/Preview North Terraces.cmd`, or select **Route 1 - North
 Terraces** in **Scene / location**, then **Planning**, **Battle** or **Grass Test**
-in **Scenario / starting setup**. Use OpenGL for the qualified materials.
+in **Scenario / starting setup**. OpenGL, Vulkan and Direct3D 12 are supported. See
+[the material verification scope](CHARACTER_MATERIALS.md#boundary-verification-2026-09-19);
+new arena edits still need the applicable three-API visual checks.
 The grass test starts allied Bulbasaur in the east grass and enemy Rattata in the
 open. Place Pokemon while stopped, then press Play.
 

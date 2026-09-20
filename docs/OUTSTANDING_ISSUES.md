@@ -1,38 +1,45 @@
-# Outstanding Issues
+# Outstanding issues
 
 Status: Active
 Type: Tracker
-Last updated: 2026-08-20
+Last updated: 2026-09-19
 
-This file tracks concrete maintainability and organization issues that still
-need follow-through. Strategic priority lives in `TECH_DEBT.md`.
+This register separates observed constraints from future engineering candidates.
+The [August issue register](archive/2026-08-20-outstanding-issues.md) preserves
+prior file-level observations and resolved work. Engine and VFX paths in that
+record predate their current repository ownership.
 
-## Active Issues
-Keep this table ordered roughly by current impact so the top rows reflect the
-most urgent repo-level issues first.
+## Current constraints
 
-| Issue | Category | Impact | Current behavior | Recommended owner |
-| --- | --- | --- | --- | --- |
-| Backend mega-files remain high-churn risk | Renderer architecture | High | Shared backend payload types and role interfaces are cleaner, D3D12 world/sprite/debug pipeline creation now live in focused private translation units with a shared compile/cache helper, D3D12 non-instanced world-draw entrypoints now sit outside the heavier internal implementation, and OpenGL world cached-mesh/batch-submission/prewarm helpers are no longer embedded in the main world-draw file, but D3D12/OpenGL renderer families and shared projected runtime modules still absorb many unrelated edits. | Renderer owner |
-| No merge-blocking perf baseline in CI | Process | High | `tools/perf_smoke_guard.ps1` now provides a lightweight local Release smoke suite, covering both the starter-line and a denser planning-state roster snapshot, pins those scripted snapshot states during scoring so the scenes stay stable, auto-selects the largest protected resolution that fits the current display, and `full_check` runs it through a prebuilt-Release path. GitHub-hosted Windows turned out not to be a trustworthy perf threshold environment for this repo, so merge-time perf regressions can still slip through until we have a self-hosted GPU or another controlled benchmark runner. | Perf/CI owner |
-| `src/game/runtime/session/GameSession.cpp` is still a coordination point | Runtime architecture | Medium | Debug snapshot control, world-layer bridge wiring, backend asset/cache ownership, startup runtime argument assembly, inventory coordination, loop callback assembly, frame/render orchestration, shutdown lifecycle teardown, and the final coordinator seam now have dedicated homes. The file is much smaller, but it still owns single-session composition. | Runtime/session owner |
-| Shared projected runtime still spans many helper files | Renderer architecture | Medium | The projected-runtime first pass is complete: backend-mesh rendering, world-scene rendering, trace, batch-state resolution, board/bench cache ownership, capture routing, authored/particle VFX bridges, render-object submission, and graphics-quality handling have dedicated homes. Removing the synthetic Tail Fire bridge, sidecar, and override narrowed the family, but `SharedProjectedUnitRenderer.cpp`, `SharedProjectedUnitBackendMeshTransforms.cpp`, and `SharedProjectedUnitBackendMeshPrep.cpp` still need protection from mixed responsibilities. | Renderer/projected-runtime owner |
-| `src/engine/render/IRenderBackend.h` is still broader than it should be | Renderer architecture | Medium | Shared payload types now live in `RenderBackendTypes.h`, and frame/world/debug concerns now have dedicated role interfaces, but the top-level backend surface is still broad and the backend mega-files still carry most of the real blast radius. | Renderer owner |
-| `src/game/runtime/GameRunner.cpp` is still a coordination point | Runtime architecture | Medium | Window/video presentation, startup window policy, renderer fallback bootstrap, post-renderer startup, SDL event dispatch, steady-state frame execution, frame diagnostics/logging, and relaunch entry all have dedicated homes now, but single-session runtime orchestration still meets in one file. | Runtime/platform owner |
-| Preview and runtime visual smoke are still only partly automated | Tooling | Medium | `tools/vfx_preview_visual_smoke.ps1` covers deterministic `VfxLab` Growl and `PAC_VfxPreviewer` 3D-model screenshot crops locally; `tools/runtime_visual_smoke.ps1` covers coarse starter-line gameplay checks; `tools/render_parity_matrix.ps1` enforces quantitative three-backend parity across static PBR, transparent/VFX, combat, and UI scenes; and `tools/renderer_qualification.ps1` now aggregates backend contracts, native visual/content parity, forced Vulkan direct-path parity, and adapter/driver evidence. GitHub Actions runs a hosted-runner-safe `D3D12` runtime smoke lane on manual/nightly triggers with artifact upload. Preview smoke and the full qualification remain local-only, broader visual correctness still needs selected manual spot checks, perf smoke still needs a controlled local/self-hosted machine, and these lanes are not merge-blocking on PRs. | Preview tooling / VFX owner |
-| Asset-path ambiguity between `assets/textures` / `assets/meshes` and `assets/vfx` | Content organization | Medium | Runtime Growl paths resolve out of canonical runtime folders, but `assets/vfx/` still exists as a tempting alternate landing zone for new effect assets. Native Pokemon material textures belong to PHLO dependencies rather than either loose VFX folder. | VFX/content owner |
-| Logging is still split between `LogBus`, `LogSink`, and direct `std::cout` / `std::cerr` prints | Observability | Medium | Startup/session bootstrap, startup prewarm helpers, `GameBootstrap`, `GamePreload`, `SessionStartupRuntime`, `GameSession` model-cache/shutdown logs, runner loop diagnostics, relaunch handling, shared capture warnings, Growl preview, `VfxPreviewApp` screenshot/warning logs, `Application.cpp`, D3D12 lifecycle startup/screenshot logs, and model-cache debug traces use `LogSink`. Terminal log mode now cycles `Performance -> Growl VFX -> Scratch VFX -> Combat Decision -> Animation Decision`; broader repo logging is still mixed. | Runtime/platform owner |
-| Preview project composition is improved but still concentrated | Tooling architecture | Medium | `src/game/preview/PokemonAutochessVfxPreviewProject.cpp` is smaller and cleaner than before, but it is still the main game-facing preview composition seam. | Preview tooling owner |
-| `src/engine/render/Model.cpp` still relies on an internal `.inl` inclusion seam | Model/render architecture | Low | The step-6 renderer cleanup moved new backend seams to conventional private `*.cpp` files, but `Model.cpp` still contains an older include-driven implementation seam that should be revisited on its own pass instead of being forgotten. | Engine/render owner |
-| Leech Seed preview is projectile-only | VFX preview | Low | `src/game/preview/effects/LeechSeedPreviewEffect.cpp` does not preview the drain/attach phase yet. | Game preview owner |
+| Issue | Current behavior | Owner / next decision |
+| --- | --- | --- |
+| Existing Pidgey editor content guard | `combat-target-focus` fails its `engaged-pidgey` appearance guard on the unchanged `67c519cd` baseline and the HUD update. The captured battlefield pixels are identical; the threshold remains unchanged. | Visual qualification: review the current promoted Pidgey appearance and its dated fixture before claiming this case passes. |
+| Private package required by editor configuration | `PAC_BUILD_EDITOR=ON` fetches and requires PhlosionPackages even though `editor_packages` is empty. The standalone game build avoids this dependency. | Game build setup: separate optional Tile Tools from the editor plugin build. |
+| Full demo and GPU checks require private content | Public source builds and synthetic tests do not provide the displayed Pokemon/arena payloads. | Game content: maintain depot restore and capture instructions. |
+| No controlled GPU performance gate in CI | Local benchmarks and visual matrices exist; hosted Windows is not the representative performance machine. | Verification: evaluate a GPU runner if the project resumes sustained performance work. |
+| Legacy route reconstruction remains live | Original route/reference paths retain source terrain behavior alongside the newer Blender arenas. | Game environments: retire callers only after replacement and reference preservation. |
+| No selected code licence or public release checkpoint | The repository is publicly reviewable, with no packaged playable distribution. | Author decision; review milestone remains deferred. |
 
-## Recently Retired In This Pass
-| Issue | Outcome |
-| --- | --- |
-| Fast housekeeping inventory crashed before emitting findings | Fast and verified cooked-duplicate summaries now share a stable property shape, a synthetic contract covers empty and populated stores, and the real fast inventory completes with zero findings. |
-| `render_model_cache_contract` failing on Growl sparkle UV preservation | The contract now compares cached UVs against the authored source GLB `TEXCOORD_0` data instead of assuming one hardcoded corner orientation, and `tools/full_check.ps1` is green again. |
-| Reusable Growl VFX code depended directly on `game::runtime` mesh/cache/world-batch types | The shared authored-batch runtime now stays neutral inside `src/vfx/`, game translation moved to `src/game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.*`, and `VfxLab` now loads/submits authored VFX assets without `game/runtime/*` headers. |
-| Growl preview loop duplication between `PAC_VfxPreviewer` and `VfxLab` | Collapsed behind `src/vfx/preview/growl/GrowlPreviewController.*`. |
-| Synthetic Charmander-family Tail Fire duplicated native model content | All six regular/shiny family models are protected by a native-material contract. The synthetic emitter, atlas bake/cache, preview bridge, projected sidecar/override, prewarm, config, logger mode, and loose generated atlases were retired. |
-| `GameRunner.cpp` stored startup/window/bootstrap/loop policy inline | The runner now delegates presentation state, startup bootstrap, event pumping, frame execution, diagnostics, and relaunch entry to dedicated runtime helpers, reducing the file from about `900` lines to about `400`. |
-| Runtime/tooling startup diagnostics had no shared logging path | `src/engine/utils/LogSink.*` now covers startup/session bootstrap, startup prewarm helpers, `GameBootstrap`, `GamePreload`, `SessionStartupRuntime`, `GameSession` model-cache/shutdown diagnostics, runner loop diagnostics, relaunch handling, shared capture warnings, Growl preview logging, `VfxPreviewApp` screenshot / warning reporting, `Application.cpp`, D3D12 lifecycle startup/screenshot logs, and model-cache debug traces. |
+## Retained maintenance risks
+
+- GameSession and GameRunner remain composition points. Shared projected model
+  preparation/submission spans many helpers. Additional extraction should follow
+  measured pain, not file size alone.
+- Generic backend interfaces, renderer families and model internals belong to
+  Phlosion Engine. Their future restructuring is tracked with that repository;
+  Pokemon Autochess owns the adapter and gameplay consequences.
+- Logging still uses LogBus, the engine LogSink and direct stream output.
+- Existing loose VFX compatibility paths and content identities require an
+  explicit migration before cleanup; native model materials use cooked resources.
+- VFX preview composition and incomplete effect phases remain prototype work.
+  Reusable implementations belong to Phlosion VFX; game previews remain here.
+
+These risks are not new failing tests or a commitment to implement the historical
+backlog now. Use fresh evidence when choosing a specific follow-up.
+
+## Closed boundary issues
+
+Board/combat UI semantics, game profiling/debug structures and recovered material
+programs now have game ownership. Generic engine and reusable VFX boundaries have
+separate verification. See [project boundaries](PROJECT_BOUNDARIES.md) and the
+[September material verification](CHARACTER_MATERIALS.md#boundary-verification-2026-09-19).

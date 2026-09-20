@@ -131,7 +131,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
             appendText(x, y, text, scale, color);
         };
 
-        if (engineServices) {
+        if (showPerfOverlay && engineServices) {
             const GameFramePerfStats &perf = engineServices->framePerf;
             if (perf.fps > 0.0f) {
                 std::ostringstream perfLine;
@@ -338,6 +338,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
         support::hashString(statusKey, cachedMode);
         support::hashString(statusKey, cachedBackend);
         support::hashString(statusKey, cachedGpuRenderer);
+        support::hashBool(statusKey, showPerfOverlay);
         support::hashInt(statusKey, static_cast<int>(cachedRoundPhase));
         support::hashBool(statusKey, cachedCombatActive);
         support::hashInt(statusKey, cachedPlayerAlive);
@@ -384,7 +385,7 @@ void composeAndSubmit(const ComposeAndSubmitArgs& args) {
                             runtime::ui_status_text::modeLine(cachedMode),
                             std::clamp(1.2f * uiScale, 0.95f, 1.7f),
                             glm::vec3(0.93f, 0.95f, 0.99f));
-            if (services) {
+            if (showPerfOverlay && services) {
                 appendRightText(edgePad + lineStep * 2.2f,
                                 runtime::ui_status_text::backendLine(
                                     cachedBackend,

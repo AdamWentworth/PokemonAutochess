@@ -4,8 +4,9 @@ Status: Active
 Type: Runbook
 Last updated: 2026-09-19
 
-Use `tools/capture_demo_media.py` to produce repeatable Pokemon Autochess media
-for Phlosion/readme demos.
+Use `tools/environment/capture_arena_pilot.ps1` for the current Windows README
+gameplay capture. The older `tools/capture_demo_media.py` workflow below remains
+available for Linux/X11 website scenes.
 
 ## README Branding and Showcase
 
@@ -17,13 +18,14 @@ stored at `docs/assets/readme/autochess-lockup.png`. Keep its aspect ratio,
 transparency and original colors. Use descriptive alt text and check both light
 and dark GitHub themes when changing its presentation.
 
-The four README screenshots were captured on 2026-09-19. They are direct
+The README screenshots and combat clip were captured on 2026-09-19. They are direct
 captures of the game and editor material preview,
 with no painted-over content or generated mockups:
 
 | Tracked image | Capture source | Renderer |
 | --- | --- | --- |
 | `docs/assets/readme/route1-flat-starters.png` | Starter trio battling Pidgey and Rattata on the Flat Dirt Experiment, full game frame | Direct3D 12 |
+| `docs/assets/readme/route1-flat-combat.mp4` | Eight seconds of the same battle, recorded from the game window | Direct3D 12 |
 | `docs/assets/readme/bulbasaur-material.png` | `starter-bulbasaur`, cropped model preview | Direct3D 12 |
 | `docs/assets/readme/charmander-material.png` | `charmander-fire`, cropped model preview | Direct3D 12 |
 | `docs/assets/readme/squirtle-material.png` | `starter-squirtle`, cropped model preview | Direct3D 12 |
@@ -34,7 +36,10 @@ editor startup scene in `phlosion.project.json`, through
 battle with the three starters against Pidgey and Rattata. Its Blender source and exported
 bundle are recorded in `config/environment/route1_flat_experiment.authoring.json`.
 Capture the gameplay frame at 1920 x 1080 (16:9), with character inking explicitly
-disabled through `-VideoCharacterInking 0`. Keep the native frame's aspect ratio.
+disabled through `-VideoCharacterInking 0`. The helper sets
+`PAC_SHOW_PERF_OVERLAY=0`, hiding the FPS bar, frame/build timings and backend/GPU
+label. Normal game status, health bars, team types and battle feed remain visible.
+Keep the native frame's aspect ratio.
 Older Route 1 gameplay fixtures select the legacy layout independently of the
 editor startup setting; do not use them to regenerate this image.
 
@@ -44,8 +49,8 @@ The model previews use the promoted Scarlet/Violet models `0001_Bulbasaur_SV`,
 material harness's content and parity checks on OpenGL, Vulkan and Direct3D 12.
 The earlier engine extraction is documented separately in
 [the material verification record](CHARACTER_MATERIALS.md#boundary-verification-2026-09-19).
-These are staged development scenes with diagnostic overlays, not a finished
-release UI. The linked Phlosion gallery also contains older prototype captures.
+These are staged development scenes with prototype gameplay UI. The linked
+Phlosion gallery also contains older prototype captures.
 
 Regenerate candidates on the Windows GPU workstation with the private asset
 depot restored and a current Release game/editor pair:
@@ -55,10 +60,45 @@ depot restored and a current Release game/editor pair:
 .\tools\check_character_materials.ps1 -Cases starter-bulbasaur,charmander-fire,starter-squirtle -OutputDirectory debug/readme-current-route/materials
 ```
 
-Review the resulting images before copying the selected Direct3D 12 game frame
-and model crops into `docs/assets/readme`. Keep generated captures, videos and
-private runtime payloads out of Git. The committed images are the small,
-deliberate showcase set.
+To record the combat clip, install a Windows FFmpeg build with the
+[`gfxcapture` filter](https://ffmpeg.org/ffmpeg-filters.html#gfxcapture), then run:
+
+```powershell
+.\tools\environment\capture_arena_pilot.ps1 -Backend d3d12 -Snapshot config/debug/readme_route1_flat_starters.json -Frame 1 -Width 1920 -Height 1080 -VideoCharacterInking 0 -VideoSeconds 8 -ShowGameWindow -OutputDirectory debug/readme-flat-combat/video
+```
+
+This briefly shows the game and records only its client surface using Windows
+Graphics Capture. GDI window capture produced black Direct3D frames on the
+qualification workstation. The helper waits for native screenshot readiness,
+caps gameplay at 60 FPS, records silent H.264 at 30 FPS and closes the game after
+capture. The snapshot and fixed simulation step are repeatable; the wall-clock
+video start is not a frame-exact parity reference. Review the clip before publishing.
+
+Review the resulting images and video before copying the selected game frame,
+model crops and MP4 into `docs/assets/readme`. Keep raw capture runs and private
+runtime payloads out of Git. The tracked media is the small, deliberate showcase set.
+
+### Clean HUD verification (2026-09-19)
+
+- `readme-combat` in `config/render_parity_scene_matrix.json`: frame 240 at
+  1920 x 1080 passed image comparisons and expected-content guards on OpenGL,
+  Vulkan and Direct3D 12 with performance diagnostics and inking disabled.
+- Editor `flat-unit-setup` and `flat-game-stats`: both cases passed on all three
+  APIs (six captures). Seven selected HUD, render-route and image-guard CPU
+  contracts passed.
+- Debug and Release editor/plugin pairs built and passed the ABI/source checks
+  after the HUD and capture-helper changes.
+- The selected MP4 is 1920 x 1080, 30 FPS, 240 frames and eight seconds. Sampled
+  frames show combat motion and the full game surface without window chrome.
+- The separate `combat-target-focus` editor case failed its existing Pidgey
+  appearance guard on both the unchanged `67c519cd` baseline and the HUD update;
+  the battlefield crop was pixel-identical. Its threshold was not changed.
+  See [outstanding issues](OUTSTANDING_ISSUES.md). This pass does not requalify
+  every model or editor scenario.
+
+Local evidence is under `debug/reviewer-cleanup/`: `native-off/matrix-report.json`,
+`editor-hud/report.json`, `cpu-tests.log`, `editor-before/`, `editor-off/` and
+`video-gfxcapture/`. These generated records are intentionally untracked.
 
 Technology badges describe the checked-in CMake/vcpkg and Lua configuration;
 the CI badge links to the real workflow. Update versions when those inputs

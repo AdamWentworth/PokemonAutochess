@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-09-09
+Last updated: 2026-09-19
 
 **Route 1 - North Entrance** (`routes/route1-north-entrance`) is the fourth
 independent Route 1 arena, after South Entrance, South Clearing and North
@@ -15,7 +15,9 @@ Open `tools/environment/Preview North Entrance.cmd`, or select **Route 1 - North
 Entrance** in **Scene / location**, then **Planning**, **Battle** or **Grass Test**.
 Place Pokemon while stopped and press Play. The grass fixture starts Bulbasaur
 inside the lower bed and Rattata on the upper terrace. F10 reveals concealed units
-for visual debugging. Use OpenGL for the qualified materials.
+for visual debugging. OpenGL, Vulkan and Direct3D 12 are supported. See
+[the material verification scope](CHARACTER_MATERIALS.md#boundary-verification-2026-09-19);
+new arena edits still need the applicable three-API visual checks.
 
 Open `tools/environment/Open North Entrance in Blender.cmd` to edit:
 

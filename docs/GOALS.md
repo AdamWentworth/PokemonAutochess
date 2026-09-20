@@ -2,11 +2,14 @@
 
 Status: Active
 Type: Goal
-Last updated: 2026-07-22
+Last updated: 2026-09-19
 
 This repository is a portfolio game project. Pokemon Autochess is the first
 client of the separate Phlosion Engine and Phlosion VFX repositories, both of
 which are intended to support more games over time.
+
+The current maintenance scope is [repository cleanup](REPO_CLEANUP_ROADMAP.md).
+The longer-term goals below do not schedule new gameplay or engine work.
 
 ## Primary Goals
 - Keep one shared gameplay presentation path that works in `OpenGL`, `Vulkan`, and `D3D12`.
@@ -17,7 +20,7 @@ which are intended to support more games over time.
   and Phlosion VFX repositories.
 
 ## Reusable VFX + Preview Goals
-- Treat Pokemon Autochess as the first shipped client of a broader reusable VFX
+- Treat Pokemon Autochess as the first game client of a broader reusable VFX
   foundation rather than a one-off effects sandbox.
 - Keep the reusable VFX layer independent enough that the core effect behavior
   could survive replacing or even deleting `src/game/` and be mounted into a
@@ -52,17 +55,17 @@ which are intended to support more games over time.
 - Preview performance: VFX preview tools should stay responsive enough to be
   practical daily tools, even when validating real runtime content.
 
-## LGPE Environment Fidelity Goal
+## Published environment fidelity and authored arenas
 - Render LGPE environments with as much of their source appearance and runtime
   behavior intact as technically possible.
 - Treat original Game Freak files and native runtime captures as the primary
   evidence for geometry, materials, textures, lighting response, shadows,
   vegetation, wind, animation, and placement.
-- Limit environment-content changes to the smallest layout adjustment needed
-  to accommodate the autochess board and its interaction margin.
-- Own a deterministic offline importer for relevant GFPAK, GFBMDL, BNTX,
-  GFBANM, GFBCOL, BNSH, and auxiliary data rather than relying on lossy DAE
-  conversion as the engine data source.
+- Preserve original layouts as reference content while Blender-authored arenas
+  own deliberate game layouts and placements.
+- Consume source-neutral published model/environment packages. Source-game
+  importers and extraction evidence belong to the private research workspace,
+  while maintained Blender arena exporters belong to this game.
 - Keep every intentional layout deviation explicit and machine-readable while
   validating all other presentation against the original files and captured
   behavior.
@@ -70,7 +73,7 @@ which are intended to support more games over time.
   `EXTERNAL_ASSET_RESEARCH.md`.
 
 ## Non-Goals (Current Phase)
-- Adding another renderer backend before Vulkan reaches the project's required fidelity and performance maturity.
+- Adding another renderer backend; OpenGL, Vulkan and Direct3D 12 are the supported set.
 - Chasing generic feature checklists without in-game profiling evidence.
 - Large visual redesign work unrelated to renderer/runtime quality.
 - Letting reusable VFX code drift back into game-specific ownership without a

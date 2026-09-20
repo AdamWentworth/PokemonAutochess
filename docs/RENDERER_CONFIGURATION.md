@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-07-22
+Last updated: 2026-09-19
 
 ## Purpose
 
@@ -28,6 +28,9 @@ For normal play:
   silhouette without replacing the textured model surface.
 - Do not set benchmark or Vulkan feature-disable environment variables in a
   normal launch.
+- `PAC_SHOW_PERF_OVERLAY=0` hides the FPS bar, numeric performance breakdown
+  and backend/GPU diagnostic label. Gameplay round, team and currency status
+  remain visible. Set it to `1` when those diagnostics are needed.
 - Retain the shared 16x anisotropy, linear RGBA16F neutral PMREM, ACES tone
   mapping, and material-map defaults on every backend.
 

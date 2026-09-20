@@ -16,6 +16,41 @@
   },
   "scenes": [
     {
+      "name": "readme-combat",
+      "focus": "widescreen Flat Dirt battle with starter trio, Pidgey and Rattata, gameplay HUD and optional performance diagnostics",
+      "coverage": [
+        "world",
+        "environment",
+        "combat",
+        "ui"
+      ],
+      "snapshotPath": "config/debug/readme_route1_flat_starters.json",
+      "screenshotFrame": 240,
+      "width": 1920,
+      "height": 1080,
+      "contentGuards": [
+        {
+          "name": "visible-battlefield",
+          "x": 0.33,
+          "y": 0.28,
+          "width": 0.33,
+          "height": 0.39,
+          "maximumNearBlackPixelRatio": 0.12,
+          "minimumMidtonePixelRatio": 0.3
+        },
+        {
+          "name": "visible-combatants",
+          "x": 0.42,
+          "y": 0.3,
+          "width": 0.16,
+          "height": 0.2,
+          "maximumNearBlackPixelRatio": 0.15,
+          "minimumMidtonePixelRatio": 0.25,
+          "minimumLuminanceStandardDeviation": 15
+        }
+      ]
+    },
+    {
       "name": "flat-detached-benches",
       "focus": "flat dirt battlefield, separated reserve pads with two Pokemon, grassy route exit and surrounding encounter grass",
       "coverage": [

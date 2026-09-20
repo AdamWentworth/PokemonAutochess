@@ -2,11 +2,11 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-09-09
+Last updated: 2026-09-19
 
 **Route 1 - South Clearing** (`routes/route1-south-clearing`) is a separate
-Blender-authored arena. South Entrance remains the startup map. The imported
-clearing remains **Route 1 - South Clearing (Legacy)** for comparison.
+Blender-authored arena. The Flat Dirt Experiment is the editor startup map.
+The imported clearing is retained by legacy/reference paths outside the current scene catalog.
 The next authored landmark is [North Terraces](BLENDER_NORTH_TERRACES.md), with
 its board nine tiles farther north.
 
@@ -15,7 +15,9 @@ its board nine tiles farther north.
 Open `tools/environment/Preview South Clearing.cmd`, or select **Route 1 - South
 Clearing** in **Scene / location**, then **Planning** or **Battle** in
 **Scenario / starting setup**. Place Pokemon while stopped, then press Play.
-Use OpenGL for the qualified materials.
+OpenGL, Vulkan and Direct3D 12 are supported. See
+[the material verification scope](CHARACTER_MATERIALS.md#boundary-verification-2026-09-19);
+new arena edits still need the applicable three-API visual checks.
 
 Open `tools/environment/Open South Clearing in Blender.cmd` to edit. The Autochess
 panel provides the same tile height, surface and ramp controls as
