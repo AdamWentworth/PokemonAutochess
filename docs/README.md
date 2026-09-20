@@ -1,16 +1,32 @@
-# Docs
+<p align="center">
+  <a href="../README.md"><img src="assets/readme/autochess-lockup.png" alt="Pokemon Autochess" width="420"></a>
+</p>
+
+# Pokemon Autochess Documentation
 
 Status: Active
 Type: Index
-Last updated: 2026-09-13
+Last updated: 2026-09-19
 
 This folder holds the live engineering docs for the repo. Historical or
 superseded plans belong in `docs/archive/`. Live docs stay in `docs/`; their
 role is expressed through metadata rather than deep folder nesting.
 
+## Start Here
+
+- **Build or run the project:** [Development guide](DEVELOPMENT.md).
+- **Review the architecture:** [Game and engine boundaries](PROJECT_BOUNDARIES.md),
+  [editor scene model](EDITOR_SCENE_MODEL.md), and [character materials](CHARACTER_MATERIALS.md).
+- **Check the evidence:** [Test plan](TEST_PLAN.md), [renderer parity contract](RENDERER_PARITY_CONTRACT.md),
+  and [material verification results](CHARACTER_MATERIALS.md#boundary-verification-2026-09-19).
+- **Refresh the showcase:** [README branding and media](DEMO_MEDIA_CAPTURE.md#readme-branding-and-showcase).
+
 ## Active Docs
 | Doc | Type | Purpose |
 | --- | --- | --- |
+| [DEVELOPMENT.md](DEVELOPMENT.md) | `Runbook` | Setup, build targets, editor pairing, debugging, packaging and developer tools. |
+| [PROJECT_BOUNDARIES.md](PROJECT_BOUNDARIES.md) | `Contract` | Ownership of the game, engine, packages, material programs and research tools. |
+| [DEMO_MEDIA_CAPTURE.md](DEMO_MEDIA_CAPTURE.md) | `Runbook` | Branding provenance, selected README images and repeatable screenshot/video capture. |
 | `GOALS.md` | `Goal` | Stable project goals and success criteria. |
 | `REPO_ASSESSMENT.md` | `Assessment` | Living high-level maintainability and repo-health read. |
 | `REPO_CLEANUP_ROADMAP.md` | `Roadmap` | Ranked cleanup plan based on current repo-health findings. |
@@ -35,6 +51,7 @@ role is expressed through metadata rather than deep folder nesting.
 | `RENDER_RESTRUCTURING_OUTSTANDING.md` | `Roadmap` | Remaining deeper renderer restructuring work. |
 | `RENDER_PATH_FILE_MAP.md` | `Reference` | Where runtime render behavior lives in code. |
 | [FIELD_MATERIALS.md](FIELD_MATERIALS.md) | `Reference` | Game-owned field shaders, material profiles, provenance, and verification. |
+| [CHARACTER_MATERIALS.md](CHARACTER_MATERIALS.md) | `Reference` | Character and fire programs, source provenance, engine boundary and renderer verification. |
 | `PERF_DECISIONS.md` | `Reference` | Durable performance lessons and decision rules. |
 | `TEST_PLAN.md` | `Runbook` | Validation protocol for correctness, perf, and tooling. |
 | `TECH_DEBT.md` | `Tracker` | Short strategic debt list. |

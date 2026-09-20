@@ -2,10 +2,55 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-07-08
+Last updated: 2026-09-19
 
 Use `tools/capture_demo_media.py` to produce repeatable Pokemon Autochess media
 for Phlosion/readme demos.
+
+## README Branding and Showcase
+
+The README uses the existing red, gold and ivory Autochess identity from
+[Phlosion](https://phlosion.com/?demo=autochess#demos). Its transparent header
+image is an unchanged copy of the site's
+[Autochess lockup](https://phlosion.com/products/pokemon-autochess/autochess-lockup-transparent.png),
+stored at `docs/assets/readme/autochess-lockup.png`. Keep its aspect ratio,
+transparency and original colors. Use descriptive alt text and check both light
+and dark GitHub themes when changing its presentation.
+
+The three README screenshots were selected from the 2026-09-19 native renderer
+qualification. They are direct captures of the game and editor material preview,
+with no painted-over content or generated mockups:
+
+| Tracked image | Capture source | Renderer |
+| --- | --- | --- |
+| `docs/assets/readme/route1-combat.png` | Native `combat` scene, full game frame | Direct3D 12 |
+| `docs/assets/readme/charmander-material.png` | `charmander-fire`, cropped model preview | Direct3D 12 |
+| `docs/assets/readme/ponyta-material.png` | `ponyta-fire`, cropped model preview | Direct3D 12 |
+
+The surrounding qualification covered OpenGL, Vulkan and Direct3D 12. See
+[the material verification record](CHARACTER_MATERIALS.md#boundary-verification-2026-09-19).
+These are staged development scenes with diagnostic overlays, not a finished
+release UI. The linked Phlosion gallery also contains older prototype captures.
+
+Regenerate candidates on the Windows GPU workstation with the private asset
+depot restored and a current Release game/editor pair:
+
+```powershell
+.\tools\render_parity_matrix.ps1 -Config Release -Cases combat -OutputDir debug/readme-native
+.\tools\check_character_materials.ps1 -Cases charmander-fire,ponyta-fire -OutputDirectory debug/readme-materials
+```
+
+Review the resulting images before copying the selected Direct3D 12 game frame
+and model crops into `docs/assets/readme`. Keep generated captures, videos and
+private runtime payloads out of Git. The committed images are the small,
+deliberate showcase set.
+
+Technology badges describe the checked-in CMake/vcpkg and Lua configuration;
+the CI badge links to the real workflow. Update versions when those inputs
+change. GitHub topics describe the game and its actual stack; the engine remains
+a separate repository.
+
+## Legacy Website Capture Workflow
 
 The screenshot path uses the engine's built-in backend screenshot hook and works
 without desktop screenshot tools. The video path records the X11 game window

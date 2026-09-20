@@ -1,486 +1,187 @@
-# Pokemon Autochess
+<p align="center">
+  <a href="https://phlosion.com/?demo=autochess#demos">
+    <img src="docs/assets/readme/autochess-lockup.png" alt="Pokemon Autochess" width="720">
+  </a>
+</p>
 
-A game prototype for a Pokemon-inspired auto-battler (grid placement -> scripted combat), built on [Phlosion Engine](https://github.com/AdamWentworth/PhlosionEngine).
+<h1 align="center">3D Pokémon Auto-Battler</h1>
 
-This repository owns the game. The reusable engine has an independent history,
-build, tests, and release boundary in the PhlosionEngine repository.
+<p align="center">
+  A C++20 strategy game prototype built on Phlosion Engine.<br>
+  Stage a team, resolve scripted battles, and inspect the same game inside the editor.
+</p>
 
-> This repository is an educational/prototype project; it is not affiliated with Nintendo/Game Freak/The Pokemon Company.
+<p align="center">
+  <a href="https://isocpp.org/"><img src="https://img.shields.io/badge/C%2B%2B-20-00599C?logo=cplusplus&amp;logoColor=white" alt="C++20"></a>
+  <a href="https://www.lua.org/manual/5.4/"><img src="https://img.shields.io/badge/Lua-5.4-2C2D72?logo=lua&amp;logoColor=white" alt="Lua 5.4"></a>
+  <a href="https://wiki.libsdl.org/SDL2/FrontPage"><img src="https://img.shields.io/badge/SDL-2-1E62AD" alt="SDL2"></a>
+  <a href="https://cmake.org/"><img src="https://img.shields.io/badge/CMake-Build-064F8C?logo=cmake&amp;logoColor=white" alt="CMake build"></a>
+  <a href="https://vcpkg.io/"><img src="https://img.shields.io/badge/vcpkg-Dependencies-5C2D91" alt="vcpkg dependencies"></a>
+  <br>
+  <a href="https://www.opengl.org/"><img src="https://img.shields.io/badge/OpenGL-Native-5586A4?logo=opengl&amp;logoColor=white" alt="Native OpenGL"></a>
+  <a href="https://www.vulkan.org/"><img src="https://img.shields.io/badge/Vulkan-Native-AC162C?logo=vulkan&amp;logoColor=white" alt="Native Vulkan"></a>
+  <a href="https://learn.microsoft.com/en-us/windows/win32/direct3d12/direct3d-12-graphics"><img src="https://img.shields.io/badge/Direct3D-12-107C10" alt="Native Direct3D 12"></a>
+</p>
 
----
+<p align="center">
+  <a href="https://github.com/AdamWentworth/PokemonAutochess/actions/workflows/ci.yml"><img src="https://github.com/AdamWentworth/PokemonAutochess/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI status"></a>
+  <img src="https://img.shields.io/badge/Status-Prototype-C49A47" alt="Prototype status">
+</p>
 
-## Current Status
-- Engine core: application loop, windowing, input mapping, system registry
-- Rendering: shared gameplay presentation path with OpenGL, Vulkan, and D3D12 backends, camera, board/grid rendering, model loading plus animation, shader plus resource caches
-- UI: text rendering, cards, health bars, battle feed, boot loading/progress view
-- Gameplay runtime: `GameRuntime` -> `GameSession` (world/state/systems/UI wiring)
-- Game states: placement plus combat
-- Gameplay systems: round, shop, movement, combat, bench/cards, unit interaction
-- VFX: reusable primitives from the sibling Phlosion VFX repository,
-  game-specific bindings under `src/game/vfx/`, and project preview tooling
-- Tests: headless smoke tests, invariants, optional GL smoke draw, and optional runtime smoke for OpenGL/Vulkan/D3D12
-- Data pipeline: JSON configs plus cooker plus packaged content bundle
+<p align="center">
+  <a href="https://phlosion.com/?demo=autochess#demos">Phlosion Showcase</a> &middot;
+  <a href="https://github.com/AdamWentworth/PhlosionEngine">Engine</a> &middot;
+  <a href="docs/DEVELOPMENT.md">Development Guide</a> &middot;
+  <a href="docs/README.md">Documentation</a>
+</p>
 
----
+Pokemon Autochess is a game and runtime-systems portfolio project by
+[Adam Wentworth](https://github.com/AdamWentworth), presented through
+[Phlosion](https://phlosion.com/). It brings together team placement, Lua-driven
+combat, shops and rounds, animated 3D characters, authored environments, and
+repeatable rendering checks.
 
-## Tech Stack
-| Area | Tech |
+**This repository owns the game.** The reusable engine, VFX primitives and
+optional editor packages have separate repositories and verification boundaries.
+
+> [!NOTE]
+> This is an educational game prototype. Balancing, content and the player
+> experience are still evolving. It is not affiliated with Nintendo, Game Freak
+> or The Pokémon Company. Runtime assets are restored from a private depot;
+> cloning the source alone does not provide a playable content bundle.
+
+## Product Preview
+
+[![Pokemon Autochess resolving a scripted encounter in the authored Route 1 environment](docs/assets/readme/route1-combat.png)](docs/assets/readme/route1-combat.png)
+
+*Route 1 combat in the native Direct3D 12 game, with development diagnostics visible.*
+
+| Charmander materials | Ponyta materials |
 | --- | --- |
-| Language | C++20 |
-| Build | CMake, vcpkg manifest |
-| Windowing plus Input | SDL2 |
-| Rendering | OpenGL 3.x, Vulkan, Direct3D 12, glad, GLM |
-| Scripting | Lua, sol2 |
-| Data | nlohmann-json, fastgltf, stb |
+| [![Charmander with its tail flame in the editor model preview](docs/assets/readme/charmander-material.png)](docs/assets/readme/charmander-material.png) | [![Ponyta with its mane and tail fire in the editor model preview](docs/assets/readme/ponyta-material.png)](docs/assets/readme/ponyta-material.png) |
 
----
+These are real game and editor captures from the September 2026 renderer
+qualification. The [Phlosion showcase](https://phlosion.com/?demo=autochess#demos)
+also includes earlier prototype footage. See [media provenance and regeneration](docs/DEMO_MEDIA_CAPTURE.md#readme-branding-and-showcase).
 
-## Repo Layout
-- `src/game/` game runtime, state machine, systems, scripting bindings, game-specific VFX, and game-facing preview adapters
-- `D:\Projects\Phlosion\PhlosionVFX\` reusable VFX effects, runtime bridges, and preview support
-- `scripts/` Lua gameplay logic
-- `assets/` runtime assets
-- `tests/` headless tests and invariants
-- `tools/` offline tools, build scripts, and installer
-- `docs/` active engineering docs plus archived historical plans
+## Highlights
 
----
+- **Scripted auto-battler loop:** placement, movement, combat, rounds, shops,
+  benches and cards, with Lua tuning and C++ runtime services.
+- **Three native graphics APIs:** OpenGL, Vulkan and Direct3D 12 share gameplay
+  presentation requirements and visual/content qualification.
+- **Animated characters and effects:** cooked models, skeletal animation,
+  character materials and layered fire are used by both game and editor previews.
+- **Authored environments:** Blender workflows publish arenas into the cooked
+  Route 1 scene pipeline.
+- **An embedded game preview:** the game-owned editor plugin supplies scene
+  catalogs, inspectors, preview scenarios and gameplay reload inside Phlosion Editor.
+- **Repeatable development:** deterministic snapshots, CPU contracts, data
+  validation, VFX preview tools, screenshot matrices and release tooling.
 
-## Getting Started (Windows)
-Requirements:
-- Visual Studio 2026 Build Tools (project default), or the tested Visual Studio 2022 Build Tools fallback
-- CMake 3.22+ (presets currently expect 4.2)
-- vcpkg installed and `VCPKG_ROOT` set
-- Ninja when using the optional MSVC/Ninja presets
+## Architecture and Ownership
 
-Build with presets:
+| Repository | Responsibility |
+| --- | --- |
+| **PokemonAutochess** | Gameplay, board and combat UI, scene/content policy, editor project plugin, character and field materials |
+| [PhlosionEngine](https://github.com/AdamWentworth/PhlosionEngine) | Application/platform services, generic rendering and UI, resources, animation, standard PBR, editor host |
+| [PhlosionVFX](https://github.com/AdamWentworth/PhlosionVFX) | Reusable effect primitives, runtime bridges and preview support |
+| [PhlosionPackages](https://github.com/AdamWentworth/PhlosionPackages) | Optional reusable editor tooling; private repository, with Tile Tools currently unmounted |
 
-```powershell
-cmake --preset vs2026
-cmake --build --preset debug
-cmake --build --preset release
-```
+`GameRuntime` and `GameSession` wire game states, systems, scripting and
+presentation. The runner and editor plugin share this game runtime. Engine
+backends consume the game's material profile through a generic, versioned
+interface; recovered Pokémon shader behavior stays in this repository.
 
-On a machine with Visual Studio 2022 Build Tools, use:
+See [project boundaries](docs/PROJECT_BOUNDARIES.md),
+[character materials](docs/CHARACTER_MATERIALS.md), and
+[field materials](docs/FIELD_MATERIALS.md).
 
-```powershell
-cmake --preset vs2022
-cmake --build --preset vs2022-debug
-```
+## Technology Stack
 
-For faster command-line iteration, open a Visual Studio Developer PowerShell
-or Developer Command Prompt and use the same MSVC toolchain through Ninja:
-
-```powershell
-cmake --preset ninja-msvc
-cmake --build --preset ninja-debug
-```
-
-Manual configure:
-
-```powershell
-cmake -S . -B build `
-  -G "Visual Studio 18 2026" -A x64 `
-  -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
-
-cmake --build build --config Debug
-```
-
-Notes:
-- Local development uses the Engine, Packages, and VFX checkouts below
-  `PHLOSION_DEV_ROOT`. The standard workspace layout is discovered
-  automatically; set `PHLOSION_DEV_ROOT` when using another layout. If no
-  local Engine, Packages, or VFX checkout is available, CMake fetches the exact commits
-  pinned in `CMakeLists.txt`. Their individual `*_SOURCE_DIR` cache values
-  remain available as explicit overrides.
-- `PhlosionPackages` is private and its default fetch URL uses GitHub SSH.
-  Editor builds require repository access or an existing local package checkout.
-  Set `PAC_BUILD_EDITOR=OFF` for a runtime-only build without this dependency.
-- Runtime payloads under `assets/` and `content/phlosion/` are intentionally
-  untracked. Restore them from the private asset depot with
-  `.\tools\assets\sync_asset_depot.ps1`.
-- Dependencies, including Vulkan headers/loader and the shader compiler, are defined in `vcpkg.json` (manifest mode). A Vulkan-capable display driver is still required at runtime.
-- Ninja is only the build executor; vcpkg remains the dependency manager.
-
----
-
-## Build Targets
-| Target | What It Builds | Command |
+| Layer | Technology | Role |
 | --- | --- | --- |
-| `engine_core` | Phlosion Engine headless core dependency | `cmake --build build --config Debug --target engine_core` |
-| `engine_platform` | Phlosion Engine SDL/window/input dependency | `cmake --build build --config Debug --target engine_platform` |
-| `engine_render` | Phlosion Engine renderer dependency | `cmake --build build --config Debug --target engine_render` |
-| `PAC_GameObjects` | Game runtime library (shared by exe plus tests) | `cmake --build build --config Debug --target PAC_GameObjects` |
-| `PokemonAutochess` | Game executable | `cmake --build build --config Debug --target PokemonAutochess` |
-| `PAC_VfxPreviewer` | Game-facing VFX preview tool | `cmake --build build --config Debug --target PAC_VfxPreviewer` |
-| `VfxLab` | Reusable VFX lab tool | `cmake --build build --config Debug --target VfxLab` |
-| `PokemonAutochessEditorProject` | Generated project adapter loaded by the Engine-owned editor | `cmake --build build --config Debug --target PokemonAutochessEditorProject` |
-| `PhlosionTileTools` | Optional reusable tile-editor package declared by this project | `cmake --build build --config Debug --target PhlosionTileTools` |
-| `PAC_Tests` | Tests executable | `cmake --build build --config Debug --target PAC_Tests` |
-| `PAC_All` | Convenience aggregate (engine plus game plus tests) | `cmake --build build --config Debug --target PAC_All` |
+| Game runtime | C++20, Phlosion Engine | Sessions, state transitions, simulation and presentation |
+| Gameplay scripting | Lua 5.4, sol2 | Combat, shop logic, state flow and tuning |
+| Platform and UI | SDL2, SDL2_ttf, Dear ImGui | Window/input, text and editor interfaces |
+| Graphics | OpenGL, Vulkan, Direct3D 12, GLSL, HLSL, GLM | Native backends, materials, animation and graphics math |
+| Assets and data | PHRC containers, JSON, nlohmann-json, fastgltf, KTX, stb | Cooked resources, configuration and supported import paths |
+| Authoring | Blender, game-owned exporters | Authored arenas and environment publication |
+| Build and verification | CMake, vcpkg, CTest, GitHub Actions, PowerShell, Python | Dependencies, builds, contracts, validation and capture tooling |
 
----
+Versions and dependencies are defined by [CMake](CMakeLists.txt),
+[the presets](CMakePresets.json), and [the vcpkg manifest](vcpkg.json).
 
-## VFX Tools
-```powershell
-.\build\Debug\PAC_VfxPreviewer.exe
-.\build\Debug\VfxLab.exe
-```
+## Quick Start (Windows)
 
-Use `PAC_VfxPreviewer` when the effect needs real board constraints, Pokemon
-models, or attack-animation timing. Use `VfxLab` for reusable VFX that should
-stay isolated from game-specific preview composition.
+Use Visual Studio 2026 Build Tools, CMake 4.2 or newer, and vcpkg with
+`VCPKG_ROOT` configured. Visual Studio 2022 and MSVC/Ninja alternatives are
+in the [development guide](docs/DEVELOPMENT.md#getting-started-windows).
 
----
-
-## Phlosion Editor
-
-The active environment is the Blender-authored **Route 1 south entrance**.
-Use [the Blender workflow](docs/BLENDER_ARENA_PILOT.md) for editing and asset
-recovery, and [Auto Reload](docs/EDITOR_GAMEPLAY_RELOAD.md) for C++ gameplay saves.
-Run `./tools/environment/check_south_entrance.ps1` for its focused build and
-validation command; add `-IncludeBlender -Capture` to qualify authoring and visuals.
-
-The tracked `phlosion.project.json` names this project's cooked content mount,
-scene catalog, startup scene, and generated editor-project adapter. The editor
-does not fall back to loose Game Freak caches. Build and verify the
-Engine-owned editor and game-owned plugin as one pair (the default builds
-Debug, Release, and RelWithDebInfo):
+Build the standalone game target without the optional private editor-package dependency:
 
 ```powershell
-cd D:\Projects\Games\PokemonAutochess
-.\tools\housekeeping\build_editor_pair.ps1
+git clone https://github.com/AdamWentworth/PokemonAutochess.git
+cd PokemonAutochess
+cmake --preset vs2026 -DPAC_BUILD_EDITOR=OFF
+cmake --build --preset release --target PokemonAutochess
 ```
 
-The command never launches a GUI. It checks ABI version, contract size, public
-layout, compiler ABI, configuration, and required callbacks, then records
-artifact hashes and exact source fingerprints. To recheck the current Debug
-pair without building it:
+CMake uses available local Phlosion checkouts or fetches the exact pinned commits.
+The build generates the project's material programs automatically.
+
+Running the game requires the private runtime assets and cooked content. With
+those restored, launch:
 
 ```powershell
-.\tools\housekeeping\build_editor_pair.ps1 -Configuration Debug -VerifyOnly
+.\build\Release\PokemonAutochess.exe
 ```
 
-Cook Route 1 and optional packages separately when their inputs change:
+For engine development and editor use, follow the
+[paired editor/plugin build instructions](docs/DEVELOPMENT.md#phlosion-editor).
+[Asset setup](docs/EXTERNAL_ASSET_RESEARCH.md) and the
+[Blender workflow](docs/BLENDER_ARENA_PILOT.md) explain the content boundaries.
 
-```powershell
-cmake --build --preset debug --target PhlosionForge PhlosionTileTools
-.\build\Debug\PhlosionForge.exe cook-route1
-```
-
-Then start the optimized Engine-owned editor and choose this repository's
-`phlosion.project.json`. Release is the supported interactive-authoring build;
-Debug keeps assertions and unoptimized hot paths for diagnosis and is not
-expected to provide a smooth large-scene viewport:
-
-```powershell
-cd D:\Projects\Phlosion\PhlosionEngine
-.\build\Release\PhlosionEditor.exe D:\Projects\Games\PokemonAutochess\phlosion.project.json
-```
-
-The plugin is written to `.phlosion/editor/<configuration>` and the optional
-Tile Tools module to `.phlosion/packages/<configuration>`; both remain
-untracked. The current Blender workflow does not load Tile Tools. The
-Engine-owned editor provides the project browser, docked
-hierarchy, inspector, asset view, console, remembered multi-monitor placement,
-and camera navigation over the real cooked Route 1 environment. The central
-Viewport has explicit Scene and Game surfaces. Route 1 opens in frozen Edit
-mode; Play, Pause, Step, and Stop drive the active surface.
-
-Game Preview exposes the boot presentation, main menu, Classic or Adventure
-starter selection, and Planning or Battle states for Route 1, Route 1.5,
-Route 22, Route 2, Viridian Forest, and Route 3 in both game modes. The project
-plugin initializes one real game runtime only when Game Preview is first
-selected and renders it inside the editor. Scene editing therefore does not
-pay for Pokemon model and gameplay-VFX prewarming. Further preview selections
-restore or change that already-warm runtime without launching a separate
-window or repeating asset prewarming.
-
-The Scenes panel keeps Route 1, Route 1.5, Route 22, Route 2, Viridian Forest,
-and Route 3 as first-class game scenes. Each scene references a separate
-environment backdrop: Route 1 and Route 1.5 share the cooked Route 1
-environment, while unfinished routes explicitly reference their current
-runtime-generated backdrops. Game previews belong to those scene identities.
-The Inspector reports properties for the selected hierarchy object, scene, or
-asset. The Assets panel catalogs cooked `.phlo`
-prefabs as top-level assets; their mesh, material, animation, skeleton, and
-texture resources remain prefab-owned dependencies. Selecting a Pokemon
-prefab opens a read-only 3D Inspector preview decoded directly from its cooked
-`.phlo`, with orbit/pan/zoom, animation playback, material and texture
-isolation, wireframe, and skeleton diagnostics. Composite is the gameplay
-material render; Raw base-color map shows the stored texture, while Resolved
-albedo applies authored color factors without lighting. The remaining material
-views are diagnostic channels rather than alternate gameplay styles. Review
-Lighting is independent from Graphics Quality: Neutral Studio is the default
-soft import-review rig, Source Bridge preserves the current recovered renderer
-path, Albedo-biased prioritizes authored color while retaining limited material
-response, and Grazing Check emphasizes surface breakup. These Inspector-only
-rigs do not alter gameplay lighting or claim to reproduce SV's missing scene
-environment payloads.
-
-See [docs/EDITOR_SCENE_MODEL.md](docs/EDITOR_SCENE_MODEL.md) for the project
-scene and runtime-state semantics, and
-[docs/PROJECT_BOUNDARIES.md](docs/PROJECT_BOUNDARIES.md) for the enforced
-ownership split.
-
----
-
-## Run
-```powershell
-.\build\Debug\PokemonAutochess.exe
-```
-
-Select Vulkan for a one-off launch without changing the saved Display setting:
-
-```powershell
-$env:PAC_RENDER_BACKEND = "vulkan"
-.\build\Debug\PokemonAutochess.exe
-```
-
-The Display menu can also save Vulkan as the backend for the next launch. See
-`docs/VULKAN_BACKEND.md` for its current feature and optimization scope, and
-`docs/RENDERER_CONFIGURATION.md` for preferred runtime and benchmark settings.
-
-When running from `dist/Release` during development, sync runtime content first so `config/` changes are reflected:
-
-```powershell
-.\tools\sync_runtime_content.ps1 -OutDir dist/Release -Folders config
-```
-
----
-
-## Debug State Snapshots
-Use the debug snapshot hotkeys during gameplay:
-
-- `F5` saves the current debug state snapshot
-- `F9` loads the current debug state snapshot
-
-By default the snapshot is written to:
-
-```text
-data/config/user/debug_state_snapshot.json
-```
-
-Override the snapshot path with:
-
-```powershell
-$env:PAC_DEBUG_STATE_PATH="C:\path\to\debug_state_snapshot.json"
-```
-
-Auto-load that snapshot on startup with:
-
-```powershell
-$env:PAC_AUTO_LOAD_DEBUG_SNAPSHOT="1"
-```
-
-This is useful for automated benchmark runs that need to start from a fixed
-gameplay scene without manual menu input.
-
----
-
-## Tests
-Build and run the test executable:
+## Verification
 
 ```powershell
 cmake --build build --config Debug --target PAC_Tests
-.\build\Debug\PAC_Tests.exe
-```
-
-Run tests via CTest:
-
-```powershell
 ctest --test-dir build -C Debug --output-on-failure
+.\tools\check_docs_hygiene.ps1
 ```
 
-Optional GL smoke test (real model draw):
+The [test plan](docs/TEST_PLAN.md) separates CPU contracts, private-asset checks,
+editor pairing and native GPU qualification. Hosted CI does not replace the
+three-API visual checks on the local GPU workstation.
 
-```powershell
-$env:PAC_TEST_GL=1
-ctest --test-dir build -C Debug --output-on-failure -R render_pipeline_smoke
+The September 19 material-boundary refactor preserved **45 editor captures and
+30 native model regions pixel-for-pixel** against their same-renderer baselines.
+The verification record also covers Vulkan direct submission, standalone engine
+defaults and benchmark limitations. See [the recorded results](docs/CHARACTER_MATERIALS.md#boundary-verification-2026-09-19).
+
+## Repository Map
+
+```text
+src/game/         Game runtime, UI, editor plugin and material programs
+scripts/          Lua gameplay logic and configuration hooks
+config/           Game data, project profiles and verification matrices
+tests/            Game contracts, invariants and material checks
+tools/            Authoring, cooking, builds, diagnostics and capture tools
+docs/             Architecture, runbooks and selected showcase media
+assets/           Private runtime payloads; restored separately
+content/phlosion/ Private cooked content; restored separately
+.phlosion/        Generated editor plugins and material programs
 ```
 
-Optional override for the model used in GL smoke:
+## Documentation
 
-```powershell
-$env:PAC_TEST_GL=1
-$env:PAC_TEST_MODEL="models/0004_Charmander.glb"
-ctest --test-dir build -C Debug --output-on-failure -R render_pipeline_smoke
-```
-
-Run the complete local GPU qualification for OpenGL, Vulkan, and D3D12:
-
-```powershell
-.\tools\renderer_qualification.ps1 -BuildDir build -Config Release
-```
-
-This records adapter/driver metadata, validates the shared backend contract,
-runs the native visual/content matrix, and reruns that matrix through Vulkan's
-forced direct compatibility path. See `docs/TEST_PLAN.md` for report details.
-
-CI runs build plus tests plus data validation on Windows.
-
-## Demo Media Capture
-Automated screenshot and video capture for Phlosion/readme demos lives in:
-
-```bash
-./tools/capture_demo_media.py screenshots
-./tools/capture_demo_media.py videos
-```
-
-See `docs/DEMO_MEDIA_CAPTURE.md` for scene names, GPU-machine video settings,
-and dependency notes.
-
----
-
-## Data Pack (Release)
-```powershell
-cmake --build build --config Release --target PokemonAutochess
-cmake --build build --config Release --target PAC_ValidateData
-cmake --build build --config Release --target PAC_PackData
-```
-
-Or bundle everything with one command:
-
-```powershell
-.\tools\release_bundle.ps1
-```
-
-Installer script (Inno Setup):
-- `tools/PokemonAutochessInstaller.iss`
-
-Build installer (headless):
-
-```powershell
-.\tools\build_installer.ps1 -Bundle
-```
-
-One-command release plus installer (clean Windows clone) requirements:
-- Visual Studio 2026 or newer
-- CMake 3.22+ (presets currently expect 4.2)
-- vcpkg installed and `VCPKG_ROOT` set
-- Inno Setup 6 (provides `ISCC.exe`)
-
-```powershell
-$env:VCPKG_ROOT="C:\path\to\vcpkg"
-.\tools\build_installer.ps1 -Bundle
-```
-
-Notes:
-- The installer is written to `dist/installer/PokemonAutochessSetup.exe`.
-- If `ISCC.exe` is not on PATH, pass `-ISCCPath "C:\Path\To\ISCC.exe"`.
-
-Ship these artifacts:
-- `PokemonAutochess.exe`
-- `content_pak/content.pak`
-- `assets/`
-- `config/`
-- `scripts/`
-- Required runtime DLLs from your build environment
-
----
-
-## Gameplay Prototype
-Flow (current shape):
-1. Placement phase (starter/unit placement on grid)
-2. Combat phase (movement plus combat systems; combat logic driven by Lua)
-3. Round/shop systems integrate with the session loop (UI plus events)
-
-Systems present in code:
-- Round system
-- Shop system (Lua-driven roll/price hooks)
-- Movement plus combat systems
-- Bench/cards systems and UI support (cards, battle feed, health bars)
-
-The exact balancing/content is prototype-level and expected to change.
-
----
-
-## Lua Scripting
-Lua is used for gameplay logic and is bound host-side via sol2.
-
-Notable scripts:
-- `scripts/systems/combat.lua` for combat timing and tuning hooks
-- `scripts/systems/card_shop.lua` for classic shop roll logic and UI/debug events
-- `scripts/states/` for state flow and phase transitions
-
-Tuning:
-- `scripts/config/combat_tuning.lua` can override combat timing and speed
-
----
-
-## Assets and Model Pipeline
-- Runtime assets live under `assets/`.
-- Canonical runtime mesh assets belong under `assets/meshes/`.
-- Canonical runtime texture assets belong under `assets/textures/`.
-- `assets/vfx/` is for reusable/reference VFX assets, not the default runtime
-  landing zone once a mesh or texture path is referenced directly by code or
-  config.
-- General models and animations can be ingested via glTF (`fastgltf`). The
-  Scarlet-native Pokemon path uses inspectable `.phmodel` import evidence and
-  never converts its qualified species through GLB/GLTF.
-- Runtime and Inspector model loading use cooked `.phlo` objects and their
-  typed `.phmesh`, `.phskel`, `.phanim`, and `.phmat` dependencies.
-- Per-model animation sets are defined in `assets/models/*.animset.json`.
-
-Expect this pipeline to evolve as additional models and animations are added.
-
----
-
-## Debugging and Combat Trace Gating
-Tracing is controlled by environment variables (see `src/game/logging/DebugTrace.h`).
-
-- `PAC_TRACE_ALL=1` enables all combat traces.
-- `PAC_TRACE_COMBAT="unit:move,unit2:move2"` enables selective traces.
-- Token format is `unit:move` and either side may be `*`.
-- A token without `:` is treated as `unit:*`.
-
-Examples:
-- `PAC_TRACE_COMBAT="bulbasaur:vine_whip"`
-- `PAC_TRACE_COMBAT="*:vine_whip"`
-- `PAC_TRACE_COMBAT="bulbasaur:*"`
-- `PAC_TRACE_COMBAT="*:*,pikachu:thunder_shock"`
-
----
-
-## Roadmap (Suggested)
-Near-term:
-- Keep steady-state renderer work focused on shared runtime frame cost (`docs/RENDERER_PARITY_ROADMAP.md`)
-- Improve renderer instrumentation (CPU build/submit/present plus GPU frame timing)
-- Reduce heavy combat render cost on target laptop hardware
-- Remove user-visible first-use stalls without hurting runtime performance
-- Increase test coverage for scripting and config ingestion
-
-Longer-term:
-- Move the existing benchmark and screenshot-parity matrices onto a
-  representative self-hosted performance/GPU runner
-- More polished UI and effects pass
-- More complete auto-battler loop (economy, drafting, synergies)
-
----
-
-## Build Flags and Options
-CMake options:
-- `PAC_VERBOSE_STARTUP` enables verbose startup/model-load logging
-- `PAC_BUILD_TOOLS` toggles developer tools like the data cooker
-- `PAC_ENABLE_WARNINGS` enables project warning flags (`/W4` on MSVC, `-Wall -Wextra -Wpedantic` otherwise)
-- `PAC_WARNINGS_AS_ERRORS` upgrades warnings to errors (`/WX` or `-Werror`)
-  - Defaults to `ON` in CI when the `CI` environment variable is present/non-zero
-
-Example:
-
-```powershell
-cmake --preset vs2026 -DPAC_VERBOSE_STARTUP=ON
-```
-
-Strict local quality gate example:
-
-```powershell
-cmake --preset vs2026 -DPAC_WARNINGS_AS_ERRORS=ON
-cmake --build --preset debug --target PAC_Tests
-```
-
----
-
-## Notes
-- Windows-first development today; Ubuntu support is a possible future goal.
-- See `docs/` for internal quality notes and test plans.
+- [Development guide](docs/DEVELOPMENT.md): build targets, editor setup, snapshots,
+  VFX tools, debugging and packaging.
+- [Project boundaries](docs/PROJECT_BOUNDARIES.md): game, engine, package and
+  research ownership.
+- [Editor scene model](docs/EDITOR_SCENE_MODEL.md): authored scenes and game preview.
+- [Renderer configuration](docs/RENDERER_CONFIGURATION.md) and
+  [parity contract](docs/RENDERER_PARITY_CONTRACT.md): supported APIs and verification rules.
+- [Character materials](docs/CHARACTER_MATERIALS.md) and
+  [field materials](docs/FIELD_MATERIALS.md): project-owned programs and provenance.
+- [Documentation index](docs/README.md): the full set of active engineering references.
