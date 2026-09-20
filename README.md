@@ -52,11 +52,9 @@ separate repositories and verification boundaries.
 
 ## Product Preview
 
-[![Bulbasaur, Charmander and Squirtle battling Pidgey and Rattata on the Blender-authored Route 1 Flat Dirt Experiment](docs/assets/readme/route1-flat-starters.png)](docs/assets/readme/route1-flat-starters.png)
+[![Animated gameplay: Bulbasaur, Charmander and Squirtle battling Pidgey and Rattata on the Blender-authored Route 1 Flat Dirt Experiment](docs/assets/readme/route1-flat-combat.gif)](docs/assets/readme/route1-flat-starters.png)
 
-*Bulbasaur, Charmander and Squirtle battle Pidgey and Rattata on the Blender-authored Route 1 Flat Dirt Experiment, the current editor startup map. Captured in the native Direct3D 12 game.*
-
-[Download the eight-second combat clip (MP4)](https://raw.githubusercontent.com/AdamWentworth/PokemonAutochess/master/docs/assets/readme/route1-flat-combat.mp4) · 1080p, 16:9, character inking and performance diagnostics off.
+*Bulbasaur, Charmander and Squirtle battle Pidgey and Rattata on the Blender-authored Route 1 Flat Dirt Experiment, the current editor startup map. Eight seconds captured in the native Direct3D 12 game, with character inking and performance diagnostics off. Click the preview for a full-resolution still.*
 
 | Bulbasaur | Charmander | Squirtle |
 | --- | --- | --- |

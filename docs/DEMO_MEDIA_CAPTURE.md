@@ -24,8 +24,8 @@ with no painted-over content or generated mockups:
 
 | Tracked image | Capture source | Renderer |
 | --- | --- | --- |
-| `docs/assets/readme/route1-flat-starters.png` | Starter trio battling Pidgey and Rattata on the Flat Dirt Experiment, full game frame | Direct3D 12 |
-| `docs/assets/readme/route1-flat-combat.mp4` | Eight seconds of the same battle, recorded from the game window | Direct3D 12 |
+| `docs/assets/readme/route1-flat-combat.gif` | Inline eight-second gameplay loop, converted from the recorded game window | Direct3D 12 |
+| `docs/assets/readme/route1-flat-starters.png` | Full-resolution still linked from the animated preview; starter trio battling Pidgey and Rattata on the Flat Dirt Experiment | Direct3D 12 |
 | `docs/assets/readme/bulbasaur-material.png` | `starter-bulbasaur`, cropped model preview | Direct3D 12 |
 | `docs/assets/readme/charmander-material.png` | `charmander-fire`, cropped model preview | Direct3D 12 |
 | `docs/assets/readme/squirtle-material.png` | `starter-squirtle`, cropped model preview | Direct3D 12 |
@@ -74,11 +74,21 @@ caps gameplay at 60 FPS, records silent H.264 at 30 FPS and closes the game afte
 capture. The snapshot and fixed simulation step are repeatable; the wall-clock
 video start is not a frame-exact parity reference. Review the clip before publishing.
 
-Review the resulting images and video before copying the selected game frame,
-model crops and MP4 into `docs/assets/readme`. Keep raw capture runs and private
-runtime payloads out of Git. The tracked media is the small, deliberate showcase set.
-The README links directly to the MP4 download because GitHub's repository file
-view does not provide an inline video player for this file.
+Convert the recorded MP4 to the README GIF with FFmpeg:
+
+```powershell
+ffmpeg -hide_banner -loglevel error -y -i debug/readme-flat-combat/video/d3d12.mp4 -filter_complex "fps=15,scale=960:540:flags=lanczos,split[s0][s1];[s0]palettegen=stats_mode=full[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle" -loop 0 debug/readme-flat-combat/video/route1-flat-combat.gif
+```
+
+The GIF keeps the full 16:9 frame at 960 x 540 and 15 FPS; its eight-second loop
+is approximately 2.5 MB. It appears directly in the top-level README, with the
+native 1920 x 1080 still available by clicking the preview. The MP4 is a local
+capture source, not a tracked download or a separate documentation demo.
+
+Review the resulting animation and stills before copying the selected GIF,
+game frame and model crops into `docs/assets/readme`. Keep source videos, raw
+capture runs and private runtime payloads out of Git. The tracked media is the
+small, deliberate showcase set.
 
 ### Clean HUD verification (2026-09-19)
 
@@ -90,8 +100,11 @@ view does not provide an inline video player for this file.
   contracts passed.
 - Debug and Release editor/plugin pairs built and passed the ABI/source checks
   after the HUD and capture-helper changes.
-- The selected MP4 is 1920 x 1080, 30 FPS, 240 frames and eight seconds. Sampled
+- The source MP4 is 1920 x 1080, 30 FPS, 240 frames and eight seconds. Sampled
   frames show combat motion and the full game surface without window chrome.
+- The README GIF has 120 frames over the same eight seconds, preserves 16:9,
+  and repeats continuously. It is a presentation conversion of the qualified
+  capture; no renderer or game behavior changed for this conversion.
 - The separate `combat-target-focus` editor case failed its existing Pidgey
   appearance guard on both the unchanged `67c519cd` baseline and the HUD update;
   the battlefield crop was pixel-identical. Its threshold was not changed.
@@ -100,7 +113,8 @@ view does not provide an inline video player for this file.
 
 Local evidence is under `debug/reviewer-cleanup/`: `native-off/matrix-report.json`,
 `editor-hud/report.json`, `cpu-tests.log`, `editor-before/`, `editor-off/` and
-`video-gfxcapture/`. These generated records are intentionally untracked.
+`video-gfxcapture/`. GIF conversion candidates are under `debug/readme-gif/`.
+These generated records and source video are intentionally untracked.
 
 Technology badges describe the checked-in CMake/vcpkg and Lua configuration;
 the CI badge links to the real workflow. Update versions when those inputs
