@@ -77,6 +77,8 @@ video start is not a frame-exact parity reference. Review the clip before publis
 Review the resulting images and video before copying the selected game frame,
 model crops and MP4 into `docs/assets/readme`. Keep raw capture runs and private
 runtime payloads out of Git. The tracked media is the small, deliberate showcase set.
+The README links directly to the MP4 download because GitHub's repository file
+view does not provide an inline video player for this file.
 
 ### Clean HUD verification (2026-09-19)
 
