@@ -33,6 +33,8 @@ editor startup scene in `phlosion.project.json`, through
 `config/debug/readme_route1_flat_starters.json`. This fixture starts an active
 battle with the three starters against Pidgey and Rattata. Its Blender source and exported
 bundle are recorded in `config/environment/route1_flat_experiment.authoring.json`.
+Capture the gameplay frame at 1920 x 1080 (16:9), with character inking explicitly
+disabled through `-VideoCharacterInking 0`. Keep the native frame's aspect ratio.
 Older Route 1 gameplay fixtures select the legacy layout independently of the
 editor startup setting; do not use them to regenerate this image.
 
@@ -49,7 +51,7 @@ Regenerate candidates on the Windows GPU workstation with the private asset
 depot restored and a current Release game/editor pair:
 
 ```powershell
-.\tools\environment\capture_arena_pilot.ps1 -Backend d3d12 -Snapshot config/debug/readme_route1_flat_starters.json -Frame 240 -OutputDirectory debug/readme-flat-combat/frame240
+.\tools\environment\capture_arena_pilot.ps1 -Backend d3d12 -Snapshot config/debug/readme_route1_flat_starters.json -Frame 240 -Width 1920 -Height 1080 -VideoCharacterInking 0 -OutputDirectory debug/readme-flat-combat/widescreen
 .\tools\check_character_materials.ps1 -Cases starter-bulbasaur,charmander-fire,starter-squirtle -OutputDirectory debug/readme-current-route/materials
 ```
 

@@ -3,7 +3,10 @@ param(
     [ValidateSet('d3d12', 'opengl', 'vulkan')][string]$Backend = 'opengl',
     [string]$OutputDirectory = 'debug/arena-pilot',
     [string]$Snapshot = 'config/debug/editor_route1_pilot_planning.json',
-    [int]$Frame = 200
+    [int]$Frame = 200,
+    [ValidateRange(1, 16384)][int]$Width = 1440,
+    [ValidateRange(1, 16384)][int]$Height = 1000,
+    [ValidateSet('', '0', '1')][string]$VideoCharacterInking = ''
 )
 $ErrorActionPreference = 'Stop'
 $taskGameRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
@@ -13,7 +16,7 @@ $taskVariables = @{
     PHLOSION_DATA_ROOT = $taskGameRoot
     PHLOSION_ASSET_ROOT = (Join-Path $taskGameRoot 'assets')
     PAC_RENDER_BACKEND = $Backend
-    PAC_VIDEO_WIDTH = '1440'; PAC_VIDEO_HEIGHT = '1000'; PAC_VIDEO_FULLSCREEN = '0'
+    PAC_VIDEO_WIDTH = [string]$Width; PAC_VIDEO_HEIGHT = [string]$Height; PAC_VIDEO_FULLSCREEN = '0'
     PAC_VIDEO_VSYNC = '0'; PAC_VIDEO_FPS_CAP = '0'; PAC_RANDOM_SEED = '12345'
     PAC_SHOW_PERF_OVERLAY = '0'
     PAC_FIXED_FRAME_DT_SECONDS = '0.016666667'
@@ -23,6 +26,9 @@ $taskVariables = @{
     PHLOSION_BACKEND_SCREENSHOT_PATH = (Join-Path $taskOutput "$Backend.png")
     PHLOSION_BACKEND_SCREENSHOT_FRAME = [string]$Frame
     PHLOSION_BACKEND_SCREENSHOT_DEFER = '1'
+}
+if ($VideoCharacterInking -ne '') {
+    $taskVariables.PAC_VIDEO_CHARACTER_INKING = $VideoCharacterInking
 }
 $taskPrevious = @{}
 try {
