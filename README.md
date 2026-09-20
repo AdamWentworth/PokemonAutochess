@@ -26,7 +26,7 @@
 <p align="center">
   <a href="https://github.com/AdamWentworth/PokemonAutochess/actions/workflows/ci.yml"><img src="https://github.com/AdamWentworth/PokemonAutochess/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI status"></a>
   <img src="https://img.shields.io/badge/Status-Prototype-C49A47" alt="Prototype status">
-  <a href="docs/LICENSING.md"><img src="https://img.shields.io/badge/License-MIT_code-3DA639" alt="MIT licence for original code; third-party exclusions apply"></a>
+  <a href="docs/LICENSING.md"><img src="https://img.shields.io/badge/License-Apache--2.0_code-3DA639" alt="Apache 2.0 licence for original code; third-party exclusions apply"></a>
 </p>
 
 <p align="center">
@@ -188,7 +188,8 @@ content/phlosion/ Private cooked content; restored separately
 
 ## Licence
 
-Original game code, tools and text documentation are licensed under [MIT](LICENSE).
+Original game code, tools and text documentation are licensed under the
+[Apache License 2.0](LICENSE).
 Pokemon artwork, models, animations, audio, trademarks, recovered material
 implementations and other third-party content are excluded. Dependencies keep
 their own licences. See [licensing scope and excluded paths](docs/LICENSING.md)

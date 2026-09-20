@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Assessment
-Last updated: 2026-09-19
+Last updated: 2026-09-20
 
 Pokemon Autochess is a working game and runtime-systems portfolio prototype.
 This assessment records implemented behavior and verification limits; it does
@@ -46,7 +46,7 @@ is retained as history.
 - Existing profiling identifies render preparation/submission as a candidate
   for further measurement. There is no controlled GPU performance gate in CI.
 - Balancing, content progression and the release experience remain prototype work.
-  There is no packaged public release. Original code is [MIT licensed](../LICENSE),
+  There is no packaged public release. Original code is [Apache 2.0 licensed](../LICENSE),
   with explicit [third-party exclusions](LICENSING.md).
 
 ## Review and maintenance
