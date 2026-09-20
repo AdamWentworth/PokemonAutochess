@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-09-19
+Last updated: 2026-09-20
 
 Autochess owns its character programs under `src/game/render/materials/character`.
 They reproduce published assets' recovered material behavior. Descriptive names
@@ -10,7 +10,7 @@ identify rendering roles; source-game provenance remains here and in shader
 comments. Recovery evidence and extraction tools remain in the private
 `PokemonSwitchAssetResearch` workspace.
 
-The recovered implementations are excluded from the repository's MIT grant;
+The recovered implementations are excluded from the repository's Apache 2.0 grant;
 see [licensing scope](LICENSING.md). Repository ownership here describes code
 placement, not ownership of the recovered source material.
 

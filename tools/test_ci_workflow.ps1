@@ -39,8 +39,32 @@ Assert-Condition ($mutableOfficialActions.Count -eq 0) `
 $pinnedOfficialActions = [regex]::Matches(
     $workflow,
     'uses:\s+actions/(checkout|cache|upload-artifact)@[0-9a-f]{40}\s+#\s+v\d+\.\d+\.\d+')
-Assert-Condition ($pinnedOfficialActions.Count -eq 5) `
-    "Expected two checkout, two cache, and one upload-artifact immutable pins."
+Assert-Condition ($pinnedOfficialActions.Count -eq 7) `
+    "Expected four checkout, two cache, and one upload-artifact immutable pins."
+
+$privateVfxCheckouts = [regex]::Matches(
+    $workflow,
+    '(?m)^\s+repository:\s+AdamWentworth/PhlosionVFX\s*$')
+Assert-Condition ($privateVfxCheckouts.Count -eq 2) `
+    "Both hosted-runner jobs must check out the private Phlosion VFX dependency."
+
+$privateVfxRefs = [regex]::Matches(
+    $workflow,
+    '(?m)^\s+ref:\s+[0-9a-f]{40}\s*$')
+Assert-Condition ($privateVfxRefs.Count -eq 2) `
+    "Both private Phlosion VFX checkouts must use immutable commit pins."
+
+$deployKeyUses = [regex]::Matches(
+    $workflow,
+    [regex]::Escape('ssh-key: ${{ secrets.PHLOSION_VFX_DEPLOY_KEY }}'))
+Assert-Condition ($deployKeyUses.Count -eq 2) `
+    "Both private Phlosion VFX checkouts must use the repository-scoped deploy key."
+
+$privateVfxSourceOverrides = [regex]::Matches(
+    $workflow,
+    '-DPHLOSION_VFX_SOURCE_DIR=').Count
+Assert-Condition ($privateVfxSourceOverrides -eq 2) `
+    "Both hosted-runner configure commands must use the checked-out Phlosion VFX source."
 
 $baseline = [string]$manifest.'builtin-baseline'
 Assert-Condition (-not [string]::IsNullOrWhiteSpace($baseline)) `

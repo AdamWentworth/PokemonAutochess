@@ -28,6 +28,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Checkout Phlosion VFX
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: AdamWentworth/PhlosionVFX
+          ref: 8d169ffac2895cb6ef62cd570d7cfaa9542b1190
+          path: external/PhlosionVFX
+          ssh-key: ${{ secrets.PHLOSION_VFX_DEPLOY_KEY }}
+          persist-credentials: false
       - name: Cache vcpkg binaries
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -47,7 +55,7 @@ jobs:
       - name: Script syntax
         run: powershell -ExecutionPolicy Bypass -File tools/check_script_syntax.ps1
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON
+        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPHLOSION_VFX_SOURCE_DIR="${{ github.workspace }}/external/PhlosionVFX" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON
       - name: Fast arena contracts (no renderer linkage)
         run: |
           cmake --build build --config Debug --target PAC_ArenaLogicTests
@@ -74,6 +82,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout Phlosion VFX
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: AdamWentworth/PhlosionVFX
+          ref: 8d169ffac2895cb6ef62cd570d7cfaa9542b1190
+          path: external/PhlosionVFX
+          ssh-key: ${{ secrets.PHLOSION_VFX_DEPLOY_KEY }}
+          persist-credentials: false
       - name: Cache vcpkg binaries
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -85,7 +101,7 @@ jobs:
           git -C "${{ env.VCPKG_ROOT }}" checkout --detach "${{ env.VCPKG_COMMIT }}"
           & "${{ env.VCPKG_ROOT }}\\bootstrap-vcpkg.bat"
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON
+        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPHLOSION_VFX_SOURCE_DIR="${{ github.workspace }}/external/PhlosionVFX" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON
       - name: Build runtime smoke target
         run: cmake --build build --config Debug --target PokemonAutochess
       - name: Runtime visual smoke

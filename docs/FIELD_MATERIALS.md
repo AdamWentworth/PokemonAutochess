@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-09-19
+Last updated: 2026-09-20
 
 Autochess owns the field-surface shader implementations and their tuning under
 `src/game/render/materials/field`. The profile manifest is
@@ -19,7 +19,7 @@ descriptive names identify rendering roles; they do not imply that the tuning
 is a universal engine default. Recovery evidence and extraction tools remain
 in the private `PokemonSwitchAssetResearch` workspace.
 
-The recovered implementations are excluded from the repository's MIT grant;
+The recovered implementations are excluded from the repository's Apache 2.0 grant;
 see [licensing scope](LICENSING.md). Repository ownership here describes code
 placement, not ownership of the recovered source material.
 
