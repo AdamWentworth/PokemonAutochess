@@ -30,7 +30,7 @@ Those observations are not a new deletion plan or an active renderer backlog.
 | Reconcile active docs and navigation | Complete | Current assessments use dated evidence; earlier planning is preserved in the archive. |
 | Clean gameplay showcase and combat animation | Complete | README shows an inline eight-second gameplay GIF linked to a native 1080p still, with performance diagnostics hidden; see [capture verification](DEMO_MEDIA_CAPTURE.md#clean-hud-verification-2026-09-19). |
 | Private Tile Tools build dependency | Open decision | Make package building opt-in independently of the game editor plugin; the requirement is in this repository's CMake setup. |
-| Code licence | Open decision | Select terms for code the author owns and explicitly identify excluded third-party material. |
+| Code licence | Complete | Original code is MIT licensed; [licensing scope](LICENSING.md) explicitly excludes recovered implementations, third-party assets and other source-derived material. |
 | Public website refresh | Deferred | Align the Phlosion showcase with the current repository when website work resumes. |
 | Tagged review milestone / release | Deferred | Revisit after an accepted source checkpoint; do not publish private runtime payloads. |
 

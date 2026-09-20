@@ -10,6 +10,10 @@ identify rendering roles; source-game provenance remains here and in shader
 comments. Recovery evidence and extraction tools remain in the private
 `PokemonSwitchAssetResearch` workspace.
 
+The recovered implementations are excluded from the repository's MIT grant;
+see [licensing scope](LICENSING.md). Repository ownership here describes code
+placement, not ownership of the recovered source material.
+
 | Rendering role | Source behavior | Preserved mode |
 | --- | --- | --- |
 | Layered animated effect | Scarlet/Violet layered Unlit, scrolling fire, smoke and displacement | 27 |

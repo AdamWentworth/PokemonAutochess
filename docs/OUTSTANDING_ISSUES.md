@@ -18,7 +18,7 @@ record predate their current repository ownership.
 | Full demo and GPU checks require private content | Public source builds and synthetic tests do not provide the displayed Pokemon/arena payloads. | Game content: maintain depot restore and capture instructions. |
 | No controlled GPU performance gate in CI | Local benchmarks and visual matrices exist; hosted Windows is not the representative performance machine. | Verification: evaluate a GPU runner if the project resumes sustained performance work. |
 | Legacy route reconstruction remains live | Original route/reference paths retain source terrain behavior alongside the newer Blender arenas. | Game environments: retire callers only after replacement and reference preservation. |
-| No selected code licence or public release checkpoint | The repository is publicly reviewable, with no packaged playable distribution. | Author decision; review milestone remains deferred. |
+| No public release checkpoint | Original code is MIT licensed with [third-party exclusions](LICENSING.md), but there is no packaged playable distribution. | Review milestone remains deferred. |
 
 ## Retained maintenance risks
 

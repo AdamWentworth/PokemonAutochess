@@ -19,6 +19,10 @@ descriptive names identify rendering roles; they do not imply that the tuning
 is a universal engine default. Recovery evidence and extraction tools remain
 in the private `PokemonSwitchAssetResearch` workspace.
 
+The recovered implementations are excluded from the repository's MIT grant;
+see [licensing scope](LICENSING.md). Repository ownership here describes code
+placement, not ownership of the recovered source material.
+
 | Material role | Original material family | Preserved mode IDs |
 | --- | --- | --- |
 | Field ground and cliff | FieldGroundShader01 / FieldCliffShader01 | 4, 5 |

@@ -46,7 +46,8 @@ is retained as history.
 - Existing profiling identifies render preparation/submission as a candidate
   for further measurement. There is no controlled GPU performance gate in CI.
 - Balancing, content progression and the release experience remain prototype work.
-  There is no packaged public release or declared repository code licence yet.
+  There is no packaged public release. Original code is [MIT licensed](../LICENSE),
+  with explicit [third-party exclusions](LICENSING.md).
 
 ## Review and maintenance
 

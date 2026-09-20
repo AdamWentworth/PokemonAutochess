@@ -26,6 +26,7 @@ role is expressed through metadata rather than deep folder nesting.
 | --- | --- | --- |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | `Runbook` | Setup, build targets, editor pairing, debugging, packaging and developer tools. |
 | [PROJECT_BOUNDARIES.md](PROJECT_BOUNDARIES.md) | `Contract` | Ownership of the game, engine, packages, material programs and research tools. |
+| [LICENSING.md](LICENSING.md) | `Reference` | MIT coverage for original code, excluded third-party material and dependency notices. |
 | [DEMO_MEDIA_CAPTURE.md](DEMO_MEDIA_CAPTURE.md) | `Runbook` | Branding provenance, selected README images and repeatable screenshot/video capture. |
 | [GOALS.md](GOALS.md) | `Goal` | Stable project goals and success criteria. |
 | [REPO_ASSESSMENT.md](REPO_ASSESSMENT.md) | `Assessment` | Living high-level maintainability and repo-health read. |
