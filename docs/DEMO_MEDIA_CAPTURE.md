@@ -23,14 +23,15 @@ with no painted-over content or generated mockups:
 
 | Tracked image | Capture source | Renderer |
 | --- | --- | --- |
-| `docs/assets/readme/route1-flat-starters.png` | Flat Dirt Experiment with the starter trio, full game frame | Direct3D 12 |
+| `docs/assets/readme/route1-flat-starters.png` | Starter trio battling Pidgey and Rattata on the Flat Dirt Experiment, full game frame | Direct3D 12 |
 | `docs/assets/readme/bulbasaur-material.png` | `starter-bulbasaur`, cropped model preview | Direct3D 12 |
 | `docs/assets/readme/charmander-material.png` | `charmander-fire`, cropped model preview | Direct3D 12 |
 | `docs/assets/readme/squirtle-material.png` | `starter-squirtle`, cropped model preview | Direct3D 12 |
 
 The arena capture explicitly selects `routes/route1-flat-experiment`, the current
 editor startup scene in `phlosion.project.json`, through
-`config/debug/readme_route1_flat_starters.json`. Its Blender source and exported
+`config/debug/readme_route1_flat_starters.json`. This fixture starts an active
+battle with the three starters against Pidgey and Rattata. Its Blender source and exported
 bundle are recorded in `config/environment/route1_flat_experiment.authoring.json`.
 Older Route 1 gameplay fixtures select the legacy layout independently of the
 editor startup setting; do not use them to regenerate this image.
@@ -48,7 +49,7 @@ Regenerate candidates on the Windows GPU workstation with the private asset
 depot restored and a current Release game/editor pair:
 
 ```powershell
-.\tools\environment\capture_arena_pilot.ps1 -Backend d3d12 -Snapshot config/debug/readme_route1_flat_starters.json -OutputDirectory debug/readme-current-route/flat-arena
+.\tools\environment\capture_arena_pilot.ps1 -Backend d3d12 -Snapshot config/debug/readme_route1_flat_starters.json -Frame 240 -OutputDirectory debug/readme-flat-combat/frame240
 .\tools\check_character_materials.ps1 -Cases starter-bulbasaur,charmander-fire,starter-squirtle -OutputDirectory debug/readme-current-route/materials
 ```
 

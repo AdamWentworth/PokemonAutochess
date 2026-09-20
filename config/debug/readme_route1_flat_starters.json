@@ -1,7 +1,7 @@
 {
   "session": {
-    "combat_active": false,
-    "round_phase": "Planning",
+    "combat_active": true,
+    "round_phase": "Battle",
     "state_kind": "combat",
     "state_script_path": "scripts/states/route1_flat_experiment.lua"
   },
@@ -11,7 +11,9 @@
     "board_units": [
       {"name": "bulbasaur", "side": "player", "col": 2, "row": 5, "bench_slot": -1, "level": 5, "hp": 100, "energy": 0, "alive": true, "fainting": false, "capture_in_progress": false},
       {"name": "charmander", "side": "player", "col": 3, "row": 5, "bench_slot": -1, "level": 5, "hp": 100, "energy": 0, "alive": true, "fainting": false, "capture_in_progress": false},
-      {"name": "squirtle", "side": "player", "col": 4, "row": 5, "bench_slot": -1, "level": 5, "hp": 100, "energy": 0, "alive": true, "fainting": false, "capture_in_progress": false}
+      {"name": "squirtle", "side": "player", "col": 4, "row": 5, "bench_slot": -1, "level": 5, "hp": 100, "energy": 0, "alive": true, "fainting": false, "capture_in_progress": false},
+      {"name": "pidgey", "side": "enemy", "col": 2, "row": 1, "bench_slot": -1, "level": 5, "hp": 100, "energy": 0, "alive": true, "fainting": false, "capture_in_progress": false},
+      {"name": "rattata", "side": "enemy", "col": 5, "row": 1, "bench_slot": -1, "level": 5, "hp": 100, "energy": 0, "alive": true, "fainting": false, "capture_in_progress": false}
     ],
     "classic_loss_streak": 0,
     "classic_rounds_completed": 0,

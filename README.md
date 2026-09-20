@@ -52,9 +52,9 @@ separate repositories and verification boundaries.
 
 ## Product Preview
 
-[![Bulbasaur, Charmander and Squirtle on the Blender-authored Route 1 Flat Dirt Experiment](docs/assets/readme/route1-flat-starters.png)](docs/assets/readme/route1-flat-starters.png)
+[![Bulbasaur, Charmander and Squirtle battling Pidgey and Rattata on the Blender-authored Route 1 Flat Dirt Experiment](docs/assets/readme/route1-flat-starters.png)](docs/assets/readme/route1-flat-starters.png)
 
-*The Blender-authored Route 1 Flat Dirt Experiment—the current editor startup map—with the three Kanto starters in the native Direct3D 12 game.*
+*Bulbasaur, Charmander and Squirtle battle Pidgey and Rattata on the Blender-authored Route 1 Flat Dirt Experiment, the current editor startup map. Captured in the native Direct3D 12 game.*
 
 | Bulbasaur | Charmander | Squirtle |
 | --- | --- | --- |
