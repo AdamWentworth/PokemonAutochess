@@ -2,17 +2,18 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-09-09
+Last updated: 2026-09-19
 
-The current pilot is **Route 1 - Southern Entrance** (pass 10). It rebuilds the
+This guide covers **Route 1 - Southern Entrance** (pass 10). It rebuilds the
 Phlosion editor's south-entrance tile blueprint with new Blender geometry.
 The recovered layout supplies cell heights and lawn/dirt assignments; Blender
 owns the resulting terrain and prop placements. The original LGPE meshes stay
 hidden as reference. Phlosion renders the recovered materials and animated grass.
 
-The editor starts in the independent pilot, `routes/route1-pilot`. The original
-Route 1 and Route 1.5 remain available in the scene list. The pilot is not part
-of normal route progression. `tools/environment/Preview Route 1 Arena.cmd`
+The editor currently starts in the Flat Dirt Experiment,
+`routes/route1-flat-experiment`. South Entrance remains available as
+`routes/route1-pilot`; it is not part of normal route progression.
+`tools/environment/Preview Route 1 Arena.cmd`
 opens its Planning game preview directly.
 
 [South Clearing](BLENDER_SOUTH_CLEARING.md) now has its own Blender source,

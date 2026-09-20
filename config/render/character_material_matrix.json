@@ -10,6 +10,50 @@
     {
       "animation": 0,
       "lighting": 0,
+      "coverage": ["character-materials", "starter-showcase"],
+      "targetOffsetY": 0,
+      "contentGuards": [
+        {
+          "name": "visible-starter-surface",
+          "x": 0.42,
+          "y": 0.3,
+          "width": 0.16,
+          "height": 0.4,
+          "maximumNearBlackPixelRatio": 0.25,
+          "minimumMidtonePixelRatio": 0.25,
+          "minimumLuminanceStandardDeviation": 15
+        }
+      ],
+      "time": 0.7,
+      "name": "starter-bulbasaur",
+      "model": "0001_Bulbasaur_SV",
+      "zoom": 0
+    },
+    {
+      "animation": 0,
+      "lighting": 0,
+      "coverage": ["character-materials", "starter-showcase"],
+      "targetOffsetY": 0,
+      "contentGuards": [
+        {
+          "name": "visible-starter-surface",
+          "x": 0.42,
+          "y": 0.3,
+          "width": 0.16,
+          "height": 0.4,
+          "maximumNearBlackPixelRatio": 0.25,
+          "minimumMidtonePixelRatio": 0.25,
+          "minimumLuminanceStandardDeviation": 15
+        }
+      ],
+      "time": 0.7,
+      "name": "starter-squirtle",
+      "model": "0007_Squirtle_SV",
+      "zoom": 0
+    },
+    {
+      "animation": 0,
+      "lighting": 0,
       "coverage": [
         "character-materials",
         "charmander-fire"

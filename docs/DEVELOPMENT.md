@@ -112,8 +112,10 @@ you used the README's runtime-only quick start, re-enable the game editor target
 cmake --preset vs2026 -DPAC_BUILD_EDITOR=ON
 ```
 
-The active environment is the Blender-authored **Route 1 south entrance**.
-Use [the Blender workflow](BLENDER_ARENA_PILOT.md) for editing and asset
+The editor starts in the Blender-authored **Route 1 Flat Dirt Experiment**.
+The four other authored Route 1 arenas remain available in the scene catalog.
+See [the scene model](EDITOR_SCENE_MODEL.md) for the current locations,
+[the Blender workflow](BLENDER_ARENA_PILOT.md) for south-entrance editing and asset
 recovery, and [Auto Reload](EDITOR_GAMEPLAY_RELOAD.md) for C++ gameplay saves.
 Run `./tools/environment/check_south_entrance.ps1` for its focused build and
 validation command; add `-IncludeBlender -Capture` to qualify authoring and visuals.

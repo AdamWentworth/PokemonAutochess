@@ -41,8 +41,8 @@ Pokemon Autochess is a game and runtime-systems portfolio project by
 combat, shops and rounds, animated 3D characters, authored environments, and
 repeatable rendering checks.
 
-**This repository owns the game.** The reusable engine, VFX primitives and
-optional editor packages have separate repositories and verification boundaries.
+**This repository owns the game.** The reusable engine and VFX primitives have
+separate repositories and verification boundaries.
 
 > [!NOTE]
 > This is an educational game prototype. Balancing, content and the player
@@ -52,16 +52,16 @@ optional editor packages have separate repositories and verification boundaries.
 
 ## Product Preview
 
-[![Pokemon Autochess resolving a scripted encounter in the authored Route 1 environment](docs/assets/readme/route1-combat.png)](docs/assets/readme/route1-combat.png)
+[![Bulbasaur, Charmander and Squirtle on the Blender-authored Route 1 Flat Dirt Experiment](docs/assets/readme/route1-flat-starters.png)](docs/assets/readme/route1-flat-starters.png)
 
-*Route 1 combat in the native Direct3D 12 game, with development diagnostics visible.*
+*The Blender-authored Route 1 Flat Dirt Experiment—the current editor startup map—with the three Kanto starters in the native Direct3D 12 game.*
 
-| Charmander materials | Ponyta materials |
-| --- | --- |
-| [![Charmander with its tail flame in the editor model preview](docs/assets/readme/charmander-material.png)](docs/assets/readme/charmander-material.png) | [![Ponyta with its mane and tail fire in the editor model preview](docs/assets/readme/ponyta-material.png)](docs/assets/readme/ponyta-material.png) |
+| Bulbasaur | Charmander | Squirtle |
+| --- | --- | --- |
+| [![Bulbasaur in the editor model preview](docs/assets/readme/bulbasaur-material.png)](docs/assets/readme/bulbasaur-material.png) | [![Charmander with its tail flame in the editor model preview](docs/assets/readme/charmander-material.png)](docs/assets/readme/charmander-material.png) | [![Squirtle in the editor model preview](docs/assets/readme/squirtle-material.png)](docs/assets/readme/squirtle-material.png) |
 
-These are real game and editor captures from the September 2026 renderer
-qualification. The [Phlosion showcase](https://phlosion.com/?demo=autochess#demos)
+These are fresh game and editor captures using the promoted starter models.
+The [Phlosion showcase](https://phlosion.com/?demo=autochess#demos)
 also includes earlier prototype footage. See [media provenance and regeneration](docs/DEMO_MEDIA_CAPTURE.md#readme-branding-and-showcase).
 
 ## Highlights
@@ -86,7 +86,6 @@ also includes earlier prototype footage. See [media provenance and regeneration]
 | **PokemonAutochess** | Gameplay, board and combat UI, scene/content policy, editor project plugin, character and field materials |
 | [PhlosionEngine](https://github.com/AdamWentworth/PhlosionEngine) | Application/platform services, generic rendering and UI, resources, animation, standard PBR, editor host |
 | [PhlosionVFX](https://github.com/AdamWentworth/PhlosionVFX) | Reusable effect primitives, runtime bridges and preview support |
-| [PhlosionPackages](https://github.com/AdamWentworth/PhlosionPackages) | Optional reusable editor tooling; private repository, with Tile Tools currently unmounted |
 
 `GameRuntime` and `GameSession` wire game states, systems, scripting and
 presentation. The runner and editor plugin share this game runtime. Engine
@@ -118,7 +117,7 @@ Use Visual Studio 2026 Build Tools, CMake 4.2 or newer, and vcpkg with
 `VCPKG_ROOT` configured. Visual Studio 2022 and MSVC/Ninja alternatives are
 in the [development guide](docs/DEVELOPMENT.md#getting-started-windows).
 
-Build the standalone game target without the optional private editor-package dependency:
+Build the standalone game target:
 
 ```powershell
 git clone https://github.com/AdamWentworth/PokemonAutochess.git

@@ -17,17 +17,29 @@ stored at `docs/assets/readme/autochess-lockup.png`. Keep its aspect ratio,
 transparency and original colors. Use descriptive alt text and check both light
 and dark GitHub themes when changing its presentation.
 
-The three README screenshots were selected from the 2026-09-19 native renderer
-qualification. They are direct captures of the game and editor material preview,
+The four README screenshots were captured on 2026-09-19. They are direct
+captures of the game and editor material preview,
 with no painted-over content or generated mockups:
 
 | Tracked image | Capture source | Renderer |
 | --- | --- | --- |
-| `docs/assets/readme/route1-combat.png` | Native `combat` scene, full game frame | Direct3D 12 |
+| `docs/assets/readme/route1-flat-starters.png` | Flat Dirt Experiment with the starter trio, full game frame | Direct3D 12 |
+| `docs/assets/readme/bulbasaur-material.png` | `starter-bulbasaur`, cropped model preview | Direct3D 12 |
 | `docs/assets/readme/charmander-material.png` | `charmander-fire`, cropped model preview | Direct3D 12 |
-| `docs/assets/readme/ponyta-material.png` | `ponyta-fire`, cropped model preview | Direct3D 12 |
+| `docs/assets/readme/squirtle-material.png` | `starter-squirtle`, cropped model preview | Direct3D 12 |
 
-The surrounding qualification covered OpenGL, Vulkan and Direct3D 12. See
+The arena capture explicitly selects `routes/route1-flat-experiment`, the current
+editor startup scene in `phlosion.project.json`, through
+`config/debug/readme_route1_flat_starters.json`. Its Blender source and exported
+bundle are recorded in `config/environment/route1_flat_experiment.authoring.json`.
+Older Route 1 gameplay fixtures select the legacy layout independently of the
+editor startup setting; do not use them to regenerate this image.
+
+The model previews use the promoted Scarlet/Violet models `0001_Bulbasaur_SV`,
+`0004_Charmander_SV` and `0007_Squirtle_SV`, as recorded in
+`config/assets/kanto_model_promotions.json`. All three capture cases passed the
+material harness's content and parity checks on OpenGL, Vulkan and Direct3D 12.
+The earlier engine extraction is documented separately in
 [the material verification record](CHARACTER_MATERIALS.md#boundary-verification-2026-09-19).
 These are staged development scenes with diagnostic overlays, not a finished
 release UI. The linked Phlosion gallery also contains older prototype captures.
@@ -36,8 +48,8 @@ Regenerate candidates on the Windows GPU workstation with the private asset
 depot restored and a current Release game/editor pair:
 
 ```powershell
-.\tools\render_parity_matrix.ps1 -Config Release -Cases combat -OutputDir debug/readme-native
-.\tools\check_character_materials.ps1 -Cases charmander-fire,ponyta-fire -OutputDirectory debug/readme-materials
+.\tools\environment\capture_arena_pilot.ps1 -Backend d3d12 -Snapshot config/debug/readme_route1_flat_starters.json -OutputDirectory debug/readme-current-route/flat-arena
+.\tools\check_character_materials.ps1 -Cases starter-bulbasaur,charmander-fire,starter-squirtle -OutputDirectory debug/readme-current-route/materials
 ```
 
 Review the resulting images before copying the selected Direct3D 12 game frame

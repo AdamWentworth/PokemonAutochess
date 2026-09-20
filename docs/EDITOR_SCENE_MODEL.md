@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-09-12
+Last updated: 2026-09-19
 
 ## Scenes and scenarios
 
@@ -15,11 +15,16 @@ followed by the separate flat-board experiment:
 
 | Location | Stable scene ID |
 | --- | --- |
-| South Entrance (startup) | `routes/route1-pilot` |
+| South Entrance | `routes/route1-pilot` |
 | South Clearing | `routes/route1-south-clearing` |
 | North Terraces | `routes/route1-north-terraces` |
 | North Entrance | `routes/route1-north-entrance` |
-| Flat Dirt Experiment | `routes/route1-flat-experiment` |
+| Flat Dirt Experiment (startup) | `routes/route1-flat-experiment` |
+
+`phlosion.project.json` selects the Flat Dirt Experiment at startup. Legacy
+gameplay and parity fixtures can explicitly select the older imported Route 1
+layout; those fixtures do not follow the editor's startup selection. README
+captures explicitly select the flat arena through their own starter snapshot.
 
 The Scenes panel and **Scene / location** selector expose the same catalog.
 One click opens a location. The open location is highlighted. Archived imported
