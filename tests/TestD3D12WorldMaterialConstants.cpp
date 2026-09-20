@@ -1,3 +1,4 @@
+#include "game/render/materials/character/MaterialModes.h"
 #include <cmath>
 #include <string>
 
@@ -22,7 +23,7 @@ bool nearf(float a, float b, float eps = 0.0001f) {
 bool test_d3d12_world_material_constants_contract(std::string& outFail) {
     namespace d3d12i = engine::render::d3d12_internal;
     const auto profile = engine::render::loadWorldMaterialProfile(
-        engine::paths::data(""), "config/render/field_materials.json");
+        engine::paths::data(""), "config/render/world_materials.json");
 
     if (!expect(d3d12i::alignUp(0u, 256u) == 0u &&
                     d3d12i::alignUp(1u, 256u) == 256u &&
@@ -800,7 +801,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
     {
         IRenderBackend::WorldTextureData tex;
         tex.materialMode =
-            engine::render::backend::kNativeIkCharacterEyeMaterialMode;
+            game::render::materials::kRefractiveEyeMaterialMode;
         tex.materialRect0U = 2.5f;
         tex.materialRect0V = 0.055f;
         tex.materialRect0W = 1.33f;
@@ -883,7 +884,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         const unsigned char metallicRoughness[4]{255u, 255u, 0u, 128u};
         tex.materialMode = 2u;
         tex.materialFlags =
-            engine::render::backend::kNativeSpecularStrengthMaterialFlag;
+            game::render::materials::kDielectricMaskMaterialFlag;
         tex.materialRect0U = 0.04f;
         tex.metallicRoughnessRgba = metallicRoughness;
         tex.metallicRoughnessWidth = 1;
@@ -934,7 +935,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
     {
         IRenderBackend::WorldTextureData tex;
         tex.materialMode =
-            engine::render::backend::kNativeIkCharacterMaterialMode;
+            game::render::materials::kLayeredCharacterMaterialMode;
         tex.materialRect0U = 0.27f;
         tex.materialRect0V = 0.64f;
         // Exact 24-bit material-constant emission RGB (0x7A6D2B).
@@ -993,9 +994,9 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
         IRenderBackend::WorldTextureData tex;
         const unsigned char map[4]{255u, 255u, 255u, 255u};
         tex.materialMode =
-            engine::render::backend::kNativeSssMaterialMode;
+            game::render::materials::kSubsurfaceMaterialMode;
         tex.materialFlags =
-            engine::render::backend::kNativeSssSurfaceFibre;
+            game::render::materials::kSubsurfaceFibre;
         tex.metallicRoughnessRgba = map;
         tex.metallicRoughnessWidth = 1;
         tex.metallicRoughnessHeight = 1;
@@ -1010,8 +1011,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
                 nearf(c.materialMode, 33.0f) &&
                     nearf(
                         c.materialTimeSec,
-                        engine::render::backend::
-                            kNativeSssSurfaceFibre) &&
+                        game::render::materials::kSubsurfaceFibre) &&
                     (pbrFlags & (1u << 1)) != 0u &&
                     (pbrFlags & (1u << 3)) != 0u,
                 "D3D12 native SSS packing must preserve its surface qualifier alongside roughness and mask presence.",
@@ -1023,7 +1023,7 @@ bool test_d3d12_world_material_constants_contract(std::string& outFail) {
     {
         IRenderBackend::WorldTextureData tex;
         tex.materialMode =
-            engine::render::backend::kNativeFresnelEffectMaterialMode;
+            game::render::materials::kViewAngleLayerMaterialMode;
         tex.materialRect0U = 0.76f;
         tex.materialRect0V = 0.08f;
         tex.materialRect0W = 0.15f;

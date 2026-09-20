@@ -6,11 +6,10 @@ Last updated: 2026-09-19
 
 Autochess owns the field-surface shader implementations and their tuning under
 `src/game/render/materials/field`. The profile manifest is
-`config/render/field_materials.json`. The game selects it before creating its
+`config/render/world_materials.json`. The game selects it before creating its
 renderer; `phlosion.project.json` selects the same profile for editor previews.
 Tile Tools remains disabled and is unrelated to these rendering materials.
-The extraction covers field surfaces; existing engine character-shading paths
-were not moved in this change.
+The same profile composes the project-owned [character materials](CHARACTER_MATERIALS.md).
 
 ## Ownership and names
 
@@ -40,11 +39,11 @@ profiles. The game also owns the CPU material oracles and their tests.
 
 ## Shader profile
 
-OpenGL and D3D12 combine the engine's standard world shader with the game's
-declarations and evaluation branches. Vulkan compiles the same engine templates
-with game includes into four project artifacts: direct and indirect submission,
-each with standard and dual-source blending. `PAC_FieldMaterialShaders` builds
-these into `.phlosion/materials/field`; game and editor-plugin builds depend on it.
+OpenGL and D3D12 combine the engine's world interface with game declarations
+and evaluation. Vulkan compiles six project artifacts: direct and indirect
+vertices, and fragments with standard and dual-source blending.
+`PAC_WorldMaterialShaders` builds these into `.phlosion/materials/world`;
+game and editor-plugin builds depend on it.
 Configuration also copies the OpenGL/D3D12 snippets there. Release bundles ship
 this runtime directory alongside the manifest, without requiring a source checkout.
 

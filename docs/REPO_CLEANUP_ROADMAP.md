@@ -219,11 +219,10 @@ projected sidecars/overrides, preview routing, configuration, debug plumbing,
 and obsolete tests were removed. Six ignored generated atlases totaling
 24,465,620 bytes were removed from `assets/textures`.
 
-The engine material mode and shader logic that interpret native Game Freak
-layered-Unlit/displacement materials intentionally remain. The Vulkan file
-`assets/shaders/vulkan/world_tail_fire.glsl` has a historical name but now
-serves that reusable native material responsibility; renaming it is a separate
-engine cleanup and must preserve serialized mode 27 and backend parity.
+The layered-effect evaluator now belongs to Autochess under
+`src/game/render/materials/character/layered_effects.glsl`, alongside its
+vertex displacement and mode-27 packing rules. See
+[character materials](CHARACTER_MATERIALS.md) for the ownership boundary.
 
 ### Concentrated Ownership and Code Size
 

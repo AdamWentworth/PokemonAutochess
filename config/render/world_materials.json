@@ -1,19 +1,21 @@
 {
-  "version": 1,
-  "id": "autochess.field-surfaces",
+  "version": 2,
+  "id": "autochess.world-surfaces",
   "opengl": {
-    "declarations": ".phlosion/materials/field/field_opengl_declarations.glsl",
-    "evaluation": ".phlosion/materials/field/field_opengl_evaluation.glsl"
+    "declarations": ".phlosion/materials/world/opengl_declarations.glsl",
+    "evaluation": ".phlosion/materials/world/opengl_evaluation.glsl"
   },
   "d3d12": {
-    "declarations": ".phlosion/materials/field/field_d3d12_declarations.hlsl",
-    "evaluation": ".phlosion/materials/field/field_d3d12_evaluation.hlsl"
+    "declarations": ".phlosion/materials/world/d3d12_declarations.hlsl",
+    "evaluation": ".phlosion/materials/world/d3d12_evaluation.hlsl"
   },
   "vulkan": {
-    "direct": ".phlosion/materials/field/world.frag.spv",
-    "direct_dual_source": ".phlosion/materials/field/world_dual_source.frag.spv",
-    "indirect": ".phlosion/materials/field/world_indirect.frag.spv",
-    "indirect_dual_source": ".phlosion/materials/field/world_indirect_dual_source.frag.spv"
+    "direct": ".phlosion/materials/world/world.frag.spv",
+    "direct_dual_source": ".phlosion/materials/world/world_dual_source.frag.spv",
+    "indirect": ".phlosion/materials/world/world_indirect.frag.spv",
+    "indirect_dual_source": ".phlosion/materials/world/world_indirect_dual_source.frag.spv",
+    "direct_vertex": ".phlosion/materials/world/world.vert.spv",
+    "indirect_vertex": ".phlosion/materials/world/world_indirect.vert.spv"
   },
   "d3d12_constant_overrides": {
     "6": {
@@ -369,6 +371,196 @@
       "materialFlipbook1Cols": "cameraPosX",
       "materialFlipbook1Rows": "cameraPosY",
       "materialFlipbook1Frames": "cameraPosZ"
+    },
+    "2": {
+      "materialFlags": {
+        "when": {
+          "source": "materialFlags",
+          "greater_than": 4.5,
+          "less_than": 5.5
+        },
+        "terms": [
+          {
+            "constant": "materialFlags"
+          },
+          16
+        ]
+      },
+      "materialFlipbook1Frames": {
+        "when": {
+          "source": "materialFlags",
+          "greater_than": 4.5,
+          "less_than": 5.5
+        },
+        "source": "materialRect0U",
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "27": {
+      "projectedShadowRowX.0": "cameraPosX",
+      "projectedShadowRowX.1": "cameraPosY",
+      "projectedShadowRowX.2": "cameraPosZ",
+      "projectedShadowRowX.3": 0,
+      "projectedShadowRowY.0": "cameraForwardX",
+      "projectedShadowRowY.1": "cameraForwardY",
+      "projectedShadowRowY.2": "cameraForwardZ",
+      "projectedShadowRowY.3": 0,
+      "projectedShadowRowZ.0": "cameraTargetX",
+      "projectedShadowRowZ.1": "cameraTargetY",
+      "projectedShadowRowZ.2": "cameraTargetZ",
+      "projectedShadowRowZ.3": 0
+    },
+    "31": {
+      "materialFlipbook1Fps": "materialFlags",
+      "materialTimeSec": "materialRect0H"
+    },
+    "32": {
+      "materialTimeSec": "materialRect0U",
+      "materialFlipbook1Frames": {
+        "source": "materialRect0H",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "materialFlipbook1Fps": {
+        "terms": [
+          {
+            "source": "materialFlipbook1Frames",
+            "minimum": -1,
+            "maximum": 2,
+            "bias": 1,
+            "scale": 100
+          },
+          {
+            "source": "materialRect0V",
+            "minimum": 0,
+            "maximum": 1
+          }
+        ]
+      },
+      "lightProjectionUvRowU.0": "materialRect0W",
+      "projectedShadowRowX.0": "materialRect1U",
+      "projectedShadowRowX.1": "materialRect1V",
+      "projectedShadowRowX.2": "materialRect1W",
+      "projectedShadowRowX.3": "materialRect1H",
+      "projectedShadowRowY.0": "materialFlipbook0Cols",
+      "projectedShadowRowY.1": "materialFlipbook0Rows",
+      "projectedShadowRowY.2": "materialFlipbook0Frames",
+      "projectedShadowRowY.3": "materialFlipbook0Fps",
+      "projectedShadowRowZ.0": "materialFlipbook1Cols",
+      "projectedShadowRowZ.1": "materialFlipbook1Rows",
+      "projectedShadowRowZ.2": "materialFlipbook1Frames",
+      "projectedShadowRowZ.3": "materialFlipbook1Fps"
+    },
+    "35": {
+      "materialTimeSec": "materialRect0U",
+      "materialFlipbook1Frames": {
+        "source": "materialRect0H",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "materialFlipbook1Fps": {
+        "terms": [
+          {
+            "source": "materialRect0W",
+            "minimum": 1,
+            "scale": 1000,
+            "round": true
+          },
+          {
+            "source": "materialRect0V",
+            "minimum": 0,
+            "maximum": 0.999
+          }
+        ]
+      },
+      "projectedShadowRowX.0": "materialRect1U",
+      "projectedShadowRowX.1": "materialRect1V",
+      "projectedShadowRowX.2": "materialRect1W",
+      "projectedShadowRowX.3": "materialRect1H",
+      "projectedShadowRowY.0": "materialFlipbook0Cols",
+      "projectedShadowRowY.1": "materialFlipbook0Rows",
+      "projectedShadowRowY.2": "materialFlipbook0Frames",
+      "projectedShadowRowY.3": "materialFlipbook0Fps",
+      "projectedShadowRowZ.0": "materialFlipbook1Cols",
+      "projectedShadowRowZ.1": "materialFlipbook1Rows",
+      "projectedShadowRowZ.2": "materialFlipbook1Frames",
+      "projectedShadowRowZ.3": "materialFlipbook1Fps"
+    },
+    "33": {
+      "materialTimeSec": "materialFlags"
+    },
+    "34": {
+      "projectedShadowRowX.0": "materialRect0U",
+      "projectedShadowRowX.1": "materialRect0V",
+      "projectedShadowRowX.2": "materialRect0W",
+      "projectedShadowRowX.3": "materialRect0H",
+      "projectedShadowRowY.0": "materialRect1U",
+      "projectedShadowRowY.1": "materialRect1V",
+      "projectedShadowRowY.2": "materialRect1W",
+      "projectedShadowRowY.3": "materialRect1H",
+      "projectedShadowRowZ.0": "materialFlipbook0Cols",
+      "projectedShadowRowZ.1": "materialFlipbook0Rows",
+      "projectedShadowRowZ.2": "materialFlipbook0Frames",
+      "projectedShadowRowZ.3": "materialFlipbook0Fps",
+      "lightProjectionUvRowU.0": "materialFlipbook1Cols",
+      "lightProjectionUvRowU.1": "materialFlipbook1Rows",
+      "lightProjectionUvRowU.2": "materialFlipbook1Frames",
+      "lightProjectionUvRowU.3": "materialFlipbook1Fps"
+    },
+    "28": {
+      "projectedShadowRowX.0": "materialRect0U",
+      "projectedShadowRowX.1": "materialRect0V",
+      "projectedShadowRowX.2": "materialRect0W",
+      "projectedShadowRowX.3": "materialRect0H",
+      "projectedShadowRowY.0": "materialRect1U",
+      "projectedShadowRowY.1": "materialRect1V",
+      "projectedShadowRowY.2": "materialRect1W",
+      "projectedShadowRowY.3": "materialRect1H",
+      "projectedShadowRowZ.0": "materialFlipbook0Cols",
+      "projectedShadowRowZ.1": "materialFlipbook0Rows",
+      "projectedShadowRowZ.2": "materialFlipbook0Frames",
+      "projectedShadowRowZ.3": 0
+    },
+    "30": {
+      "projectedShadowRowX.0": "materialRect0U",
+      "projectedShadowRowX.1": "materialRect0V",
+      "projectedShadowRowX.2": "materialRect0W",
+      "projectedShadowRowX.3": "materialRect0H",
+      "projectedShadowRowY.0": "materialRect1U",
+      "projectedShadowRowY.1": "materialRect1V",
+      "projectedShadowRowY.2": "materialRect1W",
+      "projectedShadowRowY.3": "materialRect1H",
+      "projectedShadowRowZ.0": "materialFlipbook0Cols",
+      "projectedShadowRowZ.1": "materialFlipbook0Rows",
+      "projectedShadowRowZ.2": "materialFlipbook0Frames",
+      "projectedShadowRowZ.3": 0
+    }
+  },
+  "opengl_vertex": {
+    "declarations": ".phlosion/materials/world/opengl_vertex_declarations.glsl",
+    "evaluation": ".phlosion/materials/world/opengl_vertex_evaluation.glsl"
+  },
+  "d3d12_vertex": {
+    "declarations": ".phlosion/materials/world/d3d12_vertex_declarations.hlsl",
+    "evaluation": ".phlosion/materials/world/d3d12_vertex_evaluation.hlsl"
+  },
+  "modes": {
+    "27": {
+      "pbr_packing": false,
+      "opengl_debug_parameter": false,
+      "d3d12_debug_parameter": false
+    },
+    "31": {
+      "d3d12_debug_parameter": false
+    },
+    "32": {
+      "d3d12_debug_parameter": false,
+      "occlusion_maximum": 3.4028234663852886e+38
+    },
+    "35": {
+      "d3d12_debug_parameter": false,
+      "occlusion_maximum": 3.4028234663852886e+38
     }
   }
 }

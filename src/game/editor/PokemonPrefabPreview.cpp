@@ -1,3 +1,4 @@
+#include "game/render/materials/character/MaterialModes.h"
 #include "game/editor/PokemonPrefabPreview.h"
 
 #include "engine/render/Camera3D.h"
@@ -446,13 +447,13 @@ void attachZaUiOffscreenProbes(
             resolvedMaterialBatch(batch);
         const bool zaSurface =
             material.materialMode == game::runtime::render_model::
-                                      kNativeIkCharacterMaterialMode ||
+                                         kLayeredCharacterMaterialMode ||
             material.materialMode == game::runtime::render_model::
-                                      kNativeIkCharacterEyeMaterialMode ||
+                                         kRefractiveEyeMaterialMode ||
             material.materialMode == game::runtime::render_model::
-                                      kNativeSssMaterialMode ||
+                                         kSubsurfaceMaterialMode ||
             material.materialMode == game::runtime::render_model::
-                                      kNativeFresnelEffectMaterialMode;
+                                         kViewAngleLayerMaterialMode;
         if (!zaSurface) continue;
         // These sampler slots are unused by the qualified Z-A modes. Carry
         // the source UI's global HDR probes without changing cooked models,

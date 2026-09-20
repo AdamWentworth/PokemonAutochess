@@ -117,9 +117,8 @@ not grow a second monolithic backend:
 - `assets/shaders/vulkan/world_material.glsl`: Vulkan world-material shading
 - `assets/shaders/vulkan/world_environment.glsl`: cube-UV PMREM sampling and
   image-based lighting helpers
-- `assets/shaders/vulkan/world_tail_fire.glsl`: historically named native
-  layered-Unlit/displacement evaluator; the synthetic tail-fire atlas path is
-  retired
+- `src/game/render/materials/character/layered_effects.glsl`: project-owned
+  layered animated effects; shader templates remain in the engine
 - `assets/shaders/vulkan/world_indirect*`: descriptor-indexed world shading and
   draw-ID-based instance/material addressing
 

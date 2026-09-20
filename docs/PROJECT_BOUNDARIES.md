@@ -24,10 +24,14 @@ remain engine primitives.
 
 The recovered field-material shaders, material-mode selection, D3D12 parameter
 packing rules and CPU material oracles live under `src/game/render/materials/field`.
-The game and editor explicitly load `config/render/field_materials.json` through
+The game and editor explicitly load `config/render/world_materials.json` through
 the engine's generic material-profile interface. The engine has no field-material
 allowlist or built-in field evaluator. Descriptive material names preserve their
 recovery provenance in [field materials](FIELD_MATERIALS.md).
+
+Character lighting, eye/skin materials, local probes, layered effects and fire
+vertex displacement also belong to the game. The engine supplies generic world
+shader interfaces and standard PBR defaults. See [character materials](CHARACTER_MATERIALS.md).
 
 `GameRuntimeServices` extends the generic engine host services with per-session
 game state: board flags, shop/round/combat timings, projected-unit counters,

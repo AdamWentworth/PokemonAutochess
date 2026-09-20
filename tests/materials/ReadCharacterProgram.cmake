@@ -1,0 +1,10 @@
+# Shader formulas stay project-owned; inspect both parts of each program.
+function(read_character_program SOURCE_PATH OUT_VAR)
+    file(READ "${SOURCE_PATH}" TEXT)
+    if(SOURCE_PATH MATCHES "(opengl|d3d12)_declarations")
+        string(REPLACE "_declarations" "_evaluation" EVALUATION_PATH "${SOURCE_PATH}")
+        file(READ "${EVALUATION_PATH}" EVALUATION_TEXT)
+        string(APPEND TEXT "\n${EVALUATION_TEXT}")
+    endif()
+    set(${OUT_VAR} "${TEXT}" PARENT_SCOPE)
+endfunction()

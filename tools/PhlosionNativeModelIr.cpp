@@ -1,3 +1,4 @@
+#include "game/render/materials/character/MaterialModes.h"
 #include "PhlosionNativeModelIr.h"
 
 #include "engine/render/ModelAnimationTypes.h"
@@ -5413,16 +5414,16 @@ bool load(
             out.submeshMaterialModes.push_back(
                 nativeFresnelEffect
                     ? game::runtime::render_model::
-                          kNativeFresnelEffectMaterialMode
+                          kViewAngleLayerMaterialMode
                 : nativeSss
                     ? game::runtime::render_model::
-                          kNativeSssMaterialMode
+                          kSubsurfaceMaterialMode
                 : nativeIkCharacterEyeLighting
                     ? game::runtime::render_model::
-                          kNativeIkCharacterEyeMaterialMode
+                          kRefractiveEyeMaterialMode
                 : nativeIkCharacterLighting
                     ? game::runtime::render_model::
-                          kNativeIkCharacterMaterialMode
+                          kLayeredCharacterMaterialMode
                 : nativeUnlitDisplaced
                     ? game::runtime::render_model::
                           kNativeLayeredUnlitMaterialMode
@@ -5443,9 +5444,9 @@ bool load(
                 nativeSss
                     ? (nativeScarletSssFibre
                            ? game::runtime::render_model::
-                                 kNativeSssSurfaceFibre
+                                 kSubsurfaceFibre
                            : game::runtime::render_model::
-                                 kNativeSssSurfaceDefault)
+                                 kSubsurfaceDefault)
                 : nativeIkCharacterSurface
                     ? 0.0f
                 : nativeUnlitDisplaced
@@ -5476,7 +5477,7 @@ bool load(
                                     kNativeFrontFacingOnlyMaterialFlagBit)
                       : nativeIkCharacterSpecularStrength
                           ? game::runtime::render_model::
-                                kNativeSpecularStrengthMaterialFlag
+                                kDielectricMaskMaterialFlag
                           : 0.0f;
             if (nativeGastlyEye) {
                 // A real Z-A Gastly eye selects mode 35 before the older

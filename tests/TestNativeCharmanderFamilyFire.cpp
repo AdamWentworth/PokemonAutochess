@@ -1,3 +1,4 @@
+#include "engine/core/Paths.h"
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -220,25 +221,17 @@ bool test_native_charmander_family_fire_contract(std::string& outFail) {
         if (!qualifyFireModel(model, outFail)) return false;
     }
 
-#ifndef PAC_PHLOSION_ENGINE_SOURCE_DIR
-    outFail = "PAC_PHLOSION_ENGINE_SOURCE_DIR is required for renderer fire qualification";
-    return false;
-#else
-    const std::filesystem::path engineRoot = PAC_PHLOSION_ENGINE_SOURCE_DIR;
-    const std::string openGl = readText(
-        engineRoot /
-        "src/engine/render/opengl/OpenGLRenderBackendWorldPipeline.cpp");
-    const std::string d3d12 = readText(
-        engineRoot /
-        "src/engine/render/d3d12/D3D12RenderBackendWorldPipeline.cpp");
-    const std::string vulkanVertex = readText(
-        engineRoot / "assets/shaders/vulkan/world.vert");
-    const std::string vulkanFragment = readText(
-        engineRoot / "assets/shaders/vulkan/world.frag");
-    const std::string vulkanIndirectVertex = readText(
-        engineRoot / "assets/shaders/vulkan/world_indirect.vert");
-    const std::string vulkanIndirectFragment = readText(
-        engineRoot / "assets/shaders/vulkan/world_indirect.frag");
+    const std::filesystem::path materials = engine::paths::data("src/game/render/materials/character");
+    const std::string openGl = readText(materials / "opengl_declarations.glsl") +
+                               readText(materials / "opengl_evaluation.glsl") +
+                               readText(materials / "opengl_vertex_evaluation.glsl");
+    const std::string d3d12 = readText(materials / "d3d12_declarations.hlsl") +
+                              readText(materials / "d3d12_evaluation.hlsl") +
+                              readText(materials / "d3d12_vertex_evaluation.hlsl");
+    const std::string vulkanVertex = readText(materials / "world_vertex_evaluation.glsl");
+    const std::string vulkanFragment = readText(materials / "world_evaluation.glsl");
+    const std::string vulkanIndirectVertex = readText(materials / "world_indirect_vertex_evaluation.glsl");
+    const std::string vulkanIndirectFragment = readText(materials / "world_indirect_evaluation.glsl");
 
     if (!expect(
             containsAll(openGl, {
@@ -271,7 +264,5 @@ bool test_native_charmander_family_fire_contract(std::string& outFail) {
             outFail)) {
         return false;
     }
-#endif
-
     return true;
 }

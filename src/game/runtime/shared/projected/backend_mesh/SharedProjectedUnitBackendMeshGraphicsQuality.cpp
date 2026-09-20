@@ -1,3 +1,4 @@
+#include "game/render/materials/character/MaterialModes.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
 
 #include "game/runtime/video/VideoPreferences.h"
@@ -16,9 +17,9 @@ bool usesNativePackedMaterialParameters(std::uint8_t materialMode) {
            materialMode == game::runtime::render_model::
                                kNativeAnimatedEyeClearCoatMaterialMode ||
            materialMode == game::runtime::render_model::
-                               kNativeFresnelEffectMaterialMode ||
+                               kViewAngleLayerMaterialMode ||
            materialMode == game::runtime::render_model::
-                               kNativeIkCharacterEyeMaterialMode;
+                               kRefractiveEyeMaterialMode;
 }
 
 bool usesNativeTextureDetailLodBias(std::uint8_t materialMode) {
@@ -27,9 +28,9 @@ bool usesNativeTextureDetailLodBias(std::uint8_t materialMode) {
            materialMode == game::runtime::render_model::
                                kNativeAnimatedEyeClearCoatMaterialMode ||
            materialMode == game::runtime::render_model::
-                               kNativeFresnelEffectMaterialMode ||
+                               kViewAngleLayerMaterialMode ||
            materialMode == game::runtime::render_model::
-                               kNativeIkCharacterEyeMaterialMode;
+                               kRefractiveEyeMaterialMode;
 }
 
 } // namespace
@@ -72,7 +73,7 @@ void applyGraphicsQualityToBatchTemplate(
     }
 
     const bool nativeIkCharacter = batch.materialMode ==
-        game::runtime::render_model::kNativeIkCharacterMaterialMode;
+                                   game::runtime::render_model::kLayeredCharacterMaterialMode;
     if (!nativeIkCharacter) {
         batch.occlusionTextureKey.clear();
         batch.occlusionTextureCacheKey.clear();
@@ -111,7 +112,7 @@ void applyGraphicsQualityToBatchTemplate(
     // Ultra restores its full detail. Only an explicit surface qualifier may
     // opt into Phlosion's additional fibre/velvet reconstruction.
     if (batch.materialMode ==
-            game::runtime::render_model::kNativeSssMaterialMode) {
+        game::runtime::render_model::kSubsurfaceMaterialMode) {
         return;
     }
 
@@ -120,9 +121,9 @@ void applyGraphicsQualityToBatchTemplate(
     // material data, not an optional metallic/roughness detail map, so Low may
     // discard normal/AO/rim response but must retain this payload.
     if (batch.materialMode ==
-            game::runtime::render_model::kNativeIkCharacterMaterialMode ||
+            game::runtime::render_model::kLayeredCharacterMaterialMode ||
         (batch.materialMode ==
-            game::runtime::render_model::kNativeFacialOverlayMaterialMode &&
+             game::runtime::render_model::kNativeFacialOverlayMaterialMode &&
          batch.materialFlags > 3.5f && batch.materialFlags < 4.5f)) {
         return;
     }
@@ -154,7 +155,7 @@ void applyGraphicsQualityToWorldSceneMaterial(
     }
 
     const bool nativeIkCharacter = material.materialMode ==
-        game::runtime::render_model::kNativeIkCharacterMaterialMode;
+                                   game::runtime::render_model::kLayeredCharacterMaterialMode;
     if (!nativeIkCharacter) {
         material.occlusionTextureKey.clear();
         material.occlusionTextureCacheKey.clear();
@@ -189,14 +190,14 @@ void applyGraphicsQualityToWorldSceneMaterial(
     }
 
     if (material.materialMode ==
-            game::runtime::render_model::kNativeSssMaterialMode) {
+        game::runtime::render_model::kSubsurfaceMaterialMode) {
         return;
     }
 
     if (material.materialMode ==
-            game::runtime::render_model::kNativeIkCharacterMaterialMode ||
+            game::runtime::render_model::kLayeredCharacterMaterialMode ||
         (material.materialMode ==
-            game::runtime::render_model::kNativeFacialOverlayMaterialMode &&
+             game::runtime::render_model::kNativeFacialOverlayMaterialMode &&
          material.materialFlags > 3.5f && material.materialFlags < 4.5f)) {
         return;
     }

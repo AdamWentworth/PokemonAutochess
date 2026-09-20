@@ -1,3 +1,4 @@
+#include "game/render/materials/character/MaterialModes.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
 
 #include <algorithm>
@@ -206,10 +207,10 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                     si >= mesh->submeshMaterialModes.size() ||
                         (mesh->submeshMaterialModes[si] !=
                              game::runtime::render_model::
-                                 kNativeSssMaterialMode &&
+                                 kSubsurfaceMaterialMode &&
                          mesh->submeshMaterialModes[si] !=
                              game::runtime::render_model::
-                                 kNativeFresnelEffectMaterialMode));
+                                 kViewAngleLayerMaterialMode));
                 material.emissiveTextureRgba = emissiveTex.rgba.data();
                 material.emissiveTextureWidth = emissiveTex.width;
                 material.emissiveTextureHeight = emissiveTex.height;
@@ -237,13 +238,12 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
         }
         if (si < mesh->submeshOcclusionStrength.size()) {
             material.occlusionStrength =
-                si < mesh->submeshMaterialModes.size() && (
-                        mesh->submeshMaterialModes[si] ==
-                            game::runtime::render_model::
-                                kNativeIkCharacterMaterialMode ||
-                        mesh->submeshMaterialModes[si] ==
-                            game::runtime::render_model::
-                                kNativeIkCharacterEyeMaterialMode)
+                si < mesh->submeshMaterialModes.size() && (mesh->submeshMaterialModes[si] ==
+                                                               game::runtime::render_model::
+                                                                   kLayeredCharacterMaterialMode ||
+                                                           mesh->submeshMaterialModes[si] ==
+                                                               game::runtime::render_model::
+                                                                   kRefractiveEyeMaterialMode)
                     ? std::max(mesh->submeshOcclusionStrength[si], 0.0f)
                     : std::clamp(
                           mesh->submeshOcclusionStrength[si],
@@ -262,9 +262,9 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                 : 2u;
         material.emissiveTextureSrgb =
             material.materialMode == game::runtime::render_model::
-                                         kNativeSssMaterialMode ||
+                                         kSubsurfaceMaterialMode ||
                     material.materialMode == game::runtime::render_model::
-                                                 kNativeFresnelEffectMaterialMode
+                                                 kViewAngleLayerMaterialMode
                 ? 0u
                 : 1u;
         material.materialFlags =
@@ -272,9 +272,9 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
                 ? mesh->submeshMaterialFlags[si]
                 : 0.0f;
         if (material.materialMode == game::runtime::render_model::
-                                         kNativeIkCharacterMaterialMode ||
+                                         kLayeredCharacterMaterialMode ||
             material.materialMode == game::runtime::render_model::
-                                         kNativeIkCharacterEyeMaterialMode) {
+                                         kRefractiveEyeMaterialMode) {
             // Z-A CategoryLabel selects one of the off-screen scene's eight
             // direct-light/rim records. Preserve its importer-packed value in
             // a portable row unused by mode 32/35 shading until the dedicated
@@ -312,11 +312,11 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
         if (material.materialMode == game::runtime::render_model::
                                          kNativeLayeredUnlitMaterialMode ||
             material.materialMode == game::runtime::render_model::
-                                         kNativeIkCharacterMaterialMode ||
+                                         kLayeredCharacterMaterialMode ||
             material.materialMode == game::runtime::render_model::
-                                         kNativeIkCharacterEyeMaterialMode ||
+                                         kRefractiveEyeMaterialMode ||
             material.materialMode == game::runtime::render_model::
-                                         kNativeFresnelEffectMaterialMode) {
+                                         kViewAngleLayerMaterialMode) {
             if (si < mesh->submeshMaterialParams2.size()) {
                 const glm::vec4& value = mesh->submeshMaterialParams2[si];
                 material.materialFlipbook0Cols = value.x;
@@ -370,13 +370,13 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
             }
         }
         if (material.materialMode != game::runtime::render_model::
-                                          kNativeLayeredUnlitMaterialMode &&
+                                         kNativeLayeredUnlitMaterialMode &&
             material.materialMode != game::runtime::render_model::
-                                          kNativeIkCharacterMaterialMode &&
+                                         kLayeredCharacterMaterialMode &&
             material.materialMode != game::runtime::render_model::
-                                          kNativeIkCharacterEyeMaterialMode &&
+                                         kRefractiveEyeMaterialMode &&
             material.materialMode != game::runtime::render_model::
-                                          kNativeFresnelEffectMaterialMode &&
+                                         kViewAngleLayerMaterialMode &&
             si < mesh->submeshMaterialParams3.size()) {
             const glm::vec4& value = mesh->submeshMaterialParams3[si];
             // Scarlet Gastly retains its ordinary material modes and uses
@@ -394,25 +394,25 @@ const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache
             }
         }
         if (material.materialMode == game::runtime::render_model::
-                                         kNativeSssMaterialMode ||
+                                         kSubsurfaceMaterialMode ||
             material.materialMode == game::runtime::render_model::
-                                         kNativeFresnelEffectMaterialMode) {
+                                         kViewAngleLayerMaterialMode) {
             material.materialFlipbook1Frames =
                 textureDetailLodBiasForGraphicsQuality(graphicsQuality);
         }
         material.characterInkingEnabled =
             material.materialMode == game::runtime::render_model::
                                          kNativeLayeredUnlitMaterialMode ||
-                material.materialMode == game::runtime::render_model::
-                                             kNativeEyeClearCoatMaterialMode ||
-                material.materialMode == game::runtime::render_model::
-                                             kNativeAnimatedEyeMaterialMode ||
-                material.materialMode == game::runtime::render_model::
-                                             kNativeAnimatedEyeClearCoatMaterialMode
-                || material.materialMode == game::runtime::render_model::
-                                                 kNativeFresnelEffectMaterialMode ||
-                material.materialMode == game::runtime::render_model::
-                                             kNativeIkCharacterEyeMaterialMode
+                    material.materialMode == game::runtime::render_model::
+                                                 kNativeEyeClearCoatMaterialMode ||
+                    material.materialMode == game::runtime::render_model::
+                                                 kNativeAnimatedEyeMaterialMode ||
+                    material.materialMode == game::runtime::render_model::
+                                                 kNativeAnimatedEyeClearCoatMaterialMode ||
+                    material.materialMode == game::runtime::render_model::
+                                                 kViewAngleLayerMaterialMode ||
+                    material.materialMode == game::runtime::render_model::
+                                                 kRefractiveEyeMaterialMode
                 ? 0u
                 : (characterInkingEnabled ? 1u : 0u);
         applyGraphicsQualityToWorldSceneMaterial(material, graphicsQuality);

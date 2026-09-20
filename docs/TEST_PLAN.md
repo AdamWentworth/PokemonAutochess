@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-09-14
+Last updated: 2026-09-19
 
 Goal: catch real regressions while keeping correctness, performance evidence,
 preview tooling, and docs maintenance trustworthy.
@@ -137,6 +137,11 @@ cmake --build build --config Debug --target PAC_VfxPreviewer VfxLab PAC_Tests
 - Leech Seed preview
   - expected behavior today is projectile-only; do not treat missing drain
     behavior in the preview tool as a regression until the adapter grows
+
+Character shader ownership changes also run
+`tools/check_character_materials.ps1` and
+`tools/check_native_character_materials.ps1`; see
+[character materials](CHARACTER_MATERIALS.md).
 
 ## Runtime Parity Smoke
 - Start menu to gameplay on `OpenGL`, `Vulkan`, and `D3D12`

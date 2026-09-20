@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "cohorts": [
+    {
+      "models": [
+        "0004_Charmander_SV",
+        "0077_Ponyta_PLA",
+        "0092_Gastly_SV",
+        "0092_Gastly_ZA",
+        "0007_Squirtle_ZA",
+        "0074_Geodude_PLA"
+      ],
+      "contentGuards": [
+        {
+          "name": "charmander-body",
+          "x": 0.3659722222222222,
+          "y": 0.387,
+          "width": 0.02361111111111111,
+          "height": 0.053,
+          "maximumNearBlackPixelRatio": 0.25,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumLuminanceStandardDeviation": 15
+        },
+        {
+          "name": "ponyta-fire",
+          "x": 0.46875,
+          "y": 0.361,
+          "width": 0.013888888888888888,
+          "height": 0.085,
+          "maximumNearBlackPixelRatio": 0.25,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumLuminanceStandardDeviation": 15,
+          "minimumOrangePixelRatio": 0.2
+        },
+        {
+          "name": "smoke-shell",
+          "x": 0.5423611111111111,
+          "y": 0.382,
+          "width": 0.058333333333333334,
+          "height": 0.042,
+          "maximumNearBlackPixelRatio": 0.25,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumLuminanceStandardDeviation": 15
+        },
+        {
+          "name": "facial-shell",
+          "x": 0.3277777777777778,
+          "y": 0.531,
+          "width": 0.05486111111111111,
+          "height": 0.044,
+          "maximumNearBlackPixelRatio": 0.25,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumLuminanceStandardDeviation": 15
+        },
+        {
+          "name": "squirtle-shell-rim",
+          "x": 0.47152777777777777,
+          "y": 0.572,
+          "width": 0.006944444444444444,
+          "height": 0.004,
+          "maximumNearBlackPixelRatio": 0.25,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumLuminanceStandardDeviation": 15,
+          "minimumBrightNeutralPixelRatio": 0.25
+        },
+        {
+          "name": "stone-body",
+          "x": 0.5506944444444445,
+          "y": 0.537,
+          "width": 0.06041666666666667,
+          "height": 0.058,
+          "maximumNearBlackPixelRatio": 0.25,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumLuminanceStandardDeviation": 15
+        }
+      ]
+    },
+    {
+      "models": [
+        "0133_Eevee_SV",
+        "0072_Tentacool_SV",
+        "0015_Beedrill_SVSurface",
+        "0017_Pidgeotto_SVSurface"
+      ],
+      "contentGuards": [
+        {
+          "name": "fibre-body",
+          "x": 0.36875,
+          "y": 0.4,
+          "width": 0.01875,
+          "height": 0.034,
+          "maximumNearBlackPixelRatio": 0.25,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumLuminanceStandardDeviation": 15
+        },
+        {
+          "name": "view-angle-layer",
+          "x": 0.46458333333333335,
+          "y": 0.377,
+          "width": 0.022916666666666665,
+          "height": 0.033,
+          "maximumNearBlackPixelRatio": 0.25,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumLuminanceStandardDeviation": 15
+        },
+        {
+          "name": "pale-wing",
+          "x": 0.5486111111111112,
+          "y": 0.367,
+          "width": 0.05763888888888889,
+          "height": 0.059,
+          "maximumNearBlackPixelRatio": 0.25,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumLuminanceStandardDeviation": 15,
+          "minimumBrightNeutralPixelRatio": 0.5
+        },
+        {
+          "name": "bird-surface",
+          "x": 0.33958333333333335,
+          "y": 0.54,
+          "width": 0.043055555555555555,
+          "height": 0.067,
+          "maximumNearBlackPixelRatio": 0.25,
+          "minimumMidtonePixelRatio": 0.1,
+          "minimumLuminanceStandardDeviation": 15
+        }
+      ]
+    }
+  ]
+}

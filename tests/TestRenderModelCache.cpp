@@ -1,3 +1,4 @@
+#include "game/render/materials/character/MaterialModes.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "TestEnvVarUtils.h"
 #include <filesystem>
@@ -861,10 +862,10 @@ bool test_render_model_cache_contract(std::string& outFail) {
                     mesh.submeshBaseTextures.size() != 4u ||
                     mesh.submeshMaterialModes[1] !=
                         game::runtime::render_model::
-                            kNativeIkCharacterEyeMaterialMode ||
+                            kRefractiveEyeMaterialMode ||
                     mesh.submeshMaterialModes[2] !=
                         game::runtime::render_model::
-                            kNativeIkCharacterEyeMaterialMode) {
+                            kRefractiveEyeMaterialMode) {
                     return std::string("missing eye modes/material arrays");
                 }
                 for (std::size_t eye = 1u; eye <= 2u; ++eye) {

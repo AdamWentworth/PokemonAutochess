@@ -102,7 +102,7 @@
     "directory": ".phlosion/editor/{config}"
   },
   "editor_packages": [],
-  "world_material_profile": "config/render/field_materials.json",
+  "world_material_profile": "config/render/world_materials.json",
   "private_asset_depot": {
     "environment": "PHLOSION_ASSET_DEPOT",
     "required": false

@@ -195,7 +195,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "4a066c0f6f4004e2e65a06beba06fda02ec1dc8d"
+    "4e555f26d1f864792e02a775f6ec7d67b7ebf0d0"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 
@@ -395,7 +395,7 @@ endif()
 
 # ---------------- Game objects (shared by exe + tests) ----------------
 # Pure arena policy/data and spatial queries have no renderer or asset-store dependency.
-add_subdirectory(src/game/render/materials/field)
+add_subdirectory(src/game/render/materials)
 
 add_library(PAC_ArenaLogic STATIC
     src/game/arena/CombatMap.cpp
@@ -670,7 +670,7 @@ add_library(PAC_GameObjects STATIC
     src/game/systems/CombatSystem.cpp
     src/game/systems/ShopSystem.cpp
 )
-add_dependencies(PAC_GameObjects PAC_FieldMaterialShaders)
+add_dependencies(PAC_GameObjects PAC_WorldMaterialShaders)
 target_link_libraries(PAC_GameObjects PUBLIC PAC_ArenaLogic)
 target_link_libraries(PAC_GameObjects
     PUBLIC
@@ -850,7 +850,7 @@ if (PAC_BUILD_EDITOR)
         src/game/editor/Route1EnvironmentPrefabPreview.cpp
         src/game/editor/Route1EnvironmentPrefabPreview.h
     )
-    add_dependencies(PokemonAutochessEditorProject PAC_FieldMaterialShaders)
+    add_dependencies(PokemonAutochessEditorProject PAC_WorldMaterialShaders)
     target_link_libraries(PokemonAutochessEditorProject
         PRIVATE
             PAC_GameObjects
@@ -884,6 +884,30 @@ if (BUILD_TESTING)
             -DPHLOSION_ROOT=${_pac_resolved_engine_source_dir}
             -DPHLOSION_PACKAGES_ROOT=${_pac_resolved_packages_source_dir}
             -P ${CMAKE_SOURCE_DIR}/tests/CheckProjectOwnership.cmake)
+    add_test(NAME PAC_PackedSpecularProbeContract
+        COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckPackedSpecularProbeContract.cmake)
+    add_test(NAME PAC_StageReflectionProbeContract
+        COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckStageReflectionProbeContract.cmake)
+    add_test(NAME PAC_RefractiveEyeContract
+        COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckRefractiveEyeContract.cmake)
+    add_test(NAME PAC_LayeredEyeSpecularContract
+        COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckLayeredEyeSpecularContract.cmake)
+    add_test(NAME PAC_CharacterStageLightContract
+        COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckCharacterStageLightContract.cmake)
+    add_test(NAME PAC_LayeredCharacterShadingContract
+        COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckLayeredCharacterShadingContract.cmake)
+    add_test(NAME PAC_ViewAngleLayerContract
+        COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckViewAngleLayerContract.cmake)
+    add_test(NAME PAC_SubsurfaceEnvironmentContract
+        COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckSubsurfaceEnvironmentContract.cmake)
     if (EXISTS
         "${_pac_resolved_engine_source_dir}/tests/CheckEngineSemanticBoundary.cmake")
         add_test(

@@ -1,3 +1,5 @@
+#include "game/render/materials/character/MaterialModes.h"
+#include "engine/core/Paths.h"
 #include <cmath>
 #include <string>
 
@@ -20,6 +22,8 @@ bool near(float lhs, float rhs, float epsilon = 0.0001f) {
 } // namespace
 
 bool test_vulkan_world_material_state_contract(std::string& outFail) {
+    const auto profile = engine::render::loadWorldMaterialProfile(
+        engine::paths::data(""), "config/render/world_materials.json");
     namespace backend = engine::render::backend;
     namespace vulkan = engine::render::vulkan_backend;
 
@@ -154,7 +158,7 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
     texture.skinMatrixCount = 200u;
     texture.skinMatrices = &skinMatrixMarker;
 
-    const auto material = vulkan::makeWorldPushConstants(&texture);
+    const auto material = vulkan::makeWorldPushConstants(&texture, &profile);
     if (!near(material.alphaMode, 2.0f) ||
         !near(material.alphaCutoff, 1.0f) ||
         !near(material.alphaWindowMin, 0.0f) ||
@@ -173,19 +177,19 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
         return false;
     }
     texture.materialMode =
-        engine::render::backend::kNativeIkCharacterMaterialMode;
+        game::render::materials::kLayeredCharacterMaterialMode;
     texture.occlusionStrength = 1.7f;
     const auto nativeIkCharacter =
-        vulkan::makeWorldPushConstants(&texture);
+        vulkan::makeWorldPushConstants(&texture, &profile);
     if (!near(nativeIkCharacter.occlusionStrength, 1.7f)) {
         outFail =
             "Vulkan IkCharacter constants should preserve authored AO strengths above one.";
         return false;
     }
     texture.materialMode =
-        engine::render::backend::kNativeIkCharacterEyeMaterialMode;
+        game::render::materials::kRefractiveEyeMaterialMode;
     const auto nativeIkCharacterEye =
-        vulkan::makeWorldPushConstants(&texture);
+        vulkan::makeWorldPushConstants(&texture, &profile);
     if (!near(nativeIkCharacterEye.materialMode, 35.0f) ||
         !near(nativeIkCharacterEye.occlusionStrength, 1.7f)) {
         outFail =
@@ -276,7 +280,7 @@ bool test_vulkan_world_material_state_contract(std::string& outFail) {
     }
 
     texture.materialMode =
-        backend::kNativeFresnelEffectMaterialMode;
+        game::render::materials::kViewAngleLayerMaterialMode;
     texture.materialRect0U = 0.76f;
     texture.materialRect1V = 0.07f;
     texture.materialFlipbook0Cols = 0.8f;

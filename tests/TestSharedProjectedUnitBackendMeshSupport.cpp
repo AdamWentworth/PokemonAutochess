@@ -1,3 +1,4 @@
+#include "game/render/materials/character/MaterialModes.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
 
 #include "game/runtime/render_model_cache/RenderModelCache.h"
@@ -113,7 +114,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             "__native_depth_overlay_submission_test__";
         nativeDepthOverlayMesh.submeshMaterialModes = {
             game::runtime::render_model::
-                kNativeIkCharacterEyeMaterialMode};
+                kRefractiveEyeMaterialMode};
         nativeDepthOverlayMesh.submeshMaterialFlags = {
             static_cast<float>(
                 game::runtime::render_model::
@@ -144,7 +145,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         nativeIkMaterialMesh.assetCacheIdentity =
             "__native_ik_character_ao_strength_test__";
         nativeIkMaterialMesh.submeshMaterialModes = {
-            game::runtime::render_model::kNativeIkCharacterMaterialMode};
+            game::runtime::render_model::kLayeredCharacterMaterialMode};
         nativeIkMaterialMesh.submeshOcclusionStrength = {1.7f};
         const auto* nativeIk =
             support::ensureFastTexturedMaterialTemplateCache(
@@ -185,9 +186,9 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         nativeSssMaterialMesh.assetCacheIdentity =
             "__native_sss_linear_mask_test__";
         nativeSssMaterialMesh.submeshMaterialModes = {
-            game::runtime::render_model::kNativeSssMaterialMode};
+            game::runtime::render_model::kSubsurfaceMaterialMode};
         nativeSssMaterialMesh.submeshMaterialFlags = {
-            game::runtime::render_model::kNativeSssSurfaceDefault};
+            game::runtime::render_model::kSubsurfaceDefault};
         game::runtime::render_model::CachedTextureRgba mask;
         mask.width = 1;
         mask.height = 1;
@@ -202,7 +203,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         if (!nativeSss || nativeSss->materials.size() != 1u ||
             nativeSss->materials[0].emissiveTextureSrgb != 0u ||
             nativeSss->materials[0].materialFlags !=
-                game::runtime::render_model::kNativeSssSurfaceDefault) {
+                game::runtime::render_model::kSubsurfaceDefault) {
             outFail =
                 "Projected native SSS templates must upload the scalar mask as linear data and retain the neutral surface qualifier.";
             return false;
@@ -217,7 +218,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             "__native_fresnel_linear_layer_test__";
         nativeFresnelMaterialMesh.submeshMaterialModes = {
             game::runtime::render_model::
-                kNativeFresnelEffectMaterialMode};
+                kViewAngleLayerMaterialMode};
         game::runtime::render_model::CachedTextureRgba layer;
         layer.width = 1;
         layer.height = 1;
@@ -490,7 +491,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
         game::runtime::shared_world_batches::WorldIndexedBatch
             nativeIkCharacterBody;
         nativeIkCharacterBody.materialMode =
-            game::runtime::render_model::kNativeIkCharacterMaterialMode;
+            game::runtime::render_model::kLayeredCharacterMaterialMode;
         nativeIkCharacterBody.normalTextureRgba =
             reinterpret_cast<const unsigned char*>(0x1);
         nativeIkCharacterBody.metallicRoughnessTextureRgba =
@@ -534,7 +535,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
             nativeIkCharacterEye;
         nativeIkCharacterEye.materialMode =
             game::runtime::render_model::
-                kNativeIkCharacterEyeMaterialMode;
+                kRefractiveEyeMaterialMode;
         nativeIkCharacterEye.normalTextureRgba =
             reinterpret_cast<const unsigned char*>(0x1);
         nativeIkCharacterEye.metallicRoughnessTextureRgba =
@@ -558,7 +559,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
 
         game::runtime::shared_world_batches::WorldIndexedBatch svEeveeFur;
         svEeveeFur.materialMode =
-            game::runtime::render_model::kNativeSssMaterialMode;
+            game::runtime::render_model::kSubsurfaceMaterialMode;
         svEeveeFur.normalTextureRgba =
             reinterpret_cast<const unsigned char*>(0x1);
         svEeveeFur.metallicRoughnessTextureRgba =
@@ -582,7 +583,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
 
         IRenderBackend::WorldSceneMaterial svEeveeFurUltra;
         svEeveeFurUltra.materialMode =
-            game::runtime::render_model::kNativeSssMaterialMode;
+            game::runtime::render_model::kSubsurfaceMaterialMode;
         svEeveeFurUltra.normalTextureRgba =
             reinterpret_cast<const unsigned char*>(0x1);
         svEeveeFurUltra.metallicRoughnessTextureRgba =
@@ -606,7 +607,7 @@ bool test_shared_projected_unit_backend_mesh_support_contract(std::string& outFa
 
         game::runtime::shared_world_batches::WorldIndexedBatch svFresnel;
         svFresnel.materialMode = game::runtime::render_model::
-            kNativeFresnelEffectMaterialMode;
+            kViewAngleLayerMaterialMode;
         svFresnel.normalTextureRgba =
             reinterpret_cast<const unsigned char*>(0x1);
         svFresnel.metallicRoughnessTextureRgba =

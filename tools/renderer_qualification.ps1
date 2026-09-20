@@ -45,9 +45,9 @@ $parityMatrixScript = Join-Path $PSScriptRoot "render_parity_matrix.ps1"
 $qualificationSteps = @()
 
 $vulkanDirectOverrides = [ordered]@{
-    PAC_VULKAN_INDIRECT_WORLD_SCENE = "0"
-    PAC_VULKAN_DISABLE_DESCRIPTOR_INDEXING = "1"
-    PAC_VULKAN_DISABLE_INDIRECT_WORLD = "1"
+    PHLOSION_VULKAN_INDIRECT_WORLD_SCENE = "0"
+    PHLOSION_VULKAN_DISABLE_DESCRIPTOR_INDEXING = "1"
+    PHLOSION_VULKAN_DISABLE_INDIRECT_WORLD = "1"
 }
 
 function Get-GitValue {

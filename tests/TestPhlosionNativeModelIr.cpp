@@ -1,3 +1,4 @@
+#include "game/render/materials/character/MaterialModes.h"
 #include "../tools/PhlosionNativeModelIr.h"
 #include "game/runtime/phlosion/PhlosionModelObject.h"
 
@@ -1525,7 +1526,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         if (fresnelMesh.submeshMaterialModes.size() != 1u ||
             fresnelMesh.submeshMaterialModes[0] !=
                 game::runtime::render_model::
-                    kNativeFresnelEffectMaterialMode ||
+                    kViewAngleLayerMaterialMode ||
             fresnelMesh.submeshEmissiveTextures.size() != 1u ||
             !fresnelMesh.submeshEmissiveTextures[0].hasPixels() ||
             fresnelMesh.submeshEnvironmentTextures.size() != 1u ||
@@ -2091,11 +2092,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         }
         if (svEeveeFurMesh.submeshMaterialModes.size() != 1u ||
             svEeveeFurMesh.submeshMaterialModes[0] !=
-                game::runtime::render_model::kNativeSssMaterialMode ||
+                game::runtime::render_model::kSubsurfaceMaterialMode ||
             svEeveeFurMesh.submeshMaterialFlags.size() != 1u ||
             !nearlyEqual(
                 svEeveeFurMesh.submeshMaterialFlags[0],
-                game::runtime::render_model::kNativeSssSurfaceFibre) ||
+                game::runtime::render_model::kSubsurfaceFibre) ||
             svEeveeFurMesh.submeshMetallicRoughnessTextures.size() != 1u ||
             !svEeveeFurMesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
             svEeveeFurMesh.submeshEmissiveTextures.size() != 1u ||
@@ -2120,11 +2121,11 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         }
         if (svGenericSssMesh.submeshMaterialModes.size() != 1u ||
             svGenericSssMesh.submeshMaterialModes[0] !=
-                game::runtime::render_model::kNativeSssMaterialMode ||
+                game::runtime::render_model::kSubsurfaceMaterialMode ||
             svGenericSssMesh.submeshMaterialFlags.size() != 1u ||
             !nearlyEqual(
                 svGenericSssMesh.submeshMaterialFlags[0],
-                game::runtime::render_model::kNativeSssSurfaceDefault) ||
+                game::runtime::render_model::kSubsurfaceDefault) ||
             svGenericSssMesh.submeshEmissiveTextures.size() != 1u ||
             !svGenericSssMesh.submeshEmissiveTextures[0].hasPixels()) {
             outFail =
@@ -2144,9 +2145,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         if (!tools::phlosion_native_model_ir::load(
                 manifestPath.string(), authoredSssMesh, &outFail) ||
             authoredSssMesh.submeshMaterialModes.at(0) !=
-                game::runtime::render_model::kNativeSssMaterialMode ||
+                game::runtime::render_model::kSubsurfaceMaterialMode ||
             authoredSssMesh.submeshMaterialFlags.at(0) !=
-                game::runtime::render_model::kNativeSssSurfaceDefault) {
+                game::runtime::render_model::kSubsurfaceDefault) {
             outFail = "Authored SSS did not preserve the shared neutral material transport";
             return false;
         }
@@ -2273,7 +2274,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         zaSpecularMesh.submeshMaterialModes.size() != 1u ||
         zaSpecularMesh.submeshMaterialModes[0] !=
             game::runtime::render_model::
-                kNativeIkCharacterMaterialMode ||
+                kLayeredCharacterMaterialMode ||
         zaSpecularMesh.submeshMetallicFactor.size() != 1u ||
         !nearlyEqual(
             zaSpecularMesh.submeshMetallicFactor[0],
@@ -2378,10 +2379,9 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         if (zaGyaradosBodyMesh.submeshMaterialModes.size() != 1u ||
             zaGyaradosBodyMesh.submeshMaterialModes[0] !=
                 game::runtime::render_model::
-                    kNativeIkCharacterMaterialMode ||
+                    kLayeredCharacterMaterialMode ||
             zaGyaradosBodyMesh.submeshMetallicRoughnessTextures.size() != 1u ||
-            !zaGyaradosBodyMesh.submeshMetallicRoughnessTextures[0].
-                hasPixels() ||
+            !zaGyaradosBodyMesh.submeshMetallicRoughnessTextures[0].hasPixels() ||
             zaGyaradosBodyMesh.submeshOcclusionTextures.size() != 1u ||
             !zaGyaradosBodyMesh.submeshOcclusionTextures[0].hasPixels() ||
             zaGyaradosBodyMesh.submeshEmissiveTextures.size() != 1u ||
@@ -2635,7 +2635,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         nearlyEqual(
             zaEyeSpecularMesh.submeshMaterialFlags[0],
             game::runtime::render_model::
-                kNativeSpecularStrengthMaterialFlag)) {
+                kDielectricMaskMaterialFlag)) {
         outFail =
             "Z-A EyeOptions material incorrectly opted into the ordinary body specular path";
         return false;
@@ -2710,7 +2710,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         if (zaNativeEyeMesh.submeshMaterialModes.size() != 1u ||
             zaNativeEyeMesh.submeshMaterialModes[0] !=
                 game::runtime::render_model::
-                    kNativeIkCharacterEyeMaterialMode ||
+                    kRefractiveEyeMaterialMode ||
             zaNativeEyeMesh.submeshNormalTextures.size() != 1u ||
             !zaNativeEyeMesh.submeshNormalTextures[0].hasPixels() ||
             zaNativeEyeMesh.submeshBaseTextures.size() != 1u ||
@@ -2851,7 +2851,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     if (zaPidgeyBodyMesh.submeshMaterialModes.size() != 1u ||
         zaPidgeyBodyMesh.submeshMaterialModes[0] !=
             game::runtime::render_model::
-                kNativeIkCharacterMaterialMode ||
+                kLayeredCharacterMaterialMode ||
         zaPidgeyBodyMesh.submeshMaterialParams0.size() != 1u ||
         !nearlyEqual(
             zaPidgeyBodyMesh.submeshMaterialParams0[0].z,

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "game/render/materials/character/MaterialModes.h"
 #include <array>
 #include <cstdint>
 #include <string>
@@ -45,7 +46,7 @@ inline constexpr std::uint8_t kNativeFacialOverlayMaterialMode = 31u;
 // materialParams0.xy retain ReflectionsBlur and DiffusionLevels. Keeping a
 // distinct mode prevents fur, stone, shell, plastic, and metal from collapsing
 // into one invented roughness value.
-inline constexpr std::uint8_t kNativeIkCharacterMaterialMode = 32u;
+using game::render::materials::kLayeredCharacterMaterialMode;
 
 // Exact source-surface qualifiers carried by IkCharacter params0.z. Zero is
 // deliberately neutral so a coat/feather response is never inferred from a
@@ -58,9 +59,9 @@ inline constexpr float kNativeIkCharacterSurfaceDefault = 0.0f;
 // color, and SSS mask inputs. Keep that source contract distinct; an optional
 // fibre/velvet response remains a narrowly qualified Phlosion reconstruction,
 // never a property inferred for every SSS material.
-inline constexpr std::uint8_t kNativeSssMaterialMode = 33u;
-inline constexpr float kNativeSssSurfaceDefault = 0.0f;
-inline constexpr float kNativeSssSurfaceFibre = 1.0f;
+using game::render::materials::kSubsurfaceDefault;
+using game::render::materials::kSubsurfaceFibre;
+using game::render::materials::kSubsurfaceMaterialMode;
 
 // Scarlet/Violet's FresnelEffect is a lit base surface plus a linear-sampled
 // second color layer gated by an exact fifth-power view-angle term. Its local
@@ -71,19 +72,19 @@ inline constexpr float kNativeSssSurfaceFibre = 1.0f;
 // params1 = BaseColorLayer1 RGBA;
 // params2 = local probe intensity, Fresnel alpha min/max, angle bias;
 // params3 = base saturation, layer scale, texture LOD bias, NormalHeight1.
-inline constexpr std::uint8_t kNativeFresnelEffectMaterialMode = 34u;
+using game::render::materials::kViewAngleLayerMaterialMode;
 
 // Z-A IkCharacter eyes share the body lighting stack, but additionally retain
 // the source iris parallax/refraction, eyelid-shadow, and layer-5 highlight
 // inputs. These cannot use the generic eye modes without discarding the
 // selected IkCharacter program's authored local reflection and color process.
-inline constexpr std::uint8_t kNativeIkCharacterEyeMaterialMode = 35u;
+using game::render::materials::kRefractiveEyeMaterialMode;
 
 // Ordinary Z-A IkCharacter body materials carry per-pixel specular strength
 // in the alpha channel of the cooked metallic/roughness texture. The source
 // SpecularIntensity remains in materialParams0.x. Keep this as an explicit
 // opt-in so standard glTF metallic/roughness alpha remains ignored.
-inline constexpr float kNativeSpecularStrengthMaterialFlag = 5.0f;
+using game::render::materials::kDielectricMaskMaterialFlag;
 
 // Bit 5 is a CPU submission qualifier rather than a shader surface input.
 // Some source meshes use a front-facing shell even though Phlosion keeps its

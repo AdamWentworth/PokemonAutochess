@@ -67,7 +67,7 @@ std::unique_ptr<IRenderBackend> createRenderBackend(game::video::RendererBackend
                                                     std::string* outError) {
     try {
         const auto profile = engine::render::loadWorldMaterialProfile(
-            engine::paths::data(""), "config/render/field_materials.json");
+            engine::paths::data(""), "config/render/world_materials.json");
         switch (backend) {
         case game::video::RendererBackend::Auto:
         case game::video::RendererBackend::OpenGL:

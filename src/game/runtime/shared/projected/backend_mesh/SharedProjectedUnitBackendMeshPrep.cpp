@@ -1,3 +1,4 @@
+#include "game/render/materials/character/MaterialModes.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.h"
 #include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
@@ -513,10 +514,10 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                             si >= mesh->submeshMaterialModes.size() ||
                                 (mesh->submeshMaterialModes[si] !=
                                      game::runtime::render_model::
-                                         kNativeSssMaterialMode &&
+                                         kSubsurfaceMaterialMode &&
                                  mesh->submeshMaterialModes[si] !=
                                      game::runtime::render_model::
-                                         kNativeFresnelEffectMaterialMode));
+                                         kViewAngleLayerMaterialMode));
                         batch.emissiveTextureRgba = emissiveTex.rgba.data();
                         batch.emissiveTextureWidth = emissiveTex.width;
                         batch.emissiveTextureHeight = emissiveTex.height;
@@ -576,13 +577,12 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
         }
         if (si < mesh->submeshOcclusionStrength.size()) {
             batch.occlusionStrength =
-                si < mesh->submeshMaterialModes.size() && (
-                        mesh->submeshMaterialModes[si] ==
-                            game::runtime::render_model::
-                                kNativeIkCharacterMaterialMode ||
-                        mesh->submeshMaterialModes[si] ==
-                            game::runtime::render_model::
-                                kNativeIkCharacterEyeMaterialMode)
+                si < mesh->submeshMaterialModes.size() && (mesh->submeshMaterialModes[si] ==
+                                                               game::runtime::render_model::
+                                                                   kLayeredCharacterMaterialMode ||
+                                                           mesh->submeshMaterialModes[si] ==
+                                                               game::runtime::render_model::
+                                                                   kRefractiveEyeMaterialMode)
                     ? std::max(mesh->submeshOcclusionStrength[si], 0.0f)
                     : std::clamp(
                           mesh->submeshOcclusionStrength[si],
@@ -601,9 +601,9 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
                 : 2u;
         batch.emissiveTextureSrgb =
             batch.materialMode == game::runtime::render_model::
-                                      kNativeSssMaterialMode ||
+                                      kSubsurfaceMaterialMode ||
                     batch.materialMode == game::runtime::render_model::
-                                              kNativeFresnelEffectMaterialMode
+                                              kViewAngleLayerMaterialMode
                 ? 0u
                 : 1u;
         batch.materialFlags =
@@ -641,11 +641,11 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
         if (batch.materialMode == game::runtime::render_model::
                                       kNativeLayeredUnlitMaterialMode ||
             batch.materialMode == game::runtime::render_model::
-                                      kNativeIkCharacterMaterialMode ||
+                                      kLayeredCharacterMaterialMode ||
             batch.materialMode == game::runtime::render_model::
-                                      kNativeIkCharacterEyeMaterialMode ||
+                                      kRefractiveEyeMaterialMode ||
             batch.materialMode == game::runtime::render_model::
-                                      kNativeFresnelEffectMaterialMode) {
+                                      kViewAngleLayerMaterialMode) {
             if (si < mesh->submeshMaterialParams2.size()) {
                 const glm::vec4& value = mesh->submeshMaterialParams2[si];
                 batch.materialFlipbook0Cols = value.x;
@@ -676,13 +676,13 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
             }
         }
         if (batch.materialMode != game::runtime::render_model::
-                                       kNativeLayeredUnlitMaterialMode &&
+                                      kNativeLayeredUnlitMaterialMode &&
             batch.materialMode != game::runtime::render_model::
-                                       kNativeIkCharacterMaterialMode &&
+                                      kLayeredCharacterMaterialMode &&
             batch.materialMode != game::runtime::render_model::
-                                       kNativeIkCharacterEyeMaterialMode &&
+                                      kRefractiveEyeMaterialMode &&
             batch.materialMode != game::runtime::render_model::
-                                       kNativeFresnelEffectMaterialMode &&
+                                      kViewAngleLayerMaterialMode &&
             si < mesh->submeshMaterialParams3.size()) {
             const glm::vec4& value = mesh->submeshMaterialParams3[si];
             // Scarlet Gastly retains Standard/EyeClearCoat shading. A
@@ -704,9 +704,9 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
             }
         }
         if (batch.materialMode == game::runtime::render_model::
-                                      kNativeSssMaterialMode ||
+                                      kSubsurfaceMaterialMode ||
             batch.materialMode == game::runtime::render_model::
-                                      kNativeFresnelEffectMaterialMode) {
+                                      kViewAngleLayerMaterialMode) {
             batch.materialFlipbook1Frames =
                 game::runtime::shared_projected_unit_backend_mesh_support::
                     textureDetailLodBiasForGraphicsQuality(graphicsQuality);
@@ -714,16 +714,16 @@ const std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>* getIn
         batch.characterInkingEnabled =
             batch.materialMode == game::runtime::render_model::
                                       kNativeLayeredUnlitMaterialMode ||
-                batch.materialMode == game::runtime::render_model::
-                                          kNativeEyeClearCoatMaterialMode ||
-                batch.materialMode == game::runtime::render_model::
-                                          kNativeAnimatedEyeMaterialMode ||
-                batch.materialMode == game::runtime::render_model::
-                                          kNativeAnimatedEyeClearCoatMaterialMode
-                || batch.materialMode == game::runtime::render_model::
-                                              kNativeFresnelEffectMaterialMode ||
-                batch.materialMode == game::runtime::render_model::
-                                          kNativeIkCharacterEyeMaterialMode
+                    batch.materialMode == game::runtime::render_model::
+                                              kNativeEyeClearCoatMaterialMode ||
+                    batch.materialMode == game::runtime::render_model::
+                                              kNativeAnimatedEyeMaterialMode ||
+                    batch.materialMode == game::runtime::render_model::
+                                              kNativeAnimatedEyeClearCoatMaterialMode ||
+                    batch.materialMode == game::runtime::render_model::
+                                              kViewAngleLayerMaterialMode ||
+                    batch.materialMode == game::runtime::render_model::
+                                              kRefractiveEyeMaterialMode
                 ? 0u
                 : (characterInkingEnabled ? 1u : 0u);
         game::runtime::shared_projected_unit_backend_mesh_support::

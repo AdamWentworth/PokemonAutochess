@@ -147,11 +147,6 @@ and performance roadmap.
 - More fundamental projected-unit submission redesign.
   - Goal: move farther away from per-unit rebuild/submit work and toward shared prepared data plus smaller per-unit deltas.
   - Primary buckets to watch: `projected_model_prep_ms`, `projected_model_geometry_ms`, `render_world_indexed_ms`.
-- Generic native layered-Unlit evaluator naming cleanup.
-  - Goal: replace the historical Vulkan `world_tail_fire.glsl` name without
-    changing serialized material mode 27 or backend behavior.
-  - Require the six-model native Charmander-family contract and full renderer
-    parity matrix before and after the rename.
 
 ## Current Engineering Guidance
 - If work scales with triangle count or per-vertex visual math, prefer pushing it toward GPU/shader-side handling.
