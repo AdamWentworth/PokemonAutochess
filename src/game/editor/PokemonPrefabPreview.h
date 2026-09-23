@@ -3,6 +3,7 @@
 #include "engine/editor/EditorProjectPlugin.h"
 
 #include <memory>
+#include <filesystem>
 #include <string>
 
 namespace game::editor {
@@ -16,6 +17,8 @@ public:
         const PokemonPrefabPreview&) = delete;
     PokemonPrefabPreview& operator=(
         const PokemonPrefabPreview&) = delete;
+
+    void setSourceStageProbeRoot(const std::filesystem::path& root);
 
     bool select(
         const char* assetId,

@@ -845,6 +845,22 @@ if (PAC_BUILD_EDITOR)
         message(FATAL_ERROR
             "PAC_BUILD_EDITOR requires the Phlosion::EditorCore target.")
     endif()
+    add_library(PokemonModelPreviewPlugin SHARED
+        tools/PokemonModelPreviewPlugin.cpp
+        src/game/editor/PokemonPrefabPreview.cpp
+        src/game/editor/PokemonPrefabPreview.h)
+    add_dependencies(PokemonModelPreviewPlugin PAC_WorldMaterialShaders)
+    target_link_libraries(PokemonModelPreviewPlugin PRIVATE
+        PAC_GameObjects Phlosion::EditorCore)
+    set_target_properties(PokemonModelPreviewPlugin PROPERTIES
+        PREFIX ""
+        RUNTIME_OUTPUT_DIRECTORY
+            "${CMAKE_SOURCE_DIR}/.phlosion/editor/$<CONFIG>"
+        LIBRARY_OUTPUT_DIRECTORY
+            "${CMAKE_SOURCE_DIR}/.phlosion/editor/$<CONFIG>")
+    target_compile_definitions(PokemonModelPreviewPlugin PRIVATE
+        PHLOSION_EDITOR_BUILD_CONFIGURATION="$<CONFIG>")
+    pac_apply_common_target_settings(PokemonModelPreviewPlugin)
     add_library(PokemonAutochessEditorProject SHARED
         tools/PokemonAutochessEditorProject.cpp
         src/game/editor/PokemonPrefabPreview.cpp

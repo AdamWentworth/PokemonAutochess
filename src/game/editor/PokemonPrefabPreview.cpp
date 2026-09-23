@@ -429,17 +429,23 @@ constexpr std::string_view kSourceStageSpecularProbePath =
 void attachZaUiOffscreenProbes(
     std::vector<game::runtime::shared_world_batches::WorldIndexedBatch>& batches,
     game::runtime::session_texture_cache::TextureCache& textureCache,
-    int lightingProfile) {
+    int lightingProfile,
+    const std::filesystem::path& probeRoot) {
     // The selected lighting preset owns these probes. Authored model names
     // need not contain "_ZA", and mixed surfaces still retain native eyes
     // and membranes. Select compatible batches by material mode below.
     if (lightingProfile != 4) {
         return;
     }
+    const auto probePath = [&probeRoot](std::string_view relative) {
+        return probeRoot.empty()
+            ? std::string(relative)
+            : (probeRoot / relative).string();
+    };
     auto *diffuse = game::runtime::session_texture_cache::ensureTextureLoaded(
-        textureCache, std::string(kSourceStageDiffuseProbePath), false);
+        textureCache, probePath(kSourceStageDiffuseProbePath), false);
     auto *specular = game::runtime::session_texture_cache::ensureTextureLoaded(
-        textureCache, std::string(kSourceStageSpecularProbePath), false);
+        textureCache, probePath(kSourceStageSpecularProbePath), false);
     if (!diffuse || !specular) return;
 
     for (auto& batch : batches) {
@@ -486,6 +492,7 @@ void attachZaUiOffscreenProbes(
 } // namespace
 
 struct PokemonPrefabPreview::Impl {
+    std::filesystem::path sourceStageProbeRoot;
     std::string assetId;
     std::string assetPath;
     std::string status;
@@ -1065,6 +1072,12 @@ PokemonPrefabPreview::PokemonPrefabPreview()
 
 PokemonPrefabPreview::~PokemonPrefabPreview() = default;
 
+void PokemonPrefabPreview::setSourceStageProbeRoot(
+    const std::filesystem::path& root) {
+    impl_->sourceStageProbeRoot = root;
+    impl_->textureCache.clear();
+}
+
 bool PokemonPrefabPreview::select(
     const char* assetId,
     const char* phloPath,
@@ -1552,7 +1565,8 @@ void PokemonPrefabPreview::render(
         attachZaUiOffscreenProbes(
             scratch.worldIndexedBatches,
             impl_->textureCache,
-            impl_->options.lightingProfile);
+            impl_->options.lightingProfile,
+            impl_->sourceStageProbeRoot);
     }
     {
         const ScopedWorldMaterialDebugView materialDebugViewScope(
