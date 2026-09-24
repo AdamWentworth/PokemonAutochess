@@ -257,6 +257,22 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         }
         return bytes;
     }();
+    const std::vector<std::uint8_t> espeonPupilMaskPpm = [] {
+        constexpr int kSize = 32;
+        std::vector<std::uint8_t> bytes{
+            'P', '6', '\n', '3', '2', ' ', '3', '2', '\n',
+            '2', '5', '5', '\n'};
+        for (int y = 0; y < kSize; ++y) {
+            for (int x = 0; x < kSize; ++x) {
+                const float dx = (static_cast<float>(x) - 16.0f) / 3.0f;
+                const float dy = (static_cast<float>(y) - 16.0f) / 6.0f;
+                const std::uint8_t value = dx * dx + dy * dy <= 1.0f
+                    ? 255u : 0u;
+                bytes.insert(bytes.end(), {value, value, value});
+            }
+        }
+        return bytes;
+    }();
     const std::vector<std::uint8_t> smallEyeNormalPpm = [] {
         constexpr int kSize = 32;
         constexpr float kCenterX = 20.0f;
@@ -450,6 +466,7 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
     const fs::path highlightNormalPath =
         temp.root / "highlight-normal.ppm";
     const fs::path smallEyeMaskPath = temp.root / "small-eye-mask.ppm";
+    const fs::path espeonPupilMaskPath = temp.root / "espeon-pupil-mask.ppm";
     const fs::path smallEyeNormalPath =
         temp.root / "small-eye-normal.ppm";
     const fs::path lgpeLayerMaskPath = temp.root / "lgpe-layer-mask.tga";
@@ -540,6 +557,12 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         output.write(
             reinterpret_cast<const char*>(smallEyeMaskPpm.data()),
             static_cast<std::streamsize>(smallEyeMaskPpm.size()));
+    }
+    {
+        std::ofstream output(espeonPupilMaskPath, std::ios::binary);
+        output.write(
+            reinterpret_cast<const char*>(espeonPupilMaskPpm.data()),
+            static_cast<std::streamsize>(espeonPupilMaskPpm.size()));
     }
     {
         std::ofstream output(smallEyeNormalPath, std::ios::binary);
@@ -828,6 +851,58 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                  : std::to_string(mesh.submeshMetallicFactor[0]) + "," +
                        std::to_string(mesh.submeshRoughnessFactor[0]));
         return false;
+    }
+    // A supplemental source eye mask must restore Espeon's pale pupil without
+    // changing the surrounding EyeClearCoat color or unrelated eye imports.
+    {
+        const json savedDocument = document;
+        document["materials"][0]["textures"][1]["file"] = "red.ppm";
+        document["materials"][0]["vec4_parameters"]["BaseColorLayer1"] =
+            {0.08f, 0.06f, 0.16f, 1.0f};
+        document["materials"][0]["vec4_parameters"]["BaseColorLayer2"] =
+            {1.0f, 1.0f, 1.0f, 1.0f};
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData flatEspeonEyeMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), flatEspeonEyeMesh, &outFail)) {
+            return false;
+        }
+        document["materials"][0]["textures"].push_back({
+            {"role", "EyePupilMaskMap"},
+            {"source", "pm0196_00_00_eye_msk.bntx"},
+            {"file", "espeon-pupil-mask.ppm"},
+            {"wrap_s", 33071},
+            {"wrap_t", 33071}});
+        {
+            std::ofstream output(manifestPath);
+            output << document.dump(2);
+        }
+        game::runtime::render_model::MeshData espeonEyeMesh;
+        if (!tools::phlosion_native_model_ir::load(
+                manifestPath.string(), espeonEyeMesh, &outFail)) {
+            return false;
+        }
+        if (baseTextureByte(espeonEyeMesh, 16, 16, 0u) < 245u ||
+            baseTextureByte(espeonEyeMesh, 16, 16, 1u) < 245u ||
+            baseTextureByte(espeonEyeMesh, 16, 16, 2u) < 245u ||
+            baseTextureByte(espeonEyeMesh, 2, 2, 0u) !=
+                baseTextureByte(flatEspeonEyeMesh, 2, 2, 0u) ||
+            baseTextureByte(flatEspeonEyeMesh, 16, 16, 0u) > 230u) {
+            outFail = "Scarlet Espeon pupil mask lost its source-colored oval: pupil=" +
+                std::to_string(baseTextureByte(espeonEyeMesh, 16, 16, 0u)) + "," +
+                std::to_string(baseTextureByte(espeonEyeMesh, 16, 16, 1u)) + "," +
+                std::to_string(baseTextureByte(espeonEyeMesh, 16, 16, 2u)) +
+                " outer=" + std::to_string(baseTextureByte(espeonEyeMesh, 2, 2, 0u)) +
+                "/" + std::to_string(baseTextureByte(flatEspeonEyeMesh, 2, 2, 0u)) +
+                " flat=" + std::to_string(baseTextureByte(flatEspeonEyeMesh, 16, 16, 0u));
+            return false;
+        }
+        document = savedDocument;
+        std::ofstream output(manifestPath);
+        output << document.dump(2);
     }
     const float inverseTangentLength =
         1.0f / std::sqrt(5.0f);

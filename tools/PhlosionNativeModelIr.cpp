@@ -2847,6 +2847,68 @@ bool nativeScarletEyeHighlightRadii(
     return true;
 }
 
+bool bakeScarletEyePupilColor(
+    const fs::path& root,
+    const json& material,
+    CachedTextureRgba& baseTexture,
+    std::string* outError) {
+    if (!nativeScarletEyeClearCoat(material) ||
+        !hasTextureRole(material, "EyePupilMaskMap") ||
+        !baseTexture.hasPixels()) {
+        return true;
+    }
+    CachedTextureRgba pupilMask;
+    if (!loadTextureByRole(
+            root, material, "EyePupilMaskMap", pupilMask, outError)) {
+        return false;
+    }
+    if (!pupilMask.hasPixels()) return true;
+
+    glm::vec4 pupilColor(1.0f);
+    (void)vec4Parameter(material, "BaseColorLayer2", pupilColor);
+    const glm::vec3 pupilLinear = glm::clamp(
+        glm::vec3(pupilColor), glm::vec3(0.0f), glm::vec3(1.0f));
+    CachedTextureRgba baked;
+    baked.width = std::max(baseTexture.width, pupilMask.width);
+    baked.height = std::max(baseTexture.height, pupilMask.height);
+    baked.wrapS = baseTexture.wrapS;
+    baked.wrapT = baseTexture.wrapT;
+    baked.minF = baseTexture.minF;
+    baked.magF = baseTexture.magF;
+    baked.rgba.resize(
+        static_cast<std::size_t>(baked.width) *
+        static_cast<std::size_t>(baked.height) * 4u);
+    for (int y = 0; y < baked.height; ++y) {
+        for (int x = 0; x < baked.width; ++x) {
+            const float u = (static_cast<float>(x) + 0.5f) /
+                static_cast<float>(baked.width);
+            const float v = (static_cast<float>(y) + 0.5f) /
+                static_cast<float>(baked.height);
+            const glm::vec4 base = sampleTexture(
+                baseTexture, u, v, glm::vec4(1.0f));
+            const float pupilCoverage = glm::clamp(
+                sampleTexture(pupilMask, u, v, glm::vec4(0.0f)).r,
+                0.0f, 1.0f);
+            const glm::vec3 baseLinear(
+                srgbToLinear(base.r),
+                srgbToLinear(base.g),
+                srgbToLinear(base.b));
+            const glm::vec3 color = glm::mix(
+                baseLinear, pupilLinear, pupilCoverage);
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) *
+                     static_cast<std::size_t>(baked.width) +
+                 static_cast<std::size_t>(x)) * 4u;
+            baked.rgba[offset + 0u] = toByte(linearToSrgb(color.r));
+            baked.rgba[offset + 1u] = toByte(linearToSrgb(color.g));
+            baked.rgba[offset + 2u] = toByte(linearToSrgb(color.b));
+            baked.rgba[offset + 3u] = toByte(base.a);
+        }
+    }
+    baseTexture = std::move(baked);
+    return true;
+}
+
 bool bakeScarletEyeFinalColor(
     const fs::path& root,
     const json& material,
@@ -4878,6 +4940,11 @@ bool load(
                      clipBoundEyeUv || nativeLitDisplaced,
                      nullptr,
                      outError)) ||
+                (nativeScarletEye && !bakeScarletEyePupilColor(
+                                         root,
+                                         material,
+                                         baseTexture,
+                                         outError)) ||
                 (nativeScarletEye && !bakeScarletEyeFinalColor(
                                          root,
                                          material,
