@@ -2,6 +2,7 @@
 #include "game/editor/PokemonPrefabPreview.h"
 
 #include "engine/render/Camera3D.h"
+#include "engine/render/BattlePokemonPlugin.h"
 #include "game/PokemonInstance.h"
 #include "game/config/GameDataDb.h"
 #include "game/runtime/phlosion/PhlosionModelObject.h"
@@ -529,6 +530,7 @@ struct PokemonPrefabPreview::Impl {
     std::size_t cookedTextureCount = 0u;
     std::size_t cookedBoneCount = 0u;
     bool ready = false;
+    const engine::render::BattlePokemonFrame* battleFrame = nullptr;
     std::uint64_t visibilitySignature =
         std::numeric_limits<std::uint64_t>::max();
 
@@ -1023,6 +1025,7 @@ struct PokemonPrefabPreview::Impl {
                     .cameraForwardScale = lightingForwardScale,
                     .drawableW = surfaceWidth,
                     .drawableH = surfaceHeight,
+                    .managePass = battleFrame == nullptr,
                     .hasWorldViewProj = true,
                     .supportsWorldTriangles3D =
                         backend.supportsWorldTriangles3D(),
@@ -1041,10 +1044,10 @@ struct PokemonPrefabPreview::Impl {
                     // scene probes to transient indexed batches, so keep the
                     // preview on that equivalent path instead of drawing an
                     // unmodified fast-path copy in front of it on Vulkan.
-                    .worldSceneView = zaSourceStage
+                    .worldSceneView = (zaSourceStage || battleFrame)
                         ? nullptr
                         : &worldSceneView,
-                    .worldSceneFrame = zaSourceStage
+                    .worldSceneFrame = (zaSourceStage || battleFrame)
                         ? nullptr
                         : &scratch.worldSceneFrame,
                     .worldIndexedBatches =
@@ -1343,19 +1346,24 @@ void PokemonPrefabPreview::render(
     }
     const int width = std::max(1, context.surfaceWidth);
     const int height = std::max(1, context.surfaceHeight);
+    const auto* battle = impl_->battleFrame;
     Camera3D camera(
-        36.0f,
+        battle ? battle->verticalFovDegrees : 36.0f,
         static_cast<float>(width) /
             static_cast<float>(height),
-        0.01f,
-        100.0f);
+        battle ? battle->nearPlane : 0.01f,
+        battle ? battle->farPlane : 100.0f);
     camera.setPosition(
         glm::make_vec3(
             context.cameraWorldPosition3));
-    camera.lookAt(
-        glm::make_vec3(context.cameraTarget3));
+    if (battle) {
+        camera.lookAt(glm::make_vec3(context.cameraTarget3),
+                      glm::make_vec3(battle->cameraUp));
+    } else {
+        camera.lookAt(glm::make_vec3(context.cameraTarget3));
+    }
     IRenderBackend& renderer = *context.renderer;
-    renderer.beginWorldSceneColorPass(width, height);
+    if (!battle) renderer.beginWorldSceneColorPass(width, height);
 
     auto& scratch = impl_->scratch;
     game::runtime::session_render_scratch::
@@ -1389,7 +1397,7 @@ void PokemonPrefabPreview::render(
             impl_->gridTriangles,
             impl_->gridWorldTriangles,
             impl_->gridLines);
-    impl_->appendGrid(gridDebug);
+    if (!battle) impl_->appendGrid(gridDebug);
     game::runtime::shared_projected_debug::
         ProjectedDebugVfxBuilder debug(
             true,
@@ -1416,15 +1424,17 @@ void PokemonPrefabPreview::render(
                 impl_->animationTime,
                 game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
                 true);
-    impl_->appendSkeleton(scenePose, debug);
-    impl_->appendWireframe(mesh, scenePose, debug);
+    if (!battle) {
+        impl_->appendSkeleton(scenePose, debug);
+        impl_->appendWireframe(mesh, scenePose, debug);
+    }
 
     if (impl_->options.showMesh) {
         PokemonInstance unit{};
         unit.id = impl_->unitId;
         unit.name = impl_->displayName;
         unit.alive = true;
-        unit.position = glm::vec3(0.0f);
+        unit.position = battle ? glm::make_vec3(battle->position) : glm::vec3(0.0f);
         unit.rotation = glm::vec3(0.0f);
         unit.speciesScale = 1.0f;
         unit.modelScaleCorrection = 1.0f;
@@ -1471,7 +1481,7 @@ void PokemonPrefabPreview::render(
                             .boardSurfaceY = 0.0f,
                             .unitSize = 96.0f,
                             .animPitch = 0.0f,
-                            .animYaw = 0.0f,
+                            .animYaw = battle ? battle->yawRadians : 0.0f,
                             .animRoll = 0.0f,
                             .attackPulse = 1.0f,
                             .materialTimeSec =
@@ -1480,15 +1490,14 @@ void PokemonPrefabPreview::render(
                                 animationIndex,
                             .materialAnimationTimeSec =
                                 impl_->animationTime,
-                            .renderVisualScale = 1.0f,
+                            .renderVisualScale = battle ? battle->scale : 1.0f,
                             .renderCaptureScale = 1.0f,
                             .captureVisualTintStrength =
                                 0.0f,
                             .modelFadeAlpha = 1.0f,
                             .captureTintColor =
                                 glm::vec3(1.0f),
-                            .proxyCenter =
-                                glm::vec3(0.0f),
+                            .proxyCenter = unit.position,
                             .cameraWorldPos =
                                 camera.getPosition(),
                             .supportsWorldTriangles3D =
@@ -1504,12 +1513,12 @@ void PokemonPrefabPreview::render(
                                 &scratch
                                      .projectedRenderItems,
                             .worldSceneRegistry =
-                                zaSourceStage
+                                (zaSourceStage || battle)
                                     ? nullptr
                                     : &scratch
                                            .worldSceneRegistry,
                             .worldSceneFrame =
-                                zaSourceStage
+                                (zaSourceStage || battle)
                                     ? nullptr
                                     : &scratch.worldSceneFrame,
                             .worldIndexedBatches =
@@ -1577,7 +1586,53 @@ void PokemonPrefabPreview::render(
                 : 0);
         impl_->submit(renderer, camera, width, height);
     }
-    renderer.endWorldSceneColorPass();
+    if (!battle) renderer.endWorldSceneColorPass();
+}
+
+bool PokemonPrefabPreview::renderBattle(
+    const engine::render::BattlePokemonFrame& frame,
+    std::string* outError) {
+    if (!impl_->ready || !frame.renderer || !frame.animation ||
+        frame.width <= 0 || frame.height <= 0) {
+        if (outError) *outError = "Invalid battle model frame";
+        return false;
+    }
+    const auto found = std::find_if(impl_->texturedMesh.animations.begin(),
+        impl_->texturedMesh.animations.end(), [&](const auto& clip) {
+            return clip.name == frame.animation && clip.durationSec > 0.0f;
+        });
+    if (found == impl_->texturedMesh.animations.end()) {
+        if (outError) *outError = std::string("Missing native battle clip: ") + frame.animation;
+        return false;
+    }
+    impl_->options.animationIndex = static_cast<int>(
+        found - impl_->texturedMesh.animations.begin());
+    impl_->options.graphicsQuality = 3;
+    impl_->options.lightingProfile = 1;
+    impl_->options.materialDebugView = 0;
+    impl_->options.showMesh = true;
+    impl_->options.showMaterials = true;
+    impl_->options.showTextures = true;
+    impl_->animationTime = std::fmod(std::max(0.0f, frame.animationTime),
+                                     found->durationSec);
+    impl_->materialTime = std::max(0.0f, frame.animationTime);
+    const engine::editor::EditorProjectRenderContext context{
+        .renderer = frame.renderer,
+        .surfaceWidth = frame.width,
+        .surfaceHeight = frame.height,
+        .cameraWorldPosition3 = frame.cameraPosition,
+        .cameraTarget3 = frame.cameraTarget,
+    };
+    impl_->battleFrame = &frame;
+    try {
+        render(context);
+    } catch (...) {
+        impl_->battleFrame = nullptr;
+        throw;
+    }
+    impl_->battleFrame = nullptr;
+    if (outError) outError->clear();
+    return true;
 }
 
 } // namespace game::editor

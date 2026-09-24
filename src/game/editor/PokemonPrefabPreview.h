@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <string>
 
+namespace engine::render { struct BattlePokemonFrame; }
+
 namespace game::editor {
 
 class PokemonPrefabPreview {
@@ -37,6 +39,8 @@ public:
     void render(
         const engine::editor::
             EditorProjectRenderContext& context);
+    bool renderBattle(const engine::render::BattlePokemonFrame& frame,
+                      std::string* outError = nullptr);
 
 private:
     struct Impl;

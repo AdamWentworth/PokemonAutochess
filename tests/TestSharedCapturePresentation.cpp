@@ -193,6 +193,13 @@ bool test_shared_capture_presentation_contract(std::string& outFail) {
         game::runtime::shared_world_content_submit::submitOpaqueAndIndexedWorldContent(submit);
         if (!expect(renderer.sceneDraws == 2 && renderer.prematureDraws == 0,
                     "Animated travel ball shells must also submit inside the scene color pass.", outFail)) return false;
+        submit.managePass = false;
+        renderer.inScenePass = true;
+        game::runtime::shared_world_content_submit::submitOpaqueAndIndexedWorldContent(submit);
+        if (!expect(renderer.sceneDraws == 3 && renderer.inScenePass &&
+                        renderer.prematureDraws == 0,
+                    "Embedded model draws must preserve their host's open scene pass.", outFail)) return false;
+        renderer.inScenePass = false;
     }
 
     {

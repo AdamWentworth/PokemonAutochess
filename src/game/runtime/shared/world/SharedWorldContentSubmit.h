@@ -16,6 +16,7 @@ struct Args {
     float cameraForwardScale = 1.0f;
     int drawableW = 0;
     int drawableH = 0;
+    bool managePass = true;
     bool hasWorldViewProj = false;
     bool supportsWorldTriangles3D = false;
     bool supportsWorldIndexedMeshes = false;

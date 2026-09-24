@@ -26,7 +26,8 @@ void submitOpaqueAndIndexedWorldContent(const Args& args) {
 
     auto* renderer = args.renderer;
     auto* renderBuildBreakdown = args.renderBuildBreakdown;
-    renderer->beginWorldSceneColorPass(args.drawableW, args.drawableH);
+    if (args.managePass)
+        renderer->beginWorldSceneColorPass(args.drawableW, args.drawableH);
 
     if (args.worldBackgroundQuads && !args.worldBackgroundQuads->empty()) {
         const auto stageStart = Clock::now();
@@ -115,7 +116,7 @@ void submitOpaqueAndIndexedWorldContent(const Args& args) {
             renderBuildBreakdown->worldIndexedMs += elapsedMs;
         }
     }
-    renderer->endWorldSceneColorPass();
+    if (args.managePass) renderer->endWorldSceneColorPass();
 }
 
 } // namespace game::runtime::shared_world_content_submit

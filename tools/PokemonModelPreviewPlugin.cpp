@@ -1,7 +1,11 @@
 #include "engine/editor/EditorProjectPlugin.h"
+#include "engine/render/BattlePokemonPlugin.h"
 #include "game/editor/PokemonPrefabPreview.h"
 
 #include <filesystem>
+#include <memory>
+#include <string>
+#include <unordered_map>
 
 namespace {
 
@@ -95,10 +99,70 @@ const engine::editor::EditorProjectPluginContract contract{
     &createRuntime,
     &destroyRuntime};
 
+struct BattlePokemonRuntime {
+    std::unordered_map<std::string,
+        std::unique_ptr<game::editor::PokemonPrefabPreview>> previews;
+    std::string error;
+};
+
+bool renderBattlePokemon(void* context,
+    const engine::render::BattlePokemonFrame* frame) noexcept {
+    auto& runtime = *static_cast<BattlePokemonRuntime*>(context);
+    try {
+        if (!frame || !frame->assetId || !frame->phloPath ||
+            !frame->animation) {
+            runtime.error = "Incomplete battle Pokemon frame";
+            return false;
+        }
+        const std::string id(frame->assetId);
+        auto& preview = runtime.previews[id];
+        if (!preview) {
+            preview = std::make_unique<game::editor::PokemonPrefabPreview>();
+            if (!preview->select(frame->assetId, frame->phloPath,
+                                 &runtime.error)) {
+                preview.reset();
+                return false;
+            }
+        }
+        return preview->renderBattle(*frame, &runtime.error);
+    } catch (const std::exception& exception) {
+        runtime.error = exception.what();
+        return false;
+    } catch (...) {
+        runtime.error = "Unknown battle Pokemon rendering error";
+        return false;
+    }
+}
+
+const char* battlePokemonLastError(void* context) noexcept {
+    return static_cast<BattlePokemonRuntime*>(context)->error.c_str();
+}
+
+void destroyBattlePokemon(void* context) noexcept {
+    delete static_cast<BattlePokemonRuntime*>(context);
+}
+
 } // namespace
 
 PHLOSION_EDITOR_PROJECT_EXPORT
 const engine::editor::EditorProjectPluginContract*
 phlosionEditorProjectPluginContract() {
     return &contract;
+}
+
+PHLOSION_EDITOR_PROJECT_EXPORT bool phlosionBattlePokemonPluginCreate(
+    std::uint32_t abi,
+    engine::render::BattlePokemonPluginApi* out) noexcept {
+    if (abi != engine::render::battlePokemonPluginAbi || !out) return false;
+    try {
+        *out = {engine::render::battlePokemonPluginAbi,
+                sizeof(engine::render::BattlePokemonPluginApi),
+                new BattlePokemonRuntime(),
+                &renderBattlePokemon,
+                &battlePokemonLastError,
+                &destroyBattlePokemon};
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
