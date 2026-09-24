@@ -1481,7 +1481,8 @@ void PokemonPrefabPreview::render(
                             .boardSurfaceY = 0.0f,
                             .unitSize = 96.0f,
                             .animPitch = 0.0f,
-                            .animYaw = battle ? battle->yawRadians : 0.0f,
+                            // Battle frames carry radians; unit projection uses degrees.
+                            .animYaw = battle ? glm::degrees(battle->yawRadians) : 0.0f,
                             .animRoll = 0.0f,
                             .attackPulse = 1.0f,
                             .materialTimeSec =
