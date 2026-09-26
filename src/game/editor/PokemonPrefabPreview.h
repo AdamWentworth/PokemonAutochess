@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <string>
 
-namespace engine::render { struct BattlePokemonFrame; }
+namespace engine::render { struct ModelRenderFrame; }
 
 namespace game::editor {
 
@@ -39,7 +39,7 @@ public:
     void render(
         const engine::editor::
             EditorProjectRenderContext& context);
-    bool renderBattle(const engine::render::BattlePokemonFrame& frame,
+    bool renderBattle(const engine::render::ModelRenderFrame& frame,
                       std::string* outError = nullptr);
 
 private:

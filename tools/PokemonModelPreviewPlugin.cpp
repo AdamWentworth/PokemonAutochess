@@ -1,5 +1,5 @@
 #include "engine/editor/EditorProjectPlugin.h"
-#include "engine/render/BattlePokemonPlugin.h"
+#include "engine/render/ModelRenderPlugin.h"
 #include "game/editor/PokemonPrefabPreview.h"
 
 #include <filesystem>
@@ -106,7 +106,7 @@ struct BattlePokemonRuntime {
 };
 
 bool renderBattlePokemon(void* context,
-    const engine::render::BattlePokemonFrame* frame) noexcept {
+    const engine::render::ModelRenderFrame* frame) noexcept {
     auto& runtime = *static_cast<BattlePokemonRuntime*>(context);
     try {
         if (!frame || !frame->assetId || !frame->phloPath ||
@@ -150,13 +150,13 @@ phlosionEditorProjectPluginContract() {
     return &contract;
 }
 
-PHLOSION_EDITOR_PROJECT_EXPORT bool phlosionBattlePokemonPluginCreate(
+PHLOSION_EDITOR_PROJECT_EXPORT bool phlosionModelRenderPluginCreate(
     std::uint32_t abi,
-    engine::render::BattlePokemonPluginApi* out) noexcept {
-    if (abi != engine::render::battlePokemonPluginAbi || !out) return false;
+    engine::render::ModelRenderPluginApi* out) noexcept {
+    if (abi != engine::render::modelRenderPluginAbi || !out) return false;
     try {
-        *out = {engine::render::battlePokemonPluginAbi,
-                sizeof(engine::render::BattlePokemonPluginApi),
+        *out = {engine::render::modelRenderPluginAbi,
+                sizeof(engine::render::ModelRenderPluginApi),
                 new BattlePokemonRuntime(),
                 &renderBattlePokemon,
                 &battlePokemonLastError,

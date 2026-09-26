@@ -2,7 +2,7 @@
 #include "game/editor/PokemonPrefabPreview.h"
 
 #include "engine/render/Camera3D.h"
-#include "engine/render/BattlePokemonPlugin.h"
+#include "engine/render/ModelRenderPlugin.h"
 #include "game/PokemonInstance.h"
 #include "game/config/GameDataDb.h"
 #include "game/runtime/phlosion/PhlosionModelObject.h"
@@ -530,7 +530,7 @@ struct PokemonPrefabPreview::Impl {
     std::size_t cookedTextureCount = 0u;
     std::size_t cookedBoneCount = 0u;
     bool ready = false;
-    const engine::render::BattlePokemonFrame* battleFrame = nullptr;
+    const engine::render::ModelRenderFrame* battleFrame = nullptr;
     std::uint64_t visibilitySignature =
         std::numeric_limits<std::uint64_t>::max();
 
@@ -1591,7 +1591,7 @@ void PokemonPrefabPreview::render(
 }
 
 bool PokemonPrefabPreview::renderBattle(
-    const engine::render::BattlePokemonFrame& frame,
+    const engine::render::ModelRenderFrame& frame,
     std::string* outError) {
     if (!impl_->ready || !frame.renderer || !frame.animation ||
         frame.width <= 0 || frame.height <= 0) {
