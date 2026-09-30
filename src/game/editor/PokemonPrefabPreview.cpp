@@ -1424,7 +1424,7 @@ void PokemonPrefabPreview::render(
                 animationIndex,
                 impl_->animationTime,
                 game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal,
-                true);
+                battle ? battle->looping : true);
     if (!battle) {
         impl_->appendSkeleton(scenePose, debug);
         impl_->appendWireframe(mesh, scenePose, debug);
@@ -1650,14 +1650,15 @@ bool PokemonPrefabPreview::sampleNodePose(
     if (clip == source.animations.end())
         return fail(std::string("Missing native model clip: ") + request.animation);
     const int animationIndex = static_cast<int>(clip - source.animations.begin());
-    const float clipTime = std::fmod(request.animationTime, clip->durationSec);
+    const float clipTime = request.looping ? std::fmod(request.animationTime, clip->durationSec)
+        : std::min(request.animationTime, clip->durationSec);
     const auto& mesh = impl_->visibilityAdjustedMesh(source, animationIndex, clipTime);
     const auto node = std::find(mesh.nodeNames.begin(), mesh.nodeNames.end(), request.nodeName);
     if (node == mesh.nodeNames.end())
         return fail(std::string("Missing native model node: ") + request.nodeName);
     auto pose = game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
         mesh, animationIndex, clipTime,
-        game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal, true);
+        game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal, request.looping);
     game::runtime::shared_backend_pose::applyContinuousNativeOverlay(
         mesh, request.animationTime, pose, animationIndex);
     const auto index = static_cast<std::size_t>(node - mesh.nodeNames.begin());
@@ -1703,8 +1704,9 @@ bool PokemonPrefabPreview::renderBattle(
     impl_->options.showMesh = true;
     impl_->options.showMaterials = true;
     impl_->options.showTextures = true;
-    impl_->animationTime = std::fmod(std::max(0.0f, frame.animationTime),
-                                     found->durationSec);
+    impl_->animationTime = frame.looping
+        ? std::fmod(std::max(0.0f, frame.animationTime), found->durationSec)
+        : std::clamp(frame.animationTime, 0.0f, found->durationSec);
     impl_->materialTime = std::max(0.0f, frame.animationTime);
     const engine::editor::EditorProjectRenderContext context{
         .renderer = frame.renderer,
