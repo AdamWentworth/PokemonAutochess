@@ -1371,7 +1371,7 @@ IRenderBackend::WorldTextureData toWorldTextureData(const WorldIndexedBatch& bat
     tex.clipSpaceDepthBias = batch.clipSpaceDepthBias > 0.0f
         ? batch.clipSpaceDepthBias
         : materialBatch.clipSpaceDepthBias;
-    tex.materialMode = materialBatch.materialMode;
+    tex.materialMode = batch.unlit ? 255u : materialBatch.materialMode;
     tex.alphaCutoff = batch.materialAlphaOverride ? batch.alphaCutoff : materialBatch.alphaCutoff;
     tex.alphaWindowMin =
         batch.materialAlphaOverride ? batch.alphaWindowMin : materialBatch.alphaWindowMin;

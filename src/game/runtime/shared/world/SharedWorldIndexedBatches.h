@@ -137,6 +137,7 @@ struct WorldIndexedBatch {
     std::uint8_t materialMode = 0u;
     float clipSpaceDepthBias = 0.0f;
     bool materialAlphaOverride = false;
+    bool unlit = false;
     float alphaCutoff = 0.5f;
     float alphaWindowMin = 0.0f;
     float alphaWindowMax = 1.0f;

@@ -532,6 +532,7 @@ struct PokemonPrefabPreview::Impl {
     std::size_t cookedBoneCount = 0u;
     bool ready = false;
     const engine::render::ModelRenderFrame* battleFrame = nullptr;
+    std::array<std::vector<std::vector<float>>, 16> battlePosePalettes;
     std::uint64_t visibilitySignature =
         std::numeric_limits<std::uint64_t>::max();
 
@@ -1446,10 +1447,10 @@ void PokemonPrefabPreview::render(
             game::runtime::render_prep_pose::
                 computeProceduralPose(unit, 1.0f);
         IRenderBackend::DebugQuad tint{};
-        tint.r = 1.0f;
-        tint.g = 1.0f;
-        tint.b = 1.0f;
-        tint.a = 1.0f;
+        tint.r = battle ? battle->tint[0] : 1.0f;
+        tint.g = battle ? battle->tint[1] : 1.0f;
+        tint.b = battle ? battle->tint[2] : 1.0f;
+        tint.a = battle ? battle->tint[3] : 1.0f;
         std::size_t triangleBudget =
             std::max<std::size_t>(
                 1u,
@@ -1495,7 +1496,7 @@ void PokemonPrefabPreview::render(
                             .renderCaptureScale = 1.0f,
                             .captureVisualTintStrength =
                                 0.0f,
-                            .modelFadeAlpha = 1.0f,
+                            .modelFadeAlpha = battle ? battle->tint[3] : 1.0f,
                             .captureTintColor =
                                 glm::vec3(1.0f),
                             .proxyCenter = unit.position,
@@ -1585,6 +1586,43 @@ void PokemonPrefabPreview::render(
                     impl_->options.showTextures
                 ? impl_->options.materialDebugView
                 : 0);
+        if (battle) {
+            auto& palettes = impl_->battlePosePalettes[battle->poseSlot];
+            std::size_t count = scratch.worldIndexedBatches.size();
+            for (const auto& batch : scratch.worldIndexedBatches) count += batch.instances.size();
+            palettes.resize(count);
+            std::size_t paletteIndex = 0;
+            auto retain = [&](const float* data, std::uint32_t matrices, std::uint8_t mode) -> const float* {
+                auto& owned = palettes[paletteIndex++];
+                if (!data || !matrices) return data;
+                owned.assign(data, data + static_cast<std::size_t>(matrices) * (mode == 1 ? 32 : 16));
+                return owned.data();
+            };
+            for (auto& batch : scratch.worldIndexedBatches) {
+                batch.sharedSkinMatrices = retain(batch.sharedSkinMatrices ? batch.sharedSkinMatrices :
+                    (batch.skinMatrices.empty() ? nullptr : batch.skinMatrices.data()),
+                    batch.skinMatrixCount, batch.gpuSkinningMode);
+                for (auto& instance : batch.instances)
+                    instance.skinMatrices = retain(instance.skinMatrices,
+                        instance.skinMatrixCount, instance.gpuSkinningMode);
+            }
+        }
+        if (battle && (battle->translucent || battle->unlit)) {
+            // Transient batches are rebuilt by beginFrame; shared asset material
+            // templates remain untouched by per-instance presentation options.
+            for (auto& batch : scratch.worldIndexedBatches) {
+                batch.unlit = battle->unlit;
+                if (battle->translucent) {
+                    batch.materialAlphaOverride = true;
+                    batch.alphaMode = 2u;
+                    batch.blendMode = 0u;
+                    batch.dualSourceBlendEnabled = 0u;
+                    batch.depthTestEnabled = 1u;
+                    batch.alphaWindowMin = 0.0f;
+                    batch.alphaWindowMax = 1.0f;
+                }
+            }
+        }
         impl_->submit(renderer, camera, width, height);
     }
     if (!battle) renderer.endWorldSceneColorPass();
@@ -1639,9 +1677,15 @@ bool PokemonPrefabPreview::renderBattle(
     const engine::render::ModelRenderFrame& frame,
     std::string* outError) {
     if (!impl_->ready || !frame.renderer || !frame.animation ||
-        frame.width <= 0 || frame.height <= 0) {
+        frame.width <= 0 || frame.height <= 0 || frame.poseSlot >= 16) {
         if (outError) *outError = "Invalid battle model frame";
         return false;
+    }
+    for (const float value : frame.tint) {
+        if (!std::isfinite(value) || value < 0.0f || value > 1.0f) {
+            if (outError) *outError = "Invalid model tint";
+            return false;
+        }
     }
     const auto found = std::find_if(impl_->texturedMesh.animations.begin(),
         impl_->texturedMesh.animations.end(), [&](const auto& clip) {

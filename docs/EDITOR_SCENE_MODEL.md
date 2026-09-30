@@ -2,9 +2,16 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-09-19
+Last updated: 2026-09-29
 
 ## Scenes and scenarios
+
+The exported generic `ModelRenderPlugin` now uses ABI 3. Per-frame tint,
+translucency and unlit options apply to transient model submissions without
+mutating cached material templates. Pose slots 0–15 retain distinct same-frame
+skin palettes for callers rendering several historical poses of one asset.
+Default frame options preserve ordinary model rendering. Rebuild consumers and
+stage a matching provider when changing this interface.
 
 A **scene** is a location. A **scenario** is a starting setup at that location:
 Pokemon placements, game phase, or a prepared mechanic test. Selecting another
