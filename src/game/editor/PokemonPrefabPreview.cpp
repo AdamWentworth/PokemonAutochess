@@ -13,6 +13,7 @@
 #include "game/runtime/video/VideoPreferences.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/runtime/shared/projected/core/SharedProjectedBodyPresentation.h"
+#include "game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPrep.h"
 #include "game/runtime/shared/projected/core/SharedProjectedDebugVfx.h"
 #include "game/runtime/shared/projected/world_scene/SharedProjectedWorldSceneHelpers.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
@@ -545,9 +546,9 @@ struct PokemonPrefabPreview::Impl {
     }
 
     const MeshData& visibilityAdjustedMesh(
+        const MeshData& source,
         int animationIndex,
         float timeSeconds) {
-        const MeshData& source = displayMesh();
         if (animationIndex < 0 ||
             static_cast<std::size_t>(animationIndex) >=
                 source.animationMeshVisibility.size() ||
@@ -664,9 +665,7 @@ struct PokemonPrefabPreview::Impl {
         preserveSoftNativeEffectNodes(source, hiddenNodes);
 
         const std::uint64_t viewKind =
-            !options.showMaterials
-                ? 1u
-                : (!options.showTextures ? 2u : 3u);
+            &source == &geometryMesh ? 1u : (&source == &materialMesh ? 2u : 3u);
         std::uint64_t signature =
             1469598103934665603ull ^ viewKind;
         bool anyHidden = false;
@@ -1413,6 +1412,7 @@ void PokemonPrefabPreview::render(
         impl_->resolvedAnimationIndex();
     const MeshData& mesh =
         impl_->visibilityAdjustedMesh(
+            impl_->displayMesh(),
             animationIndex,
             impl_->animationTime);
     const bool zaSourceStage = impl_->options.lightingProfile == 4;
@@ -1588,6 +1588,51 @@ void PokemonPrefabPreview::render(
         impl_->submit(renderer, camera, width, height);
     }
     if (!battle) renderer.endWorldSceneColorPass();
+}
+
+bool PokemonPrefabPreview::sampleNodePose(
+    const engine::render::ModelNodePoseRequest& request,
+    engine::render::ModelNodePoseResult& result,
+    std::string* outError) const {
+    auto fail = [&](const std::string& message) {
+        if (outError) *outError = message;
+        return false;
+    };
+    if (!impl_->ready || !request.animation || !request.nodeName ||
+        !std::isfinite(request.animationTime) || request.animationTime < 0.0f ||
+        !std::isfinite(request.yawRadians) || !std::isfinite(request.scale) ||
+        request.scale <= 0.0f || !std::all_of(std::begin(request.position),
+            std::end(request.position), [](float v) { return std::isfinite(v); }))
+        return fail("Invalid model node pose request");
+    const auto& source = impl_->texturedMesh;
+    const auto clip = std::find_if(source.animations.begin(), source.animations.end(),
+        [&](const auto& animation) {
+            return animation.name == request.animation && animation.durationSec > 0.0f;
+        });
+    if (clip == source.animations.end())
+        return fail(std::string("Missing native model clip: ") + request.animation);
+    const int animationIndex = static_cast<int>(clip - source.animations.begin());
+    const float clipTime = std::fmod(request.animationTime, clip->durationSec);
+    const auto& mesh = impl_->visibilityAdjustedMesh(source, animationIndex, clipTime);
+    const auto node = std::find(mesh.nodeNames.begin(), mesh.nodeNames.end(), request.nodeName);
+    if (node == mesh.nodeNames.end())
+        return fail(std::string("Missing native model node: ") + request.nodeName);
+    auto pose = game::runtime::shared_backend_pose::evaluateScenePoseForResolvedClipTime(
+        mesh, animationIndex, clipTime,
+        game::runtime::shared_backend_pose::RootMotionPolicy::InPlaceHorizontal, true);
+    game::runtime::shared_backend_pose::applyContinuousNativeOverlay(
+        mesh, request.animationTime, pose, animationIndex);
+    const auto index = static_cast<std::size_t>(node - mesh.nodeNames.begin());
+    if (index >= pose.nodeGlobals.size()) return fail("Native model node pose is unavailable");
+    const auto model = game::runtime::shared_projected_unit_backend_mesh_prep::supportedModelMatrix(
+        mesh, glm::make_vec3(request.position), previewModelScale(mesh) * request.scale,
+        {0.0f, glm::degrees(request.yawRadians), 0.0f}, 0.0f);
+    const glm::vec3 position(model * pose.nodeGlobals[index] * glm::vec4(0, 0, 0, 1));
+    if (!std::isfinite(position.x) || !std::isfinite(position.y) || !std::isfinite(position.z))
+        return fail("Native model node pose is non-finite");
+    std::copy(glm::value_ptr(position), glm::value_ptr(position) + 3, result.worldPosition);
+    if (outError) outError->clear();
+    return true;
 }
 
 bool PokemonPrefabPreview::renderBattle(

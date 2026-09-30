@@ -961,6 +961,20 @@ float sampleMeshVisibilityAlpha(
 
 namespace game::runtime::shared_projected_unit_backend_mesh_prep {
 
+glm::mat4 supportedModelMatrix(const runtime::render_model::MeshData& mesh,
+    glm::vec3 position, float modelScale, glm::vec3 rotationDegrees,
+    float boardSurfaceY) {
+    const float minAllowedY = boardSurfaceY + 0.0025f;
+    const float minY = position.y + runtime::render_model::modelSupportContactY(mesh) * modelScale;
+    if (std::isfinite(minY) && minY < minAllowedY)
+        position.y += minAllowedY - minY;
+    const auto scale = glm::scale(glm::mat4(1.0f), glm::vec3(modelScale));
+    const auto x = glm::rotate(glm::mat4(1.0f), glm::radians(rotationDegrees.x), glm::vec3(1, 0, 0));
+    const auto y = glm::rotate(glm::mat4(1.0f), glm::radians(rotationDegrees.y), glm::vec3(0, 1, 0));
+    const auto z = glm::rotate(glm::mat4(1.0f), glm::radians(rotationDegrees.z), glm::vec3(0, 0, 1));
+    return glm::translate(glm::mat4(1.0f), position) * y * x * z * scale;
+}
+
 void PreparedState::reset() {
     mesh = nullptr;
     triangleCount = 0u;
@@ -1102,25 +1116,8 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
     const float modelScale = std::max(0.01f, mesh->modelScaleFactor) * resolvedScaleCorrection *
                              std::max(0.05f, unit.speciesScale) * args.renderVisualScale *
                              args.renderCaptureScale * args.attackPulse;
-    glm::vec3 renderPos = args.proxyCenter;
-    const float minAllowedModelY = args.boardSurfaceY + 0.0025f;
-    const float approxModelMinY =
-        renderPos.y +
-        game::runtime::render_model::modelSupportContactY(*mesh) *
-            modelScale;
-    if (std::isfinite(approxModelMinY) && approxModelMinY < minAllowedModelY) {
-        renderPos.y += (minAllowedModelY - approxModelMinY);
-    }
-
-    const glm::mat4 scale = glm::scale(glm::mat4(1.0f), glm::vec3(modelScale));
-    const glm::mat4 rotationX =
-        glm::rotate(glm::mat4(1.0f), glm::radians(args.animPitch), glm::vec3(1, 0, 0));
-    const glm::mat4 rotationY =
-        glm::rotate(glm::mat4(1.0f), glm::radians(args.animYaw), glm::vec3(0, 1, 0));
-    const glm::mat4 rotationZ =
-        glm::rotate(glm::mat4(1.0f), glm::radians(args.animRoll), glm::vec3(0, 0, 1));
-    const glm::mat4 translation = glm::translate(glm::mat4(1.0f), renderPos);
-    prepared.modelM = translation * rotationY * rotationX * rotationZ * scale;
+    prepared.modelM = supportedModelMatrix(*mesh, args.proxyCenter, modelScale,
+        {args.animPitch, args.animYaw, args.animRoll}, args.boardSurfaceY);
     const float* modelM = glm::value_ptr(prepared.modelM);
     std::copy(modelM, modelM + 16, prepared.modelMatrix.begin());
 

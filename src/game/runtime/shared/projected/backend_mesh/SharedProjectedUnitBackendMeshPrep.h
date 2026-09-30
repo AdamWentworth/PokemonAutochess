@@ -16,6 +16,11 @@ namespace game::runtime::shared_projected_unit_backend_mesh_prep {
 using Args = shared_projected_unit_backend_mesh::Args;
 using Result = shared_projected_unit_backend_mesh::Result;
 
+// Shared by mesh submission and CPU attachment queries.
+glm::mat4 supportedModelMatrix(const runtime::render_model::MeshData& mesh,
+    glm::vec3 position, float modelScale, glm::vec3 rotationDegrees,
+    float boardSurfaceY);
+
 struct PreparedState {
     const runtime::render_model::MeshData* mesh = nullptr;
     std::size_t triangleCount = 0u;

@@ -138,6 +138,35 @@ const char* battlePokemonLastError(void* context) noexcept {
     return static_cast<BattlePokemonRuntime*>(context)->error.c_str();
 }
 
+bool sampleBattlePokemonNode(void* context,
+    const engine::render::ModelNodePoseRequest* request,
+    engine::render::ModelNodePoseResult* result) noexcept {
+    if (!context) return false;
+    auto& runtime = *static_cast<BattlePokemonRuntime*>(context);
+    try {
+        if (!request || !result || !request->assetId || !*request->assetId ||
+            !request->phloPath || !*request->phloPath) {
+            runtime.error = "Incomplete model node pose request";
+            return false;
+        }
+        auto& preview = runtime.previews[request->assetId];
+        if (!preview) {
+            preview = std::make_unique<game::editor::PokemonPrefabPreview>();
+            if (!preview->select(request->assetId, request->phloPath, &runtime.error)) {
+                preview.reset();
+                return false;
+            }
+        }
+        return preview->sampleNodePose(*request, *result, &runtime.error);
+    } catch (const std::exception& exception) {
+        runtime.error = exception.what();
+        return false;
+    } catch (...) {
+        runtime.error = "Unknown model node pose sampling error";
+        return false;
+    }
+}
+
 void destroyBattlePokemon(void* context) noexcept {
     delete static_cast<BattlePokemonRuntime*>(context);
 }
@@ -160,7 +189,8 @@ PHLOSION_EDITOR_PROJECT_EXPORT bool phlosionModelRenderPluginCreate(
                 new BattlePokemonRuntime(),
                 &renderBattlePokemon,
                 &battlePokemonLastError,
-                &destroyBattlePokemon};
+                &destroyBattlePokemon,
+                &sampleBattlePokemonNode};
         return true;
     } catch (...) {
         return false;

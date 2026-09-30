@@ -6,7 +6,11 @@
 #include <filesystem>
 #include <string>
 
-namespace engine::render { struct ModelRenderFrame; }
+namespace engine::render {
+struct ModelRenderFrame;
+struct ModelNodePoseRequest;
+struct ModelNodePoseResult;
+}
 
 namespace game::editor {
 
@@ -41,6 +45,9 @@ public:
             EditorProjectRenderContext& context);
     bool renderBattle(const engine::render::ModelRenderFrame& frame,
                       std::string* outError = nullptr);
+    bool sampleNodePose(const engine::render::ModelNodePoseRequest& request,
+                        engine::render::ModelNodePoseResult& result,
+                        std::string* outError = nullptr) const;
 
 private:
     struct Impl;
