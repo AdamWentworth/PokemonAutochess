@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Contract
-Last updated: 2026-09-19
+Last updated: 2026-10-02
 
 Pokemon Autochess is a Phlosion game project, not a fork of the engine. Its
 repository owns everything that would be nonsensical in a racing game or
@@ -62,8 +62,9 @@ Editor only hosts these capabilities through its generic project-plugin ABI.
 The reusable projected-grid UI, tile selection, multi-level stamps, prefab
 palette presentation, ramps, and platform controls live in the optional
 `phlosion.tile-tools` package in `PhlosionPackages`. The current Blender workflow
-does not declare or load that package. Its module remains a separate editor build
-target; this game does not own the generic package implementation.
+does not declare, build, or load that package. Its module remains available with
+`PAC_BUILD_TILE_TOOLS=ON` in an editor build; this game does not own the generic
+package implementation.
 
 Opening a different project must load a different plugin and expose none of
 the Pokemon-specific tools. It sees Tile Tools only if it independently
@@ -73,8 +74,8 @@ declares that package.
 
 The game consumes Phlosion Engine for its runtime/render/editor/model contracts,
 PokemonModelSupport for optional source interpretation,
-Phlosion Packages for optional editor features, and Phlosion VFX for reusable
-effect primitives. It must not add game headers or game vocabulary back to
+Phlosion Packages for optional editor features. Reusable VFX lives in the engine;
+move presets and the VFX lab live in `src/game/vfx`. It must not add game headers or game vocabulary back to
 any dependency.
 
 `PAC_ProjectOwnershipBoundary`, `PAC_EngineSemanticBoundary`, and the compiled

@@ -6,7 +6,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
+#include "engine/vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 
 namespace {
 
@@ -75,15 +75,17 @@ bool test_shared_authored_vfx_helpers_contract(std::string &outFail) {
     }
 
     config.fragShaderPath = "assets/shaders/VFX/moves/growl/GROWL_LINE_SHARED.frag";
+    pass.linePass = true;
     pass.fragShaderPath.clear();
     pass.textureQuarterRing = false;
     if (!expect(isLinePass(config, pass),
-                "isLinePass should detect line passes from config frag shader path (case-insensitive).",
+                "isLinePass should use the explicit line material flag.",
                 outFail)) {
         return false;
     }
     pass.renderMode = "streak_quad";
     pass.fragShaderPath = "assets/shaders/vfx/shared/authored_line_shared.frag";
+    pass.linePass = true;
     if (!expect(isLinePass(config, pass) && isStreakQuadPass(pass),
                 "Shared authored helpers should treat streak_quad passes as shared line-style passes.",
                 outFail)) {
@@ -128,6 +130,8 @@ bool test_shared_authored_vfx_helpers_contract(std::string &outFail) {
 
     config.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_ring_shared.frag";
     pass.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag";
+    pass.linePass = false;
+    pass.quarterTextureBake = true;
     pass.textureQuarterRing = false;
     pass.renderMode.clear();
     if (!expect(usesQuarterTextureBake(config, pass),
@@ -198,6 +202,7 @@ bool test_shared_authored_vfx_helpers_contract(std::string &outFail) {
     }
 
     pass.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_line_shared.frag";
+    pass.linePass = true;
     pass.texturePath.clear();
     if (!expect(makeTextureCacheKey(config, pass) == "__authored_vfx_white__",
                 "makeTextureCacheKey should share a single white cache entry for line/white growl passes.",
@@ -206,6 +211,8 @@ bool test_shared_authored_vfx_helpers_contract(std::string &outFail) {
     }
 
     pass.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag";
+    pass.linePass = false;
+    pass.quarterTextureBake = true;
     pass.texturePath = "assets/textures/moves/growl/Texture3918.png";
     pass.renderMode = "mesh";
     pass.textureQuarterRing = false;

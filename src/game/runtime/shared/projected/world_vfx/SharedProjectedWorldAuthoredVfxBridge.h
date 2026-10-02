@@ -3,7 +3,7 @@
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
-#include "vfx/effects/shared/SharedAuthoredBatchVFX.h"
+#include "engine/vfx/effects/shared/SharedAuthoredBatchVFX.h"
 
 #include <functional>
 #include <string>

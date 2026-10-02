@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 
 #include "game/runtime/shared/vfx/authored/SharedAuthoredVfxPrewarm.h"
-#include "vfx/effects/tackle/TackleSmokeVFX.h"
+#include "game/vfx/effects/tackle/TackleSmokeVFX.h"
 
 namespace game::runtime::tackle_vfx_prewarm {
 

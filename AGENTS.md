@@ -1,7 +1,7 @@
 # Project orientation
 
-This repository owns the game. Reusable Phlosion Engine and VFX components have
-their own repositories and verification boundaries.
+This repository owns the game. Reusable runtime, rendering and VFX components belong to PhlosionEngine;
+game move presets and bindings belong here.
 
 Read documentation progressively according to the task:
 

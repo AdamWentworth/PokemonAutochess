@@ -4,7 +4,7 @@
 
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
-#include "vfx/runtime/shared/SharedAuthoredVfxBatches.h"
+#include "engine/vfx/runtime/shared/SharedAuthoredVfxBatches.h"
 
 namespace game::runtime::shared_authored_vfx_interop {
 

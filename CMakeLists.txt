@@ -10,6 +10,7 @@ string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_R
 option(PAC_VERBOSE_STARTUP "Enable verbose startup/model-load logging" OFF)
 option(PAC_BUILD_TOOLS "Build developer tools (data cooker, VFX previewer)" ON)
 option(PAC_BUILD_EDITOR "Build the Pokemon Autochess project plugin for Phlosion Editor" ON)
+option(PAC_BUILD_TILE_TOOLS "Build the shelved Phlosion Tile Tools editor module" OFF)
 option(PAC_BUILD_EXTERNAL_ENVIRONMENT_TOOLS
     "Build optional source-research tools from the private companion workspace"
     OFF)
@@ -198,7 +199,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "4e555f26d1f864792e02a775f6ec7d67b7ebf0d0"
+    "2bcc4f5251167dd2a5e41efa09de042f13df9280"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 
@@ -220,7 +221,7 @@ endif()
 set(PHLOSION_DEV_ROOT
     "${_pac_dev_root_default}"
     CACHE PATH
-    "Root containing local PhlosionEngine, PhlosionPackages, and PhlosionVFX checkouts")
+    "Root containing local PhlosionEngine and optional PhlosionPackages checkouts")
 
 set(_pac_sibling_engine "")
 if (PHLOSION_DEV_ROOT)
@@ -274,15 +275,14 @@ if (NOT TARGET Phlosion::Engine OR NOT TARGET Engine)
 endif()
 
 # ---------------- Optional Phlosion editor packages ----------------
-# First-party tooling lives in the PhlosionPackages monorepo. It is
-# included only when this game builds its editor integration; shipped gameplay
-# targets do not load or link editor package code.
-if (PAC_BUILD_EDITOR)
+# Tile Tools remains available for explicit builds, but the current Blender
+# workflow neither builds nor loads it. Runtime targets never link editor packages.
+if (PAC_BUILD_EDITOR AND PAC_BUILD_TILE_TOOLS)
     set(PHLOSION_PACKAGES_GIT_REPOSITORY
         "git@github.com:AdamWentworth/PhlosionPackages.git"
         CACHE STRING "Phlosion Packages Git repository (private; requires access)")
     set(PHLOSION_PACKAGES_GIT_TAG
-        "d27d065b1d016414dc7e82cad22bf5523cb29583"
+    "bfab090b2797bcefc2844ff1c00126f7398452f8"
         CACHE STRING "Pinned Phlosion Packages commit")
     set(_pac_sibling_packages "")
     if (PHLOSION_DEV_ROOT)
@@ -336,64 +336,36 @@ if (PAC_BUILD_EDITOR)
     endif()
 endif()
 
-# ---------------- Phlosion VFX dependency ----------------
-set(PHLOSION_VFX_GIT_REPOSITORY
-    "https://github.com/AdamWentworth/PhlosionVFX.git"
-    CACHE STRING
-    "Phlosion VFX Git repository")
-set(PHLOSION_VFX_GIT_TAG
-    "8d169ffac2895cb6ef62cd570d7cfaa9542b1190"
-    CACHE STRING
-    "Pinned Phlosion VFX commit")
-set(_pac_sibling_vfx "")
-if (PHLOSION_DEV_ROOT)
-    set(_pac_sibling_vfx "${PHLOSION_DEV_ROOT}/PhlosionVFX")
-elseif (EXISTS "${CMAKE_SOURCE_DIR}/../PhlosionVFX/CMakeLists.txt")
-    set(_pac_sibling_vfx "${CMAKE_SOURCE_DIR}/../PhlosionVFX")
+# ---------------- Game-owned move effects and preview ----------------
+if (NOT TARGET Phlosion::Vfx OR NOT TARGET Phlosion::VfxAuthoring)
+    message(FATAL_ERROR "PhlosionEngine must include engine-owned VFX; select the migrated engine checkout/revision.")
 endif()
-set(_pac_vfx_source_default "")
-if (EXISTS "${_pac_sibling_vfx}/CMakeLists.txt")
-    set(_pac_vfx_source_default "${_pac_sibling_vfx}")
-endif()
-set(PHLOSION_VFX_SOURCE_DIR
-    "${_pac_vfx_source_default}"
-    CACHE PATH
-    "Local Phlosion VFX checkout; empty downloads the pinned commit")
-
-set(PHLOSION_VFX_BUILD_TESTS OFF CACHE BOOL
-    "Build Phlosion VFX tests as part of Pokemon Autochess" FORCE)
-if (PHLOSION_VFX_SOURCE_DIR)
-    if (NOT EXISTS "${PHLOSION_VFX_SOURCE_DIR}/CMakeLists.txt")
-        message(FATAL_ERROR
-            "PHLOSION_VFX_SOURCE_DIR does not contain CMakeLists.txt: "
-            "${PHLOSION_VFX_SOURCE_DIR}")
-    endif()
-    add_subdirectory(
-        "${PHLOSION_VFX_SOURCE_DIR}"
-        "${CMAKE_BINARY_DIR}/phlosion-vfx")
-    set(_pac_resolved_vfx_source_dir "${PHLOSION_VFX_SOURCE_DIR}")
-    message(STATUS
-        "Pokemon Autochess is using local Phlosion VFX: "
-        "${PHLOSION_VFX_SOURCE_DIR}")
-else()
-    include(FetchContent)
-    FetchContent_Declare(
-        PhlosionVFX
-        GIT_REPOSITORY "${PHLOSION_VFX_GIT_REPOSITORY}"
-        GIT_TAG "${PHLOSION_VFX_GIT_TAG}"
-        GIT_SHALLOW FALSE
-    )
-    FetchContent_MakeAvailable(PhlosionVFX)
-    FetchContent_GetProperties(
-        PhlosionVFX
-        SOURCE_DIR _pac_resolved_vfx_source_dir)
-    message(STATUS
-        "Pokemon Autochess is using pinned Phlosion VFX commit: "
-        "${PHLOSION_VFX_GIT_TAG}")
-endif()
-
-if (NOT TARGET PhlosionVFX::Runtime OR NOT TARGET PhlosionVFX::Preview)
-    message(FATAL_ERROR "Phlosion VFX did not provide its required CMake targets.")
+add_library(PAC_MoveVfx STATIC
+    src/game/vfx/effects/scratch/ScratchGlowVFX.cpp
+    src/game/vfx/effects/tackle/TackleSmokeVFX.cpp
+)
+target_include_directories(PAC_MoveVfx PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(PAC_MoveVfx PUBLIC Phlosion::Vfx)
+pac_apply_common_target_settings(PAC_MoveVfx)
+add_library(PAC_MoveVfxPreview STATIC
+    src/game/vfx/preview/VfxLibraryPreviewProject.cpp
+    src/game/vfx/preview/effects/GrowlLabPreviewEffect.cpp
+    src/game/vfx/preview/effects/LeerLabPreviewEffect.cpp
+    src/game/vfx/preview/effects/ScratchLabPreviewEffect.cpp
+    src/game/vfx/preview/effects/TackleLabPreviewEffect.cpp
+    src/game/vfx/preview/growl/GrowlPreviewController.cpp
+    src/game/vfx/preview/leer/LeerPreviewController.cpp
+    src/game/vfx/preview/scratch/ScratchPreviewController.cpp
+    src/game/vfx/preview/tackle/TacklePreviewController.cpp
+)
+target_include_directories(PAC_MoveVfxPreview PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_link_libraries(PAC_MoveVfxPreview PUBLIC PAC_MoveVfx Phlosion::VfxAuthoring)
+pac_apply_common_target_settings(PAC_MoveVfxPreview)
+if (BUILD_TESTING)
+    add_executable(PAC_MoveVfxContracts tests/MoveVfxContracts.cpp)
+    target_link_libraries(PAC_MoveVfxContracts PRIVATE PAC_MoveVfx)
+    pac_apply_common_target_settings(PAC_MoveVfxContracts)
+    add_test(NAME PAC_MoveVfxContracts COMMAND PAC_MoveVfxContracts)
 endif()
 
 # ---------------- Game objects (shared by exe + tests) ----------------
@@ -683,7 +655,7 @@ target_link_libraries(PAC_GameObjects
         Engine
         glm::glm
         nlohmann_json::nlohmann_json
-        PhlosionVFX::Runtime
+        PAC_MoveVfx
     PRIVATE
         KTX::ktx
 )
@@ -718,7 +690,7 @@ target_sources(PAC_VfxPreviewSupport PRIVATE
 target_link_libraries(PAC_VfxPreviewSupport
     PUBLIC
         PAC_GameObjects
-        PhlosionVFX::Preview
+        PAC_MoveVfxPreview
 )
 pac_apply_common_target_settings(PAC_VfxPreviewSupport)
 
@@ -726,7 +698,7 @@ pac_apply_common_target_settings(PAC_VfxPreviewSupport)
 add_library(PAC_VfxLabSupport INTERFACE)
 target_link_libraries(PAC_VfxLabSupport
     INTERFACE
-        PhlosionVFX::Preview
+        PAC_MoveVfxPreview
 )
 pac_apply_common_target_settings(PAC_VfxLabSupport)
 
@@ -1173,7 +1145,6 @@ if (BUILD_TESTING)
         PRIVATE
             PAC_PHLOSION_ENGINE_SOURCE_DIR="${_pac_resolved_engine_source_dir}"
             PAC_MODEL_SUPPORT_SOURCE_DIR="${POKEMON_MODEL_SUPPORT_SOURCE_DIR}"
-            PAC_PHLOSION_VFX_SOURCE_DIR="${_pac_resolved_vfx_source_dir}"
     )
 
     if (MSVC)

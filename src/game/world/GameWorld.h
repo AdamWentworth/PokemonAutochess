@@ -23,11 +23,11 @@
 // Leech seed drain dots
 #include "game/vfx/LeechSeedDrainVFX.h"
 // Growl wave VFX
-#include "vfx/effects/growl/GrowlWaveVFX.h"
+#include "game/vfx/effects/growl/GrowlWaveVFX.h"
 // Tackle smoke authored VFX
-#include "vfx/effects/tackle/TackleSmokeVFX.h"
+#include "game/vfx/effects/tackle/TackleSmokeVFX.h"
 // Scratch authored VFX
-#include "vfx/effects/scratch/ScratchGlowVFX.h"
+#include "game/vfx/effects/scratch/ScratchGlowVFX.h"
 // Claw swipe VFX (scratch/metal claw)
 #include "game/vfx/ClawSwipeVFX.h"
 // Aqua swoosh/bubble/water-gun impact VFX

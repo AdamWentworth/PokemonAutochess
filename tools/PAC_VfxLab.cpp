@@ -7,7 +7,7 @@
 
 #include "engine/core/Paths.h"
 #include "engine/tools/vfx_preview/VfxPreviewApp.h"
-#include "vfx/preview/VfxLibraryPreviewProject.h"
+#include "game/vfx/preview/VfxLibraryPreviewProject.h"
 
 #if defined(_WIN32)
 extern "C" {

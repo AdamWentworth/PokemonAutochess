@@ -1,7 +1,7 @@
 #pragma once
 
-#include "vfx/preview/shared/ControllerBackedPreviewEffect.h"
-#include "vfx/preview/tackle/TacklePreviewController.h"
+#include "engine/vfx/preview/shared/ControllerBackedPreviewEffect.h"
+#include "game/vfx/preview/tackle/TacklePreviewController.h"
 
 namespace game::preview {
 

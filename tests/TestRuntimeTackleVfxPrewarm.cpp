@@ -50,13 +50,13 @@ bool test_runtime_tackle_vfx_prewarm_contract(std::string& outFail) {
     };
     if (!containsKey(
             backend.prewarmedTextureCacheKeys,
-            "__authored_vfx_baked:tackle_eid_1225_texture4158_impact:q:assets/textures/moves/tackle/Texture4158.png:bake=tev_lerp:alpha=texture") ||
+            "__authored_vfx_baked:tackle_eid_1225_texture4158_impact:q:assets/textures/moves/tackle/Texture4158.png:bake=tev_lerp:alpha=texture:glow_alpha=tev") ||
         !containsKey(
             backend.prewarmedTextureCacheKeys,
-            "__authored_vfx_baked:tackle_eid_1234_texture4159_impact:q:assets/textures/moves/tackle/Texture4159.png:bake=tev_lerp:alpha=texture") ||
+            "__authored_vfx_baked:tackle_eid_1234_texture4159_impact:q:assets/textures/moves/tackle/Texture4159.png:bake=tev_lerp:alpha=texture:glow_alpha=tev") ||
         !containsKey(
             backend.prewarmedTextureCacheKeys,
-            "__authored_vfx_baked:tackle_eid_1243_texture4160_impact:q:assets/textures/moves/tackle/Texture4160.png:bake=tev_lerp:alpha=texture")) {
+            "__authored_vfx_baked:tackle_eid_1243_texture4160_impact:q:assets/textures/moves/tackle/Texture4160.png:bake=tev_lerp:alpha=texture:glow_alpha=tev")) {
         outFail = "RuntimeTackleVfxPrewarm should prewarm the first-impact tackle texture cache keys observed in gameplay.";
         return false;
     }

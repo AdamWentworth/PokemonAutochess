@@ -5,7 +5,7 @@
 
 #include <glm/glm.hpp>
 
-#include "vfx/effects/tackle/TackleSmokeVFX.h"
+#include "game/vfx/effects/tackle/TackleSmokeVFX.h"
 
 namespace {
 

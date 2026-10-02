@@ -32,7 +32,7 @@ record predate their current repository ownership.
 - Existing loose VFX compatibility paths and content identities require an
   explicit migration before cleanup; native model materials use cooked resources.
 - VFX preview composition and incomplete effect phases remain prototype work.
-  Reusable implementations belong to Phlosion VFX; game previews remain here.
+  Reusable implementations belong to Phlosion Engine VFX; game previews remain here.
 
 These risks are not new failing tests or a commitment to implement the historical
 backlog now. Use fresh evidence when choosing a specific follow-up.

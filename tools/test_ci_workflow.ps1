@@ -110,21 +110,13 @@ function Assert-CiWorkflowContract {
     $jobs = Get-YamlJobBlocks -Text $Workflow
     Assert-True ($jobs.Count -ge 2) "CI must separate secret-free contract checks from the trusted full build."
 
-    $secretBearingJobs = @()
-    foreach ($name in $jobs.Keys) {
-        if ($jobs[$name] -match 'secrets\.') { $secretBearingJobs += $name }
-    }
-    Assert-True ($secretBearingJobs.Count -eq 1) `
-        "Exactly one job may own the private dependency deploy key."
-
-    $trustedJob = [string]$secretBearingJobs[0]
+    Assert-True ($Workflow -notmatch 'secrets\.') `
+        "The retired VFX repository must not leave a deploy-key dependency."
+    $trustedJob = 'windows-build'
     $trustedBlock = [string]$jobs[$trustedJob]
-    Assert-True ($trustedBlock -match 'secrets\.PHLOSION_VFX_DEPLOY_KEY') `
-        "The trusted job must own the pinned private Phlosion VFX deploy key."
-
     $trustCondition = Get-YamlJobIfExpression -JobBlock $trustedBlock
     Assert-True (-not [string]::IsNullOrWhiteSpace($trustCondition)) `
-        "The secret-bearing job must gate itself with a job-level trust condition, not with step text."
+        "The full-build job must gate itself with a job-level trust condition, not with step text."
     Assert-Match $trustCondition 'github\.event_name' `
         "The job-level trust condition must branch on the event name."
     Assert-Match $trustCondition 'pull_request' `
@@ -172,21 +164,10 @@ function Assert-CiWorkflowContract {
             ("Action reference '{0}' must keep its release-version comment for review." -f $reference)
     }
 
-    $privateCheckouts = @([regex]::Matches($Workflow, '(?m)^\s+repository:\s+AdamWentworth/PhlosionVFX\s*$'))
-    Assert-True ($privateCheckouts.Count -ge 1) `
-        "The private Phlosion VFX dependency must be checked out from its pinned repository."
-    $vfxBlocks = @([regex]::Matches($Workflow, '(?ms)repository:\s+AdamWentworth/PhlosionVFX\r?\n(.*?)(?=^      - name:|\z)'))
-    Assert-True ($vfxBlocks.Count -eq $privateCheckouts.Count) `
-        "Every Phlosion VFX checkout must be a self-contained step."
-    foreach ($block in $vfxBlocks) {
-        $body = $block.Groups[1].Value
-        Assert-Match $body '(?m)^\s+ref:\s+[0-9a-f]{40}\s*$' `
-            "Every private Phlosion VFX checkout must use an immutable commit pin."
-        Assert-True ($body.Contains('ssh-key: ${{ secrets.PHLOSION_VFX_DEPLOY_KEY }}')) `
-            "Every private Phlosion VFX checkout must use the repository-scoped deploy key."
-        Assert-Match $body '(?m)^\s+persist-credentials:\s*false\s*$' `
-            "The deploy key must never be persisted into the checkout."
-    }
+    Assert-True ($Workflow -notmatch 'AdamWentworth/PhlosionVFX|PHLOSION_VFX_SOURCE_DIR') `
+        "CI must not resolve the retired VFX repository."
+    Assert-True ($Workflow -notmatch 'persist-credentials:\s*true') `
+        "Checkout credentials must never be persisted."
 
     # ---------------- Dependencies and configured scope ----------------
     $baseline = [string]$Manifest.'builtin-baseline'
@@ -195,8 +176,6 @@ function Assert-CiWorkflowContract {
         "CI's vcpkg executable commit must match the manifest builtin baseline."
     Assert-True ($Workflow -notmatch 'vcpkg.*fetch\s+--depth') `
         "vcpkg must retain registry history so manifest version overrides remain resolvable."
-    Assert-Match $Workflow '-DPHLOSION_VFX_SOURCE_DIR=' `
-        "The trusted configure command must use the checked-out Phlosion VFX source."
     Assert-Match $Workflow '-DPAC_ENABLE_PRIVATE_ASSET_TESTS=OFF' `
         "Hosted CI must select the explicit source suite instead of presence-based shrinking."
     Assert-Match $Workflow '-DPAC_BUILD_EDITOR=OFF' `

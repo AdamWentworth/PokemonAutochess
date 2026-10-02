@@ -5,9 +5,9 @@
 
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.h"
-#include "vfx/runtime/shared/SharedAuthoredVfxBridge.h"
-#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
-#include "vfx/runtime/shared/SharedAuthoredVfxSubmission.h"
+#include "engine/vfx/runtime/shared/SharedAuthoredVfxBridge.h"
+#include "engine/vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
+#include "engine/vfx/runtime/shared/SharedAuthoredVfxSubmission.h"
 
 namespace game::runtime::shared_authored_vfx_prewarm {
 

@@ -2,9 +2,9 @@
 
 Status: Active
 Type: Architecture
-Last updated: 2026-07-30
+Last updated: 2026-10-02
 
-Phlosion development uses five separate ownership boundaries.
+Phlosion development separates engine services, optional adapters/tools, games and private content.
 
 ## 1. PhlosionEngine
 
@@ -19,19 +19,18 @@ When a sibling `PhlosionEngine` checkout exists, CMake uses it as a local
 development override. Setting `PHLOSION_ENGINE_SOURCE_DIR` to an empty value
 forces CMake to fetch the pinned public commit.
 
-## 2. PhlosionVFX
+## 2. Optional adapters and tools
 
-Repository: `AdamWentworth/PhlosionVFX`
+Reusable VFX is part of PhlosionEngine: effect hosts, authored batches, submission
+and shared preview helpers. `Phlosion::VfxLibraryBridge` is an explicit optional
+adapter to the independent `D:/Projects/VFX/VFXLibrary`. Autochess does not enable
+that bridge. Its move presets and lab live in `src/game/vfx`.
 
-This reusable repository depends one-way on Phlosion Engine and owns authored
-effect simulation, renderer-neutral VFX batches, runtime submission adapters,
-reusable preview controllers, independent tests, and optional original stock
-effects. It must not depend on Pokemon Autochess gameplay types or private
-source assets.
+PokemonModelSupport owns Pokemon source/material interpretation. PhlosionPackages
+currently holds the shelved Tile Tools; `PAC_BUILD_TILE_TOOLS=OFF` keeps them out
+of normal builds. Engine model support remains generic and built in.
 
-Pokemon Autochess pins an exact Phlosion VFX commit. A sibling
-`PhlosionVFX` checkout is the local development override; an empty
-`PHLOSION_VFX_SOURCE_DIR` exercises the pinned remote dependency.
+The former PhlosionVFX checkout is being retired; no active game target consumes it.
 
 ## 3. PokemonAutochess
 
@@ -69,9 +68,15 @@ The intended local layout is:
 
 ```text
 Projects/
-  PhlosionEngine/
-  PhlosionVFX/
-  PokemonAutochess/
+  Phlosion/
+    PhlosionEngine/
+    PokemonModelSupport/
+    PhlosionPackages/
+  VFX/
+    VFXLibrary/
+  Games/
+    PokemonAutochess/
+    PokemonCyberpunk/
   PhlosionAssets/
     source/
     evidence/
@@ -127,12 +132,16 @@ and redistribution decision.
 
 Shared-code updates are intentional multi-repository changes:
 
-1. build and test the engine change independently when required;
-2. push the engine commit and update the exact engine pin in Phlosion VFX;
-3. build and test the VFX library independently;
-4. publish the VFX commit and update both exact pins in Pokemon Autochess;
-5. build the game with the fetch path as well as the local sibling paths;
-6. run game tests and renderer qualification before promotion.
+1. build and test the engine change independently;
+2. commit/publish the engine and update the game's exact engine pin;
+3. publish and pin any separately changed adapter dependencies;
+4. build the game with the fetch path as well as local checkouts;
+5. run game tests and renderer qualification before promotion.
+
+The VFX migration is committed locally and the engine pin includes it. Publishing
+that revision and providing a remote distribution path for the model adapter
+remain outstanding. Local builds are independently verified; clean remote builds
+and eventual deletion of the former VFX repository await these publication steps.
 
 This keeps the game reproducible while allowing fast side-by-side engine
 development.

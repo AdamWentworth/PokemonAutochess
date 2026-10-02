@@ -1,5 +1,5 @@
 #include "game/world/GameWorld.h"
-#include "vfx/effects/growl/GrowlWaveVfxConfig.h"
+#include "game/vfx/effects/growl/GrowlWaveVfxConfig.h"
 
 #include <string>
 

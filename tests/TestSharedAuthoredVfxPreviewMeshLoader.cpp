@@ -4,7 +4,7 @@
 
 #include "game/runtime/render_model_cache/RenderModelCache.h"
 #include "game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.h"
-#include "vfx/preview/shared/SharedAuthoredVfxRenderer.h"
+#include "engine/vfx/preview/shared/SharedAuthoredVfxRenderer.h"
 
 namespace {
 

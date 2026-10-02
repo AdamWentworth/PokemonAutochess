@@ -4,8 +4,8 @@
 
 #include <glm/glm.hpp>
 
-#include "vfx/runtime/shared/SharedAuthoredVfxBatches.h"
-#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
+#include "engine/vfx/runtime/shared/SharedAuthoredVfxBatches.h"
+#include "engine/vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 
 namespace {
 
@@ -501,6 +501,7 @@ bool test_shared_authored_vfx_batches_contract(std::string &outFail) {
     meshQuarterTexturePass.id = "growl_test_mesh_quarter_tex";
     meshQuarterTexturePass.fragShaderPath =
         "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag";
+    meshQuarterTexturePass.quarterTextureBake = true;
 
     std::vector<Batch> meshQuarterBatches;
     const bool meshQuarterAppended =
@@ -610,6 +611,7 @@ bool test_shared_authored_vfx_batches_contract(std::string &outFail) {
     glowPass.texturePath = "assets/textures/test_glow.png";
     glowPass.fragShaderPath =
         "assets/shaders/vfx/moves/growl/growl_quarter_ring_shared.frag";
+    glowPass.quarterTextureBake = true;
     glowPass.scaleMul = 1.4f;
     glowPass.alphaMul = 0.9f;
     glowPass.radiusMul = 1.0f;
@@ -846,6 +848,7 @@ bool test_shared_authored_vfx_batches_contract(std::string &outFail) {
     linePass.meshPath = "assets/meshes/test_line.glb";
     linePass.texturePath.clear();
     linePass.fragShaderPath = "assets/shaders/vfx/moves/growl/growl_line_shared.frag";
+    linePass.linePass = true;
     linePass.meshForwardAxis = glm::vec3(0.0f, 0.0f, -1.0f);
     linePass.overrideMeshForwardAxis = true;
     linePass.scaleMul = 0.44f;
@@ -930,6 +933,7 @@ bool test_shared_authored_vfx_batches_contract(std::string &outFail) {
     streakPass.meshPath.clear();
     streakPass.vertShaderPath = "assets/shaders/vfx/shared/authored_line_shared.vert";
     streakPass.fragShaderPath = "assets/shaders/vfx/shared/authored_line_shared.frag";
+    streakPass.linePass = true;
     streakPass.generatedDirectionCount = 4;
     streakPass.generatedDirectionStartDeg = 0.0f;
     streakPass.generatedDirectionArcDeg = 360.0f;

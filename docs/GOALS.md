@@ -5,8 +5,7 @@ Type: Goal
 Last updated: 2026-09-19
 
 This repository is a portfolio game project. Pokemon Autochess is the first
-client of the separate Phlosion Engine and Phlosion VFX repositories, both of
-which are intended to support more games over time.
+client of the Phlosion Engine, whose runtime and VFX modules are intended to support more games over time.
 
 The current maintenance scope is [repository cleanup](REPO_CLEANUP_ROADMAP.md).
 The longer-term goals below do not schedule new gameplay or engine work.
@@ -16,8 +15,7 @@ The longer-term goals below do not schedule new gameplay or engine work.
 - Use measured frame-time budgets instead of subjective FPS-only tuning.
 - Maintain a deterministic, headless gameplay core that stays testable.
 - Keep Windows-first delivery stable and reviewer-friendly.
-- Grow reusable engine and effect systems in their dedicated Phlosion Engine
-  and Phlosion VFX repositories.
+- Grow reusable engine and effect systems in PhlosionEngine.
 
 ## Reusable VFX + Preview Goals
 - Treat Pokemon Autochess as the first game client of a broader reusable VFX
@@ -26,7 +24,7 @@ The longer-term goals below do not schedule new gameplay or engine work.
   could survive replacing or even deleting `src/game/` and be mounted into a
   different game.
 - Keep reusable effect code, runtime bridges, authoring conventions, and
-  reusable preview/render helpers in `PhlosionVFX` whenever they do not require
+  reusable preview/render helpers in `PhlosionEngine` whenever they do not require
   game-only ownership.
 - Keep game-specific adapters thin so the same VFX can stay visually consistent
   across different combat formats, camera systems, and future game clients.
@@ -86,7 +84,7 @@ The longer-term goals below do not schedule new gameplay or engine work.
 - Release benchmark baselines are captured and comparable.
 - Renderer docs, logs, and menus match current behavior.
 - Performance work continues reducing real gameplay frame cost instead of drifting into speculative complexity.
-- Reusable VFX continues to land in `PhlosionVFX` and stays portable beyond
+- Reusable VFX continues to land in `PhlosionEngine` and stays portable beyond
   Pokemon Autochess, with only thin game adapters living under `src/game/`.
 - `VfxLab` remains useful for reusable effect iteration, and
   `PAC_VfxPreviewer` remains useful for validating that those same effects stay

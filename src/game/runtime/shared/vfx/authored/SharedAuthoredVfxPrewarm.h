@@ -2,7 +2,7 @@
 #include "engine/models/ModelData.h"
 
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
-#include "vfx/effects/shared/SharedAuthoredBatchVFX.h"
+#include "engine/vfx/effects/shared/SharedAuthoredBatchVFX.h"
 
 #include <cstddef>
 #include <functional>

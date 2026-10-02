@@ -2,7 +2,7 @@
 
 #include <glm/glm.hpp>
 
-#include "vfx/effects/scratch/ScratchGlowVFX.h"
+#include "game/vfx/effects/scratch/ScratchGlowVFX.h"
 
 namespace game::runtime::scratch_vfx_prewarm {
 

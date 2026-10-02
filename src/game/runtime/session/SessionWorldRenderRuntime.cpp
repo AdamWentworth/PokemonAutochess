@@ -18,7 +18,7 @@
 #include "game/runtime/session/SessionRenderScratch.h"
 #include "game/runtime/session/SessionWorldBackdrop.h"
 #include "game/runtime/shared/scene/SharedWorldScene.h"
-#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
+#include "engine/vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 #include "game/runtime/shared/ui/SharedBackendDebugViewOverlay.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
 #include "game/runtime/ui/InventoryPanel.h"

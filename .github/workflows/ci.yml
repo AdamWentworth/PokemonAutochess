@@ -57,14 +57,14 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name != github.repository || github.event.pull_request.user.login == 'dependabot[bot]' || github.actor == 'dependabot[bot]') }}
         shell: pwsh
         run: |
-          $message = 'Full Windows build, CTest and PAC_ValidateData were skipped: untrusted pull requests (forks and Dependabot) do not receive repository secrets, so the pinned Phlosion VFX dependency cannot be checked out. Only the secret-free source contract checks ran; private-content and GPU qualification remain local.'
+          $message = 'Full Windows build, CTest and PAC_ValidateData were skipped: the repository keeps full builds restricted to trusted events (excluding forks and Dependabot). Only the secret-free source contract checks ran; private-content and GPU qualification remain local.'
           Write-Host "::warning title=CI coverage incomplete::$message"
           if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {
             Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value '### CI coverage incomplete'
             Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value $message
           }
 
-  # Full build, private dependency, and test coverage. Trusted events only:
+  # Full build and test coverage. Trusted events only:
   # master push, manual dispatch, and same-repository pull requests that are not
   # Dependabot. This workflow deliberately has no target-event trigger that
   # would hand secrets to untrusted forks.
@@ -85,14 +85,6 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Checkout Phlosion VFX
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: AdamWentworth/PhlosionVFX
-          ref: 8d169ffac2895cb6ef62cd570d7cfaa9542b1190
-          path: external/PhlosionVFX
-          ssh-key: ${{ secrets.PHLOSION_VFX_DEPLOY_KEY }}
-          persist-credentials: false
       - name: Cache vcpkg binaries
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -104,7 +96,7 @@ jobs:
           git -C "${{ env.VCPKG_ROOT }}" checkout --detach "${{ env.VCPKG_COMMIT }}"
           & "${{ env.VCPKG_ROOT }}\bootstrap-vcpkg.bat"
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPHLOSION_VFX_SOURCE_DIR="${{ github.workspace }}/external/PhlosionVFX" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON -DPAC_ENABLE_PRIVATE_ASSET_TESTS=OFF
+        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON -DPAC_ENABLE_PRIVATE_ASSET_TESTS=OFF
       - name: Report configured scope
         run: |
           if (-not (Test-Path -LiteralPath build/ci/coverage-manifest.json -PathType Leaf)) {

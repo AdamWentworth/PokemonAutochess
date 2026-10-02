@@ -95,19 +95,8 @@ bool test_layering_engine_no_game_includes(std::string& outFail) {
     const std::filesystem::path engineRoot =
         std::filesystem::path(PAC_PHLOSION_ENGINE_SOURCE_DIR) / "src/engine";
 #endif
-#ifndef PAC_PHLOSION_VFX_SOURCE_DIR
-    outFail = "PAC_PHLOSION_VFX_SOURCE_DIR is not defined.";
-    return false;
-#else
-    const std::filesystem::path vfxRoot =
-        std::filesystem::path(PAC_PHLOSION_VFX_SOURCE_DIR) / "src/vfx";
-#endif
     if (!std::filesystem::exists(engineRoot)) {
         outFail = "Engine root not found: " + engineRoot.string();
-        return false;
-    }
-    if (!std::filesystem::exists(vfxRoot)) {
-        outFail = "VFX root not found: " + vfxRoot.string();
         return false;
     }
 
@@ -118,7 +107,6 @@ bool test_layering_engine_no_game_includes(std::string& outFail) {
 
     const std::vector<std::filesystem::path> reusableRoots = {
         engineRoot,
-        vfxRoot,
     };
     for (const auto& reusableRoot : reusableRoots) {
         for (const auto& entry :

@@ -2,8 +2,8 @@
 
 #include "engine/render/Model.h"
 #include "game/runtime/shared/vfx/authored/SharedAuthoredVfxPrewarm.h"
-#include "vfx/effects/growl/GrowlWaveVFX.h"
-#include "vfx/effects/growl/GrowlWaveVfxConfig.h"
+#include "game/vfx/effects/growl/GrowlWaveVFX.h"
+#include "game/vfx/effects/growl/GrowlWaveVfxConfig.h"
 
 #include <glm/glm.hpp>
 

@@ -103,7 +103,6 @@ function Get-PacDependencyPin {
     $pins = [ordered]@{}
     $definitions = @(
         @{ Name = 'PhlosionEngine'; Variable = 'PHLOSION_ENGINE_GIT_TAG' },
-        @{ Name = 'PhlosionVFX'; Variable = 'PHLOSION_VFX_GIT_TAG' },
         @{ Name = 'PhlosionPackages'; Variable = 'PHLOSION_PACKAGES_GIT_TAG' }
     )
     foreach ($definition in $definitions) {
@@ -151,7 +150,6 @@ function Get-PacBuildDependencyIdentity {
     $pins = Get-PacDependencyPin -CMakeListsPath (Join-Path $RepoRoot 'CMakeLists.txt')
     $definitions = @(
         @{ Name = 'PhlosionEngine'; CacheVariable = 'PHLOSION_ENGINE_SOURCE_DIR' },
-        @{ Name = 'PhlosionVFX'; CacheVariable = 'PHLOSION_VFX_SOURCE_DIR' },
         @{ Name = 'PhlosionPackages'; CacheVariable = 'PHLOSION_PACKAGES_SOURCE_DIR' }
     )
 
@@ -159,7 +157,8 @@ function Get-PacBuildDependencyIdentity {
     foreach ($definition in $definitions) {
         $pin = $pins[$definition.Name]
         if ($definition.Name -eq 'PhlosionPackages' -and
-            (Get-PacCMakeCacheValue -BuildDir $BuildDir -Name 'PAC_BUILD_EDITOR') -eq 'OFF') {
+            ((Get-PacCMakeCacheValue -BuildDir $BuildDir -Name 'PAC_BUILD_EDITOR') -match '^(OFF|FALSE|NO|0)$' -or
+             (Get-PacCMakeCacheValue -BuildDir $BuildDir -Name 'PAC_BUILD_TILE_TOOLS') -match '^(OFF|FALSE|NO|0)$')) {
             $entries.Add([pscustomobject][ordered]@{
                 name = $definition.Name
                 pin = $pin

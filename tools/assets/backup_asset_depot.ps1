@@ -246,7 +246,6 @@ $temporaryRoot = Join-Path $temporaryParent (
 
 try {
     $engineRoot = 'D:\Projects\Phlosion\PhlosionEngine'
-    $vfxRoot = 'D:\Projects\Phlosion\PhlosionVFX'
     $snapshotMetadata = [ordered]@{
         schema = 'pokemon-autochess-asset-snapshot-v1'
         created_utc = [DateTime]::UtcNow.ToString('o')
@@ -259,7 +258,6 @@ try {
         payload_bytes = $payloadBytes
         game = $gameGit
         engine = Get-GitState $engineRoot
-        vfx = Get-GitState $vfxRoot
         promotion_registry = 'control-plane/config/assets/kanto_model_promotions.json'
         inventory = 'metadata/inventory.sha256.tsv'
     }

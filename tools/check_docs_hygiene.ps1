@@ -108,7 +108,6 @@ function Get-CMakeSourceRoot {
 }
 
 $engineRoot = Get-CMakeSourceRoot "PHLOSION_ENGINE_SOURCE_DIR"
-$vfxRoot = Get-CMakeSourceRoot "PHLOSION_VFX_SOURCE_DIR"
 if (-not $engineRoot) {
     $engineCandidates = @(
         (Join-Path $resolvedDocsBuildDir "_deps/phlosionengine-src"),
@@ -117,18 +116,6 @@ if (-not $engineRoot) {
     foreach ($engineCandidate in $engineCandidates) {
         if (Test-Path -LiteralPath $engineCandidate -PathType Container) {
             $engineRoot = [IO.Path]::GetFullPath($engineCandidate)
-            break
-        }
-    }
-}
-if (-not $vfxRoot) {
-    $vfxCandidates = @(
-        (Join-Path $resolvedDocsBuildDir "_deps/phlosionvfx-src"),
-        (Join-Path $repoRoot "../../Phlosion/PhlosionVFX")
-    )
-    foreach ($vfxCandidate in $vfxCandidates) {
-        if (Test-Path -LiteralPath $vfxCandidate -PathType Container) {
-            $vfxRoot = [IO.Path]::GetFullPath($vfxCandidate)
             break
         }
     }
@@ -157,11 +144,6 @@ function Test-DocumentedRepoPath {
     if ($Token.StartsWith("src/engine/", [System.StringComparison]::Ordinal) -and
         $engineRoot -and
         (Test-Path (Join-Path $engineRoot $Token))) {
-        return $true
-    }
-    if ($Token.StartsWith("src/vfx/", [System.StringComparison]::Ordinal) -and
-        $vfxRoot -and
-        (Test-Path (Join-Path $vfxRoot $Token))) {
         return $true
     }
     return $false

@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-09-19
+Last updated: 2026-10-02
 
 Build, run, debug and package Pokemon Autochess. Start with the
 [project overview](../README.md) for the product, architecture and technology stack.
@@ -61,8 +61,9 @@ Notes:
   pinned in `CMakeLists.txt`. Their individual `*_SOURCE_DIR` cache values
   remain available as explicit overrides.
 - `PhlosionPackages` is private and its default fetch URL uses GitHub SSH.
-  Editor builds require repository access or an existing local package checkout.
-  Set `PAC_BUILD_EDITOR=OFF` for a runtime-only build without this dependency.
+  It is required only when explicitly building the shelved Tile Tools module with
+  `PAC_BUILD_EDITOR=ON` and `PAC_BUILD_TILE_TOOLS=ON`. Tile Tools defaults to OFF;
+  normal editor and runtime builds do not fetch or build this dependency.
 - Runtime payloads under `assets/` and `content/phlosion/` are intentionally
   untracked. Restore them from the private asset depot with
   `.\tools\assets\sync_asset_depot.ps1`.
@@ -103,8 +104,7 @@ stay isolated from game-specific preview composition.
 
 ## Phlosion Editor
 
-Editor development needs a configured local Phlosion Engine checkout and access
-to the private PhlosionPackages dependency. Follow the
+Editor development needs a configured local Phlosion Engine checkout. Follow the
 [engine setup](https://github.com/AdamWentworth/PhlosionEngine#build) first. If
 you used the README's runtime-only quick start, re-enable the game editor target:
 
@@ -157,9 +157,11 @@ cd D:\Projects\Phlosion\PhlosionEngine
 .\build\Release\PhlosionEditor.exe D:\Projects\Games\PokemonAutochess\phlosion.project.json
 ```
 
-The plugin is written to `.phlosion/editor/<configuration>` and the optional
-Tile Tools module to `.phlosion/packages/<configuration>`; both remain
-untracked. The current Blender workflow does not load Tile Tools. The
+The plugin is written to the untracked `.phlosion/editor/<configuration>` directory.
+Tile Tools is shelved and is neither built nor loaded by the current Blender
+workflow. An explicit `PAC_BUILD_TILE_TOOLS=ON` editor build still writes its
+module to the untracked `.phlosion/packages/<configuration>` directory; building
+it does not activate it in the project descriptor. The
 Engine-owned editor provides the project browser, docked
 hierarchy, inspector, asset view, console, remembered multi-monitor placement,
 and camera navigation over the real cooked Route 1 environment. The central

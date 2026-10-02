@@ -95,11 +95,11 @@ the sibling research workspace. The lab's accepted visual interpretation is
 unchanged. The game consumes only the resulting source-neutral package.
 
 `SampledEffectClip` is an experimental game-side adapter, not a replacement for
-the production Phlosion VFX pipeline. It validates bounded payloads and indices,
+the production Phlosion Engine VFX pipeline. It validates bounded payloads and indices,
 uses cached mesh samples, and constructs camera-facing cards through the shared
 indexed batch path. There are no rendering-API branches or source-game parser
 dependencies. Final move integration and broader reuse should promote the
-appropriate reusable pieces into PhlosionVFX.
+appropriate reusable pieces into PhlosionEngine.
 
 `config/vfx/earthquake_experiment_package.json` records the private package hashes.
 The package is backed up under the private depot's ordinary runtime content

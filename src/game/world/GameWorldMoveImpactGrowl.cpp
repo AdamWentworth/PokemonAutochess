@@ -14,7 +14,7 @@
 #include "game/config/GameDataDb.h"
 #include "game/runtime/shared/backend/SharedBackendPoseEval.h"
 #include "game/world/MoveImpactMath.h"
-#include "vfx/effects/growl/GrowlWaveVfxConfig.h"
+#include "game/vfx/effects/growl/GrowlWaveVfxConfig.h"
 
 namespace {
 

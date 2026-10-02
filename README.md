@@ -86,7 +86,7 @@ also includes earlier prototype footage. See [media provenance and regeneration]
 | --- | --- |
 | **PokemonAutochess** | Gameplay, board and combat UI, scene/content policy, editor project plugin, character and field materials |
 | [PhlosionEngine](https://github.com/AdamWentworth/PhlosionEngine) | Application/platform services, generic rendering and UI, resources, animation, standard PBR, editor host |
-| [PhlosionVFX](https://github.com/AdamWentworth/PhlosionVFX) | Reusable effect primitives, runtime bridges and preview support |
+| Engine VFX modules | Effect lifetime, authored batches and preview support in PhlosionEngine |
 
 `GameRuntime` and `GameSession` wire game states, systems, scripting and
 presentation. The runner and editor plugin share this game runtime. Engine

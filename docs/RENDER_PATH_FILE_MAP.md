@@ -198,7 +198,7 @@ register.
   - reusable projected mesh batching support extracted from the renderer body
   - fast-textured mesh template cache, GPU skin batch state, and indexed geometry identity helpers
 - `src/game/runtime/shared/capture/SharedCapture*.*`
-- `src/vfx/runtime/shared/SharedAuthoredVfx*.*`
+- `src/engine/vfx/runtime/shared/SharedAuthoredVfx*.*`
 - `src/game/runtime/shared/vfx/particles/SharedParticle*.*`
 - `src/game/world/GameWorldVfx.cpp`
   - gameplay-owned particle and authored move-effect updates; native Pokemon

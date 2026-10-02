@@ -46,13 +46,11 @@ function New-FixtureRepository {
     return (Get-PacGitRevision -RepositoryRoot $path)
 }
 function Write-FixtureCMakeLists {
-    param([string]$EnginePin, [string]$VfxPin, [string]$PackagesPin)
+    param([string]$EnginePin, [string]$PackagesPin)
     $lines = @(
         'cmake_minimum_required(VERSION 3.22)',
         'set(PHLOSION_ENGINE_GIT_TAG',
         ('    "' + $EnginePin + '")'),
-        'set(PHLOSION_VFX_GIT_TAG',
-        ('    "' + $VfxPin + '")'),
         'set(PHLOSION_PACKAGES_GIT_TAG',
         ('    "' + $PackagesPin + '")'),
         ''
@@ -60,14 +58,14 @@ function Write-FixtureCMakeLists {
     [IO.File]::WriteAllText((Join-Path $fixtureRoot 'CMakeLists.txt'), ($lines -join [Environment]::NewLine))
 }
 function Write-FixtureCache {
-    param([string]$BuildDir, [string]$EngineRoot, [string]$VfxRoot, [string]$PackagesRoot)
+    param([string]$BuildDir, [string]$EngineRoot, [string]$PackagesRoot)
     $lines = @(
         'CMAKE_GENERATOR:INTERNAL=Visual Studio 18 2026',
         ('PHLOSION_DEV_ROOT:PATH=' + $fixtureRoot),
         ('PHLOSION_ENGINE_SOURCE_DIR:PATH=' + $EngineRoot),
-        ('PHLOSION_VFX_SOURCE_DIR:PATH=' + $VfxRoot),
         ('PHLOSION_PACKAGES_SOURCE_DIR:PATH=' + $PackagesRoot),
         'PAC_BUILD_EDITOR:BOOL=ON',
+        'PAC_BUILD_TILE_TOOLS:BOOL=ON',
         ''
     )
     New-Item -ItemType Directory -Path $BuildDir -Force | Out-Null
@@ -76,21 +74,19 @@ function Write-FixtureCache {
 
 try {
     $engineHead = New-FixtureRepository -Name 'engine'
-    $vfxHead = New-FixtureRepository -Name 'vfx'
     $packagesHead = New-FixtureRepository -Name 'packages'
     Assert-True ($null -ne $engineHead) 'The fixture repositories must report a git revision.'
-    Assert-True ($engineHead -ne $vfxHead) 'The fixture repositories must have distinct revisions.'
+    Assert-True ($engineHead -ne $packagesHead) 'The fixture repositories must have distinct revisions.'
 
     $buildDir = Join-Path $fixtureRoot 'build'
     $engineRoot = Join-Path $fixtureRoot 'engine'
-    $vfxRoot = Join-Path $fixtureRoot 'vfx'
     $packagesRoot = Join-Path $fixtureRoot 'packages'
-    Write-FixtureCache -BuildDir $buildDir -EngineRoot $engineRoot -VfxRoot $vfxRoot -PackagesRoot $packagesRoot
-    Write-FixtureCMakeLists -EnginePin $engineHead -VfxPin $vfxHead -PackagesPin $packagesHead
+    Write-FixtureCache -BuildDir $buildDir -EngineRoot $engineRoot -PackagesRoot $packagesRoot
+    Write-FixtureCMakeLists -EnginePin $engineHead -PackagesPin $packagesHead
 
     $matching = Get-PacBuildDependencyIdentity -RepoRoot $fixtureRoot -BuildDir $buildDir
     Assert-True ($matching.ok) ('Pinned revisions resolved from the cache must qualify: ' + ($matching.problems -join '; '))
-    Assert-True ($matching.entries.Count -eq 3) 'Every pinned dependency must be recorded.'
+    Assert-True ($matching.entries.Count -eq 2) 'Every pinned dependency must be recorded.'
     $engineEntry = @($matching.entries | Where-Object { $_.name -eq 'PhlosionEngine' })[0]
     Assert-True ($engineEntry.resolved_head -eq $engineHead) 'The resolved revision must come from the cached checkout path.'
     Assert-True ($engineEntry.resolution -eq 'cmake-cache') 'A cache-provided checkout must be reported as such.'
@@ -108,7 +104,15 @@ try {
     Assert-True ($engineEntry.dirty_state.state -eq 'clean') 'Actual dependency dirty state must accompany its revision.'
     [IO.File]::WriteAllText($cachePath, $editorCache)
 
-    Write-FixtureCMakeLists -EnginePin ('0' * 40) -VfxPin $vfxHead -PackagesPin $packagesHead
+    [IO.File]::WriteAllText($cachePath, $editorCache.Replace('PAC_BUILD_TILE_TOOLS:BOOL=ON', 'PAC_BUILD_TILE_TOOLS:BOOL=OFF'))
+    $withoutTileTools = Get-PacBuildDependencyIdentity -RepoRoot $fixtureRoot -BuildDir $buildDir
+    $shelvedPackage = @($withoutTileTools.entries | Where-Object { $_.name -eq 'PhlosionPackages' })[0]
+    Assert-True ($withoutTileTools.ok) 'An editor build must qualify with Tile Tools shelved.'
+    Assert-True ($shelvedPackage.resolution -eq 'not-selected') 'Shelved Tile Tools must not select the package repository.'
+    Assert-True ($null -eq $shelvedPackage.resolved_head) 'A stale package cache must not count as an input when Tile Tools is disabled.'
+    [IO.File]::WriteAllText($cachePath, $editorCache)
+
+    Write-FixtureCMakeLists -EnginePin ('0' * 40) -PackagesPin $packagesHead
     $mismatched = Get-PacBuildDependencyIdentity -RepoRoot $fixtureRoot -BuildDir $buildDir
     Assert-True (-not $mismatched.ok) 'A checkout that differs from the pin must not qualify.'
     Assert-True (($mismatched.problems -join ' ') -match 'PhlosionEngine') 'The mismatch must name the dependency.'
@@ -123,7 +127,7 @@ try {
     Assert-True (-not $unresolved.ok) 'An unresolved dependency must not qualify.'
     Assert-True (($unresolved.problems -join ' ') -match 'did not resolve') 'The unresolved case must explain the missing checkout.'
     $unresolvedEntries = @($unresolved.entries | Where-Object { $_.resolution -eq 'unresolved' })
-    Assert-True ($unresolvedEntries.Count -eq 3) 'Unresolved entries must be recorded as such.'
+    Assert-True ($unresolvedEntries.Count -eq 2) 'Unresolved entries must be recorded as such.'
 
     $dirtyClean = Get-PacGitDirtyState -RepositoryRoot $engineRoot
     Assert-True (-not $dirtyClean.dirty) 'A clean fixture must report clean.'

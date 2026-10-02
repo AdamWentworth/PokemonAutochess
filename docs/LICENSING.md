@@ -40,7 +40,7 @@ or The Pokemon Company.
 
 ## Dependencies
 
-Phlosion Engine, Phlosion VFX and other dependencies retain their own licence
+Phlosion Engine, Phlosion Engine VFX and other dependencies retain their own licence
 terms and notices; this repository does not relicense them. Refer to their
 repositories and the dependencies pinned by `vcpkg.json`. Installed vcpkg
 packages provide their notices under `share/<port>/copyright`.

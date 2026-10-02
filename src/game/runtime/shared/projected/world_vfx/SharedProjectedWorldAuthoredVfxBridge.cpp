@@ -1,8 +1,8 @@
 #include "game/runtime/shared/projected/world_vfx/SharedProjectedWorldAuthoredVfxBridge.h"
 
 #include "game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.h"
-#include "vfx/runtime/shared/SharedAuthoredVfxBridge.h"
-#include "vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
+#include "engine/vfx/runtime/shared/SharedAuthoredVfxBridge.h"
+#include "engine/vfx/runtime/shared/SharedAuthoredVfxHelpers.h"
 
 namespace game::runtime::shared_projected_authored_vfx_bridge {
 

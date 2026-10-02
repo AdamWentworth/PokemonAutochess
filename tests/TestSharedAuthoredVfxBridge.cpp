@@ -3,7 +3,7 @@
 
 #include <glm/glm.hpp>
 
-#include "vfx/runtime/shared/SharedAuthoredVfxBridge.h"
+#include "engine/vfx/runtime/shared/SharedAuthoredVfxBridge.h"
 
 namespace {
 

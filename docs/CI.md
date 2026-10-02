@@ -2,11 +2,11 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-09-20
+Last updated: 2026-10-02
 
 CI is correctness-first and Windows-first. It separates a secret-free contract
-job that runs for every pull request from a trusted full-build job that owns the
-private dependency checkout. Hosted CI never cooks content, never reaches for a
+job that runs for every pull request from a trusted full-build job.
+The retired PhlosionVFX checkout and its deploy key are no longer used. Hosted CI never cooks content, never reaches for a
 GPU, and never substitutes for local private-content or three-API qualification.
 
 ## Jobs
@@ -25,7 +25,7 @@ receive the same checks as trusted branches:
   (`tools/test_ci_coverage_contract.ps1`).
 - Runtime content preflight contract on synthetic fixtures
   (`tools/test_private_content_preflight.ps1`).
-- Phlosion Engine/VFX/Packages commit-pin contract
+- Phlosion Engine/Packages commit-pin contract
   (`tools/test_phlosion_dependency_pins.ps1`).
 - Catalog and promotion contract on synthetic fixtures
   (`tools/assets/test_kanto_model_promotions.ps1`).
@@ -34,12 +34,11 @@ receive the same checks as trusted branches:
 
 Forks and Dependabot pull requests get a `CI coverage incomplete` warning and a
 job-summary entry. That warning is the honest statement that the full Windows
-build, CTest, and data validation were skipped: the pinned private Phlosion VFX
-checkout needs a repository-scoped deploy key, and untrusted events must not
-receive secrets.
+build, CTest, and data validation were skipped under the existing trusted-event policy. No VFX deploy key is
+needed by either job.
 
-Docs hygiene stays in the trusted job because its cross-repo engine and VFX
-path checks resolve through the configured build tree; a secret-free checkout
+Docs hygiene stays in the trusted job because its cross-repo engine
+path checks resolve through the configured build tree; an unconfigured checkout
 would report those documentation paths as missing references.
 
 ### Windows build and tests (trusted events only)
@@ -47,8 +46,8 @@ would report those documentation paths as missing references.
 Runs on `master` pushes, manual runs, and same-repository pull requests that are
 not Dependabot:
 
-1. Check out the repository and the pinned, read-only private Phlosion VFX
-   dependency (`persist-credentials: false`).
+1. Check out the repository (`persist-credentials: false`). VFX is provided by
+   PhlosionEngine; there is no separate VFX checkout.
 2. Restore the vcpkg binary cache and install the pinned vcpkg executable.
 3. Configure the standalone graph:
    `-DPAC_ENABLE_PRIVATE_ASSET_TESTS=OFF -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON`.
@@ -161,8 +160,8 @@ can exist.
 - Release benchmark and perf gates. Hosted Windows runners are not
   representative enough for meaningful thresholds.
 - Installer end-to-end smoke and merge-blocking perf/visual gates.
-- Editor pairing and preview smoke, which need the first-party
-  `PhlosionPackages` workspace.
+- Editor pairing and preview smoke, which need the engine editor and private
+  game content. The shelved Tile Tools package is not required.
 
 A green source-suite run means the asset-independent C++ contracts, tooling
 contracts, docs hygiene, data validation, and formatting passed. It does not
@@ -208,3 +207,11 @@ Format check (changed files):
 The format check uses `clang-format` from `PATH` when available and otherwise
 discovers LLVM installed by Visual Studio. Set `PAC_CLANG_FORMAT` (or pass
 `-ClangFormatPath`) to select a specific executable.
+
+## Migration publication gate
+
+The engine VFX migration is pinned to its local committed revision. Publish that
+engine revision and provide a published, pinned PokemonModelSupport dependency
+before qualifying a clean hosted build. Local checkout builds are verified
+independently. The former VFX checkout and remote are retained for now; eventual
+deletion remains a separate task after publication and clean-build qualification.
