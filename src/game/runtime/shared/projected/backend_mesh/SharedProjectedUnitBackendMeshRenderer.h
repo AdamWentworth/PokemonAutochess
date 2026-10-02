@@ -1,11 +1,12 @@
 #pragma once
+#include "engine/models/ModelData.h"
 
 #include "game/runtime/shared/projected/unit/SharedProjectedUnitModelRenderer.h"
 
 class IRenderBackend;
 
 namespace game::runtime::render_model {
-struct MeshData;
+using engine::models::MeshData;
 }
 
 namespace game::runtime::shared_projected_unit_backend_mesh {

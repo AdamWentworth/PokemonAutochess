@@ -4,7 +4,9 @@ Status: Active
 Type: Reference
 Last updated: 2026-10-01
 
-Autochess owns its character programs under `src/game/render/materials/character`.
+Shared character programs now live in `PokemonModelSupport/shaders/character`.
+Autochess retains a compatibility material-mode header and composes those programs
+with its own field shaders. Generic model instances and preview live in the engine.
 They reproduce published assets' recovered material behavior. Descriptive names
 identify rendering roles; source-game provenance remains here and in shader
 comments. Recovery evidence and extraction tools remain in the private
@@ -26,7 +28,7 @@ placement, not ownership of the recovered source material.
 | Refractive eye | Legends: Z-A iris parallax, coat and eyelid lighting | 35 |
 
 Ordinary PBR can select the explicit dielectric-mask qualifier. These identities
-and scalar packing rules belong to the game. Cooked mode numbers stay compatible.
+and scalar packing rules belong to the optional source adapter. Cooked mode numbers stay compatible.
 
 Standard materials with explicit clip-bound `EmissiveFactor` tracks and a
 `LayerMaskMap` bake their authored layer emission into a masked KTX2 texture.

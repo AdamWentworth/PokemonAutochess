@@ -55,7 +55,7 @@ bool test_shared_authored_vfx_interop_contract(std::string& outFail) {
     }
 
     const std::filesystem::path worldBatchesPath =
-        "src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp";
+        std::filesystem::path(PAC_PHLOSION_ENGINE_SOURCE_DIR) / "src/engine/models/WorldIndexedBatches.cpp";
     if (!expect(std::filesystem::exists(worldBatchesPath),
                 "missing shared world indexed batches source file.",
                 outFail)) {

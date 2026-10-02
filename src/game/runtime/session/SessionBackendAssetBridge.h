@@ -1,4 +1,5 @@
 #pragma once
+#include "engine/models/ModelData.h"
 
 #include "game/runtime/session/SessionBackendUnitHydration.h"
 #include "game/runtime/session/SessionTextureCache.h"
@@ -18,7 +19,7 @@ class Sink;
 }
 
 namespace game::runtime::render_model {
-struct MeshData;
+using engine::models::MeshData;
 }
 
 namespace game::runtime::session_backend_asset_bridge {

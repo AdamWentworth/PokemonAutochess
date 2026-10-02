@@ -83,11 +83,22 @@ bool test_model_asset_smoke(std::string& outFail) {
         return false;
     }
     if (previewImplementation.find(
-            "phlosion::loadModelObject(") == std::string::npos ||
+            "engine::editor::ModelPreview") == std::string::npos ||
+        previewImplementation.find("impl_->preview->select(") == std::string::npos ||
         previewImplementation.find(
             "render_model::loadMeshFromCache(") != std::string::npos) {
         outFail =
             "Inspector Pokemon prefab selection must decode the selected PHLO directly without a source/cache fallback.";
+        return false;
+    }
+    std::ifstream instanceSource(std::filesystem::path(PAC_PHLOSION_ENGINE_SOURCE_DIR) /
+        "src/engine/models/ModelInstance.cpp", std::ios::binary);
+    std::ostringstream instanceText;
+    instanceText << instanceSource.rdbuf();
+    if ((!instanceSource.good() && !instanceSource.eof()) ||
+        instanceText.str().find("loadModelObject(path.string(), candidate, error)") == std::string::npos ||
+        instanceText.str().find("loadMeshFromCache(") != std::string::npos) {
+        outFail = "Engine model instances must load the selected PHLO without a source/cache fallback.";
         return false;
     }
 

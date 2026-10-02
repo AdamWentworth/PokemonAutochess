@@ -21,12 +21,12 @@ bool test_shared_preview_body_presentation_path_contract(std::string& outFail) {
         }
 
         std::ifstream previewSource(
-            "src/game/editor/PokemonPrefabPreview.cpp");
+            std::string(PAC_PHLOSION_ENGINE_SOURCE_DIR) + "/src/engine/editor/ModelPreview.cpp");
         const std::string source{
             std::istreambuf_iterator<char>(previewSource),
             std::istreambuf_iterator<char>()};
         if (source.find(
-                ".graphicsQuality = impl_->options.graphicsQuality,") ==
+                "frame.graphicsQuality = impl_->options.graphicsQuality;") ==
             std::string::npos) {
             outFail =
                 "Inspector model rendering bypassed its selected graphics quality.";

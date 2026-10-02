@@ -1,4 +1,5 @@
 #pragma once
+#include "engine/models/ModelData.h"
 
 #include <memory>
 #include <unordered_map>
@@ -13,7 +14,7 @@ class Camera3D;
 class ResourceManager;
 
 namespace game::runtime::render_model {
-struct MeshData;
+using engine::models::MeshData;
 }
 
 namespace game::runtime::shared_capture {

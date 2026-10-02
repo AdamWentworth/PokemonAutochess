@@ -211,7 +211,7 @@ register.
 - `src/game/runtime/render_model_cache/RenderModelCache*.*`
 
 Native character-material translation:
-- `tools/PhlosionNativeModelIr.cpp`
+- `PokemonModelSupport/src/pokemon/models/NativeModelIr.cpp`
   - converts retained `.phmodel` roles and authored controls into renderer-neutral mesh/material payloads
   - owns source-profile qualification for native SSS, eye, animation, and FresnelEffect modes
 - `tools/PhlosionForge.cpp`
@@ -220,7 +220,7 @@ Native character-material translation:
     environment texture statistics; use it to distinguish missing source data
     from runtime interpretation defects before changing shaders
 - `src/game/runtime/render_model_cache/RenderModelCache.h`
-  - canonical game-side material mode and packed-parameter contracts
+  - compatibility aliases for engine data and optional adapter material contracts
   - mode 27 covers native layered/displaced effects; subtype 3 retains dynamic
     SSSEffect puff alpha, 3.25 retains opaque SV Gastly smoke, and 3.375 retains
     Z-A Gastly's already-composited base plus authored shadow/rim auxiliary
@@ -236,8 +236,8 @@ Native character-material translation:
     rather than the removed duplicate normal-detail multiplier, and the
     metallic-gated authored local-reflection cube
   - native `.phmodel` tangents are already in the same declared model basis as
-    normals; `tools/PhlosionNativeModelIr.cpp` preserves XYZ and handedness.
-    `tests/TestPhlosionNativeModelIr.cpp` guards against restoring the former
+    normals; `PokemonModelSupport/src/pokemon/models/NativeModelIr.cpp` preserves XYZ and handedness.
+    `PokemonModelSupport/tests/TestNativeModelIr.cpp` guards against restoring the former
     tangent-only `(x,z,-y)` swizzle
   - mode 33 is SV `SSS`: exact base/normal/scalar-roughness/AO/SSS-mask
     transport, smooth-vs-Eevee-fibre surface qualification, and source-proven

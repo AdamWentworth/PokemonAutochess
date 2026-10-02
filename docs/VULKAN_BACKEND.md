@@ -117,7 +117,7 @@ not grow a second monolithic backend:
 - `assets/shaders/vulkan/world_material.glsl`: Vulkan world-material shading
 - `assets/shaders/vulkan/world_environment.glsl`: cube-UV PMREM sampling and
   image-based lighting helpers
-- `src/game/render/materials/character/layered_effects.glsl`: project-owned
+- `PokemonModelSupport/shaders/character/layered_effects.glsl`: shared source-adapter
   layered animated effects; shader templates remain in the engine
 - `assets/shaders/vulkan/world_indirect*`: descriptor-indexed world shading and
   draw-ID-based instance/material addressing

@@ -4,6 +4,7 @@ param(
     [ValidateSet('Debug', 'Release', 'RelWithDebInfo')][string]$Configuration = 'Release',
     [string]$ProjectDescriptor = 'phlosion.project.json',
     [string]$EngineRoot = '',
+    [string]$EditorBuildDirectory = 'build',
     [string]$BaselineDirectory = '',
     [string[]]$Backends = @('opengl', 'vulkan', 'd3d12'),
     [string[]]$Cases = @(),
@@ -12,7 +13,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $taskEngine = if ($EngineRoot) { [IO.Path]::GetFullPath($EngineRoot) } else { [IO.Path]::GetFullPath((Join-Path $taskRoot '../../Phlosion/PhlosionEngine')) }
-$taskEditor = Join-Path $taskEngine "build/$Configuration/PhlosionEditor.exe"
+$taskEditor = Join-Path $taskEngine "$EditorBuildDirectory/$Configuration/PhlosionEditor.exe"
 $taskOutput = [IO.Path]::GetFullPath([IO.Path]::Combine($taskRoot, $OutputDirectory))
 $taskProject = [IO.Path]::GetFullPath([IO.Path]::Combine($taskRoot, $ProjectDescriptor))
 $taskMatrix = Get-Content (Join-Path $taskRoot 'config/render/character_material_matrix.json') -Raw | ConvertFrom-Json

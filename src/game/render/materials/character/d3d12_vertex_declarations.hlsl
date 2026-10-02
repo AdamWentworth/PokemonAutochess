@@ -1,1 +1,0 @@
-// Project vertex-stage declarations.

@@ -1,4 +1,5 @@
 #pragma once
+#include "engine/models/ModelData.h"
 
 #include "game/runtime/shared/backend/SharedBackendTextureCache.h"
 #include "vfx/effects/shared/SharedAuthoredBatchVFX.h"
@@ -14,7 +15,7 @@ class IRenderBackend;
 
 namespace game::runtime {
 namespace render_model {
-struct MeshData;
+using engine::models::MeshData;
 }
 }
 

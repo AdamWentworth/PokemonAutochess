@@ -12,6 +12,19 @@
 
 namespace game::runtime::shared_projected_unit_backend_mesh_support {
 
+const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
+    const game::runtime::render_model::MeshData* mesh,
+    const std::vector<int>& submeshNodeFallback,
+    std::size_t baseBatchCount, bool preferFullGpuSkinning) {
+    std::vector<std::uint8_t> preserveVertexColor;
+    if (mesh) {
+        for (auto mode : mesh->submeshMaterialModes)
+            preserveVertexColor.push_back(mode == runtime::render_model::kNativeLayeredUnlitMaterialMode);
+    }
+    return engine::models::geometry::ensureFastTexturedMeshTemplateCache(
+        mesh, submeshNodeFallback, baseBatchCount, preferFullGpuSkinning, preserveVertexColor);
+}
+
 std::size_t selectUniformTriangleIndex(std::size_t sampleIndex,
                                        std::size_t sampleCount,
                                        std::size_t triangleCount) {
@@ -37,32 +50,9 @@ bool strictGltfParityEnabled() {
     return enabled;
 }
 
-std::vector<int> buildSubmeshNodeFallback(
-    const game::runtime::render_model::MeshData& mesh) {
-    std::vector<int> submeshNodeFallback;
-    if (mesh.submeshMeshIndex.empty()) return submeshNodeFallback;
-    submeshNodeFallback.assign(mesh.submeshMeshIndex.size(), -1);
-    for (std::size_t si = 0; si < mesh.submeshMeshIndex.size(); ++si) {
-        const int meshIndex = mesh.submeshMeshIndex[si];
-        if (meshIndex >= 0 &&
-            static_cast<std::size_t>(meshIndex) < mesh.meshIndexToNode.size()) {
-            submeshNodeFallback[si] =
-                mesh.meshIndexToNode[static_cast<std::size_t>(meshIndex)];
-        }
-    }
-    return submeshNodeFallback;
-}
 
-std::string makeIndexedGeometryCacheKey(const std::string& keyPrefix,
-                                        std::size_t baseSubmeshIndex,
-                                        std::size_t batchIndex,
-                                        std::size_t baseBatchCount) {
-    std::string key = keyPrefix + "#submesh_geom:" + std::to_string(baseSubmeshIndex);
-    if (batchIndex >= baseBatchCount) {
-        key += "#split:" + std::to_string(batchIndex);
-    }
-    return key;
-}
+
+
 
 std::size_t resolveBatchBaseSubmeshIndex(
     const game::runtime::shared_world_batches::WorldIndexedBatch& batch,

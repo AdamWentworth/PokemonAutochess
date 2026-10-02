@@ -34,7 +34,7 @@ bool test_projected_mesh_renderer_hot_path_contract(std::string& outFail) {
     const std::filesystem::path supportPath =
         "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshSupport.cpp";
     const std::filesystem::path graphicsQualityPath =
-        "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGraphicsQuality.cpp";
+        std::filesystem::path(PAC_MODEL_SUPPORT_SOURCE_DIR) / "src/pokemon/models/MaterialQuality.cpp";
     const std::filesystem::path triangleLoopPath =
         "src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTriangleLoop.cpp";
     const std::filesystem::path persistentItemsPath =

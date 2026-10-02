@@ -21,7 +21,7 @@ it does not change the copyright or licensing of recovered source material.
 | Material | Location / examples | Scope |
 | --- | --- | --- |
 | Recovered field shaders and CPU reference implementations | `src/game/render/materials/field/` | The entire directory is excluded from the Apache 2.0 grant. See [field provenance](FIELD_MATERIALS.md). |
-| Recovered character, eye, lighting and layered-effect programs | `src/game/render/materials/character/` | The entire directory is excluded from the Apache 2.0 grant. See [character provenance](CHARACTER_MATERIALS.md). |
+| Recovered character, eye, lighting and layered-effect programs | Moved to `PokemonModelSupport/shaders/character/`; compatibility material identities remain under `src/game/render/materials/character/` | Existing exclusions follow the moved material. See [character provenance](CHARACTER_MATERIALS.md). |
 | Source-specific material profiles and shader fixtures | `config/render/world_materials.json`, `tests/materials/` | These paths, and recovered expressions/data in other fixtures, are excluded. |
 | Source-game captures and extracted data | `docs/vfx/captures/`, including buffer and mesh CSV data | The capture directory is excluded, as are source-derived data embedded elsewhere. |
 | Artwork, branding and showcase media | `docs/assets/`, `docs/art/`, screenshots, GIFs and logos | These assets are excluded; the code licence does not grant rights to the depicted Pokemon artwork or branding. |

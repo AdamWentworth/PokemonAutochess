@@ -1,89 +1,18 @@
 #pragma once
-
-#include <cstdint>
-#include <vector>
-
-#include <glm/glm.hpp>
-
 #include "game/PokemonInstance.h"
 #include "game/runtime/render_model_cache/RenderModelCache.h"
-
+#include "pokemon/models/PoseCompatibility.h"
 namespace game::runtime::shared_backend_pose {
-
-// Source animation clips remain immutable. This policy is applied only while
-// evaluating a runtime pose, before the game-owned instance transform is added.
-enum class RootMotionPolicy : std::uint8_t {
-    PreserveAuthored,
-    InPlaceHorizontal,
-    InPlaceAll,
-};
-
-struct PoseEval {
-    bool hasScenePose = false;
-    bool hasClipPose = false;
-    std::vector<engine::render::model_types::NodeTRS> nodeLocals;
-    std::vector<glm::mat4> nodeGlobals;
-};
-
+using pokemon::models::pose::PoseEval;
+using pokemon::models::pose::RootMotionPolicy;
+using pokemon::models::pose::evaluateScenePoseForResolvedClipTime;
+using pokemon::models::pose::evaluateScenePoseForClipTime;
+using pokemon::models::pose::isTongueSurfaceConcealed;
+using pokemon::models::pose::continuousNativeOverlayAnimationIndex;
+using pokemon::models::pose::animationOwnsNativeEffectVisibility;
+using pokemon::models::pose::applyContinuousNativeOverlay;
 bool shouldTreatSceneClipAsLooping(const PokemonInstance& unit, int animIndex);
-
 void evaluateScenePose(const render_model::MeshData& mesh,
-                       const PokemonInstance& unit,
-                       PoseEval& outPose);
+    const PokemonInstance& unit, PoseEval& outPose);
 PoseEval evaluateScenePose(const render_model::MeshData& mesh, const PokemonInstance& unit);
-void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
-                                          int animIndex,
-                                          float animTimeSec,
-                                          RootMotionPolicy rootMotionPolicy,
-                                          PoseEval& outPose);
-void evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
-                                          int animIndex,
-                                          float animTimeSec,
-                                          RootMotionPolicy rootMotionPolicy,
-                                          bool loopingClip,
-                                          PoseEval& outPose);
-PoseEval evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
-                                              int animIndex,
-                                              float animTimeSec,
-                                              RootMotionPolicy rootMotionPolicy);
-PoseEval evaluateScenePoseForResolvedClipTime(const render_model::MeshData& mesh,
-                                              int animIndex,
-                                              float animTimeSec,
-                                              RootMotionPolicy rootMotionPolicy,
-                                              bool loopingClip);
-void evaluateScenePoseForClipTime(const render_model::MeshData& mesh,
-                                  int animIndex,
-                                  float animTimeSec,
-                                  PoseEval& outPose);
-PoseEval evaluateScenePoseForClipTime(const render_model::MeshData& mesh,
-                                      int animIndex,
-                                      float animTimeSec);
-
-// Returns true only when the evaluated source pose contains a named tongue
-// chain and every joint in that chain is at Game Freak's authored uniform
-// concealment scale. Render materials use this to suppress the packed tongue
-// surface instead of trusting degenerate skinned triangles to disappear.
-bool isTongueSurfaceConcealed(const render_model::MeshData& mesh,
-                              const PoseEval& pose);
-
-// Returns the retained controller-owned loop01 clip, when that clip contains
-// a runtime geometry lifecycle in addition to its continuous material tracks.
-int continuousNativeOverlayAnimationIndex(
-    const render_model::MeshData& mesh);
-
-// True when the selected body clip authors its own intermittent native-effect
-// visibility and must take precedence over the continuous idle controller.
-bool animationOwnsNativeEffectVisibility(
-    const render_model::MeshData& mesh,
-    int animationIndex);
-
-// Applies the controller-owned, always-running loop01 clip over an already
-// evaluated body pose. The source material clock is deliberately separate
-// from the selected body clip clock.
-bool applyContinuousNativeOverlay(
-    const render_model::MeshData& mesh,
-    float materialTimeSec,
-    PoseEval& inOutPose,
-    int selectedAnimationIndex = -1);
-
-} // namespace game::runtime::shared_backend_pose
+}

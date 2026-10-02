@@ -1,4 +1,5 @@
 #pragma once
+#include "engine/models/ModelData.h"
 
 #include "engine/core/ecs/Entity.h"
 #include "game/runtime/routes/RenderRoutes.h"
@@ -26,7 +27,7 @@ class World;
 }
 
 namespace game::runtime::render_model {
-struct MeshData;
+using engine::models::MeshData;
 }
 
 namespace game::runtime::session_world_backdrop {

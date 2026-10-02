@@ -221,7 +221,7 @@ bool test_native_charmander_family_fire_contract(std::string& outFail) {
         if (!qualifyFireModel(model, outFail)) return false;
     }
 
-    const std::filesystem::path materials = engine::paths::data("src/game/render/materials/character");
+    const std::filesystem::path materials = std::filesystem::path(PAC_MODEL_SUPPORT_SOURCE_DIR) / "shaders/character";
     const std::string openGl = readText(materials / "opengl_declarations.glsl") +
                                readText(materials / "opengl_evaluation.glsl") +
                                readText(materials / "opengl_vertex_evaluation.glsl");

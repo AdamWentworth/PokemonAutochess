@@ -1,4 +1,5 @@
 #pragma once
+#include "engine/models/ModelData.h"
 
 #include "engine/render/IRenderBackend.h"
 #include "game/runtime/shared/world/SharedWorldIndexedBatches.h"
@@ -10,7 +11,7 @@
 #include <unordered_map>
 
 namespace game::runtime::render_model {
-struct MeshData;
+using engine::models::MeshData;
 }
 
 namespace game::runtime::shared_projected_render_items {

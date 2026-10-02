@@ -29,9 +29,11 @@ the engine's generic material-profile interface. The engine has no field-materia
 allowlist or built-in field evaluator. Descriptive material names preserve their
 recovery provenance in [field materials](FIELD_MATERIALS.md).
 
-Character lighting, eye/skin materials, local probes, layered effects and fire
-vertex displacement also belong to the game. The engine supplies generic world
-shader interfaces and standard PBR defaults. See [character materials](CHARACTER_MATERIALS.md).
+Recovered character lighting, eye/skin materials, layered effects and fire
+vertex displacement belong to the optional `PokemonModelSupport` adapter.
+The engine owns generic model cooking, instances, animation, indexed submission
+and the ordinary inspector. Autochess retains actions, procedural movement,
+board placement, content selection, field shaders and lighting choices. See [character materials](CHARACTER_MATERIALS.md).
 
 `GameRuntimeServices` extends the generic engine host services with per-session
 game state: board flags, shop/round/combat timings, projected-unit counters,
@@ -69,7 +71,8 @@ declares that package.
 
 ## Engine dependencies
 
-The game consumes Phlosion Engine for its runtime/render/editor contracts,
+The game consumes Phlosion Engine for its runtime/render/editor/model contracts,
+PokemonModelSupport for optional source interpretation,
 Phlosion Packages for optional editor features, and Phlosion VFX for reusable
 effect primitives. It must not add game headers or game vocabulary back to
 any dependency.

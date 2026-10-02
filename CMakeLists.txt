@@ -93,7 +93,6 @@ if (PAC_OPTIMIZE_RENDER_HOTPATHS_IN_DEBUG)
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPersistentItems.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGpuSkinBatchState.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp"
-        "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGeometryTemplateCache.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshIndexedFinalize.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTrianglePrep.cpp"
         "${CMAKE_SOURCE_DIR}/src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTriangleLoop.cpp"
@@ -399,6 +398,13 @@ endif()
 
 # ---------------- Game objects (shared by exe + tests) ----------------
 # Pure arena policy/data and spatial queries have no renderer or asset-store dependency.
+set(POKEMON_MODEL_SUPPORT_SOURCE_DIR "${_pac_resolved_engine_source_dir}/../PokemonModelSupport"
+    CACHE PATH "Optional shared Pokemon model adapter checkout")
+set(POKEMON_MODELS_BUILD_TESTS ${BUILD_TESTING} CACHE BOOL "Shared adapter tests" FORCE)
+if (NOT TARGET PokemonModels::Import)
+    add_subdirectory("${POKEMON_MODEL_SUPPORT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/pokemon-model-support")
+endif()
+
 add_subdirectory(src/game/render/materials)
 
 add_library(PAC_ArenaLogic STATIC
@@ -528,7 +534,6 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshPersistentItems.cpp
     src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGpuSkinBatchState.cpp
     src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshMaterialTemplateCache.cpp
-    src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshGeometryTemplateCache.cpp
     src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshIndexedFinalize.cpp
     src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTrianglePrep.cpp
     src/game/runtime/shared/projected/backend_mesh/SharedProjectedUnitBackendMeshTriangleLoop.cpp
@@ -583,7 +588,6 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/shared/vfx/authored/SharedAuthoredVfxInterop.cpp
     src/game/runtime/shared/vfx/authored/SharedAuthoredVfxPrewarm.cpp
     src/game/runtime/shared/ui/SharedUnitHudBatches.cpp
-    src/game/runtime/shared/world/SharedWorldIndexedBatches.cpp
     src/game/runtime/session/GameUpdateGraph.cpp
     src/game/runtime/video/VideoPreferences.cpp
     src/game/runtime/video/GpuAdapters.cpp
@@ -594,8 +598,6 @@ add_library(PAC_GameObjects STATIC
     src/game/runtime/render_model_cache/RenderModelCacheLoadOrRebuild.cpp
     src/game/runtime/render_model_cache/RenderModelCacheWrite.cpp
     src/game/runtime/render_model_cache/RenderModelCacheSourceBuild.cpp
-    src/game/runtime/phlosion/PhlosionModelObject.cpp
-    src/game/runtime/phlosion/PhlosionTextureDependencyStore.cpp
 
     # Game Config
     src/game/config/PokemonConfigLoader.cpp
@@ -675,7 +677,7 @@ add_library(PAC_GameObjects STATIC
     src/game/systems/ShopSystem.cpp
 )
 add_dependencies(PAC_GameObjects PAC_WorldMaterialShaders)
-target_link_libraries(PAC_GameObjects PUBLIC PAC_ArenaLogic)
+target_link_libraries(PAC_GameObjects PUBLIC PAC_ArenaLogic Phlosion::Models PokemonModels::Runtime)
 target_link_libraries(PAC_GameObjects
     PUBLIC
         Engine
@@ -774,13 +776,13 @@ if (PAC_BUILD_TOOLS)
         tools/PhlosionCookManifest.h
         tools/PhlosionForgeManifest.cpp
         tools/PhlosionForgeManifest.h
-        tools/PhlosionNativeModelIr.cpp
         tools/PhlosionNativeModelIr.h
     )
     target_link_libraries(PhlosionForge
         PRIVATE
             PAC_GameObjects
     )
+    target_link_libraries(PhlosionForge PRIVATE PokemonModels::Import)
     pac_apply_common_target_settings(PhlosionForge)
 
     add_executable(PAC_DataCooker
@@ -845,22 +847,13 @@ if (PAC_BUILD_EDITOR)
         message(FATAL_ERROR
             "PAC_BUILD_EDITOR requires the Phlosion::EditorCore target.")
     endif()
-    add_library(PokemonModelPreviewPlugin SHARED
-        tools/PokemonModelPreviewPlugin.cpp
-        src/game/editor/PokemonPrefabPreview.cpp
-        src/game/editor/PokemonPrefabPreview.h)
     add_dependencies(PokemonModelPreviewPlugin PAC_WorldMaterialShaders)
-    target_link_libraries(PokemonModelPreviewPlugin PRIVATE
-        PAC_GameObjects Phlosion::EditorCore)
-    set_target_properties(PokemonModelPreviewPlugin PROPERTIES
+    set_target_properties(PokemonModelPreviewPlugin PokemonModelRuntime PROPERTIES
         PREFIX ""
         RUNTIME_OUTPUT_DIRECTORY
             "${CMAKE_SOURCE_DIR}/.phlosion/editor/$<CONFIG>"
         LIBRARY_OUTPUT_DIRECTORY
             "${CMAKE_SOURCE_DIR}/.phlosion/editor/$<CONFIG>")
-    target_compile_definitions(PokemonModelPreviewPlugin PRIVATE
-        PHLOSION_EDITOR_BUILD_CONFIGURATION="$<CONFIG>")
-    pac_apply_common_target_settings(PokemonModelPreviewPlugin)
     add_library(PokemonAutochessEditorProject SHARED
         tools/PokemonAutochessEditorProject.cpp
         src/game/editor/PokemonPrefabPreview.cpp
@@ -877,6 +870,7 @@ if (PAC_BUILD_EDITOR)
             PAC_EditorProjectSupport
             PAC_VfxPreviewSupport
             Phlosion::EditorCore
+            Phlosion::ModelPreview
     )
     set_target_properties(PokemonAutochessEditorProject PROPERTIES
         PREFIX ""
@@ -901,32 +895,41 @@ if (BUILD_TESTING)
         NAME PAC_ProjectOwnershipBoundary
         COMMAND ${CMAKE_COMMAND}
             -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -DPOKEMON_MODEL_SUPPORT_ROOT=${POKEMON_MODEL_SUPPORT_SOURCE_DIR}
             -DPHLOSION_ROOT=${_pac_resolved_engine_source_dir}
             -DPHLOSION_PACKAGES_ROOT=${_pac_resolved_packages_source_dir}
             -P ${CMAKE_SOURCE_DIR}/tests/CheckProjectOwnership.cmake)
     add_test(NAME PAC_PackedSpecularProbeContract
         COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -DPOKEMON_MODEL_SUPPORT_ROOT=${POKEMON_MODEL_SUPPORT_SOURCE_DIR}
             -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckPackedSpecularProbeContract.cmake)
     add_test(NAME PAC_StageReflectionProbeContract
         COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -DPOKEMON_MODEL_SUPPORT_ROOT=${POKEMON_MODEL_SUPPORT_SOURCE_DIR}
             -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckStageReflectionProbeContract.cmake)
     add_test(NAME PAC_RefractiveEyeContract
         COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -DPOKEMON_MODEL_SUPPORT_ROOT=${POKEMON_MODEL_SUPPORT_SOURCE_DIR}
             -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckRefractiveEyeContract.cmake)
     add_test(NAME PAC_LayeredEyeSpecularContract
         COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -DPOKEMON_MODEL_SUPPORT_ROOT=${POKEMON_MODEL_SUPPORT_SOURCE_DIR}
             -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckLayeredEyeSpecularContract.cmake)
     add_test(NAME PAC_CharacterStageLightContract
         COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -DPOKEMON_MODEL_SUPPORT_ROOT=${POKEMON_MODEL_SUPPORT_SOURCE_DIR}
             -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckCharacterStageLightContract.cmake)
     add_test(NAME PAC_LayeredCharacterShadingContract
         COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -DPOKEMON_MODEL_SUPPORT_ROOT=${POKEMON_MODEL_SUPPORT_SOURCE_DIR}
             -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckLayeredCharacterShadingContract.cmake)
     add_test(NAME PAC_ViewAngleLayerContract
         COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -DPOKEMON_MODEL_SUPPORT_ROOT=${POKEMON_MODEL_SUPPORT_SOURCE_DIR}
             -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckViewAngleLayerContract.cmake)
     add_test(NAME PAC_SubsurfaceEnvironmentContract
         COMMAND ${CMAKE_COMMAND} -DPAC_ROOT=${CMAKE_SOURCE_DIR}
+            -DPOKEMON_MODEL_SUPPORT_ROOT=${POKEMON_MODEL_SUPPORT_SOURCE_DIR}
             -P ${CMAKE_SOURCE_DIR}/tests/materials/CheckSubsurfaceEnvironmentContract.cmake)
     if (EXISTS
         "${_pac_resolved_engine_source_dir}/tests/CheckEngineSemanticBoundary.cmake")
@@ -970,13 +973,11 @@ if (BUILD_TESTING)
         tests/TestRenderPrepMeshNormals.cpp
         tests/TestRenderPrepProceduralPose.cpp
         tests/TestRenderModelCache.cpp
-        tests/TestPhlosionNativeModelIr.cpp
         tests/TestNativeCharmanderFamilyFire.cpp
         tests/TestPhlosionAssetCatalog.cpp
         tools/PhlosionAssetCatalog.cpp
         tools/PhlosionCookManifest.cpp
         tools/PhlosionForgeManifest.cpp
-        tools/PhlosionNativeModelIr.cpp
         tests/TestPhlosionResourceContainer.cpp
         tests/TestPhlosionSceneArchive.cpp
         tests/TestPublishedEnvironmentScene.cpp
@@ -1171,6 +1172,7 @@ if (BUILD_TESTING)
     target_compile_definitions(PAC_Tests
         PRIVATE
             PAC_PHLOSION_ENGINE_SOURCE_DIR="${_pac_resolved_engine_source_dir}"
+            PAC_MODEL_SUPPORT_SOURCE_DIR="${POKEMON_MODEL_SUPPORT_SOURCE_DIR}"
             PAC_PHLOSION_VFX_SOURCE_DIR="${_pac_resolved_vfx_source_dir}"
     )
 
@@ -1179,6 +1181,7 @@ if (BUILD_TESTING)
     else()
         target_compile_options(PAC_Tests PRIVATE -std=c++20)
     endif()
+    target_link_libraries(PAC_Tests PRIVATE PokemonModels::TestSupport)
     pac_apply_warning_flags(PAC_Tests)
 
     # Register individual tests for CTest output granularity.
