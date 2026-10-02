@@ -1502,6 +1502,8 @@ void PokemonPrefabPreview::render(
                             .proxyCenter = unit.position,
                             .cameraWorldPos =
                                 camera.getPosition(),
+                            .cameraWorldUp = glm::vec3(glm::inverse(view)[1]),
+                            .cameraWorldFacing = glm::vec3(glm::inverse(view)[2]),
                             .supportsWorldTriangles3D =
                                 renderer.
                                     supportsWorldTriangles3D(),
@@ -1611,7 +1613,7 @@ void PokemonPrefabPreview::render(
             // Transient batches are rebuilt by beginFrame; shared asset material
             // templates remain untouched by per-instance presentation options.
             for (auto& batch : scratch.worldIndexedBatches) {
-                batch.unlit = battle->unlit;
+                batch.unlit = batch.unlit || battle->unlit;
                 if (battle->translucent) {
                     batch.materialAlphaOverride = true;
                     batch.alphaMode = 2u;

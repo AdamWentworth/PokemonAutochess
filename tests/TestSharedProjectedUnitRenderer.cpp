@@ -200,11 +200,74 @@ bool test_shared_projected_unit_travel_presentation_contract(std::string &outFai
     args.captureVisualTintStrength = 0;
     args.presentationTintEnabled = false;
     if (!prep::prepareProjectedUnitBackendMesh(args, result, restored)) return false;
-    return expect(std::abs(recalled.modelM[0][0] / normal.modelM[0][0] - .4f) < .0001f &&
+    if (!expect(std::abs(recalled.modelM[0][0] / normal.modelM[0][0] - .4f) < .0001f &&
                       glm::length(recalled.fastTexturedTint - glm::vec3(1, .1f, .1f)) < .0001f &&
                       restored.fastTexturedTint == normal.fastTexturedTint && restored.modelM == normal.modelM &&
                       mesh.submeshBaseColors[0] == glm::vec4(.2f, .8f, .3f, 1) && !unit.captureInProgress,
-                  "Travel must shrink/tint the rendered body even with material parity enabled, then restore it without mutating the source material or capture state.", outFail);
+                  "Travel must shrink/tint the rendered body even with material parity enabled, then restore it without mutating the source material or capture state.", outFail)) return false;
+    game::runtime::render_model::AnimatedBillboard billboard;
+    billboard.nodeIndex = 0;
+    billboard.offset = {.1f,.2f,.3f};
+    billboard.up = {.6f,.8f,0};
+    billboard.size = {.06f,.06f};
+    billboard.texture.width = billboard.texture.height = 1;
+    billboard.texture.rgba = {255,255,255,128};
+    billboard.clipScales.resize(2);
+    billboard.clipScales[0].keys = {{0,0},{.5f,1},{1,0}};
+    billboard.quadOffset = {-.003f,.004f,-.001f};
+    billboard.clipOffsets.resize(2);
+    billboard.clipOffsets[0][0].keys = {{0,.1f},{.5f,-.1f}};
+    billboard.clipOffsets[0][1].keys = {{0,.2f},{.5f,.4f}};
+    billboard.clipOffsets[0][2].keys = {{0,.3f},{.5f,.5f}};
+    billboard.clipLoops = {true,false};
+    mesh.animatedBillboards = {billboard};
+    mesh.animations.resize(2);
+    mesh.animations[0].durationSec = mesh.animations[1].durationSec = 1;
+    game::runtime::shared_backend_pose::PoseEval attachmentPose;
+    attachmentPose.nodeGlobals.resize(1,glm::mat4(1));
+    attachmentPose.nodeGlobals[0][3] = {1,2,3,1};
+    std::vector<game::runtime::shared_world_batches::WorldIndexedBatch> batches;
+    args.scenePose = &attachmentPose;
+    args.scenePoseReady = true;
+    args.supportsWorldIndexedMeshes = true;
+    args.worldIndexedBatches = &batches;
+    args.materialAnimationIndex = 0;
+    args.materialAnimationTimeSec = .25f;
+    args.cameraWorldFacing = glm::normalize(glm::vec3(.2f,.1f,1));
+    for (const glm::vec3 camera : {glm::vec3(0,1,6),glm::vec3(6,1,0)}) {
+        args.cameraWorldPos = camera;
+        batches.clear();
+        if (!prep::prepareProjectedUnitBackendMesh(args,result,restored) || batches.size()!=1) {
+            outFail = "Fractional attachment scale did not produce one billboard"; return false;
+        }
+        const auto& batch = batches[0];
+        glm::vec3 center(0);
+        for (const auto& v : batch.vertices) center += glm::vec3(v.x,v.y,v.z)*.25f;
+        const auto& v = batch.vertices[0];
+        const auto& w = batch.vertices[1];
+        const glm::vec3 joint = glm::vec3(restored.modelM*attachmentPose.nodeGlobals[0]*glm::vec4(0,.3f,.4f,1));
+        const auto& top = batch.vertices[3];
+        const glm::vec3 jointUp = glm::vec3(restored.modelM*attachmentPose.nodeGlobals[0]*glm::vec4(billboard.up,0));
+        const glm::vec3 expectedUp = glm::normalize(jointUp-args.cameraWorldFacing*glm::dot(jointUp,args.cameraWorldFacing));
+        const glm::vec3 expectedRight = glm::cross(expectedUp,args.cameraWorldFacing);
+        const glm::vec3 expected = joint + .5f*glm::length(glm::vec3(restored.modelM[0]))*
+            (expectedRight*billboard.quadOffset.x + expectedUp*billboard.quadOffset.y +
+             args.cameraWorldFacing*billboard.quadOffset.z);
+        if (!expect(glm::length(center-expected)<.0001f &&
+                    std::abs(glm::length(glm::vec3(w.x-v.x,w.y-v.y,w.z-v.z))-.03f)<.0001f &&
+                    glm::dot(glm::vec3(v.nx,v.ny,v.nz),args.cameraWorldFacing)>.999f &&
+                    glm::dot(glm::normalize(glm::vec3(top.x-v.x,top.y-v.y,top.z-v.z)),expectedUp)>.999f &&
+                    batch.unlit && batch.alphaMode==2 && batch.depthTestEnabled &&
+                    batch.textureRgba==mesh.animatedBillboards[0].texture.rgba.data(),
+                    "Billboard must interpolate its joint offset and size, preserve the authored quad pivot and projected roll, and use depth-tested unlit alpha.",outFail)) return false;
+    }
+    for (const auto [clip,seconds] : {std::pair<int,float>(0,0.f),{1,.5f},{-1,.5f}}) {
+        batches.clear(); args.materialAnimationIndex=clip; args.materialAnimationTimeSec=seconds;
+        if (!prep::prepareProjectedUnitBackendMesh(args,result,restored) || !batches.empty()) {
+            outFail="Collapsed or untracked clips must not inherit a glint"; return false;
+        }
+    }
+    return true;
 }
 
 bool test_shared_projected_unit_renderer_segment_scale_compensation_contract(
@@ -1307,6 +1370,25 @@ bool test_shared_projected_unit_renderer_scene_pose_cache_contract(std::string& 
             outFail)) {
         return false;
     }
+
+    // RGB values are not periodic UV offsets. A fast blue flash must fade
+    // linearly even when its one-frame amplitude exceeds one.
+    auto emissionTrack = clipEyeTrack;
+    emissionTrack.parameter = game::runtime::render_model::MaterialAnimationParameter::EmissiveFactor;
+    emissionTrack.sampling = game::runtime::render_model::MaterialAnimationSampling::Linear;
+    emissionTrack.sourceFrameRate = 30.0f;
+    emissionTrack.loop = false;
+    for (auto& component : emissionTrack.components)
+        component.keys = {{0.0f, 0.0f}, {1.0f/30.0f, 3.0f}, {2.0f/30.0f, 0.0f}};
+    materialTrackMesh.animationMaterialParameters[1].push_back(emissionTrack);
+    glm::vec4 flash{};
+    if (!expect(game::runtime::shared_projected_unit_backend_mesh_prep::detail::sampleClipBoundMaterialAnimation(
+            materialTrackMesh, 1, 7u, emissionTrack.parameter, 1.0f/60.0f, flash) &&
+            glm::length(flash-glm::vec4(1.5f)) < .001f,
+            "Clip emission must interpolate RGB without UV wrapping.", outFail)) return false;
+    if (!expect(!game::runtime::shared_projected_unit_backend_mesh_prep::detail::sampleClipBoundMaterialAnimation(
+            materialTrackMesh, 0, 7u, emissionTrack.parameter, 1.0f/60.0f, flash),
+            "A glint must not leak into another body clip.", outFail)) return false;
 
     game::runtime::render_model::MeshData smokeVisibilityMesh;
     smokeVisibilityMesh.submeshMeshIndex = {0};

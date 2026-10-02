@@ -1,4 +1,5 @@
 #include "game/runtime/phlosion/PhlosionModelObject.h"
+#include "game/runtime/phlosion/ModelBillboards.h"
 
 #include "game/runtime/phlosion/PhlosionTextureDependencyStore.h"
 
@@ -1056,6 +1057,7 @@ using TextureReferenceSet = std::vector<TextureReference>;
 
 struct MaterialTextureReferences {
     TextureReferenceSet base;
+    TextureReferenceSet emissionBase;
     TextureReferenceSet normal;
     TextureReferenceSet metallicRoughness;
     TextureReferenceSet occlusion;
@@ -1198,6 +1200,10 @@ bool materialBytes(
     // PHMAT v3 appends the optional authored environment texture set after
     // every v1/v2 field so older cooked objects remain readable.
     writeTextureReferences(writer, textures.environment);
+    if (std::any_of(textures.emissionBase.begin(), textures.emissionBase.end(),
+                    [](const auto& texture) { return !texture.path.empty(); })) {
+        writeTextureReferences(writer, textures.emissionBase);
+    }
     out = writer.take();
     return true;
 }
@@ -1390,6 +1396,11 @@ bool readMaterialBytes(
             outError,
             "PHMAT authored environment texture extension is invalid.");
     }
+    if (!reader.finished() &&
+        (!readTextureReferences(reader, textures.emissionBase) ||
+         textures.emissionBase.size() != out.submeshBaseColors.size())) {
+        return fail(outError, "PHMAT clip emission base texture extension is invalid.");
+    }
     if (!reader.finished()) {
         return fail(
             outError,
@@ -1431,6 +1442,12 @@ bool readMaterialBytes(
             textures.environment,
             expectedHashes,
             out.submeshEnvironmentTextures,
+            outError) &&
+        decodeTextureSet(
+            materialDirectory,
+            textures.emissionBase,
+            expectedHashes,
+            out.submeshEmissionBaseTextures,
             outError);
 }
 
@@ -1662,7 +1679,12 @@ bool cookModelObject(
             source.submeshEnvironmentTextures,
             "environment",
             false,
-            textureReferences.environment)) {
+            textureReferences.environment) ||
+        !cookTextureSet(
+            source.submeshEmissionBaseTextures,
+            "emission-base",
+            true,
+            textureReferences.emissionBase)) {
         return false;
     }
 
@@ -1733,6 +1755,9 @@ bool cookModelObject(
     nlohmann::json animationManifest = commonManifest;
     animationManifest["root_type"] = "AnimationSet";
     animationManifest["clip_count"] = source.animations.size();
+    if (!source.animatedBillboards.empty()) {
+        animationManifest["animated_billboards"] = encodeModelBillboards(source);
+    }
     nlohmann::json visibilityClips = nlohmann::json::array();
     for (std::size_t clipIndex = 0u;
          clipIndex < source.animationMeshVisibility.size();
@@ -1769,7 +1794,9 @@ bool cookModelObject(
             return nlohmann::json{
                 {"submesh", track.submeshIndex},
                 {"parameter",
-                 track.parameter == render_model::
+                 track.parameter == render_model::MaterialAnimationParameter::EmissiveFactor
+                     ? "emissive_factor"
+                     : track.parameter == render_model::
                                             MaterialAnimationParameter::
                                                 UvScaleOffset3
                      ? "uv_scale_offset3"
@@ -2073,6 +2100,8 @@ bool loadModelObject(
                 } else if (parameter == "uv_scale_offset3") {
                     track.parameter =
                         render_model::MaterialAnimationParameter::UvScaleOffset3;
+                } else if (parameter == "emissive_factor") {
+                    track.parameter = render_model::MaterialAnimationParameter::EmissiveFactor;
                 } else {
                     return fail(
                         outError,
@@ -2193,6 +2222,9 @@ bool loadModelObject(
                 decoded.continuousMaterialAnimations.push_back(
                     std::move(track));
             }
+        }
+        if (animationManifest.contains("animated_billboards")) {
+            decodeModelBillboards(animationManifest.at("animated_billboards"), decoded);
         }
         // The child resources describe where the data came from, while the
         // prefab path identifies this cooked runtime object. Keep that stable

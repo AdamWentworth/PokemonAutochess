@@ -1,5 +1,6 @@
 #include "game/render/materials/character/MaterialModes.h"
 #include "PhlosionNativeModelIr.h"
+#include "game/runtime/phlosion/ModelBillboards.h"
 
 #include "engine/render/ModelAnimationTypes.h"
 
@@ -1341,10 +1342,14 @@ nativeClipBoundMaterialTracks(
             nativeSssEffectDisplaced(materials[materialIndex]) &&
             (parameterName == "UVScaleOffset" ||
              parameterName == "UVScaleOffset3");
-        if (!clipBoundEye && !clipBoundSssEffect) continue;
+        const bool clipBoundEmission = parameterName == "EmissiveFactor" &&
+            (nativeScarletClearCoatAccessory(materials[materialIndex]) ||
+             materials[materialIndex].value("shader_family", "") == "Standard");
+        if (!clipBoundEye && !clipBoundSssEffect && !clipBoundEmission) continue;
 
         ContinuousMaterialAnimationTrack prototype;
-        prototype.parameter = parameterName == "UVScaleOffset3"
+        prototype.parameter = clipBoundEmission ? MaterialAnimationParameter::EmissiveFactor
+            : parameterName == "UVScaleOffset3"
             ? MaterialAnimationParameter::UvScaleOffset3
             : MaterialAnimationParameter::UvScaleOffset;
         prototype.durationSec = durationSec;
@@ -1376,6 +1381,7 @@ nativeClipBoundMaterialTracks(
             prototype.defaultValue =
                 nativeScarletEyeUvToRuntime(prototype.defaultValue);
         }
+        if (clipBoundEmission) prototype.defaultValue = glm::vec4(0.0f);
         for (std::size_t component = 0u;
              component < kComponents.size();
              ++component) {
@@ -4138,6 +4144,46 @@ bool bakeLayeredEmission(
     return true;
 }
 
+bool bakeEmissionBase(
+    const fs::path& root, const json& material,
+    const CachedTextureRgba& base, CachedTextureRgba& output,
+    std::string* outError) {
+    const auto& translation = material.at("runtime_translation");
+    const auto setting = translation.find("emission_base_color");
+    if (setting == translation.end()) return true;
+    if (material.value("shader_family", "") != "Standard" || !base.hasPixels()) {
+        return fail(outError, "Clip emission base requires a textured Standard material.");
+    }
+    const int channel = setting->value("mask_channel", -1);
+    const auto& color = setting->at("color");
+    if (channel < 0 || channel > 3 || !color.is_array() || color.size() != 3) {
+        return fail(outError, "Clip emission base mask/color is invalid.");
+    }
+    std::array<std::uint8_t, 3> rgb{};
+    for (int c = 0; c < 3; ++c) {
+        const float value = color.at(c).get<float>();
+        if (!std::isfinite(value) || value < 0.0f || value > 1.0f)
+            return fail(outError, "Clip emission base color must be finite linear RGB in [0,1].");
+        rgb[c] = toByte(linearToSrgb(value));
+    }
+    CachedTextureRgba mask;
+    if (!loadTextureByRole(root, material, "LayerMaskMap", mask, outError)) return false;
+    if (!mask.hasPixels()) return fail(outError, "Clip emission base requires its layer mask.");
+    output = base;
+    for (int y = 0; y < base.height; ++y) {
+        for (int x = 0; x < base.width; ++x) {
+            const glm::vec2 uv = transformedMaterialUv(material, "UVScaleOffset",
+                (x + .5f) / base.width, (y + .5f) / base.height, false);
+            if (sampleTexture(mask, uv.x, uv.y, glm::vec4(0.0f))[channel] <= 0.0f) continue;
+            // The albedo itself contains the ring pigment. A partial blend
+            // would leave that pigment visible when emission reaches zero.
+            const std::size_t offset = (static_cast<std::size_t>(y) * base.width + x) * 4u;
+            for (int c = 0; c < 3; ++c) output.rgba[offset+c] = rgb[c];
+        }
+    }
+    return true;
+}
+
 bool addAnimationSampler(
     const json& view,
     std::size_t components,
@@ -4365,6 +4411,7 @@ bool load(
             false);
         std::vector<std::string> materialClipBoundEyeUvParameter(
             materials.size());
+        std::vector<bool> materialAnimatedLayerEmission(materials.size(), false);
         for (std::size_t materialIndex = 0u;
              materialIndex < materials.size();
              ++materialIndex) {
@@ -4372,6 +4419,19 @@ bool load(
                 nativeClipBoundEyeUvParameter(
                     animationRecords,
                     materials[materialIndex]);
+            const auto& material = materials[materialIndex];
+            if (material.value("shader_family", "") != "Standard" ||
+                !hasTextureRole(material, "LayerMaskMap")) continue;
+            for (const auto& animation : animationRecords) {
+                const auto parameters = animation.find("material_parameters");
+                if (parameters == animation.end() || !parameters->is_array()) continue;
+                for (const auto& track : *parameters) {
+                    if (track.value("material", "") == material.value("name", "") &&
+                        track.value("parameter", "") == "EmissiveFactor") {
+                        materialAnimatedLayerEmission[materialIndex] = true;
+                    }
+                }
+            }
         }
         for (const auto& record : submeshes) {
             const std::size_t materialIndex =
@@ -4911,7 +4971,8 @@ bool load(
                      emissiveTexture,
                      nativeIkCharacterEyeLighting,
                      outError)) ||
-                ((nativePlainEye || nativeTransparentLayer ||
+                ((materialAnimatedLayerEmission[materialIndex] ||
+                  nativePlainEye || nativeTransparentLayer ||
                   nativeScarletGastlyEye) &&
                  !bakeLayeredEmission(
                      root,
@@ -5134,6 +5195,13 @@ bool load(
             out.submeshIndexOffset.push_back(static_cast<std::uint32_t>(indexOffset));
             out.submeshIndexCount.push_back(
                 static_cast<std::uint32_t>(indexCount));
+            CachedTextureRgba emissionBase;
+            if (translation.contains("emission_base_color")) {
+                if (!materialAnimatedLayerEmission[materialIndex])
+                    return fail(outError, "Clip emission base requires a masked emission animation.");
+                if (!bakeEmissionBase(root, material, baseTexture, emissionBase, outError)) return false;
+            }
+            out.submeshEmissionBaseTextures.push_back(std::move(emissionBase));
             out.submeshBaseTextures.push_back(std::move(baseTexture));
             out.submeshNormalTextures.push_back(std::move(normalTexture));
             out.submeshMetallicRoughnessTextures.push_back(std::move(metalRoughTexture));
@@ -5312,6 +5380,8 @@ bool load(
                       }()
                 : nativeIkCharacterEyeLighting ? glm::max(glm::vec3(nativeEyeEyelidColor), glm::vec3(0.0f))
                 : nativeIkCharacterLighting    ? glm::vec3(std::max(0.0f, nativeRimOffset), std::max(1.0f, nativeRimContrast), 1.0f)
+                // Opt-in clip emission must not alter clips without a track.
+                : materialAnimatedLayerEmission[materialIndex] ? glm::vec3(0.0f)
                 : layeredEmissionBaked         ? glm::vec3(1.0f)
                                                : glm::vec3(0.0f));
             float displacementHeight = 0.0f;
@@ -5973,6 +6043,9 @@ bool load(
             }
             out.animationMaterialParameters.push_back(
                 std::move(materialTracks));
+        }
+        if (document.contains("animated_billboards")) {
+            game::runtime::phlosion::decodeModelBillboards(document.at("animated_billboards"), out);
         }
         out.assetCacheIdentity =
             "native-ir:" + fs::path(manifestPath).generic_string();

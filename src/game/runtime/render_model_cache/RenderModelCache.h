@@ -154,6 +154,7 @@ struct MaterialAnimationCurve {
 enum class MaterialAnimationParameter : std::uint8_t {
     UvScaleOffset,
     UvScaleOffset3,
+    EmissiveFactor,
 };
 
 enum class MaterialAnimationSampling : std::uint8_t {
@@ -178,6 +179,19 @@ struct ContinuousMaterialAnimationTrack {
     std::array<MaterialAnimationCurve, 4u> components;
 };
 
+struct AnimatedBillboard {
+    int nodeIndex = -1;
+    glm::vec3 offset{0.0f};
+    glm::vec3 quadOffset{0.0f};
+    glm::vec3 up{0.0f, 1.0f, 0.0f};
+    glm::vec2 size{0.0f};
+    CachedTextureRgba texture;
+    // Parallel to body clips; an empty curve means the attachment is hidden.
+    std::vector<MaterialAnimationCurve> clipScales;
+    std::vector<std::array<MaterialAnimationCurve, 3u>> clipOffsets;
+    std::vector<bool> clipLoops;
+};
+
 struct MeshData {
     std::string assetCacheIdentity;
     float modelScaleFactor = 1.0f;
@@ -194,6 +208,8 @@ struct MeshData {
     std::vector<std::uint32_t> submeshIndexOffset;
     std::vector<std::uint32_t> submeshIndexCount;
     std::vector<CachedTextureRgba> submeshBaseTextures;
+    // Optional base surface selected only by a clip-bound emission track.
+    std::vector<CachedTextureRgba> submeshEmissionBaseTextures;
     std::vector<CachedTextureRgba> submeshNormalTextures;
     std::vector<CachedTextureRgba> submeshMetallicRoughnessTextures;
     std::vector<CachedTextureRgba> submeshOcclusionTextures;
@@ -236,6 +252,7 @@ struct MeshData {
         animationMaterialParameters;
     std::vector<ContinuousMaterialAnimationTrack>
         continuousMaterialAnimations;
+    std::vector<AnimatedBillboard> animatedBillboards;
     bool hasVertexColor = false;
     bool hasVertexBaseColor = false;
 };

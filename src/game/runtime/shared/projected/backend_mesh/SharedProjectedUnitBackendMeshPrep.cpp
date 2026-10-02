@@ -300,6 +300,34 @@ void applyIndexedBatchTemplateShallow(
     float materialTimeSec,
     int materialAnimationIndex,
     float materialAnimationTimeSec) {
+    glm::vec4 emission{};
+    if (game::runtime::shared_projected_unit_backend_mesh_prep::detail::sampleClipBoundMaterialAnimation(
+            mesh, materialAnimationIndex, submeshIndex,
+            game::runtime::render_model::MaterialAnimationParameter::EmissiveFactor,
+            materialAnimationTimeSec, emission)) {
+        dst = src;
+        dst.sharedTemplate = nullptr;
+        dst.emissiveFactorR = std::max(0.0f, emission.x);
+        dst.emissiveFactorG = std::max(0.0f, emission.y);
+        dst.emissiveFactorB = std::max(0.0f, emission.z);
+        if (submeshIndex < mesh.submeshEmissionBaseTextures.size()) {
+            const auto& texture = mesh.submeshEmissionBaseTextures[submeshIndex];
+            if (texture.hasPixels()) {
+                dst.textureKey = src.textureKey + "#clip-emission-base";
+                // Empty key lets the backend derive its cache identity from
+                // the distinct texture key and the sampler below.
+                dst.textureCacheKey.clear();
+                dst.textureRgba = texture.rgba.data();
+                dst.textureWidth = texture.width;
+                dst.textureHeight = texture.height;
+                dst.textureWrapS = texture.wrapS;
+                dst.textureWrapT = texture.wrapT;
+                dst.textureMipLevels = nullptr;
+                dst.textureMipLevelCount = 0u;
+            }
+        }
+        return;
+    }
     if (src.materialMode == game::runtime::render_model::
                                 kNativeFacialOverlayMaterialMode &&
         src.materialFlags > 3.5f && src.materialFlags < 4.5f) {
@@ -782,7 +810,7 @@ bool sampleContinuousMaterialAnimation(
                 track->components[component],
                 sampleTime,
                 outValue[static_cast<glm::length_t>(component)],
-                component >= 2u,
+                component >= 2u && parameter != runtime::render_model::MaterialAnimationParameter::EmissiveFactor,
                 track->sourceFrameRate,
                 false);
     }
@@ -827,7 +855,7 @@ bool sampleClipBoundMaterialAnimation(
                 track->components[component],
                 sampleTime,
                 outValue[static_cast<glm::length_t>(component)],
-                component >= 2u,
+                component >= 2u && parameter != runtime::render_model::MaterialAnimationParameter::EmissiveFactor,
                 track->sourceFrameRate,
                 track->sampling == runtime::render_model::
                     MaterialAnimationSampling::HoldSourceFrame);
@@ -1255,6 +1283,64 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
             std::clamp(args.captureVisualTintStrength, 0.0f, 1.0f));
     }
 
+    if (args.supportsWorldIndexedMeshes && scenePose) {
+        for (std::size_t bi = 0; bi < mesh->animatedBillboards.size(); ++bi) {
+            const auto& billboard = mesh->animatedBillboards[bi];
+            const int clipIndex = args.materialAnimationIndex;
+            if (clipIndex < 0 || static_cast<std::size_t>(clipIndex) >= billboard.clipScales.size() ||
+                billboard.clipScales[clipIndex].keys.empty() || billboard.nodeIndex < 0 ||
+                static_cast<std::size_t>(billboard.nodeIndex) >= scenePose->nodeGlobals.size()) continue;
+            const auto& clip = mesh->animations[clipIndex];
+            float seconds = std::max(0.0f, args.materialAnimationTimeSec);
+            if (billboard.clipLoops[clipIndex] && clip.durationSec > 0) seconds = std::fmod(seconds, clip.durationSec);
+            const float scale = sampleMaterialCurve(billboard.clipScales[clipIndex], seconds, 0.0f, false, 0.0f, false);
+            if (scale <= 0.0003f) continue;
+            glm::vec3 offset = billboard.offset;
+            if (static_cast<std::size_t>(clipIndex) < billboard.clipOffsets.size())
+                for (std::size_t axis = 0; axis < 3; ++axis)
+                    offset[axis] = sampleMaterialCurve(billboard.clipOffsets[clipIndex][axis], seconds,
+                        offset[axis], false, 0.0f, false);
+            glm::vec3 center = glm::vec3(prepared.modelM * scenePose->nodeGlobals[billboard.nodeIndex] * glm::vec4(offset, 1.0f));
+            glm::vec3 forward = args.cameraWorldFacing;
+            if (glm::dot(forward, forward) < 1e-10f) forward = args.cameraWorldPos - center;
+            if (glm::dot(forward, forward) < 1e-10f) continue;
+            forward = glm::normalize(forward);
+            // HSD's non-perspective full billboard projects the joint's up axis
+            // onto the camera plane, preserving roll while replacing its normal.
+            const glm::vec3 jointUp = glm::vec3(prepared.modelM * scenePose->nodeGlobals[billboard.nodeIndex] * glm::vec4(billboard.up, 0.0f));
+            glm::vec3 right = glm::cross(jointUp, forward);
+            if (glm::dot(right, right) < 1e-8f) right = glm::cross(args.cameraWorldUp, forward);
+            if (glm::dot(right, right) < 1e-8f) right = glm::cross(glm::vec3(0, 0, 1), forward);
+            right = glm::normalize(right);
+            const glm::vec3 up = glm::cross(forward, right);
+            const float modelScale = glm::length(glm::vec3(prepared.modelM[0]));
+            center += (right*billboard.quadOffset.x + up*billboard.quadOffset.y +
+                forward*billboard.quadOffset.z) * (scale*modelScale);
+            const glm::vec2 half = billboard.size * (0.5f * scale * modelScale);
+            shared_world_batches::WorldIndexedBatch batch;
+            batch.textureKey = mesh->assetCacheIdentity + "#billboard:" + std::to_string(bi);
+            batch.textureCacheKey = batch.textureKey;
+            batch.textureRgba = billboard.texture.rgba.data();
+            batch.textureWidth = billboard.texture.width;
+            batch.textureHeight = billboard.texture.height;
+            batch.textureWrapS = batch.textureWrapT = 33071;
+            batch.alphaMode = 2u;
+            batch.alphaCutoff = 0.0f;
+            batch.unlit = true;
+            batch.sortDepth = glm::dot(args.cameraWorldPos-center, args.cameraWorldPos-center);
+            for (const glm::vec2 corner : {glm::vec2(-1,-1), glm::vec2(1,-1), glm::vec2(1,1), glm::vec2(-1,1)}) {
+                const glm::vec3 position = center + right*(corner.x*half.x) + up*(corner.y*half.y);
+                IRenderBackend::WorldMeshVertex vertex;
+                vertex.x=position.x; vertex.y=position.y; vertex.z=position.z;
+                vertex.u=(corner.x+1)*.5f; vertex.v=(1-corner.y)*.5f;
+                vertex.nx=forward.x; vertex.ny=forward.y; vertex.nz=forward.z;
+                vertex.a=args.modelFadeAlpha;
+                batch.vertices.push_back(vertex);
+            }
+            batch.indices = {0,1,2,0,2,3};
+            args.worldIndexedBatches->push_back(std::move(batch));
+        }
+    }
     return true;
 }
 

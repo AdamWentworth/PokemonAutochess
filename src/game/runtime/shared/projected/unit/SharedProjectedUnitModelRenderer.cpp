@@ -39,6 +39,7 @@ Result renderProjectedUnitModel(const Args& args) {
     const bool traceWorldScene =
         args.unit &&
         shared_projected_unit_world_scene::shouldTraceProjectedUnitWorldScene(*args.unit);
+    const auto batchCountBeforeWorldScene = args.worldIndexedBatches->size();
     if (shared_projected_unit_world_scene::tryRenderProjectedUnitModelWorldScene(resolvedArgs, out)) {
         if (traceEnvPresent) {
             std::ostringstream line;
@@ -52,6 +53,9 @@ Result renderProjectedUnitModel(const Args& args) {
         }
         return out;
     }
+    // Preparation can append transient attachments before eligibility is known.
+    // A fallback prepares them again, so discard the abandoned attempt.
+    args.worldIndexedBatches->resize(batchCountBeforeWorldScene);
     if (traceEnvPresent) {
         std::ostringstream line;
         line

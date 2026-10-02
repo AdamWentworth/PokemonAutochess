@@ -2,7 +2,7 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-09-20
+Last updated: 2026-10-01
 
 Autochess owns its character programs under `src/game/render/materials/character`.
 They reproduce published assets' recovered material behavior. Descriptive names
@@ -27,6 +27,24 @@ placement, not ownership of the recovered source material.
 
 Ordinary PBR can select the explicit dielectric-mask qualifier. These identities
 and scalar packing rules belong to the game. Cooked mode numbers stay compatible.
+
+Standard materials with explicit clip-bound `EmissiveFactor` tracks and a
+`LayerMaskMap` bake their authored layer emission into a masked KTX2 texture.
+The inactive emission factor remains zero, so clips without those tracks retain
+their existing appearance. This supports Colosseum-derived ring pulses on SV
+Umbreon without lighting the surrounding fur or changing renderer modes.
+The optional `runtime_translation.emission_base_color` object specifies a
+`mask_channel` and three linear RGB `color` values. The cooker creates an alternate
+base texture with that color wherever the selected mask is positive, preserving
+all other pixels. An optional final PHMAT texture-reference array stores these
+textures; materials without the option retain their existing serialized data.
+The renderer selects this base only while a clip-bound emission track is active,
+even at zero emission, and restores the original base for clips without the track.
+This permits fully dim rings without retaining colored albedo at the trough.
+Packages using this extension require the updated model provider.
+`phlosion_native_model_ir_contract` checks colored mask coverage, black unmasked
+pixels, the inactive default, opt-in scope, neutral alternate-base pixels,
+preserved original/outside-mask pixels and the cooked round trip.
 
 `config/render/world_materials.json` is the field-and-character profile for the
 game and editor. CMake composes the field branches into the character program,

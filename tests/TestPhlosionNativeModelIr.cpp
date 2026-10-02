@@ -3088,6 +3088,63 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
         document = savedDocument;
     }
 
+    {
+        const json savedDocument = document;
+        document["materials"][0] = material;
+        auto& ring = document["materials"][0];
+        ring["name"] = "ring_body";
+        ring["shader_family"] = "Standard";
+        ring["float_parameters"] = {{"EmissionIntensityLayer2", 1.0f}};
+        ring["vec4_parameters"] = {{"EmissionColorLayer2", {1.0f, .5f, .25f, 1.0f}}};
+        ring["textures"][1]["file"] = "lgpe-layer-mask.tga";
+        ring["textures"][0]["file"] = "strip.ppm";
+        ring["runtime_translation"]["base_color_texture"] = "strip.ppm";
+        ring["runtime_translation"]["emission_base_color"] = {
+            {"mask_channel", 1}, {"color", {.03f, .03f, .03f}}};
+        document["animations"][0]["material_parameters"] = json::array({{
+            {"material", "ring_body"}, {"parameter", "EmissiveFactor"},
+            {"x", json::array({{{"frame", 0}, {"value", .03f}}, {{"frame", .25f}, {"value", 1.0f}}})}
+        }});
+        { std::ofstream output(manifestPath); output << document.dump(2); }
+        game::runtime::render_model::MeshData masked, reloaded;
+        game::runtime::phlosion::ModelCookStats stats;
+        if (!tools::phlosion_native_model_ir::load(manifestPath.string(), masked, &outFail) ||
+            !game::runtime::phlosion::cookModelObject(manifestPath.string(), masked,
+                cookedRoot.string(), "Character", stats, &outFail) ||
+            !game::runtime::phlosion::loadModelObject(game::runtime::phlosion::objectPathForModel(
+                manifestPath.string(), cookedRoot.string()), reloaded, &outFail)) return false;
+        for (const auto* maskedResult : {&masked, &reloaded}) {
+            const auto& rgba = maskedResult->submeshEmissiveTextures.at(0).rgba;
+            const auto& base = maskedResult->submeshBaseTextures.at(0).rgba;
+            const auto& dim = maskedResult->submeshEmissionBaseTextures.at(0).rgba;
+            if (base.size() != 16 || dim.size() != 16 ||
+                dim[0] != 48 || dim[1] != 48 || dim[2] != 48 ||
+                dim[0] == base[0] ||
+                !std::equal(base.begin()+12, base.end(), dim.begin()+12)) {
+                outFail = "Clip emission base must be neutral inside its mask, preserve the surrounding surface and retain the original texture";
+                return false;
+            }
+            if (rgba.size() != 8 || rgba[0] != 255 || rgba[1] < 185 || rgba[1] > 190 ||
+                rgba[2] < 135 || rgba[2] > 139 || rgba[4] || rgba[5] || rgba[6] ||
+                glm::length(maskedResult->submeshEmissiveFactors.at(0)) != 0.0f ||
+                maskedResult->animationMaterialParameters.at(0).size() != 1 ||
+                maskedResult->animationMaterialParameters[0][0].components[0].keys.size() != 2) {
+                outFail = "Animated Standard emission must preserve its layer mask, black background, fractional keys and inactive default through cooking";
+                return false;
+            }
+        }
+        document["animations"][0]["material_parameters"] = json::array();
+        document["materials"][0]["runtime_translation"].erase("emission_base_color");
+        { std::ofstream output(manifestPath); output << document.dump(2); }
+        game::runtime::render_model::MeshData inactive;
+        if (!tools::phlosion_native_model_ir::load(manifestPath.string(), inactive, &outFail)) return false;
+        if (inactive.submeshEmissiveTextures[0].hasPixels()) {
+            outFail = "Standard emission bake changed a material with no opt-in animation";
+            return false;
+        }
+        document = savedDocument;
+    }
+
     // Z-A packs symmetric body islands into half of several maps, then uses
     // UVScaleOffset.x=2 with GL_MIRRORED_REPEAT. The canonical bake must
     // preserve that authored sampler transform for both color and standalone
@@ -3596,6 +3653,76 @@ bool test_phlosion_native_model_ir_contract(std::string& outFail) {
                 "PHLO round trip discarded clip-bound eye textures, emission, or material animation";
         }
         return false;
+    }
+
+    {
+        const json savedDocument = document;
+        document["materials"][0]["shader_family"] = "EyeClearCoat";
+        document["materials"][0]["name"] = "body_c";
+        document["materials"][0]["shader_options"]["EnableEyeClearCoat"] = "True";
+        document["animations"][0]["material_parameters"] = json::array({{
+            {"material", "body_c"}, {"parameter", "EmissiveFactor"},
+            {"x", json::array({{{"frame",0}, {"value",0}}, {{"frame",12}, {"value",3}}})},
+            {"y", json::array({{{"frame",0}, {"value",0}}, {{"frame",12}, {"value",2}}})},
+            {"z", json::array({{{"frame",0}, {"value",0}}, {{"frame",12}, {"value",1}}})}
+        }});
+        document["animated_billboards"] = json::array({{
+            {"node",1}, {"offset",{.1f,.2f,.3f}}, {"size",{.06f,.06f}},
+            {"up",{.6f,.8f,0.0f}},
+            {"quad_offset",{-.003f,.004f,-.001f}},
+            {"texture",{{"width",1},{"height",1},{"rgba",{255,255,255,128}}}},
+            {"clip_scales",json::array({json::array({{0.0f,0.0f},{.1f,1.0f}})})},
+            {"clip_offsets",json::array({json::array({{0.0f,.1f,.2f,.3f},{.1f,-.1f,.4f,.5f}})})},
+            {"clip_loops",{true}}
+        }});
+        { std::ofstream output(manifestPath); output << document.dump(2); }
+        game::runtime::render_model::MeshData glintMesh, glintReloaded;
+        game::runtime::phlosion::ModelCookStats glintStats;
+        if (!tools::phlosion_native_model_ir::load(manifestPath.string(), glintMesh, &outFail) ||
+            !game::runtime::phlosion::cookModelObject(manifestPath.string(), glintMesh,
+                cookedRoot.string(), "Character", glintStats, &outFail) ||
+            !game::runtime::phlosion::loadModelObject(game::runtime::phlosion::objectPathForModel(
+                manifestPath.string(), cookedRoot.string()), glintReloaded, &outFail)) return false;
+        for (const auto* glintResult : {&glintMesh, &glintReloaded}) {
+            if (glintResult->animatedBillboards.size() != 1u ||
+                glintResult->animatedBillboards[0].nodeIndex != 1 ||
+                !nearlyEqual(glintResult->animatedBillboards[0].offset.z, .3f) ||
+                !nearlyEqual(glintResult->animatedBillboards[0].up.x, .6f) ||
+                !nearlyEqual(glintResult->animatedBillboards[0].quadOffset.x, -.003f) ||
+                !nearlyEqual(glintResult->animatedBillboards[0].clipOffsets[0][0].keys[1].value, -.1f) ||
+                !nearlyEqual(glintResult->animatedBillboards[0].clipOffsets[0][2].keys[1].value, .5f) ||
+                glintResult->animatedBillboards[0].texture.rgba != std::vector<unsigned char>{255,255,255,128} ||
+                !glintResult->animatedBillboards[0].clipLoops[0] ||
+                !nearlyEqual(glintResult->animatedBillboards[0].clipScales[0].keys[1].value,1.0f)) {
+                outFail = "Animated billboard attachment, texture, or scale lost in PHAN round trip";
+                return false;
+            }
+            if (glintResult->animationMaterialParameters.size() != 1u ||
+                glintResult->animationMaterialParameters[0].size() != 1u ||
+                glintResult->animationMaterialParameters[0][0].parameter != game::runtime::render_model::
+                    MaterialAnimationParameter::EmissiveFactor ||
+                !nearlyEqual(glintResult->animationMaterialParameters[0][0].components[0].keys[1].value, 3.0f) ||
+                !nearlyEqual(glintResult->animationMaterialParameters[0][0].components[2].keys[1].value, 1.0f)) {
+                outFail = "Clip-bound accessory emission was lost during native loading or PHAN round trip";
+                return false;
+            }
+        }
+        document["animated_billboards"][0]["node"] = 100000;
+        { std::ofstream output(manifestPath); output << document.dump(2); }
+        if (tools::phlosion_native_model_ir::load(manifestPath.string(), glintMesh, &outFail)) {
+            outFail = "Invalid billboard attachment node was accepted";
+            return false;
+        }
+        outFail.clear();
+        document["animated_billboards"][0]["node"] = 1;
+        document["animated_billboards"][0]["clip_offsets"][0][1][0] = 0.0f;
+        { std::ofstream output(manifestPath); output << document.dump(2); }
+        if (tools::phlosion_native_model_ir::load(manifestPath.string(), glintMesh, &outFail)) {
+            outFail = "Non-increasing billboard offset keys were accepted";
+            return false;
+        }
+        outFail.clear();
+        document = savedDocument;
     }
 
     // Gastly's native body and eye shells are composited ahead of its opaque
