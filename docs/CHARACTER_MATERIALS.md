@@ -2,11 +2,13 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-10-01
+Last updated: 2026-10-15
 
-Shared character programs now live in `PokemonModelSupport/shaders/character`.
-Autochess retains a compatibility material-mode header and composes those programs
-with its own field shaders. Generic model instances and preview live in the engine.
+Source-specific character programs live in `PokemonModelSupport/shaders/character`.
+The engine owns general sampling, surface lighting and final color output in
+`assets/shaders/materials`, plus the CMake material composer. Autochess supplies
+its field shaders alongside the character extensions and retains a compatibility
+material-mode header. Generic model instances and preview live in the engine.
 They reproduce published assets' recovered material behavior. Descriptive names
 identify rendering roles; source-game provenance remains here and in shader
 comments. Recovery evidence and extraction tools remain in the private
@@ -56,7 +58,7 @@ through `PAC_WorldMaterialShaders`. Runtime artifacts live in
 The game does not require the private research repository to build or run.
 
 The engine retains skinning, transforms, mesh submission, texture bindings,
-standard PBR and generic review diagnostics. Autochess owns character lighting,
+standard PBR and generic review diagnostics. PokemonModelSupport owns recovered character lighting,
 eye and skin formulas, reflection-atlas decoding, effect vertex displacement,
 and per-mode parameter packing. A standalone engine receives none of these
 formulas unless a project explicitly supplies a material profile.
