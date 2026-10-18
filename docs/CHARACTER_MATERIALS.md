@@ -2,11 +2,11 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-10-15
+Last updated: 2026-10-18
 
 Source-specific character programs live in `PokemonModelSupport/shaders/character`.
 The engine owns general sampling, surface lighting and final color output in
-`assets/shaders/materials`, plus the CMake material composer. Autochess supplies
+`PhlosionEngine/assets/shaders/materials`, plus the CMake material composer. Autochess supplies
 its field shaders alongside the character extensions and retains a compatibility
 material-mode header. Generic model instances and preview live in the engine.
 They reproduce published assets' recovered material behavior. Descriptive names
