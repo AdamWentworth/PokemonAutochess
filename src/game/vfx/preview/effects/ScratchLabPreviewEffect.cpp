@@ -5,7 +5,7 @@ namespace vfx::preview {
 namespace {
 
 engine::tools::vfx_preview::PreviewEffectFocusFrame makeScratchFocusFrame(
-    const engine::tools::vfx_preview::PreviewSceneState& scene) {
+    const engine::tools::vfx_preview::PreviewSceneState &scene) {
     engine::tools::vfx_preview::PreviewEffectFocusFrame focus;
     focus.enabled = true;
     focus.center = scene.useCustomImpactPoint ? scene.impactPoint : scene.target;
@@ -19,7 +19,7 @@ engine::tools::vfx_preview::PreviewEffectFocusFrame makeScratchFocusFrame(
 vfx::preview::shared::ControllerBackedPreviewEffectTraits makeScratchLabTraits() {
     vfx::preview::shared::ControllerBackedPreviewEffectTraits traits;
     traits.name = "Scratch";
-    traits.focusFrame = [](const engine::tools::vfx_preview::PreviewSceneState& scene) {
+    traits.focusFrame = [](const engine::tools::vfx_preview::PreviewSceneState &scene) {
         return makeScratchFocusFrame(scene);
     };
     return traits;

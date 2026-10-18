@@ -40,7 +40,7 @@ Window::GraphicsApi graphicsApiForBackend(game::video::RendererBackend backend) 
 std::string makeBackendInitFallbackReason(std::string_view activeBackendName,
                                           std::string_view error, std::string_view fallbackBackend) {
     return "backend '" + std::string(activeBackendName) + "' failed to initialize (" +
-        std::string(error) + "); trying enrolled renderer " + std::string(fallbackBackend) + ".";
+           std::string(error) + "); trying enrolled renderer " + std::string(fallbackBackend) + ".";
 }
 
 std::unique_ptr<IRenderBackend> createRenderBackend(game::video::RendererBackend backend,

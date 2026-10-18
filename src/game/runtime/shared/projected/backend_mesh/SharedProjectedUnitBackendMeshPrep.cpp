@@ -106,10 +106,8 @@ const std::vector<int>& getCachedSubmeshNodeFallback(
     return entry.fallback.empty() ? empty : entry.fallback;
 }
 
-
-
-using pokemon::models::materials::getIndexedBatchTemplates;
 using pokemon::models::materials::applyIndexedBatchTemplateShallow;
+using pokemon::models::materials::getIndexedBatchTemplates;
 
 bool strictGltfParityEnabled() {
     static const bool enabled = []() -> bool {
@@ -137,9 +135,9 @@ namespace game::runtime::
 
 namespace game::runtime::shared_projected_unit_backend_mesh_prep {
 
-glm::mat4 supportedModelMatrix(const runtime::render_model::MeshData& mesh,
-    glm::vec3 position, float modelScale, glm::vec3 rotationDegrees,
-    float boardSurfaceY) {
+glm::mat4 supportedModelMatrix(const runtime::render_model::MeshData &mesh,
+                               glm::vec3 position, float modelScale, glm::vec3 rotationDegrees,
+                               float boardSurfaceY) {
     const float minAllowedY = boardSurfaceY + 0.0025f;
     const float minY = position.y + runtime::render_model::modelSupportContactY(mesh) * modelScale;
     if (std::isfinite(minY) && minY < minAllowedY)
@@ -293,7 +291,7 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
                              std::max(0.05f, unit.speciesScale) * args.renderVisualScale *
                              args.renderCaptureScale * args.attackPulse;
     prepared.modelM = supportedModelMatrix(*mesh, args.proxyCenter, modelScale,
-        {args.animPitch, args.animYaw, args.animRoll}, args.boardSurfaceY);
+                                           {args.animPitch, args.animYaw, args.animRoll}, args.boardSurfaceY);
     const float* modelM = glm::value_ptr(prepared.modelM);
     std::copy(modelM, modelM + 16, prepared.modelMatrix.begin());
 
@@ -433,9 +431,9 @@ bool prepareProjectedUnitBackendMeshCommon(const Args& args,
 
     if (args.supportsWorldIndexedMeshes && scenePose) {
         engine::models::appendAnimatedBillboards(*mesh, scenePose->nodeGlobals,
-            prepared.modelM, args.materialAnimationIndex, args.materialAnimationTimeSec,
-            args.cameraWorldPos, args.cameraWorldUp, args.cameraWorldFacing,
-            args.modelFadeAlpha, *args.worldIndexedBatches);
+                                                 prepared.modelM, args.materialAnimationIndex, args.materialAnimationTimeSec,
+                                                 args.cameraWorldPos, args.cameraWorldUp, args.cameraWorldFacing,
+                                                 args.modelFadeAlpha, *args.worldIndexedBatches);
     }
     return true;
 }

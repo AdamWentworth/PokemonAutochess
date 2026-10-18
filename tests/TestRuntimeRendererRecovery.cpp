@@ -12,8 +12,8 @@ using test::render_doubles::FakeRenderBackendConfig;
 
 bool test_runtime_renderer_recovery_contract(std::string& outFail) {
     using game::runtime::renderer_recovery::FailureStage;
-    using game::runtime::renderer_recovery::Inputs;
     using game::runtime::renderer_recovery::FallbackWindowResult;
+    using game::runtime::renderer_recovery::Inputs;
 
     {
         int fallbackWindowCalls = 0;
@@ -21,7 +21,7 @@ bool test_runtime_renderer_recovery_contract(std::string& outFail) {
         int syncCalls = 0;
         const auto result = game::runtime::renderer_recovery::createWithFallbacks(
             Inputs{game::video::RendererBackend::D3D12, "d3d12", {game::video::RendererBackend::Vulkan}},
-            [](game::video::RendererBackend backend, std::string*) -> std::unique_ptr<IRenderBackend> {
+            [](game::video::RendererBackend backend, std::string *) -> std::unique_ptr<IRenderBackend> {
                 const std::string backendName = game::video::rendererBackendName(backend);
                 return std::make_unique<ConfigurableFakeRenderBackend>(FakeRenderBackendConfig{
                     .backendId = backendName,
@@ -32,7 +32,7 @@ bool test_runtime_renderer_recovery_contract(std::string& outFail) {
                 ++fallbackWindowCalls;
                 return FallbackWindowResult{};
             },
-            [&](std::string*) {
+            [&](std::string *) {
                 ++openGlInitCalls;
                 return true;
             },
@@ -56,7 +56,7 @@ bool test_runtime_renderer_recovery_contract(std::string& outFail) {
         int syncCalls = 0;
         const auto result = game::runtime::renderer_recovery::createWithFallbacks(
             Inputs{game::video::RendererBackend::D3D12, "d3d12", {game::video::RendererBackend::Vulkan}},
-            [&](game::video::RendererBackend backend, std::string* outError) -> std::unique_ptr<IRenderBackend> {
+            [&](game::video::RendererBackend backend, std::string *outError) -> std::unique_ptr<IRenderBackend> {
                 ++createCalls;
                 if (backend == game::video::RendererBackend::D3D12) {
                     if (outError) *outError = "mock create error";
@@ -72,7 +72,7 @@ bool test_runtime_renderer_recovery_contract(std::string& outFail) {
                 ++fallbackWindowCalls;
                 return FallbackWindowResult{true, {}};
             },
-            [&](std::string*) {
+            [&](std::string *) {
                 ++openGlInitCalls;
                 return true;
             },
@@ -94,14 +94,14 @@ bool test_runtime_renderer_recovery_contract(std::string& outFail) {
     {
         const auto result = game::runtime::renderer_recovery::createWithFallbacks(
             Inputs{game::video::RendererBackend::D3D12, "d3d12", {game::video::RendererBackend::Vulkan}},
-            [](game::video::RendererBackend, std::string* outError) -> std::unique_ptr<IRenderBackend> {
+            [](game::video::RendererBackend, std::string *outError) -> std::unique_ptr<IRenderBackend> {
                 if (outError) *outError = "mock create error";
                 return std::unique_ptr<IRenderBackend>{};
             },
             [](game::video::RendererBackend) {
                 return FallbackWindowResult{false, "window create failed"};
             },
-            [](std::string*) { return true; },
+            [](std::string *) { return true; },
             []() {});
         if (result.renderer ||
             result.failureStage != FailureStage::FallbackWindowOpen ||
@@ -114,12 +114,12 @@ bool test_runtime_renderer_recovery_contract(std::string& outFail) {
     {
         const auto result = game::runtime::renderer_recovery::createWithFallbacks(
             Inputs{game::video::RendererBackend::OpenGL, "opengl"},
-            [](game::video::RendererBackend, std::string* outError) -> std::unique_ptr<IRenderBackend> {
+            [](game::video::RendererBackend, std::string *outError) -> std::unique_ptr<IRenderBackend> {
                 if (outError) *outError = "opengl create failed";
                 return std::unique_ptr<IRenderBackend>{};
             },
             [](game::video::RendererBackend) { return FallbackWindowResult{true, {}}; },
-            [](std::string*) { return true; },
+            [](std::string *) { return true; },
             []() {});
         if (result.renderer ||
             result.failureStage != FailureStage::InitialBackendCreate ||
@@ -134,13 +134,15 @@ bool test_runtime_renderer_recovery_contract(std::string& outFail) {
         int reopened = 0;
         const auto result = game::runtime::renderer_recovery::createWithFallbacks(
             Inputs{game::video::RendererBackend::Vulkan, "vulkan", {game::video::RendererBackend::OpenGL}},
-            [](game::video::RendererBackend, std::string* error) -> std::unique_ptr<IRenderBackend> {
-                *error = "device unavailable"; return {};
+            [](game::video::RendererBackend, std::string *error) -> std::unique_ptr<IRenderBackend> {
+                *error = "device unavailable";
+                return {};
             },
             [&](game::video::RendererBackend) { ++reopened; return FallbackWindowResult{true, {}}; },
-            [](std::string*) { return true; }, [] {});
+            [](std::string *) { return true; }, [] {});
         if (result.renderer || reopened || result.rendererBackendFallback || result.error != "device unavailable") {
-            outFail = "Recovery must not try an unenrolled GL fallback"; return false;
+            outFail = "Recovery must not try an unenrolled GL fallback";
+            return false;
         }
     }
     return true;

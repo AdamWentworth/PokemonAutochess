@@ -14,31 +14,31 @@ namespace game::runtime::render_model {
 
 using pokemon::models::kDielectricMaskMaterialFlag;
 using pokemon::models::kLayeredCharacterMaterialMode;
-using pokemon::models::kSubsurfaceMaterialMode;
+using pokemon::models::kNativeAnimatedEyeClearCoatMaterialMode;
+using pokemon::models::kNativeAnimatedEyeMaterialMode;
+using pokemon::models::kNativeDepthOverlayClipSpaceBias;
+using pokemon::models::kNativeDepthOverlayMaterialFlagBit;
+using pokemon::models::kNativeEyeClearCoatMaterialMode;
+using pokemon::models::kNativeFacialOverlayMaterialMode;
+using pokemon::models::kNativeFrontFacingOnlyMaterialFlagBit;
+using pokemon::models::kNativeIkCharacterSurfaceDefault;
+using pokemon::models::kNativeLayeredUnlitMaterialMode;
+using pokemon::models::kRefractiveEyeMaterialMode;
 using pokemon::models::kSubsurfaceDefault;
 using pokemon::models::kSubsurfaceFibre;
+using pokemon::models::kSubsurfaceMaterialMode;
 using pokemon::models::kViewAngleLayerMaterialMode;
-using pokemon::models::kRefractiveEyeMaterialMode;
-using pokemon::models::kNativeLayeredUnlitMaterialMode;
-using pokemon::models::kNativeEyeClearCoatMaterialMode;
-using pokemon::models::kNativeAnimatedEyeMaterialMode;
-using pokemon::models::kNativeAnimatedEyeClearCoatMaterialMode;
-using pokemon::models::kNativeFacialOverlayMaterialMode;
-using pokemon::models::kNativeIkCharacterSurfaceDefault;
-using pokemon::models::kNativeFrontFacingOnlyMaterialFlagBit;
-using pokemon::models::kNativeDepthOverlayMaterialFlagBit;
-using pokemon::models::kNativeDepthOverlayClipSpaceBias;
 
-using engine::models::MeshVertex;
+using engine::models::AnimatedBillboard;
 using engine::models::CachedTextureRgba;
-using engine::models::MeshVisibilityTrack;
-using engine::models::MaterialAnimationKey;
+using engine::models::ContinuousMaterialAnimationTrack;
 using engine::models::MaterialAnimationCurve;
+using engine::models::MaterialAnimationKey;
 using engine::models::MaterialAnimationParameter;
 using engine::models::MaterialAnimationSampling;
-using engine::models::ContinuousMaterialAnimationTrack;
-using engine::models::AnimatedBillboard;
 using engine::models::MeshData;
+using engine::models::MeshVertex;
+using engine::models::MeshVisibilityTrack;
 
 std::string cachePathForModel(const std::string& modelPath);
 bool loadLegacyMeshFromCache(

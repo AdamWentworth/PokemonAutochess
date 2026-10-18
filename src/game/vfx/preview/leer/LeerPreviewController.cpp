@@ -46,8 +46,8 @@ LeerPreviewController::LeerPreviewController(std::string_view logPrefix)
     : SharedPreviewControllerBase(engine::paths::data("config/vfx/moves/leer_draw_passes.json"),
                                   "LeerPreview",
                                   "Leer",
-                                  logPrefix)
-    , config_(makeLeerLabConfig()) {}
+                                  logPrefix),
+      config_(makeLeerLabConfig()) {}
 
 LeerPreviewController::~LeerPreviewController() = default;
 
@@ -56,7 +56,7 @@ void LeerPreviewController::configureEffect() {
 }
 
 void LeerPreviewController::emitScene(
-    const engine::tools::vfx_preview::PreviewSceneState& scene) {
+    const engine::tools::vfx_preview::PreviewSceneState &scene) {
     effect_.emitFrom(scene.emitter,
                      vfx::preview::shared::safeForwardXZ(scene.target - scene.emitter),
                      nullptr);
@@ -67,8 +67,8 @@ void LeerPreviewController::advanceEffect(float dt) {
 }
 
 void LeerPreviewController::renderPreview(
-    vfx::preview::authored::SharedAuthoredVfxRenderer& renderer,
-    const engine::tools::vfx_preview::PreviewFrameContext& frame) {
+    vfx::preview::authored::SharedAuthoredVfxRenderer &renderer,
+    const engine::tools::vfx_preview::PreviewFrameContext &frame) {
     renderer.render(effect_, frame.camera, frame.surfaceWidth, frame.surfaceHeight);
 }
 

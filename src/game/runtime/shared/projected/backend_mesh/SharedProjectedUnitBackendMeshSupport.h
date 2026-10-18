@@ -93,15 +93,15 @@ struct GpuSkinBatchStateEntry {
 };
 
 using engine::models::geometry::resolveDefaultSkinNodeIndex;
-bool backendPrefersFullGpuSkinning(const char* backendId);
+bool backendPrefersFullGpuSkinning(const char *backendId);
 const FastTexturedMaterialTemplateCache* ensureFastTexturedMaterialTemplateCache(
     const game::runtime::render_model::MeshData* mesh,
     std::size_t baseBatchCount,
     bool characterInkingEnabled,
     int graphicsQuality);
-const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
-    const game::runtime::render_model::MeshData* mesh,
-    const std::vector<int>& submeshNodeFallback,
+const FastTexturedMeshTemplateCache *ensureFastTexturedMeshTemplateCache(
+    const game::runtime::render_model::MeshData *mesh,
+    const std::vector<int> &submeshNodeFallback,
     std::size_t baseBatchCount, bool preferFullGpuSkinning);
 
 shared_projected_unit_backend_mesh_prep::PreparedState& preparedMeshState();

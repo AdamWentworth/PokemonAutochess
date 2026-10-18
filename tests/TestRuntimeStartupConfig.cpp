@@ -59,11 +59,17 @@ bool test_runtime_startup_config_contract(std::string& outFail) {
         }
     }
 
-    for (const auto* value : {"opengl", "typo"}) {
+    for (const auto *value : {"opengl", "typo"}) {
         bool rejected = false;
-        try { resolveRendererPreference(Preferences{}, std::string(value)); }
-        catch (const std::exception&) { rejected = true; }
-        if (!rejected) { outFail = "Explicit unsupported renderer must fail instead of falling back"; return false; }
+        try {
+            resolveRendererPreference(Preferences{}, std::string(value));
+        } catch (const std::exception &) {
+            rejected = true;
+        }
+        if (!rejected) {
+            outFail = "Explicit unsupported renderer must fail instead of falling back";
+            return false;
+        }
     }
     ScopedEnvVar widthGuard("PAC_VIDEO_WIDTH");
     ScopedEnvVar heightGuard("PAC_VIDEO_HEIGHT");

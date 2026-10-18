@@ -8,8 +8,8 @@ ScratchPreviewController::ScratchPreviewController(std::string_view logPrefix)
     : SharedPreviewControllerBase(engine::paths::data("config/vfx/moves/scratch_draw_passes.json"),
                                   "ScratchPreview",
                                   "Scratch",
-                                  logPrefix)
-    , config_(ScratchGlowVFX::makeDefaultConfig()) {}
+                                  logPrefix),
+      config_(ScratchGlowVFX::makeDefaultConfig()) {}
 
 ScratchPreviewController::~ScratchPreviewController() = default;
 
@@ -18,7 +18,7 @@ void ScratchPreviewController::configureEffect() {
 }
 
 void ScratchPreviewController::emitScene(
-    const engine::tools::vfx_preview::PreviewSceneState& scene) {
+    const engine::tools::vfx_preview::PreviewSceneState &scene) {
     const glm::vec3 impactPos = scene.useCustomImpactPoint ? scene.impactPoint : scene.target;
     effect_.emitAt(impactPos,
                    vfx::preview::shared::safeForwardXZ(impactPos - scene.emitter),
@@ -30,8 +30,8 @@ void ScratchPreviewController::advanceEffect(float dt) {
 }
 
 void ScratchPreviewController::renderPreview(
-    vfx::preview::authored::SharedAuthoredVfxRenderer& renderer,
-    const engine::tools::vfx_preview::PreviewFrameContext& frame) {
+    vfx::preview::authored::SharedAuthoredVfxRenderer &renderer,
+    const engine::tools::vfx_preview::PreviewFrameContext &frame) {
     renderer.render(effect_.sharedGlow(), frame.camera, frame.surfaceWidth, frame.surfaceHeight);
 }
 

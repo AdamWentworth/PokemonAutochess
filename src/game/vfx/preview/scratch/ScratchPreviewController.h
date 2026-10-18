@@ -10,18 +10,18 @@ namespace vfx::preview::scratch {
 
 class ScratchPreviewController final
     : public vfx::preview::shared::SharedPreviewControllerBase<ScratchPreviewController> {
-public:
+  public:
     explicit ScratchPreviewController(std::string_view logPrefix);
     ~ScratchPreviewController();
 
     void configureEffect();
-    void emitScene(const engine::tools::vfx_preview::PreviewSceneState& scene);
+    void emitScene(const engine::tools::vfx_preview::PreviewSceneState &scene);
     void advanceEffect(float dt);
-    void renderPreview(vfx::preview::authored::SharedAuthoredVfxRenderer& renderer,
-                       const engine::tools::vfx_preview::PreviewFrameContext& frame);
+    void renderPreview(vfx::preview::authored::SharedAuthoredVfxRenderer &renderer,
+                       const engine::tools::vfx_preview::PreviewFrameContext &frame);
     std::uint32_t activeEffectCount() const;
 
-private:
+  private:
     ScratchGlowVFX effect_;
     ScratchGlowVFX::Config config_{};
 };

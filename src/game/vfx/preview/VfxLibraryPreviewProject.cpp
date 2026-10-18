@@ -26,13 +26,13 @@ std::size_t VfxLibraryPreviewProject::effectCount() const {
     return effects_.size();
 }
 
-engine::tools::vfx_preview::IVfxPreviewEffect&
+engine::tools::vfx_preview::IVfxPreviewEffect &
 VfxLibraryPreviewProject::effectAt(std::size_t index) {
     if (index >= effects_.size()) throw std::out_of_range("Invalid VFX lab effect index");
     return *effects_[index];
 }
 
-const engine::tools::vfx_preview::IVfxPreviewEffect&
+const engine::tools::vfx_preview::IVfxPreviewEffect &
 VfxLibraryPreviewProject::effectAt(std::size_t index) const {
     if (index >= effects_.size()) throw std::out_of_range("Invalid VFX lab effect index");
     return *effects_[index];
@@ -69,7 +69,7 @@ bool VfxLibraryPreviewProject::supportsSecondaryBackdropToggle(std::size_t rigIn
 
 void VfxLibraryPreviewProject::applyRigDefaults(
     std::size_t rigIndex,
-    engine::tools::vfx_preview::PreviewSceneState& scene) const {
+    engine::tools::vfx_preview::PreviewSceneState &scene) const {
     (void)rigIndex;
     scene.emitter = glm::vec3(0.0f, 0.42f, 0.0f);
     scene.target = glm::vec3(0.0f, 0.35f, 4.2f);
@@ -77,15 +77,15 @@ void VfxLibraryPreviewProject::applyRigDefaults(
 
 void VfxLibraryPreviewProject::constrainScene(
     std::size_t rigIndex,
-    engine::tools::vfx_preview::PreviewSceneState& scene) const {
+    engine::tools::vfx_preview::PreviewSceneState &scene) const {
     (void)rigIndex;
     scene.target.y = 0.35f;
 }
 
 void VfxLibraryPreviewProject::renderBackdrop(
-    const engine::tools::vfx_preview::PreviewFrameContext& frame,
+    const engine::tools::vfx_preview::PreviewFrameContext &frame,
     std::size_t rigIndex,
-    const engine::tools::vfx_preview::PreviewSceneState& scene,
+    const engine::tools::vfx_preview::PreviewSceneState &scene,
     bool primaryBackdropEnabled,
     bool secondaryBackdropEnabled) {
     (void)frame;
@@ -96,8 +96,8 @@ void VfxLibraryPreviewProject::renderBackdrop(
 }
 
 void VfxLibraryPreviewProject::appendDebugMarkers(
-    engine::tools::vfx_preview::IPreviewDebugDraw& draw,
-    const engine::tools::vfx_preview::PreviewSceneState& scene) const {
+    engine::tools::vfx_preview::IPreviewDebugDraw &draw,
+    const engine::tools::vfx_preview::PreviewSceneState &scene) const {
     const glm::vec3 emitterColor(1.0f, 0.52f, 0.16f);
     const glm::vec3 targetColor(0.28f, 0.95f, 0.55f);
     const glm::vec3 guideColor(0.95f, 0.90f, 0.35f);
@@ -120,7 +120,7 @@ void VfxLibraryPreviewProject::appendDebugMarkers(
 }
 
 std::vector<std::string> VfxLibraryPreviewProject::overlayLines(
-    const engine::tools::vfx_preview::PreviewSceneState& scene,
+    const engine::tools::vfx_preview::PreviewSceneState &scene,
     std::size_t rigIndex) const {
     (void)scene;
     (void)rigIndex;

@@ -9,7 +9,7 @@ using LeerLabPreviewEffectBase = vfx::preview::shared::ControllerBackedPreviewEf
     vfx::preview::leer::LeerPreviewController>;
 
 class LeerLabPreviewEffect final : public LeerLabPreviewEffectBase {
-public:
+  public:
     LeerLabPreviewEffect();
 };
 

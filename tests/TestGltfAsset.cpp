@@ -92,7 +92,8 @@ bool test_model_asset_smoke(std::string& outFail) {
         return false;
     }
     std::ifstream instanceSource(std::filesystem::path(PAC_PHLOSION_ENGINE_SOURCE_DIR) /
-        "src/engine/models/ModelInstance.cpp", std::ios::binary);
+                                     "src/engine/models/ModelInstance.cpp",
+                                 std::ios::binary);
     std::ostringstream instanceText;
     instanceText << instanceSource.rdbuf();
     if ((!instanceSource.good() && !instanceSource.eof()) ||

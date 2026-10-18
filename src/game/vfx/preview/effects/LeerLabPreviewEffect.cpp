@@ -4,7 +4,7 @@ namespace vfx::preview {
 namespace {
 
 engine::tools::vfx_preview::PreviewEffectFocusFrame makeLeerFocusFrame(
-    const engine::tools::vfx_preview::PreviewSceneState& scene) {
+    const engine::tools::vfx_preview::PreviewSceneState &scene) {
     engine::tools::vfx_preview::PreviewEffectFocusFrame focus;
     focus.enabled = true;
     const glm::vec3 forward = vfx::preview::shared::safeForwardXZ(scene.target - scene.emitter);
@@ -19,10 +19,10 @@ engine::tools::vfx_preview::PreviewEffectFocusFrame makeLeerFocusFrame(
 vfx::preview::shared::ControllerBackedPreviewEffectTraits makeLeerLabTraits() {
     vfx::preview::shared::ControllerBackedPreviewEffectTraits traits;
     traits.name = "Leer";
-    traits.focusFrame = [](const engine::tools::vfx_preview::PreviewSceneState& scene) {
+    traits.focusFrame = [](const engine::tools::vfx_preview::PreviewSceneState &scene) {
         return makeLeerFocusFrame(scene);
     };
-    traits.overlayLines = [](const engine::tools::vfx_preview::PreviewSceneState&) {
+    traits.overlayLines = [](const engine::tools::vfx_preview::PreviewSceneState &) {
         return std::vector<std::string>{
             "Leer is currently timed as 50 visible frames at 30fps (frame 0 through frame 50 = 1.6667s), with a cleanup frame 51 in the lab so the effect can drop fully invisible one frame later.",
             "Previewing frame 5190 / right eye EIDs 1254+1268+1284+1291, left eye EIDs 1308+1320+1336+1343, and pupil highlights EIDs 1355..1432.",
@@ -33,8 +33,7 @@ vfx::preview::shared::ControllerBackedPreviewEffectTraits makeLeerLabTraits() {
             "Current timing work only tackles the eye-height emergence first: frame 0-2 stay very short on local Y, frame 5 matches the captured baseline, and the frame-11 full-height target is still a provisional approximation pending more source measurement.",
             "All current Leer passes now hold full opacity through frame 40, ease down to about 50% at frame 50, and then disappear on frame 51 instead of using the old generic fadeStart tail.",
             "Leer is source-aligned like Growl: it emits from the caster and uses the target only to choose forward direction.",
-            "Current assumptions: right-eye authored forward is -Z, left-eye authored forward is +Z, split pupil strips use their captured local plane normal so they lie flat on each eye, Texture11230 uses identity UVs plus a captured dual-source additive TEV ramp, and the eye-height growth beyond the frame-5 capture remains open for tuning."
-        };
+            "Current assumptions: right-eye authored forward is -Z, left-eye authored forward is +Z, split pupil strips use their captured local plane normal so they lie flat on each eye, Texture11230 uses identity UVs plus a captured dual-source additive TEV ramp, and the eye-height growth beyond the frame-5 capture remains open for tuning."};
     };
     return traits;
 }

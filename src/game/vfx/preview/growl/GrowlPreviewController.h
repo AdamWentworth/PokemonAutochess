@@ -10,18 +10,18 @@ namespace vfx::preview::growl {
 
 class GrowlPreviewController final
     : public vfx::preview::shared::SharedPreviewControllerBase<GrowlPreviewController> {
-public:
+  public:
     explicit GrowlPreviewController(std::string_view logPrefix);
     ~GrowlPreviewController();
 
     void configureEffect();
-    void emitScene(const engine::tools::vfx_preview::PreviewSceneState& scene);
+    void emitScene(const engine::tools::vfx_preview::PreviewSceneState &scene);
     void advanceEffect(float dt);
-    void renderPreview(vfx::preview::authored::SharedAuthoredVfxRenderer& renderer,
-                       const engine::tools::vfx_preview::PreviewFrameContext& frame);
+    void renderPreview(vfx::preview::authored::SharedAuthoredVfxRenderer &renderer,
+                       const engine::tools::vfx_preview::PreviewFrameContext &frame);
     std::uint32_t activeEffectCount() const;
 
-private:
+  private:
     GrowlWaveVFX effect_;
     GrowlWaveVFX::Config config_{};
 };

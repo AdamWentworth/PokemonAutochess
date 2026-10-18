@@ -12,9 +12,9 @@
 
 namespace game::runtime::shared_projected_unit_backend_mesh_support {
 
-const FastTexturedMeshTemplateCache* ensureFastTexturedMeshTemplateCache(
-    const game::runtime::render_model::MeshData* mesh,
-    const std::vector<int>& submeshNodeFallback,
+const FastTexturedMeshTemplateCache *ensureFastTexturedMeshTemplateCache(
+    const game::runtime::render_model::MeshData *mesh,
+    const std::vector<int> &submeshNodeFallback,
     std::size_t baseBatchCount, bool preferFullGpuSkinning) {
     std::vector<std::uint8_t> preserveVertexColor;
     if (mesh) {
@@ -49,10 +49,6 @@ bool strictGltfParityEnabled() {
     }();
     return enabled;
 }
-
-
-
-
 
 std::size_t resolveBatchBaseSubmeshIndex(
     const game::runtime::shared_world_batches::WorldIndexedBatch& batch,

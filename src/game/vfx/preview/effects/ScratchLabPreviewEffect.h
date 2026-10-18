@@ -9,7 +9,7 @@ using ScratchLabPreviewEffectBase = vfx::preview::shared::ControllerBackedPrevie
     vfx::preview::scratch::ScratchPreviewController>;
 
 class ScratchLabPreviewEffect final : public ScratchLabPreviewEffectBase {
-public:
+  public:
     ScratchLabPreviewEffect();
 };
 

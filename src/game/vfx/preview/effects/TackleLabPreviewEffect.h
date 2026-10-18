@@ -9,7 +9,7 @@ using TackleLabPreviewEffectBase = vfx::preview::shared::ControllerBackedPreview
     vfx::preview::tackle::TacklePreviewController>;
 
 class TackleLabPreviewEffect final : public TackleLabPreviewEffectBase {
-public:
+  public:
     TackleLabPreviewEffect();
 };
 

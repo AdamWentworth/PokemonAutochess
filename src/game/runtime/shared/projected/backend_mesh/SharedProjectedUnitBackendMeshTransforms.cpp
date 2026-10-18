@@ -46,27 +46,25 @@ bool backendOpenGLGpuSkinNodeGlobalsEnabled() {
     return enabled;
 }
 
-}
+} // namespace
 namespace game::runtime::shared_projected_unit_backend_mesh_transforms {
-void Resolver::initialize(const shared_projected_unit_backend_mesh::Args& args,
-    const shared_projected_unit_backend_mesh_prep::PreparedState& prep) {
+void Resolver::initialize(const shared_projected_unit_backend_mesh::Args &args,
+                          const shared_projected_unit_backend_mesh_prep::PreparedState &prep) {
     const std::string backend = args.backendId ? args.backendId : "";
-    engine::models::transforms::Resolver::initialize({
-        .mesh = prep.mesh,
-        .nodeGlobals = prep.scenePose && prep.scenePose->hasScenePose ? &prep.scenePose->nodeGlobals : nullptr,
-        .modelMatrix = prep.modelM,
-        .hasClipPose = prep.scenePose && prep.scenePose->hasClipPose,
-        .positionOnly = prep.usePositionOnlyVertexPath,
-        .clipSkinning = backendClipSkinningEnabled() && args.enableClipSkinning,
-        .gpuSkinning = args.enableGpuClipSkinning,
-        .gpuBindPose = args.enableGpuBindPoseSkinning,
-        .pairedSkinMatrices = args.enableGpuClipSkinning &&
-            ((backend == "d3d12" && backendD3D12GpuSkinNodeGlobalsEnabled()) ||
-             (backend == "opengl" && backendOpenGLGpuSkinNodeGlobalsEnabled())),
-        .deformLocal = [&args, &prep](glm::vec3 position) {
-            return runtime::render_prep_pose::deformLocalVertex(*args.unit, *args.pose,
-                position, prep.mesh->boundsMin, prep.mesh->boundsMax, args.worldCellSize);
-        }
-    });
+    engine::models::transforms::Resolver::initialize({.mesh = prep.mesh,
+                                                      .nodeGlobals = prep.scenePose && prep.scenePose->hasScenePose ? &prep.scenePose->nodeGlobals : nullptr,
+                                                      .modelMatrix = prep.modelM,
+                                                      .hasClipPose = prep.scenePose && prep.scenePose->hasClipPose,
+                                                      .positionOnly = prep.usePositionOnlyVertexPath,
+                                                      .clipSkinning = backendClipSkinningEnabled() && args.enableClipSkinning,
+                                                      .gpuSkinning = args.enableGpuClipSkinning,
+                                                      .gpuBindPose = args.enableGpuBindPoseSkinning,
+                                                      .pairedSkinMatrices = args.enableGpuClipSkinning &&
+                                                                            ((backend == "d3d12" && backendD3D12GpuSkinNodeGlobalsEnabled()) ||
+                                                                             (backend == "opengl" && backendOpenGLGpuSkinNodeGlobalsEnabled())),
+                                                      .deformLocal = [&args, &prep](glm::vec3 position) {
+                                                          return runtime::render_prep_pose::deformLocalVertex(*args.unit, *args.pose,
+                                                                                                              position, prep.mesh->boundsMin, prep.mesh->boundsMax, args.worldCellSize);
+                                                      }});
 }
-}
+} // namespace game::runtime::shared_projected_unit_backend_mesh_transforms

@@ -3,11 +3,11 @@
 #include "engine/models/PhlosionModelObject.h"
 
 namespace game::runtime::phlosion {
+using engine::models::cookModelObject;
 using engine::models::kCookedRoot;
+using engine::models::listModelObjectTextureDependencies;
+using engine::models::loadModelObject;
 using engine::models::ModelCookStats;
 using engine::models::ModelTextureDependency;
 using engine::models::objectPathForModel;
-using engine::models::cookModelObject;
-using engine::models::loadModelObject;
-using engine::models::listModelObjectTextureDependencies;
-}
+} // namespace game::runtime::phlosion

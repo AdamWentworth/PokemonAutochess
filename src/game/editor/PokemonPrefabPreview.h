@@ -10,7 +10,7 @@ namespace engine::render {
 struct ModelRenderFrame;
 struct ModelNodePoseRequest;
 struct ModelNodePoseResult;
-}
+} // namespace engine::render
 
 namespace game::editor {
 
@@ -24,7 +24,7 @@ public:
     PokemonPrefabPreview& operator=(
         const PokemonPrefabPreview&) = delete;
 
-    void setSourceStageProbeRoot(const std::filesystem::path& root);
+    void setSourceStageProbeRoot(const std::filesystem::path &root);
 
     bool select(
         const char* assetId,

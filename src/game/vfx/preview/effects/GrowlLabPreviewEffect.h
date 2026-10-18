@@ -9,7 +9,7 @@ using GrowlLabPreviewEffectBase = vfx::preview::shared::ControllerBackedPreviewE
     vfx::preview::growl::GrowlPreviewController>;
 
 class GrowlLabPreviewEffect final : public GrowlLabPreviewEffectBase {
-public:
+  public:
     GrowlLabPreviewEffect();
 };
 

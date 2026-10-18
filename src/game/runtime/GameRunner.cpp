@@ -106,7 +106,7 @@ namespace {
         game::runtime::startup_session::PreparedSession startupSession;
         try {
             startupSession = game::runtime::startup_session::prepareFromEnvironment(prefsPath, std::cout, std::cerr);
-        } catch (const std::exception& error) {
+        } catch (const std::exception &error) {
             log_.error(std::string("[Renderer] ") + error.what());
             return false;
         }
@@ -174,7 +174,7 @@ namespace {
             services,
             window,
             presentation,
-            [this](std::string* loaderError) {
+            [this](std::string *loaderError) {
                 if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
                     if (loaderError) *loaderError = "gladLoadGLLoader failed";
                     return false;

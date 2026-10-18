@@ -10,18 +10,18 @@ namespace vfx::preview::tackle {
 
 class TacklePreviewController final
     : public vfx::preview::shared::SharedPreviewControllerBase<TacklePreviewController> {
-public:
+  public:
     explicit TacklePreviewController(std::string_view logPrefix);
     ~TacklePreviewController();
 
     void configureEffect();
-    void emitScene(const engine::tools::vfx_preview::PreviewSceneState& scene);
+    void emitScene(const engine::tools::vfx_preview::PreviewSceneState &scene);
     void advanceEffect(float dt);
-    void renderPreview(vfx::preview::authored::SharedAuthoredVfxRenderer& renderer,
-                       const engine::tools::vfx_preview::PreviewFrameContext& frame);
+    void renderPreview(vfx::preview::authored::SharedAuthoredVfxRenderer &renderer,
+                       const engine::tools::vfx_preview::PreviewFrameContext &frame);
     std::uint32_t activeEffectCount() const;
 
-private:
+  private:
     TackleSmokeVFX effect_;
     TackleSmokeVFX::Config config_{};
 };

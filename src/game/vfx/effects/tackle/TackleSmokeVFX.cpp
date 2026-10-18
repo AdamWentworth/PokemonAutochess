@@ -7,7 +7,7 @@
 
 namespace {
 
-void scaleTackleSpatialConfig(TackleSmokeVFX::Config& config, float scaleMul) {
+void scaleTackleSpatialConfig(TackleSmokeVFX::Config &config, float scaleMul) {
     const float scale = std::max(0.0f, scaleMul);
     config.spawnForwardOffset *= scale;
     config.spawnHeightOffset *= scale;
@@ -20,7 +20,7 @@ void scaleTackleSpatialConfig(TackleSmokeVFX::Config& config, float scaleMul) {
     config.ringTrailSpacingMax *= scale;
     config.ringTrailLateralJitter *= scale;
 
-    for (auto& pass : config.drawPasses) {
+    for (auto &pass : config.drawPasses) {
         pass.forwardOffset *= scale;
         pass.heightOffset *= scale;
         pass.authoredBillboardPositionScale *= scale;
@@ -83,11 +83,11 @@ TackleSmokeVFX::Config TackleSmokeVFX::makeGameplayConfig() {
     return config;
 }
 
-void TackleSmokeVFX::setConfig(const Config& config) {
+void TackleSmokeVFX::setConfig(const Config &config) {
     effect_.setConfig(config);
 }
 
-const TackleSmokeVFX::Config& TackleSmokeVFX::getConfig() const {
+const TackleSmokeVFX::Config &TackleSmokeVFX::getConfig() const {
     return effect_.getConfig();
 }
 
@@ -95,11 +95,11 @@ void TackleSmokeVFX::update(float dt) {
     effect_.update(dt);
 }
 
-void TackleSmokeVFX::render(const Camera3D& camera) {
+void TackleSmokeVFX::render(const Camera3D &camera) {
     effect_.render(camera);
 }
 
-bool TackleSmokeVFX::buildRenderSnapshot(RenderSnapshot& out) const {
+bool TackleSmokeVFX::buildRenderSnapshot(RenderSnapshot &out) const {
     return effect_.buildRenderSnapshot(out);
 }
 
@@ -107,7 +107,7 @@ std::uint32_t TackleSmokeVFX::activeCloudCount() const {
     return effect_.activeRingCount();
 }
 
-void TackleSmokeVFX::emitAt(const glm::vec3& worldPos, const glm::vec3& forwardDir) {
+void TackleSmokeVFX::emitAt(const glm::vec3 &worldPos, const glm::vec3 &forwardDir) {
     glm::vec3 resolvedForward = forwardDir;
     resolvedForward.y = 0.0f;
     if (glm::dot(resolvedForward, resolvedForward) <= 0.000001f) {

@@ -5,11 +5,11 @@
 
 namespace game::runtime::renderer_recovery {
 
-Result createWithFallbacks(const Inputs& inputs,
-                                const BackendCreator& createBackend,
-                                const FallbackWindowReinitializer& reopenWindow,
-                                const OpenGlContextInitializer& initializeOpenGlContext,
-                                const WindowStateSync& syncWindowState) {
+Result createWithFallbacks(const Inputs &inputs,
+                           const BackendCreator &createBackend,
+                           const FallbackWindowReinitializer &reopenWindow,
+                           const OpenGlContextInitializer &initializeOpenGlContext,
+                           const WindowStateSync &syncWindowState) {
     Result out;
     out.activeBackend = inputs.activeBackend;
     out.activeBackendName = inputs.activeBackendName;

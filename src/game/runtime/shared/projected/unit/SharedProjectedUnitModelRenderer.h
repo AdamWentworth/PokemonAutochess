@@ -68,7 +68,7 @@ struct Args {
     glm::vec3 captureTintColor{1.0f};
     glm::vec3 proxyCenter{0.0f};
     glm::vec3 cameraWorldPos{0.0f};
-    glm::vec3 cameraWorldUp{0.0f,1.0f,0.0f};
+    glm::vec3 cameraWorldUp{0.0f, 1.0f, 0.0f};
     glm::vec3 cameraWorldFacing{0.0f};
 
     bool supportsWorldTriangles3D = false;

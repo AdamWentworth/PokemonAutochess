@@ -60,11 +60,11 @@ ScratchGlowVFX::Config ScratchGlowVFX::makeGameplayConfig() {
     return config;
 }
 
-void ScratchGlowVFX::setConfig(const Config& config) {
+void ScratchGlowVFX::setConfig(const Config &config) {
     effect_.setConfig(config);
 }
 
-const ScratchGlowVFX::Config& ScratchGlowVFX::getConfig() const {
+const ScratchGlowVFX::Config &ScratchGlowVFX::getConfig() const {
     return effect_.getConfig();
 }
 
@@ -72,11 +72,11 @@ void ScratchGlowVFX::update(float dt) {
     effect_.update(dt);
 }
 
-void ScratchGlowVFX::render(const Camera3D& camera) {
+void ScratchGlowVFX::render(const Camera3D &camera) {
     effect_.render(camera);
 }
 
-bool ScratchGlowVFX::buildRenderSnapshot(RenderSnapshot& out) const {
+bool ScratchGlowVFX::buildRenderSnapshot(RenderSnapshot &out) const {
     return effect_.buildRenderSnapshot(out);
 }
 
@@ -84,9 +84,9 @@ std::uint32_t ScratchGlowVFX::activeGlowCount() const {
     return effect_.activeRingCount();
 }
 
-void ScratchGlowVFX::emitAt(const glm::vec3& worldPos,
-                            const glm::vec3& forwardDir,
-                            const glm::mat4* viewMatrix) {
+void ScratchGlowVFX::emitAt(const glm::vec3 &worldPos,
+                            const glm::vec3 &forwardDir,
+                            const glm::mat4 *viewMatrix) {
     glm::vec3 resolvedForward = forwardDir;
     resolvedForward.y = 0.0f;
     if (glm::dot(resolvedForward, resolvedForward) <= 0.000001f) {

@@ -8,8 +8,8 @@ TacklePreviewController::TacklePreviewController(std::string_view logPrefix)
     : SharedPreviewControllerBase(engine::paths::data("config/vfx/moves/tackle_draw_passes.json"),
                                   "TacklePreview",
                                   "Tackle",
-                                  logPrefix)
-    , config_(TackleSmokeVFX::makeDefaultConfig()) {}
+                                  logPrefix),
+      config_(TackleSmokeVFX::makeDefaultConfig()) {}
 
 TacklePreviewController::~TacklePreviewController() = default;
 
@@ -18,7 +18,7 @@ void TacklePreviewController::configureEffect() {
 }
 
 void TacklePreviewController::emitScene(
-    const engine::tools::vfx_preview::PreviewSceneState& scene) {
+    const engine::tools::vfx_preview::PreviewSceneState &scene) {
     const glm::vec3 impactPos = scene.useCustomImpactPoint ? scene.impactPoint : scene.target;
     effect_.emitAt(impactPos,
                    vfx::preview::shared::safeForwardXZ(impactPos - scene.emitter));
@@ -29,8 +29,8 @@ void TacklePreviewController::advanceEffect(float dt) {
 }
 
 void TacklePreviewController::renderPreview(
-    vfx::preview::authored::SharedAuthoredVfxRenderer& renderer,
-    const engine::tools::vfx_preview::PreviewFrameContext& frame) {
+    vfx::preview::authored::SharedAuthoredVfxRenderer &renderer,
+    const engine::tools::vfx_preview::PreviewFrameContext &frame) {
     renderer.render(effect_.sharedWave(), frame.camera, frame.surfaceWidth, frame.surfaceHeight);
 }
 

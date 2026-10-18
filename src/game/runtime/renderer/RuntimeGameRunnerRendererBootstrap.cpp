@@ -23,12 +23,12 @@ game::runtime::renderer_recovery::Result createWithFallbacks(
     int fallbackWindowHeight) {
     game::runtime::renderer_recovery::Inputs inputs{activeBackend, activeBackendName, {}};
     if (services.requestedRendererBackend == "auto") {
-        for (const auto& name : engine::render::availableRenderers(projectRendererPolicy()))
+        for (const auto &name : engine::render::availableRenderers(projectRendererPolicy()))
             inputs.fallbackBackends.push_back(game::video::parseRendererBackend(name));
     }
     return game::runtime::renderer_recovery::createWithFallbacks(
         inputs,
-        [&window, &presentation, &services](game::video::RendererBackend backend, std::string* outError) {
+        [&window, &presentation, &services](game::video::RendererBackend backend, std::string *outError) {
             return game::runtime::backend_bootstrap::createRenderBackend(
                 backend,
                 window ? window->getSDLWindow() : nullptr,
@@ -69,7 +69,7 @@ game::runtime::renderer_recovery::Result createWithFallbacks(
                 fallbackWindow.success,
                 fallbackWindow.error};
         },
-        [&presentation, &loadOpenGlFunctions](std::string* outError) {
+        [&presentation, &loadOpenGlFunctions](std::string *outError) {
             const bool ok = game::runtime::opengl_bootstrap::initializeOpenGlFunctions(
                 loadOpenGlFunctions,
                 outError);

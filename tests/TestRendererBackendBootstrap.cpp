@@ -12,8 +12,11 @@ bool test_renderer_backend_bootstrap_policy(std::string& outFail) {
 
     {
         bool rejected = false;
-        try { selectStartupBackend(RendererBackend::OpenGL, "opengl"); }
-        catch (const std::exception&) { rejected = true; }
+        try {
+            selectStartupBackend(RendererBackend::OpenGL, "opengl");
+        } catch (const std::exception &) {
+            rejected = true;
+        }
         if (!rejected || game::video::isRendererBackendImplemented(RendererBackend::OpenGL)) {
             outFail = "OpenGL must stay unenrolled even in an optional legacy engine build.";
             return false;

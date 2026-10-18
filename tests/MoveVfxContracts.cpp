@@ -11,7 +11,7 @@
 
 namespace {
 
-bool require(bool condition, const char* message) {
+bool require(bool condition, const char *message) {
     if (condition) {
         return true;
     }
@@ -46,7 +46,7 @@ int main() {
         vfx::runtime::authored::resolveGeneratedDirections(generated);
     passed &= require(directions.size() == 8u,
                       "Authored direction generation must remain deterministic.");
-    for (const glm::vec3& direction : directions) {
+    for (const glm::vec3 &direction : directions) {
         passed &= require(
             std::abs(glm::length(direction) - 1.0f) < 0.0005f,
             "Generated effect directions must be normalized.");

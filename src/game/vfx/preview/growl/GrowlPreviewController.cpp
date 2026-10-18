@@ -21,7 +21,7 @@ void GrowlPreviewController::configureEffect() {
 }
 
 void GrowlPreviewController::emitScene(
-    const engine::tools::vfx_preview::PreviewSceneState& scene) {
+    const engine::tools::vfx_preview::PreviewSceneState &scene) {
     effect_.emitFrom(scene.emitter,
                      vfx::preview::shared::safeForwardXZ(scene.target - scene.emitter),
                      nullptr);
@@ -32,8 +32,8 @@ void GrowlPreviewController::advanceEffect(float dt) {
 }
 
 void GrowlPreviewController::renderPreview(
-    vfx::preview::authored::SharedAuthoredVfxRenderer& renderer,
-    const engine::tools::vfx_preview::PreviewFrameContext& frame) {
+    vfx::preview::authored::SharedAuthoredVfxRenderer &renderer,
+    const engine::tools::vfx_preview::PreviewFrameContext &frame) {
     renderer.render(effect_, frame.camera, frame.surfaceWidth, frame.surfaceHeight);
 }
 

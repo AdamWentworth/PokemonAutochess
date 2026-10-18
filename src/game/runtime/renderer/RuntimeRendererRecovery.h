@@ -42,14 +42,14 @@ struct Result {
 
 using BackendCreator = std::function<std::unique_ptr<IRenderBackend>(game::video::RendererBackend, std::string*)>;
 using FallbackWindowReinitializer = std::function<FallbackWindowResult(game::video::RendererBackend)>;
-using OpenGlContextInitializer = std::function<bool(std::string*)>;
+using OpenGlContextInitializer = std::function<bool(std::string *)>;
 using WindowStateSync = std::function<void()>;
 
-Result createWithFallbacks(const Inputs& inputs,
-                                const BackendCreator& createBackend,
-                                const FallbackWindowReinitializer& reopenWindow,
-                                const OpenGlContextInitializer& initializeOpenGlContext,
-                                const WindowStateSync& syncWindowState);
+Result createWithFallbacks(const Inputs &inputs,
+                           const BackendCreator &createBackend,
+                           const FallbackWindowReinitializer &reopenWindow,
+                           const OpenGlContextInitializer &initializeOpenGlContext,
+                           const WindowStateSync &syncWindowState);
 
 } // namespace game::runtime::renderer_recovery
 
