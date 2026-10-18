@@ -90,13 +90,21 @@ jobs:
         with:
           path: ${{ github.workspace }}\vcpkg_cache
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+      - name: Checkout pinned model adapter
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: AdamWentworth/PokemonModelSupport
+          ref: e4039c96ddfdfd9f22dce1270dfc4dcf8cac1940
+          path: .ci-deps/PokemonModelSupport
+          ssh-key: ${{ secrets.POKEMON_MODEL_SUPPORT_DEPLOY_KEY }}
+          persist-credentials: false
       - name: Install vcpkg
         run: |
           git clone https://github.com/microsoft/vcpkg "${{ env.VCPKG_ROOT }}"
           git -C "${{ env.VCPKG_ROOT }}" checkout --detach "${{ env.VCPKG_COMMIT }}"
           & "${{ env.VCPKG_ROOT }}\bootstrap-vcpkg.bat"
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON -DPAC_ENABLE_PRIVATE_ASSET_TESTS=OFF
+        run: cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake" -DPOKEMON_MODEL_SUPPORT_SOURCE_DIR="${{ github.workspace }}/.ci-deps/PokemonModelSupport" -DPAC_BUILD_TOOLS=ON -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON -DPAC_ENABLE_PRIVATE_ASSET_TESTS=OFF
       - name: Report configured scope
         run: |
           if (-not (Test-Path -LiteralPath build/ci/coverage-manifest.json -PathType Leaf)) {

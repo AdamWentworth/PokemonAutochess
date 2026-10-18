@@ -20,6 +20,9 @@ $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $workflowPath = Join-Path $repoRoot ".github\workflows\ci.yml"
 $manifestPath = Join-Path $repoRoot "vcpkg.json"
 $ctestRunnerPath = Join-Path $repoRoot "tools\run_ctest_ci.ps1"
+$modelPin = [regex]::Match((Get-Content (Join-Path $repoRoot 'CMakeLists.txt') -Raw),
+    'set\(\s*POKEMON_MODEL_SUPPORT_GIT_TAG\s+"([0-9a-f]{40})"').Groups[1].Value
+if (-not $modelPin) { throw 'The model adapter needs an immutable CMake pin.' }
 
 $checks = 0
 
@@ -110,7 +113,7 @@ function Assert-CiWorkflowContract {
     $jobs = Get-YamlJobBlocks -Text $Workflow
     Assert-True ($jobs.Count -ge 2) "CI must separate secret-free contract checks from the trusted full build."
 
-    Assert-True ($Workflow -notmatch 'secrets\.') `
+    Assert-True ($Workflow -notmatch 'PHLOSION_VFX_DEPLOY_KEY') `
         "The retired VFX repository must not leave a deploy-key dependency."
     $trustedJob = 'windows-build'
     $trustedBlock = [string]$jobs[$trustedJob]
@@ -147,8 +150,17 @@ function Assert-CiWorkflowContract {
                 ("Every checkout step must set persist-credentials: false (job '{0}': {1})" -f $name, $step)
         }
     }
-    Assert-True ($checkoutSteps -ge 2) `
+    Assert-True ($checkoutSteps -ge 3) `
         "CI must check out both the repository and the pinned private dependency."
+    $modelSteps = @(Get-YamlStepBlocks -JobBlock $trustedBlock |
+        Where-Object { $_ -match 'repository:\s*AdamWentworth/PokemonModelSupport' })
+    Assert-True ($modelSteps.Count -eq 1) 'The trusted build must check out the model adapter exactly once.'
+    Assert-Match $modelSteps[0] ("(?m)^\s+ref:\s*" + $modelPin + "\s*$") `
+        'The model adapter checkout must match the immutable CMake pin.'
+    Assert-Match $modelSteps[0] 'ssh-key:\s*\$\{\{\s*secrets\.POKEMON_MODEL_SUPPORT_DEPLOY_KEY\s*\}\}' `
+        'The private model adapter must use its dedicated read-only deploy key.'
+    Assert-Match $Workflow '-DPOKEMON_MODEL_SUPPORT_SOURCE_DIR=' `
+        'Configure must consume the checked-out private adapter.'
 
     # ---------------- Checkout pinning ----------------
     $usesLines = [regex]::Matches($Workflow, '(?m)^\s+uses:\s*(\S+)\s*(#\s*\S+)?\s*$')
@@ -298,6 +310,14 @@ Assert-CiWorkflowRejected -Name "action unpinned" `
 Assert-CiWorkflowRejected -Name "checkout credentials persisted" `
     -Workflow (New-MutatedWorkflow -Source $workflow -Old "persist-credentials: false" -New "persist-credentials: true" -Name "credentials persisted") `
     -CtestRunner $ctestRunner -Manifest $manifest -Pattern "credentials"
+Assert-CiWorkflowRejected -Name "model adapter pin drift" `
+    -Workflow (New-MutatedWorkflow -Source $workflow -Old $modelPin -New ('0' * 40) -Name "model pin drift") `
+    -CtestRunner $ctestRunner -Manifest $manifest -Pattern "immutable CMake pin"
+Assert-CiWorkflowRejected -Name "secret exposed to source-only job" `
+    -Workflow (New-MutatedWorkflow -Source $workflow -Old '      - name: Script syntax' `
+        -New ('      - name: Script syntax' + "`n        env:`n" + '          LEAK: ${{ secrets.POKEMON_MODEL_SUPPORT_DEPLOY_KEY }}') `
+        -Name "untrusted secret") `
+    -CtestRunner $ctestRunner -Manifest $manifest -Pattern "must never reference a repository secret"
 Assert-CiWorkflowRejected -Name "hosted scope switched to the private content suite" `
     -Workflow (New-MutatedWorkflow -Source $workflow `
         -Old "-DPAC_ENABLE_PRIVATE_ASSET_TESTS=OFF" -New "-DPAC_ENABLE_PRIVATE_ASSET_TESTS=ON" `

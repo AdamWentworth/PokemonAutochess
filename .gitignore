@@ -53,3 +53,5 @@ __pycache__
 # Local outputs left by research tools before the companion-repository split
 /tools/research/**/bin/
 /tools/research/**/obj/
+# Private dependency checkouts used by CI.
+.ci-deps/

@@ -28,6 +28,10 @@ $dependencies = @(
         Variable = "PHLOSION_ENGINE_GIT_TAG"
     },
     [pscustomobject]@{
+        Name = "PokemonModelSupport"
+        Variable = "POKEMON_MODEL_SUPPORT_GIT_TAG"
+    },
+    [pscustomobject]@{
         Name = "PhlosionPackages"
         Variable = "PHLOSION_PACKAGES_GIT_TAG"
     }

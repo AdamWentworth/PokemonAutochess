@@ -2,12 +2,12 @@
 
 Status: Active
 Type: Runbook
-Last updated: 2026-10-02
+Last updated: 2026-10-18
 
 CI is correctness-first and Windows-first. It separates a secret-free contract
 job that runs for every pull request from a trusted full-build job.
 The retired PhlosionVFX checkout and its deploy key are no longer used. Hosted CI never cooks content, never reaches for a
-GPU, and never substitutes for local private-content or three-API qualification.
+GPU, and never substitutes for local private-content or enrolled-renderer qualification.
 
 ## Jobs
 
@@ -25,7 +25,7 @@ receive the same checks as trusted branches:
   (`tools/test_ci_coverage_contract.ps1`).
 - Runtime content preflight contract on synthetic fixtures
   (`tools/test_private_content_preflight.ps1`).
-- Phlosion Engine/Packages commit-pin contract
+- Phlosion Engine/Packages and PokemonModelSupport commit-pin contract
   (`tools/test_phlosion_dependency_pins.ps1`).
 - Catalog and promotion contract on synthetic fixtures
   (`tools/assets/test_kanto_model_promotions.ps1`).
@@ -46,8 +46,11 @@ would report those documentation paths as missing references.
 Runs on `master` pushes, manual runs, and same-repository pull requests that are
 not Dependabot:
 
-1. Check out the repository (`persist-credentials: false`). VFX is provided by
-   PhlosionEngine; there is no separate VFX checkout.
+1. Check out the repository and the immutable PokemonModelSupport revision
+   (`persist-credentials: false` for both). Only this trusted job receives
+   `POKEMON_MODEL_SUPPORT_DEPLOY_KEY`, a read-only deploy key scoped to that
+   private repository. Configure uses `.ci-deps/PokemonModelSupport` explicitly.
+   VFX is provided by PhlosionEngine; there is no separate VFX checkout.
 2. Restore the vcpkg binary cache and install the pinned vcpkg executable.
 3. Configure the standalone graph:
    `-DPAC_ENABLE_PRIVATE_ASSET_TESTS=OFF -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON`.
@@ -68,7 +71,8 @@ commit matches `vcpkg.json`'s builtin baseline, and a fresh upstream vcpkg commi
 cannot change CI behavior between identical runs. The vcpkg registry clone keeps
 its history so manifest overrides such as Lua 5.4.8 remain resolvable.
 
-`PAC_Tools.phlosion_dependency_pins` compares the Engine and VFX commits in
+`PAC_Tools.phlosion_dependency_pins` compares the Engine, PokemonModelSupport
+and optional Packages commits in
 `CMakeLists.txt` with local sibling checkout HEADs whenever that workspace is
 available. That keeps local builds from silently validating newer sibling APIs
 while a clean clone fetches the pinned revisions.
@@ -103,7 +107,7 @@ GPU hardware:
 # CTest with strict cooked assets, plus recorded identities and diagnostics.
 .\tools\qualify_content.ps1 -BuildDir debug/ci_qualification/build-content -Config Debug
 
-# Add the three-API renderer qualification and/or an existing editor build.
+# Add the enrolled-renderer qualification and/or an existing editor build.
 .\tools\qualify_content.ps1 -IncludeVisual
 .\tools\qualify_content.ps1 -IncludeEditor -Config RelWithDebInfo
 
@@ -155,7 +159,7 @@ can exist.
 
 - Private-content qualification. It needs the ignored corpus that is restored
   from the private asset depot.
-- The three-API renderer qualification and parity matrix. These require a real
+- The enrolled-renderer qualification and parity matrix. These require a real
   GPU; the hosted lane is deliberately removed until a private runner exists.
 - Release benchmark and perf gates. Hosted Windows runners are not
   representative enough for meaningful thresholds.
@@ -165,7 +169,7 @@ can exist.
 
 A green source-suite run means the asset-independent C++ contracts, tooling
 contracts, docs hygiene, data validation, and formatting passed. It does not
-mean the private content tests, the runtime cooked checks, or three-API visual
+mean the private content tests, the runtime cooked checks, or enrolled-renderer visual
 parity passed. Run `tools/qualify_content.ps1` for those claims.
 
 ## Local Equivalent
@@ -208,10 +212,11 @@ The format check uses `clang-format` from `PATH` when available and otherwise
 discovers LLVM installed by Visual Studio. Set `PAC_CLANG_FORMAT` (or pass
 `-ClangFormatPath`) to select a specific executable.
 
-## Migration publication gate
+## Published dependencies
 
-The engine VFX migration is pinned to its local committed revision. Publish that
-engine revision and provide a published, pinned PokemonModelSupport dependency
-before qualifying a clean hosted build. Local checkout builds are verified
-independently. The former VFX checkout and remote are retained for now; eventual
-deletion remains a separate task after publication and clean-build qualification.
+The engine VFX migration and private PokemonModelSupport repository are published
+and pinned in `CMakeLists.txt`. An authenticated standalone checkout can fetch both
+without sibling repositories. Developers may instead set
+`POKEMON_MODEL_SUPPORT_SOURCE_DIR` to a local checkout. Forks and Dependabot do
+not receive the deploy key; their source-contract lane remains secret-free.
+The former PhlosionVFX repository is no longer a build dependency.

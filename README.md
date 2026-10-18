@@ -18,7 +18,6 @@
   <a href="https://cmake.org/"><img src="https://img.shields.io/badge/CMake-Build-064F8C?logo=cmake&amp;logoColor=white" alt="CMake build"></a>
   <a href="https://vcpkg.io/"><img src="https://img.shields.io/badge/vcpkg-Dependencies-5C2D91" alt="vcpkg dependencies"></a>
   <br>
-  <a href="https://www.opengl.org/"><img src="https://img.shields.io/badge/OpenGL-Native-5586A4?logo=opengl&amp;logoColor=white" alt="Native OpenGL"></a>
   <a href="https://www.vulkan.org/"><img src="https://img.shields.io/badge/Vulkan-Native-AC162C?logo=vulkan&amp;logoColor=white" alt="Native Vulkan"></a>
   <a href="https://learn.microsoft.com/en-us/windows/win32/direct3d12/direct3d-12-graphics"><img src="https://img.shields.io/badge/Direct3D-12-107C10" alt="Native Direct3D 12"></a>
 </p>
@@ -42,8 +41,8 @@ Pokemon Autochess is a game and runtime-systems portfolio project by
 combat, shops and rounds, animated 3D characters, authored environments, and
 repeatable rendering checks.
 
-**This repository owns the game.** The reusable engine and VFX primitives have
-separate repositories and verification boundaries.
+**This repository owns the game.** PhlosionEngine owns the reusable engine and
+VFX primitives; PokemonModelSupport owns the optional source-specific adapter.
 
 > [!NOTE]
 > This is an educational game prototype. Balancing, content and the player
@@ -69,7 +68,7 @@ also includes earlier prototype footage. See [media provenance and regeneration]
 
 - **Scripted auto-battler loop:** placement, movement, combat, rounds, shops,
   benches and cards, with Lua tuning and C++ runtime services.
-- **Three native graphics APIs:** OpenGL, Vulkan and Direct3D 12 share gameplay
+- **Two enrolled graphics APIs:** Vulkan and Direct3D 12 share gameplay
   presentation requirements and visual/content qualification.
 - **Animated characters and effects:** cooked models, skeletal animation,
   character materials and layered fire are used by both game and editor previews.
@@ -104,7 +103,7 @@ See [project boundaries](docs/PROJECT_BOUNDARIES.md),
 | Game runtime | C++20, Phlosion Engine | Sessions, state transitions, simulation and presentation |
 | Gameplay scripting | Lua 5.4, sol2 | Combat, shop logic, state flow and tuning |
 | Platform and UI | SDL2, SDL2_ttf, Dear ImGui | Window/input, text and editor interfaces |
-| Graphics | OpenGL, Vulkan, Direct3D 12, GLSL, HLSL, GLM | Native backends, materials, animation and graphics math |
+| Graphics | Vulkan, Direct3D 12, GLSL, HLSL, GLM | Native backends, materials, animation and graphics math |
 | Assets and data | PHRC containers, JSON, nlohmann-json, fastgltf, KTX, stb | Cooked resources, configuration and supported import paths |
 | Authoring | Blender, game-owned exporters | Authored arenas and environment publication |
 | Build and verification | CMake, vcpkg, CTest, GitHub Actions, PowerShell, Python | Dependencies, builds, contracts, validation and capture tooling |
@@ -129,6 +128,10 @@ cmake --build --preset release --target PokemonAutochess
 
 CMake uses available local Phlosion checkouts or fetches the exact pinned commits.
 The build generates the project's material programs automatically.
+Access to the private `AdamWentworth/PokemonModelSupport` repository is required
+for the game build. Authenticate Git over SSH or supply an existing checkout
+with `-DPOKEMON_MODEL_SUPPORT_SOURCE_DIR=...`. Hosted trusted builds use a dedicated
+read-only deploy key; fork and Dependabot source checks never receive it.
 
 Running the game requires the private runtime assets and cooked content. With
 those restored, launch:
@@ -155,7 +158,7 @@ editor pairing and native GPU qualification. Hosted CI is asset-independent and
 runs the explicit source suite; restore the private corpus and run
 `.\tools\qualify_content.ps1` for the content scope. See the
 [CI runbook](docs/CI.md) for the job split and the current infrastructure gaps.
-Hosted CI does not replace the three-API visual checks on the local GPU
+Hosted CI does not replace the enrolled-API visual checks on the local GPU
 workstation.
 
 The September 19 material-boundary refactor preserved **45 editor captures and

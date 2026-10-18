@@ -199,7 +199,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "2bcc4f5251167dd2a5e41efa09de042f13df9280"
+    "6c9dcc23121ab4bc9a7fe30be395a7010bc53238"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 
@@ -370,11 +370,32 @@ endif()
 
 # ---------------- Game objects (shared by exe + tests) ----------------
 # Pure arena policy/data and spatial queries have no renderer or asset-store dependency.
-set(POKEMON_MODEL_SUPPORT_SOURCE_DIR "${_pac_resolved_engine_source_dir}/../PokemonModelSupport"
-    CACHE PATH "Optional shared Pokemon model adapter checkout")
+set(POKEMON_MODEL_SUPPORT_GIT_REPOSITORY
+    "git@github.com:AdamWentworth/PokemonModelSupport.git"
+    CACHE STRING "Private Pokemon model adapter repository; requires access")
+set(POKEMON_MODEL_SUPPORT_GIT_TAG
+    "e4039c96ddfdfd9f22dce1270dfc4dcf8cac1940"
+    CACHE STRING "Pinned Pokemon model adapter commit")
+set(_pac_model_support_default "")
+if (EXISTS "${_pac_resolved_engine_source_dir}/../PokemonModelSupport/CMakeLists.txt")
+    get_filename_component(_pac_model_support_default
+        "${_pac_resolved_engine_source_dir}/../PokemonModelSupport" ABSOLUTE)
+endif()
+set(POKEMON_MODEL_SUPPORT_SOURCE_DIR "${_pac_model_support_default}"
+    CACHE PATH "Local Pokemon model adapter checkout; empty fetches the pinned private repository")
 set(POKEMON_MODELS_BUILD_TESTS ${BUILD_TESTING} CACHE BOOL "Shared adapter tests" FORCE)
 if (NOT TARGET PokemonModels::Import)
-    add_subdirectory("${POKEMON_MODEL_SUPPORT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/pokemon-model-support")
+    if (POKEMON_MODEL_SUPPORT_SOURCE_DIR)
+        add_subdirectory("${POKEMON_MODEL_SUPPORT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/pokemon-model-support")
+    else()
+        include(FetchContent)
+        FetchContent_Declare(PokemonModelSupport
+            GIT_REPOSITORY "${POKEMON_MODEL_SUPPORT_GIT_REPOSITORY}"
+            GIT_TAG "${POKEMON_MODEL_SUPPORT_GIT_TAG}"
+            GIT_SHALLOW FALSE)
+        FetchContent_MakeAvailable(PokemonModelSupport)
+        FetchContent_GetProperties(PokemonModelSupport SOURCE_DIR POKEMON_MODEL_SUPPORT_SOURCE_DIR)
+    endif()
 endif()
 
 add_subdirectory(src/game/render/materials)
