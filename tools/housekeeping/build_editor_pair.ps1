@@ -221,6 +221,8 @@ if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
 $OutputDirectory = Resolve-FullPath $OutputDirectory
 
 $gamePathSpecs = @(
+    'phlosion.project.json',
+    'cmake',
     'CMakeLists.txt',
     'CMakePresets.json',
     'vcpkg.json',
@@ -229,6 +231,7 @@ $gamePathSpecs = @(
     'tests'
 )
 $enginePathSpecs = @(
+    'cmake',
     'CMakeLists.txt',
     'CMakePresets.json',
     'vcpkg.json',
@@ -300,6 +303,12 @@ foreach ($config in $configurations) {
             $engineStateAfter.source_fingerprint) {
             throw "Engine source inputs changed since the $config proof. Rebuild the pair."
         }
+        foreach ($entry in @(@('game_opengl', $gameCache), @('engine_opengl', $engineCache))) {
+            $recorded = $expected.cmake.PSObject.Properties[$entry[0]]
+            if (-not $recorded -or $recorded.Value -ne (Get-CMakeCacheValue $entry[1] 'PHLOSION_ENABLE_OPENGL')) {
+                throw "$config renderer build enrollment changed; rebuild the editor/plugin pair."
+            }
+        }
         Assert-ProofMatches $expected.artifacts.editor $artifacts.editor 'Editor'
         Assert-ProofMatches `
             $expected.artifacts.plugin_probe `
@@ -321,6 +330,8 @@ foreach ($config in $configurations) {
             generated_at_utc = [DateTime]::UtcNow.ToString('o')
             configuration = $config
             cmake = [pscustomobject]@{
+                game_opengl = Get-CMakeCacheValue $gameCache 'PHLOSION_ENABLE_OPENGL'
+                engine_opengl = Get-CMakeCacheValue $engineCache 'PHLOSION_ENABLE_OPENGL'
                 game_generator = Get-CMakeCacheValue $gameCache 'CMAKE_GENERATOR'
                 engine_generator = Get-CMakeCacheValue $engineCache 'CMAKE_GENERATOR'
                 game_build_directory = $GameBuildDirectory

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidateSet('planning','battle','ledges','grass','travel','crowded','earthquake')][string]$Phase = 'planning',
-    [ValidateSet('opengl','d3d12','vulkan')][string]$Backend = 'opengl',
+    [ValidateSet('d3d12','vulkan')][string]$Backend = @(& (Join-Path $PSScriptRoot "../Get-ProjectRenderers.ps1"))[0],
     [string]$OutputDirectory = '',
     [string]$Recipe = 'config/environment/route1_south_entrance.authoring.json',
     [switch]$Capture,

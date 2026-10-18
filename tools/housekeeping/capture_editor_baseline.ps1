@@ -19,8 +19,8 @@ param(
     [double]$AssetPreviewTargetOffsetY = 0.0,
     [switch]$AssetPreviewFront,
     [switch]$AssetPreviewBack,
-    [ValidateSet('opengl', 'd3d12', 'vulkan')]
-    [string[]]$Backends = @('opengl', 'd3d12', 'vulkan'),
+    [ValidateSet('d3d12', 'vulkan')]
+    [string[]]$Backends = @(& (Join-Path $PSScriptRoot "../Get-ProjectRenderers.ps1")),
     [ValidateSet('low', 'medium', 'high', 'ultra')]
     [string[]]$Qualities = @('low', 'medium', 'high', 'ultra'),
     [ValidateRange(20, 1000)]

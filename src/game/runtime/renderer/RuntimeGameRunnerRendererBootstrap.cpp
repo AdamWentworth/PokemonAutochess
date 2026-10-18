@@ -1,3 +1,4 @@
+#include "ProjectRendererPolicy.h"
 #include "game/runtime/renderer/RuntimeGameRunnerRendererBootstrap.h"
 
 #include "game/runtime/GameRuntimeServices.h"
@@ -11,7 +12,7 @@
 
 namespace game::runtime::runner_renderer_bootstrap {
 
-game::runtime::renderer_recovery::Result createWithOpenGlFallback(
+game::runtime::renderer_recovery::Result createWithFallbacks(
     game::video::RendererBackend activeBackend,
     const std::string &activeBackendName,
     GameRuntimeServices &services,
@@ -20,8 +21,13 @@ game::runtime::renderer_recovery::Result createWithOpenGlFallback(
     const std::function<bool(std::string *)> &loadOpenGlFunctions,
     int fallbackWindowWidth,
     int fallbackWindowHeight) {
-    return game::runtime::renderer_recovery::createWithOpenGlFallback(
-        game::runtime::renderer_recovery::Inputs{activeBackend, activeBackendName},
+    game::runtime::renderer_recovery::Inputs inputs{activeBackend, activeBackendName, {}};
+    if (services.requestedRendererBackend == "auto") {
+        for (const auto& name : engine::render::availableRenderers(projectRendererPolicy()))
+            inputs.fallbackBackends.push_back(game::video::parseRendererBackend(name));
+    }
+    return game::runtime::renderer_recovery::createWithFallbacks(
+        inputs,
         [&window, &presentation, &services](game::video::RendererBackend backend, std::string* outError) {
             return game::runtime::backend_bootstrap::createRenderBackend(
                 backend,
@@ -36,11 +42,11 @@ game::runtime::renderer_recovery::Result createWithOpenGlFallback(
          &presentation,
          &services,
          fallbackWindowWidth,
-         fallbackWindowHeight]() {
+         fallbackWindowHeight](game::video::RendererBackend backend) {
             window.reset();
             const auto fallbackWindow = game::runtime::window_bootstrap::openWindow(
                 game::runtime::window_bootstrap::OpenRequest{
-                    Window::GraphicsApi::OpenGL,
+                    game::runtime::backend_bootstrap::graphicsApiForBackend(backend),
                     services.vsyncEnabled},
                 [&window, fallbackWindowWidth, fallbackWindowHeight](
                     Window::GraphicsApi graphicsApi,
@@ -59,7 +65,7 @@ game::runtime::renderer_recovery::Result createWithOpenGlFallback(
             presentation.setOpenGlState(
                 fallbackWindow.hasOpenGlContext,
                 fallbackWindow.glFunctionsReady);
-            return game::runtime::renderer_recovery::OpenGlWindowResult{
+            return game::runtime::renderer_recovery::FallbackWindowResult{
                 fallbackWindow.success,
                 fallbackWindow.error};
         },

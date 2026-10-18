@@ -1,13 +1,14 @@
 [CmdletBinding()]
 param(
     [ValidateSet('Development','EngineDebug','Release')][string]$Mode = 'Development',
-    [ValidateSet('auto','opengl','vulkan','d3d12')][string]$Backend = 'auto',
+    [ValidateSet('auto','vulkan','d3d12')][string]$Backend = 'auto',
     [string]$Scenario = '',
     [string]$SceneId = '',
     [switch]$Play,
     [switch]$VerifyOnly
 )
 $ErrorActionPreference = 'Stop'
+& (Join-Path $PSScriptRoot 'Get-ProjectRenderers.ps1') -Requested @($Backend)
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $taskEngine = [IO.Path]::GetFullPath((Join-Path $taskRoot '../../Phlosion/PhlosionEngine'))
 $taskConfiguration = @{Development='RelWithDebInfo'; EngineDebug='Debug'; Release='Release'}[$Mode]

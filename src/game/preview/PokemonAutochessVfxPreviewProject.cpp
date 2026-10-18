@@ -1,3 +1,5 @@
+#include "ProjectRendererPolicy.h"
+#include "engine/render/LegacyOpenGL.h"
 #include "game/preview/PokemonAutochessVfxPreviewProject.h"
 
 #include <algorithm>
@@ -160,7 +162,7 @@ struct PokemonAutochessVfxPreviewProject::Impl {
     std::size_t activeRigIndex = 0u;
     PendingReplayAction pendingReplayAction = PendingReplayAction::None;
     float pendingReplayTriggerAnimTimeSec = 0.0f;
-    std::unique_ptr<OpenGLRenderBackend> backendRenderer;
+    std::unique_ptr<IRenderBackend> backendRenderer;
     int backendSurfaceWidth = 0;
     int backendSurfaceHeight = 0;
     game::runtime::session_texture_cache::TextureCache backendTextureByPath;
@@ -331,7 +333,8 @@ struct PokemonAutochessVfxPreviewProject::Impl {
         width = std::max(1, width);
         height = std::max(1, height);
         if (!backendRenderer) {
-            backendRenderer = std::make_unique<OpenGLRenderBackend>();
+            (void)engine::render::rendererCandidates(projectRendererPolicy(), "opengl");
+            backendRenderer = engine::render::createLegacyOpenGLBackend();
         }
         if (width == backendSurfaceWidth && height == backendSurfaceHeight) return;
         backendSurfaceWidth = width;

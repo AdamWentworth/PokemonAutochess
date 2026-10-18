@@ -1,3 +1,4 @@
+#include <stdexcept>
 #include <cstdlib>
 #include <memory>
 #include <optional>
@@ -36,11 +37,11 @@ bool test_runtime_startup_config_contract(std::string& outFail) {
         Preferences prefs;
         prefs.rendererBackend = "opengl";
         const auto resolved = resolveRendererPreference(prefs, std::nullopt);
-        if (resolved.backendToken != "opengl" ||
-            resolved.requestedBackend != RendererBackend::OpenGL ||
-            resolved.requestedBackendName != "opengl" ||
+        if (resolved.backendToken != "auto" ||
+            resolved.requestedBackend != RendererBackend::Auto ||
+            resolved.requestedBackendName != "auto" ||
             resolved.overriddenByEnv) {
-            outFail = "resolveRendererPreference should preserve stored backend without env override.";
+            outFail = "resolveRendererPreference should migrate a retired stored backend to Auto.";
             return false;
         }
     }
@@ -58,6 +59,12 @@ bool test_runtime_startup_config_contract(std::string& outFail) {
         }
     }
 
+    for (const auto* value : {"opengl", "typo"}) {
+        bool rejected = false;
+        try { resolveRendererPreference(Preferences{}, std::string(value)); }
+        catch (const std::exception&) { rejected = true; }
+        if (!rejected) { outFail = "Explicit unsupported renderer must fail instead of falling back"; return false; }
+    }
     ScopedEnvVar widthGuard("PAC_VIDEO_WIDTH");
     ScopedEnvVar heightGuard("PAC_VIDEO_HEIGHT");
     ScopedEnvVar fullscreenGuard("PAC_VIDEO_FULLSCREEN");

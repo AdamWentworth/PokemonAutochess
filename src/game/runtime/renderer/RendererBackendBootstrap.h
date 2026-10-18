@@ -13,7 +13,7 @@ class IRenderBackend;
 namespace game::runtime::backend_bootstrap {
 
 struct StartupBackendSelection {
-    game::video::RendererBackend activeBackend = game::video::RendererBackend::OpenGL;
+    game::video::RendererBackend activeBackend = game::video::RendererBackend::Auto;
     bool fallback = false;
     std::string fallbackReason;
 };
@@ -24,7 +24,7 @@ StartupBackendSelection selectStartupBackend(game::video::RendererBackend reques
 Window::GraphicsApi graphicsApiForBackend(game::video::RendererBackend backend);
 
 std::string makeBackendInitFallbackReason(std::string_view activeBackendName,
-                                          std::string_view error);
+                                          std::string_view error, std::string_view fallbackBackend);
 
 std::unique_ptr<IRenderBackend> createRenderBackend(game::video::RendererBackend backend,
                                                     SDL_Window* sdlWindow,

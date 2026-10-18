@@ -14,9 +14,9 @@ $ErrorActionPreference = "Stop"
 Import-Module (Join-Path $PSScriptRoot "RendererQualificationReport.psm1") -Force
 Import-Module (Join-Path $PSScriptRoot "RendererQualificationEvidence.psm1") -Force
 
-$requiredBackends = @("opengl", "vulkan", "d3d12")
-$compatibilityBackends = @("opengl", "vulkan")
-$referenceBackend = "opengl"
+$requiredBackends = @(& (Join-Path $PSScriptRoot "Get-ProjectRenderers.ps1"))
+$compatibilityBackends = @(& (Join-Path $PSScriptRoot "Get-ProjectRenderers.ps1"))
+$referenceBackend = (@(& (Join-Path $PSScriptRoot "Get-ProjectRenderers.ps1")))[0]
 $qualificationStartedAtUtc = [DateTime]::UtcNow
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $buildDirAbs = if ([IO.Path]::IsPathRooted($BuildDir)) {
@@ -319,7 +319,7 @@ if ($buildFailed) {
                     VulkanModes = $nativeVulkanModes
                 }
                 if (-not $nativeReport.Passed) {
-                    throw "Native three-backend visual parity matrix failed."
+                    throw "Native enrolled-backend visual parity matrix failed."
                 }
             }
     } finally {

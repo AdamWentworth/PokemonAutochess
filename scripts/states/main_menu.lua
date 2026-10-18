@@ -199,7 +199,7 @@ local function sync_renderer_backend_options(preferred_backend)
         end
     end
     if #filtered == 0 then
-        filtered = { "opengl" }
+        filtered = { "auto" }
     end
 
     video_cfg.renderer_backends = filtered

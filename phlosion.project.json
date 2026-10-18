@@ -1,4 +1,13 @@
 {
+  "rendering": {
+    "windows": [
+      "vulkan",
+      "d3d12"
+    ],
+    "linux": [
+      "vulkan"
+    ]
+  },
   "schema_version": 2,
   "project_id": "pokemon-autochess",
   "display_name": "Pokemon Autochess",

@@ -57,7 +57,7 @@ try {
     $descriptor = Get-Content (Join-Path $taskRoot 'phlosion.project.json') -Raw | ConvertFrom-Json
     $descriptor.startup_scene.scene_id = 'routes/route1-pilot'
     $descriptor | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $taskDescriptor -Encoding UTF8
-    $arguments = @("--project=$taskDescriptor", '--renderer=opengl', '--game-preview=route1-pilot-battle',
+    $arguments = @("--project=$taskDescriptor", "--renderer=$(@(& (Join-Path $PSScriptRoot '../Get-ProjectRenderers.ps1'))[0])", '--game-preview=route1-pilot-battle',
         '--hidden', '--auto-reload', '--exit-after-gameplay-reloads=2',
         "--state-directory=$taskOutput/state", "--metrics-output=$taskOutput/metrics.json")
     $taskProcess = Start-Process -FilePath $EditorPath -WorkingDirectory $taskRoot -WindowStyle Hidden -PassThru `

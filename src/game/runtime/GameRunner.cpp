@@ -1,3 +1,4 @@
+#include <exception>
 // src/game/GameRunner.cpp
 
 #include "game/runtime/GameApp.h"
@@ -97,13 +98,18 @@ namespace {
 
         bool initialized = false;
         game::video::RendererBackend requestedBackend = game::video::RendererBackend::Auto;
-        game::video::RendererBackend activeBackend = game::video::RendererBackend::OpenGL;
+        game::video::RendererBackend activeBackend = game::video::RendererBackend::Auto;
     };
 
     bool GameRunner::init() {
         const std::string prefsPath = game::video::defaultPreferencesPath();
-        const auto startupSession =
-            game::runtime::startup_session::prepareFromEnvironment(prefsPath, std::cout, std::cerr);
+        game::runtime::startup_session::PreparedSession startupSession;
+        try {
+            startupSession = game::runtime::startup_session::prepareFromEnvironment(prefsPath, std::cout, std::cerr);
+        } catch (const std::exception& error) {
+            log_.error(std::string("[Renderer] ") + error.what());
+            return false;
+        }
         requestedBackend = startupSession.requestedBackend;
         activeBackend = startupSession.activeBackend;
         game::runtime::startup_session::applyToServices(startupSession, services);
@@ -162,7 +168,7 @@ namespace {
         }
         presentation.setOpenGlState(presentation.hasOpenGlContext(), preloadBootstrap.glFunctionsReady);
 
-        auto rendererResult = game::runtime::runner_renderer_bootstrap::createWithOpenGlFallback(
+        auto rendererResult = game::runtime::runner_renderer_bootstrap::createWithFallbacks(
             activeBackend,
             services.activeRendererBackend,
             services,
@@ -189,7 +195,7 @@ namespace {
         if (!renderer) {
             switch (rendererResult.failureStage) {
             case game::runtime::renderer_recovery::FailureStage::FallbackWindowOpen:
-                log_.error("[Renderer] OpenGL fallback window init failed: " +
+                log_.error("[Renderer] Renderer fallback window init failed: " +
                            rendererResult.error);
                 return false;
             case game::runtime::renderer_recovery::FailureStage::FallbackOpenGlInit:

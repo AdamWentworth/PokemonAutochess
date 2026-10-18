@@ -1,7 +1,7 @@
 param(
     [string]$BuildDir = "build",
     [string]$Config = "Release",
-    [string[]]$Backends = @("opengl", "d3d12"),
+    [string[]]$Backends = @(& (Join-Path $PSScriptRoot "Get-ProjectRenderers.ps1")),
     [string[]]$Resolutions = @("1280x720", "1600x900", "1920x1080"),
     [int]$DurationSeconds = 35,
     [int]$Seed = 12345,

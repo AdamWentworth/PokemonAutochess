@@ -4,6 +4,7 @@ param(
     [switch]$SkipCapture
 )
 $ErrorActionPreference = 'Stop'
+$policyReference = @(& (Join-Path $PSScriptRoot "../Get-ProjectRenderers.ps1"))[0]
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $taskCases = @('flat-arena-crowded','flat-arena-earthquake','flat-arena-overlap-control','flat-arena-overlap',
                'original-arena-crowded','original-arena-earthquake','original-arena-overlap-control','original-arena-overlap')
@@ -14,7 +15,7 @@ try {
     if (-not $taskReport.Passed) { throw 'Arena comparison parity failed.' }
     Import-Module ./tools/RenderParityImageDiff.psm1 -Force
     $taskEvidence = @()
-    foreach ($taskBackend in @('opengl','vulkan','d3d12')) {
+    foreach ($taskBackend in @(& (Join-Path $PSScriptRoot "../Get-ProjectRenderers.ps1"))) {
         foreach ($taskCase in $taskCases) {
             $taskLog = Join-Path $OutputDirectory "$taskCase/$taskBackend.stdout.log"
             if (-not (Select-String -LiteralPath $taskLog -SimpleMatch "[CaptureTimeline] backend=$taskBackend origin=gameplay frame=0")) {
@@ -43,7 +44,7 @@ try {
     # the effect pixel and the editor composited the scene a second time.
     Add-Type -AssemblyName System.Drawing
     $taskOpacityChecks = @()
-    foreach ($taskBackend in @('opengl','vulkan','d3d12')) {
+    foreach ($taskBackend in @(& (Join-Path $PSScriptRoot "../Get-ProjectRenderers.ps1"))) {
         $taskImagePath = [IO.Path]::GetFullPath((Join-Path $OutputDirectory "flat-arena-earthquake/$taskBackend.png"))
         $taskBitmap = [Drawing.Bitmap]::FromFile($taskImagePath)
         try {
@@ -59,7 +60,7 @@ try {
     foreach ($taskTerrain in @('flat','original')) {
         $taskRecipe = if ($taskTerrain -eq 'flat') { 'config/environment/route1_flat_experiment.authoring.json' }
                       else { 'config/environment/route1_south_entrance.authoring.json' }
-        foreach ($taskBackend in @('opengl','vulkan','d3d12')) {
+        foreach ($taskBackend in @(& (Join-Path $PSScriptRoot "../Get-ProjectRenderers.ps1"))) {
             $taskEditorPath = Join-Path $OutputDirectory "editor/$taskTerrain/$taskBackend"
             if (-not $SkipCapture) {
                 & ./tools/environment/preview_route1_pilot.ps1 -Recipe $taskRecipe -Phase earthquake -Play -Capture -Frame 164 -Backend $taskBackend -OutputDirectory $taskEditorPath
@@ -72,16 +73,16 @@ try {
                 throw "Editor comparison has the wrong backend, content or seed: $taskTerrain/$taskBackend"
             }
         }
-        foreach ($taskBackend in @('vulkan','d3d12')) {
-            $taskDiff = Compare-RenderParityImages -ReferencePath (Join-Path $OutputDirectory "editor/$taskTerrain/opengl/capture.png") -CandidatePath (Join-Path $OutputDirectory "editor/$taskTerrain/$taskBackend/capture.png")
+        foreach ($taskBackend in @(& (Join-Path $PSScriptRoot "../Get-ProjectRenderers.ps1") | Where-Object { $_ -ne $policyReference })) {
+            $taskDiff = Compare-RenderParityImages -ReferencePath (Join-Path $OutputDirectory "editor/$taskTerrain/$policyReference/capture.png") -CandidatePath (Join-Path $OutputDirectory "editor/$taskTerrain/$taskBackend/capture.png")
             $taskLimits = $taskReport.Thresholds
             $taskPassed = $taskDiff.MeanAbsoluteError -le $taskLimits.meanAbsoluteError -and
                           $taskDiff.RootMeanSquareError -le $taskLimits.rootMeanSquareError -and
                           $taskDiff.ChangedPixelRatio -le $taskLimits.changedPixelRatio
-            $taskEditorChecks += [pscustomobject]@{ terrain=$taskTerrain; pair="opengl-$taskBackend"; passed=$taskPassed; metrics=$taskDiff }
+            $taskEditorChecks += [pscustomobject]@{ terrain=$taskTerrain; pair="$policyReference-$taskBackend"; passed=$taskPassed; metrics=$taskDiff }
         }
     }
     $taskEditorChecks | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $OutputDirectory 'editor-parity.json')
     if (@($taskEditorChecks | Where-Object { -not $_.passed }).Count -gt 0) { throw 'Embedded editor comparison failed parity.' }
-    Write-Host 'Game and editor match on all three APIs, with visible effects against every matched control.'
+    Write-Host 'Game and editor match on all enrolled APIs, with visible effects against every matched control.'
 } finally { Pop-Location }

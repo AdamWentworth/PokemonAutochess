@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('d3d12', 'opengl', 'vulkan')][string]$Backend = 'opengl',
+    [ValidateSet('d3d12', 'vulkan')][string]$Backend = @(& (Join-Path $PSScriptRoot "../Get-ProjectRenderers.ps1"))[0],
     [string]$OutputDirectory = 'debug/arena-pilot',
     [string]$Snapshot = 'config/debug/editor_route1_pilot_planning.json',
     [int]$Frame = 200,

@@ -2,7 +2,7 @@ param(
     [string]$BuildDir = "build",
     [string]$Config = "Debug",
     [int]$AutoQuitSeconds = 2,
-    [string[]]$Backends = @("opengl", "vulkan", "d3d12"),
+    [string[]]$Backends = @(& (Join-Path $PSScriptRoot "Get-ProjectRenderers.ps1")),
     [AllowEmptyString()]
     [string]$OutputPath = "",
     [switch]$ReportOnly

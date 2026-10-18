@@ -101,3 +101,10 @@ project no longer loads the legacy tile-tools editor package.
 
 OpenGL, Vulkan and D3D12 must expose the same scene/scenario content, unit editing
 and scenery presentation. Follow the [renderer parity contract](RENDERER_PARITY_CONTRACT.md).
+
+## Renderer enrollment
+
+The ordered `rendering` lists in `phlosion.project.json` govern editor/runtime
+selection. Windows uses Vulkan, then D3D12; Linux targets Vulkan. OpenGL is
+shelved and excluded from both games even when the engine legacy build is enabled.
+Native Linux validation remains separate from Windows Vulkan qualification.

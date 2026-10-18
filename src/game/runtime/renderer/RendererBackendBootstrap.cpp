@@ -1,3 +1,5 @@
+#include "ProjectRendererPolicy.h"
+#include "engine/render/LegacyOpenGL.h"
 #include "game/runtime/renderer/RendererBackendBootstrap.h"
 
 #include <exception>
@@ -13,34 +15,17 @@ namespace game::runtime::backend_bootstrap {
 
 StartupBackendSelection selectStartupBackend(game::video::RendererBackend requestedBackend,
                                              std::string_view requestedBackendName) {
+    (void)requestedBackendName;
     StartupBackendSelection out;
-    if (!game::video::isRendererBackendImplemented(requestedBackend)) {
-        out.activeBackend = game::video::RendererBackend::OpenGL;
-        out.fallback = true;
-        out.fallbackReason =
-            std::string("requested backend '") + std::string(requestedBackendName) +
-            "' is not implemented; falling back to OpenGL.";
-        return out;
-    }
-
-    if (requestedBackend == game::video::RendererBackend::Auto) {
-#if defined(_WIN32)
-        out.activeBackend = game::video::RendererBackend::D3D12;
-#elif defined(__linux__)
-        out.activeBackend = game::video::RendererBackend::Vulkan;
-#else
-        out.activeBackend = game::video::RendererBackend::OpenGL;
-#endif
-        return out;
-    }
-
-    out.activeBackend = requestedBackend;
+    const auto candidates = engine::render::rendererCandidates(projectRendererPolicy(), game::video::rendererBackendName(requestedBackend));
+    out.activeBackend = game::video::parseRendererBackend(candidates.front());
     return out;
 }
 
 Window::GraphicsApi graphicsApiForBackend(game::video::RendererBackend backend) {
     switch (backend) {
     case game::video::RendererBackend::Auto:
+        return graphicsApiForBackend(selectStartupBackend(backend, "auto").activeBackend);
     case game::video::RendererBackend::OpenGL:
         return Window::GraphicsApi::OpenGL;
     case game::video::RendererBackend::D3D12:
@@ -53,9 +38,9 @@ Window::GraphicsApi graphicsApiForBackend(game::video::RendererBackend backend) 
 }
 
 std::string makeBackendInitFallbackReason(std::string_view activeBackendName,
-                                          std::string_view error) {
+                                          std::string_view error, std::string_view fallbackBackend) {
     return "backend '" + std::string(activeBackendName) + "' failed to initialize (" +
-        std::string(error) + "); falling back to OpenGL.";
+        std::string(error) + "); trying enrolled renderer " + std::string(fallbackBackend) + ".";
 }
 
 std::unique_ptr<IRenderBackend> createRenderBackend(game::video::RendererBackend backend,
@@ -66,12 +51,13 @@ std::unique_ptr<IRenderBackend> createRenderBackend(game::video::RendererBackend
                                                     const std::string& preferredAdapter,
                                                     std::string* outError) {
     try {
+        backend = selectStartupBackend(backend, game::video::rendererBackendName(backend)).activeBackend;
         const auto profile = engine::render::loadWorldMaterialProfile(
             engine::paths::data(""), "config/render/world_materials.json");
         switch (backend) {
         case game::video::RendererBackend::Auto:
         case game::video::RendererBackend::OpenGL:
-            return std::make_unique<OpenGLRenderBackend>(profile);
+            return engine::render::createLegacyOpenGLBackend(profile);
         case game::video::RendererBackend::D3D12:
             return std::make_unique<D3D12RenderBackend>(
                 sdlWindow,

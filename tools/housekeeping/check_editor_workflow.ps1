@@ -6,6 +6,7 @@ param(
     [switch]$SkipCapture
 )
 $ErrorActionPreference = 'Stop'
+$policyReference = @(& (Join-Path $PSScriptRoot "../Get-ProjectRenderers.ps1"))[0]
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $taskEngine = [IO.Path]::GetFullPath((Join-Path $taskRoot '../../Phlosion/PhlosionEngine'))
 $taskEditor = Join-Path $taskEngine "build/$Configuration/PhlosionEditor.exe"
@@ -42,7 +43,7 @@ try {
     foreach ($taskCase in $taskRuns) {
         $taskCaseOutput = Join-Path $taskOutput $taskCase.name
         $taskContent = @()
-        foreach ($taskBackend in @('opengl', 'vulkan', 'd3d12')) {
+        foreach ($taskBackend in @(& (Join-Path $PSScriptRoot "../Get-ProjectRenderers.ps1"))) {
             $taskCaptureFrame = if ($taskCase.captureFrame) { [int]$taskCase.captureFrame } else { 164 }
             $taskRunOutput = Join-Path $taskCaseOutput $taskBackend
             $taskState = Join-Path $taskRunOutput 'state'
@@ -156,13 +157,13 @@ try {
             $taskContent += [pscustomobject]@{ backend=$taskBackend; unitCount=$taskUnits.Count; passed=$taskHistoryPassed;
                 imageGuard=$taskGuard; featureGuards=$taskFeatureGuards; sceneSwitches=$taskSwitchLines; sceneHistoryDiff=$taskHistoryDiff }
         }
-        $taskPairs = foreach ($taskBackend in @('vulkan', 'd3d12')) {
-            $taskDiff = Compare-RenderParityImages -ReferencePath (Join-Path $taskCaseOutput 'opengl/capture.png') `
+        $taskPairs = foreach ($taskBackend in @(& (Join-Path $PSScriptRoot "../Get-ProjectRenderers.ps1") | Where-Object { $_ -ne $policyReference })) {
+            $taskDiff = Compare-RenderParityImages -ReferencePath (Join-Path $taskCaseOutput "$policyReference/capture.png") `
                 -CandidatePath (Join-Path $taskCaseOutput "$taskBackend/capture.png") -PixelChannelTolerance $taskImageLimits.pixelChannelTolerance
             $taskPassed = $taskDiff.MeanAbsoluteError -le $taskImageLimits.meanAbsoluteError -and
                 $taskDiff.RootMeanSquareError -le $taskImageLimits.rootMeanSquareError -and
                 $taskDiff.ChangedPixelRatio -le $taskImageLimits.changedPixelRatio
-            [pscustomobject]@{ pair="opengl-$taskBackend"; passed=$taskPassed; metrics=$taskDiff }
+            [pscustomobject]@{ pair="$policyReference-$taskBackend"; passed=$taskPassed; metrics=$taskDiff }
         }
         $taskPassed = @($taskPairs | Where-Object { -not $_.passed }).Count -eq 0 -and
             @($taskContent | Where-Object { -not $_.passed }).Count -eq 0

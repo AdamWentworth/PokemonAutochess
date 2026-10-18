@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 class IRenderBackend;
 
@@ -19,19 +20,20 @@ enum class FailureStage {
 };
 
 struct Inputs {
-    game::video::RendererBackend activeBackend = game::video::RendererBackend::OpenGL;
-    std::string activeBackendName = "opengl";
+    game::video::RendererBackend activeBackend = game::video::RendererBackend::Auto;
+    std::string activeBackendName = "auto";
+    std::vector<game::video::RendererBackend> fallbackBackends;
 };
 
-struct OpenGlWindowResult {
+struct FallbackWindowResult {
     bool success = false;
     std::string error;
 };
 
 struct Result {
     std::unique_ptr<IRenderBackend> renderer;
-    game::video::RendererBackend activeBackend = game::video::RendererBackend::OpenGL;
-    std::string activeBackendName = "opengl";
+    game::video::RendererBackend activeBackend = game::video::RendererBackend::Auto;
+    std::string activeBackendName = "auto";
     bool rendererBackendFallback = false;
     std::string rendererBackendFallbackReason;
     FailureStage failureStage = FailureStage::None;
@@ -39,13 +41,13 @@ struct Result {
 };
 
 using BackendCreator = std::function<std::unique_ptr<IRenderBackend>(game::video::RendererBackend, std::string*)>;
-using OpenGlWindowReinitializer = std::function<OpenGlWindowResult()>;
+using FallbackWindowReinitializer = std::function<FallbackWindowResult(game::video::RendererBackend)>;
 using OpenGlContextInitializer = std::function<bool(std::string*)>;
 using WindowStateSync = std::function<void()>;
 
-Result createWithOpenGlFallback(const Inputs& inputs,
+Result createWithFallbacks(const Inputs& inputs,
                                 const BackendCreator& createBackend,
-                                const OpenGlWindowReinitializer& reopenOpenGlWindow,
+                                const FallbackWindowReinitializer& reopenWindow,
                                 const OpenGlContextInitializer& initializeOpenGlContext,
                                 const WindowStateSync& syncWindowState);
 

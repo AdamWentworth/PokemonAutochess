@@ -3,7 +3,7 @@ param(
     [string]$OutputDirectory = 'debug/native-character-materials',
     [string]$Profile = 'config/render/world_materials.json',
     [string]$Configuration = 'Release',
-    [string[]]$Backends = @('opengl', 'vulkan', 'd3d12'),
+    [string[]]$Backends = @(& (Join-Path $PSScriptRoot "Get-ProjectRenderers.ps1")),
     [switch]$SkipCapture
 )
 $ErrorActionPreference = 'Stop'

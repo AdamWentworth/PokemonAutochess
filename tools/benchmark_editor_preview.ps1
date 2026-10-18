@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidateSet('Debug','Release','RelWithDebInfo')][string[]]$Configurations = @('RelWithDebInfo'),
-    [ValidateSet('opengl','vulkan','d3d12')][string[]]$Backends = @('opengl','vulkan','d3d12'),
+    [ValidateSet('vulkan','d3d12')][string[]]$Backends = @(& (Join-Path $PSScriptRoot "Get-ProjectRenderers.ps1")),
     [string]$SceneId = 'routes/route1-flat-experiment',
     [string]$Scenario = 'route1-flat-experiment-crowded',
     [switch]$Play,

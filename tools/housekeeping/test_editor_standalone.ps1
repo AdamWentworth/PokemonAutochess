@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidateSet('RelWithDebInfo','Release','Debug')][string]$Configuration = 'RelWithDebInfo',
-    [ValidateSet('opengl','vulkan','d3d12')][string]$Backend = 'd3d12',
+    [ValidateSet('vulkan','d3d12')][string]$Backend = 'd3d12',
     [string]$OutputDirectory = 'debug/editor-standalone'
 )
 $ErrorActionPreference = 'Stop'

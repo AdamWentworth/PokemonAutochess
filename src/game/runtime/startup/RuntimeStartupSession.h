@@ -12,8 +12,8 @@ namespace game::runtime::startup_session {
 
 struct PreparedSession {
     game::video::RendererBackend requestedBackend = game::video::RendererBackend::Auto;
-    game::video::RendererBackend activeBackend = game::video::RendererBackend::OpenGL;
-    std::string requestedBackendName = "opengl";
+    game::video::RendererBackend activeBackend = game::video::RendererBackend::Auto;
+    std::string requestedBackendName = "auto";
     std::string bootMenuScreen;
     bool rendererBackendFallback = false;
     std::string rendererBackendFallbackReason;

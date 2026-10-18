@@ -6,11 +6,12 @@ param(
     [string]$EngineRoot = '',
     [string]$EditorBuildDirectory = 'build',
     [string]$BaselineDirectory = '',
-    [string[]]$Backends = @('opengl', 'vulkan', 'd3d12'),
+    [string[]]$Backends = @(& (Join-Path $PSScriptRoot "Get-ProjectRenderers.ps1")),
     [string[]]$Cases = @(),
     [switch]$SkipCapture
 )
 $ErrorActionPreference = 'Stop'
+$policyReference = @(& (Join-Path $PSScriptRoot "Get-ProjectRenderers.ps1"))[0]
 $taskRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $taskEngine = if ($EngineRoot) { [IO.Path]::GetFullPath($EngineRoot) } else { [IO.Path]::GetFullPath((Join-Path $taskRoot '../../Phlosion/PhlosionEngine')) }
 $taskEditor = Join-Path $taskEngine "$EditorBuildDirectory/$Configuration/PhlosionEditor.exe"
@@ -20,8 +21,8 @@ $taskMatrix = Get-Content (Join-Path $taskRoot 'config/render/character_material
 $taskLimits = (Get-Content (Join-Path $taskRoot 'config/render_parity_scene_matrix.json') -Raw | ConvertFrom-Json).thresholds
 $taskRuns = @($taskMatrix.cases | Where-Object { -not $Cases.Count -or $_.name -in $Cases })
 if (-not $taskRuns.Count -or @($Cases | Where-Object { $_ -notin $taskMatrix.cases.name }).Count) { throw 'Unknown character-material case.' }
-if ($Backends -notcontains 'opengl' -or $Backends.Count -lt 2 -or @($Backends | Where-Object { $_ -notin @('opengl', 'vulkan', 'd3d12') }).Count) {
-    throw 'Choose OpenGL and at least one supported comparison backend.'
+if ($Backends -notcontains $policyReference -or $Backends.Count -lt 2 -or @($Backends | Where-Object { $_ -notin @(& (Join-Path $PSScriptRoot "Get-ProjectRenderers.ps1")) }).Count) {
+    throw 'Choose the project reference and at least one enrolled comparison backend.'
 }
 Import-Module (Join-Path $taskRoot 'tools/RenderParityImageDiff.psm1') -Force
 Import-Module (Join-Path $taskRoot 'tools/RenderParityContentGuard.psm1') -Force
@@ -86,8 +87,8 @@ try {
             }
         }
         $taskPairs = @()
-        foreach ($taskBackend in @($Backends | Where-Object { $_ -ne 'opengl' })) {
-            $taskDiff = Compare-RenderParityImages -ReferencePath (Join-Path $taskCaseOutput 'opengl/model.png') `
+        foreach ($taskBackend in @($Backends | Where-Object { $_ -ne $policyReference })) {
+            $taskDiff = Compare-RenderParityImages -ReferencePath (Join-Path $taskCaseOutput "$policyReference/model.png") `
                 -CandidatePath (Join-Path $taskCaseOutput "$taskBackend/model.png") -PixelChannelTolerance $taskLimits.pixelChannelTolerance `
                 -HeatmapScale $taskLimits.heatmapScale -HeatmapPath (Join-Path $taskCaseOutput "$taskBackend/difference.png")
             $taskPassed = $taskDiff.MeanAbsoluteError -le $taskLimits.meanAbsoluteError -and

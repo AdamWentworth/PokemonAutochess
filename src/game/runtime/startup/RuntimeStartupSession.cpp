@@ -36,6 +36,12 @@ PreparedSession prepare(const std::string& prefsPath,
                  "(Render API) are ignored until PAC_RENDER_BACKEND is unset.");
     }
 
+    if (!resolvedRendererPref.overriddenByEnv && mutablePrefs.rendererBackend != resolvedRendererPref.requestedBackendName) {
+        log.info("[Renderer] Saved preference is no longer enrolled; migrating to project Auto.");
+        mutablePrefs.rendererBackend = resolvedRendererPref.requestedBackendName;
+        std::string error;
+        if (!game::video::savePreferences(mutablePrefs, prefsPath, &error)) log.error(error);
+    }
     out.requestedBackend = resolvedRendererPref.requestedBackend;
     out.requestedBackendName = resolvedRendererPref.requestedBackendName;
     out.vsyncEnabled = mutablePrefs.vsync;

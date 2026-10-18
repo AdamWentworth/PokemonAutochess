@@ -19,7 +19,7 @@ class WindowPresentationController;
 
 namespace game::runtime::runner_renderer_bootstrap {
 
-game::runtime::renderer_recovery::Result createWithOpenGlFallback(
+game::runtime::renderer_recovery::Result createWithFallbacks(
     game::video::RendererBackend activeBackend,
     const std::string &activeBackendName,
     GameRuntimeServices &services,

@@ -45,7 +45,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # ---------------- Dependencies ----------------
 find_package(SDL2 CONFIG REQUIRED)
 find_package(SDL2_ttf CONFIG REQUIRED)
-find_package(OpenGL REQUIRED)
+
 find_package(glad CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(lua CONFIG REQUIRED)
@@ -649,6 +649,8 @@ add_library(PAC_GameObjects STATIC
     src/game/systems/ShopSystem.cpp
 )
 add_dependencies(PAC_GameObjects PAC_WorldMaterialShaders)
+include("${_pac_resolved_engine_source_dir}/cmake/ProjectRenderers.cmake")
+phlosion_project_renderers(PAC_GameObjects "${CMAKE_CURRENT_SOURCE_DIR}/phlosion.project.json")
 target_link_libraries(PAC_GameObjects PUBLIC PAC_ArenaLogic Phlosion::Models PokemonModels::Runtime)
 target_link_libraries(PAC_GameObjects
     PUBLIC
@@ -1132,7 +1134,6 @@ if (BUILD_TESTING)
             PAC_VfxLabSupport
             engine_core
             glad::glad
-            OpenGL::GL
     )
 
     # Tests include both /src and /tests
@@ -1702,14 +1703,6 @@ if (BUILD_TESTING)
     endif()
 
     if (PAC_ENABLE_RUNTIME_SMOKE_TESTS)
-        add_test(NAME PAC_RuntimeSmoke.opengl COMMAND PokemonAutochess)
-        set_tests_properties(PAC_RuntimeSmoke.opengl PROPERTIES
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            TIMEOUT 45
-            ENVIRONMENT
-                "PHLOSION_DATA_ROOT=${CMAKE_SOURCE_DIR};PHLOSION_ASSET_ROOT=${CMAKE_SOURCE_DIR}/assets;PAC_RENDER_BACKEND=opengl;PAC_AUTO_QUIT_SECONDS=2;PAC_DISABLE_MODELCACHE=1"
-        )
-
         add_test(NAME PAC_RuntimeSmoke.vulkan COMMAND PokemonAutochess)
         set_tests_properties(PAC_RuntimeSmoke.vulkan PROPERTIES
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}

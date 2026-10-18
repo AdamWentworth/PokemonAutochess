@@ -3,7 +3,7 @@ param(
     [string]$Config = "Debug",
     [string]$OutputDir = "debug/runtime_visual_smoke",
     [string]$SnapshotPath = "config/debug/debug_state_snapshot_tail_fire_starter_line.json",
-    [string[]]$Backends = @("opengl", "vulkan", "d3d12"),
+    [string[]]$Backends = @(& (Join-Path $PSScriptRoot "Get-ProjectRenderers.ps1")),
     [string[]]$SupportedResolutions = @("960x540", "1280x720"),
     [int]$ScreenshotFrame = 120,
     [double]$FixedFrameDtSeconds = (1.0 / 60.0),

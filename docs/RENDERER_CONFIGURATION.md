@@ -2,11 +2,11 @@
 
 Status: Active
 Type: Reference
-Last updated: 2026-09-19
+Last updated: 2026-10-18
 
 ## Purpose
 
-This is the preferred runtime and profiling configuration for the three active
+This is the preferred runtime and profiling configuration for the project-enrolled
 renderers. Performance modes must preserve the shared material contract:
 base-color and authored PBR textures, material colors, transparency, tail fire,
 and character outlines remain visual requirements rather than optional
@@ -18,7 +18,7 @@ benchmark work.
 | --- | --- | --- |
 | Vulkan | Preferred on a capable adapter when it initializes cleanly | Leave Vulkan feature-test variables unset. Descriptor-indexed indirect world submission is selected automatically when supported, with a direct fallback otherwise. |
 | D3D12 | Native Windows alternative | Use the default world-scene/GPU-skinning path. Character outline extrusion remains shader-driven. |
-| OpenGL | Broad compatibility and graphics-debug fallback | Use the default shared indexed path and GPU clip skinning. Character outline extrusion remains shader-driven. |
+| OpenGL | Shelved, not enrolled | Engine source retained behind `PHLOSION_ENABLE_OPENGL=ON`; not a game fallback or release gate. |
 
 For normal play:
 
@@ -36,7 +36,11 @@ For normal play:
 
 The July 22 dense-roster Release capture on the local GTX 1070 favored Vulkan,
 but backend choice should still be validated on the shipping hardware set.
-Vulkan initialization failure continues to use the normal OpenGL recovery path.
+Auto follows the ordered `rendering` lists in `phlosion.project.json`: Vulkan,
+then D3D12 on Windows; Vulkan on Linux. Renderer initialization recovery only
+tries enrolled backends. Explicit `PAC_RENDER_BACKEND` requests fail rather than
+fall back. Retired saved preferences migrate to Auto. Linux enrollment still
+requires separate native Linux qualification.
 
 ## Benchmark Configuration
 
@@ -47,7 +51,7 @@ For an inked dense-roster comparison:
 ```powershell
 .\tools\benchmark_render_matrix.ps1 `
   -BuildDir build -Config Release -NoBuild `
-  -Backends opengl,vulkan,d3d12 -Resolutions 1280x720 `
+  -Backends vulkan,d3d12 -Resolutions 1280x720 `
   -DurationSeconds 12 -WarmupSamples 3 -MinScoredSamples 6 `
   -SnapshotPath config/debug/debug_state_snapshot_perf_dense_roster.json `
   -AutoLoadSnapshot -PinSnapshotState `
@@ -90,5 +94,5 @@ should still be inspected directly for art quality when framing, lighting, or
 material appearance changes.
 
 Use `tools/renderer_qualification.ps1` for the complete local GPU gate. Its
-aggregate report ties the native three-backend result and forced Vulkan direct
+aggregate report ties the native enrolled-backend result and forced Vulkan direct
 compatibility result to the machine's recorded adapter and driver.

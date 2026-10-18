@@ -20,7 +20,7 @@ enum class GraphicsQuality {
 };
 
 struct Preferences {
-    std::string rendererBackend = "opengl";
+    std::string rendererBackend = "auto";
     bool vsync = false;
     int fpsCap = 0;
     int graphicsQuality = static_cast<int>(GraphicsQuality::Ultra);

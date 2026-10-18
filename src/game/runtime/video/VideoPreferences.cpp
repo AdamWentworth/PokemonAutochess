@@ -1,3 +1,4 @@
+#include "ProjectRendererPolicy.h"
 #include "game/runtime/video/VideoPreferences.h"
 
 #include <algorithm>
@@ -126,17 +127,9 @@ const char* graphicsQualityName(GraphicsQuality quality) {
 }
 
 bool isRendererBackendImplemented(RendererBackend backend) {
-    if (backend == RendererBackend::Auto ||
-        backend == RendererBackend::OpenGL ||
-        backend == RendererBackend::Vulkan) {
-        return true;
-    }
-#if defined(_WIN32)
-    if (backend == RendererBackend::D3D12) {
-        return true;
-    }
-#endif
-    return false;
+    if (backend == RendererBackend::Auto) return !engine::render::availableRenderers(projectRendererPolicy()).empty();
+    const auto allowed = engine::render::availableRenderers(projectRendererPolicy());
+    return std::find(allowed.begin(), allowed.end(), rendererBackendName(backend)) != allowed.end();
 }
 
 int sanitizeGraphicsQuality(int quality) {

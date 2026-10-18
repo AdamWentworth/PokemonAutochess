@@ -6,8 +6,8 @@ param(
     [string]$SceneFocus = "ad-hoc renderer comparison",
     [AllowEmptyString()]
     [string]$SnapshotPath = "config/debug/debug_state_snapshot_tail_fire_starter_line.json",
-    [string[]]$Backends = @("opengl", "vulkan", "d3d12"),
-    [string]$ReferenceBackend = "opengl",
+    [string[]]$Backends = @(& (Join-Path $PSScriptRoot "Get-ProjectRenderers.ps1")),
+    [string]$ReferenceBackend = (@(& (Join-Path $PSScriptRoot "Get-ProjectRenderers.ps1")))[0],
     [int]$Width = 1280,
     [int]$Height = 720,
     [int]$ScreenshotFrame = 120,

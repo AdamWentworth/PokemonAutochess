@@ -1,3 +1,4 @@
+#include <stdexcept>
 #include "game/runtime/startup/RuntimeStartupConfig.h"
 
 #include <algorithm>
@@ -74,6 +75,14 @@ ResolvedRendererPreference resolveRendererPreference(
         out.overriddenByEnv = true;
     }
     out.requestedBackend = game::video::parseRendererBackend(out.backendToken);
+    if (out.overriddenByEnv && (!game::video::isKnownRendererBackendToken(out.backendToken) ||
+        !game::video::isRendererBackendImplemented(out.requestedBackend))) {
+        throw std::runtime_error("PAC_RENDER_BACKEND '" + out.backendToken + "' is not enrolled for this project/platform or is disabled in this build");
+    }
+    if (!out.overriddenByEnv && !game::video::isRendererBackendImplemented(out.requestedBackend)) {
+        out.requestedBackend = game::video::RendererBackend::Auto;
+        out.backendToken = "auto";
+    }
     out.requestedBackendName = game::video::rendererBackendName(out.requestedBackend);
     return out;
 }

@@ -285,7 +285,7 @@ bool test_script_api_contract(std::string& outFail) {
 #if defined(_WIN32)
     const std::string rendererBackendPref = "d3d12";
 #else
-    const std::string rendererBackendPref = "opengl";
+    const std::string rendererBackendPref = "vulkan";
 #endif
     if (!expect(api.setRendererBackendPreference(rendererBackendPref),
                 "setRendererBackendPreference should succeed for an implemented backend.", outFail)) return false;

@@ -1,5 +1,22 @@
 # Test Plan
 
+Renderer policy update (2026-10-18): use the ordered enrollment in
+`phlosion.project.json` for every current matrix. OpenGL is shelved; Windows
+qualifies Vulkan and D3D12, while Linux targets Vulkan pending native validation.
+Older three-API capture counts below describe historical evidence, not a current
+requirement to run OpenGL. Image thresholds and content guards still apply.
+
+The Windows enrollment pass built runtime, tests and editor plugin with OpenGL
+disabled. Ten affected CPU contracts passed, including saved-preference migration
+and allowed/explicit renderer recovery. Four runtime captures (two material
+cohorts) and 34 editor captures (17 cases) passed on Vulkan and D3D12 with the
+existing expected-content and image guards. Explicit `PAC_RENDER_BACKEND=opengl`
+exited cleanly with the enrollment error. Local evidence is under
+`artifacts/renderer-policy/runtime/matrix-report.json` and
+`artifacts/renderer-policy/editor/report.json`; build/test logs are in the engine's
+`artifacts/renderer-policy`. This is targeted enrollment verification, not the
+complete gameplay/performance qualification suite.
+
 Status: Active
 Type: Runbook
 Last updated: 2026-09-20
@@ -34,7 +51,7 @@ CMake separates asset-independent contracts from private-content contracts:
 Hosted CI runs the source scope only. A green hosted run means the
 asset-independent C++ contracts, tooling contracts, docs hygiene, data
 validation and formatting passed; it never claims the private-content suite or
-the three-API GPU qualification. The [CI runbook](CI.md) records the current
+the project-enrolled GPU qualification. The [CI runbook](CI.md) records the current
 job split and the local supplements.
 
 ## Required Local Validation
@@ -43,7 +60,7 @@ Authored regular/shiny model promotion also follows the
 `PAC_Tools.kanto_model_promotions_contract` tests catalog identity and paired
 promotion rejection cases; `PAC_Tools.kanto_model_promotions` checks the private
 published inventory. Surface changes require editor and native game captures
-on all three APIs. Include both review lighting presets, bird flight and
+on all enrolled APIs. Include both review lighting presets, bird flight and
 material-specific expected content; Beedrill's wings must remain pale rather
 than passing on the body alone.
 
@@ -264,7 +281,7 @@ $env:PAC_ENABLE_RUNTIME_VISUAL_SMOKE_TESTS = "1"
 This is the stricter renderer-parity check. Its manifest-driven scene matrix
 covers static PBR/environment rendering, transparent native animated fire, Route 1
 combat presentation, travel recall/throw/send-out, and the startup UI. Run the
-affected cases on all three APIs for a visual change. Every capture uses the same fixed
+affected cases on all enrolled APIs for a visual change. Every capture uses the same fixed
 frame delta, gameplay frame origin after loading, and random seed across
 `OpenGL`, `Vulkan`, and `D3D12`, then compares
 each backend to the OpenGL reference without relaxing the established image
@@ -347,7 +364,7 @@ Scene views, stopped Pokemon placement, a running grass test and Oak's Lab:
 Cases live in `config/editor/workflow_capture_matrix.json`. The runner uses the
 standard image thresholds and checks expected editor catalogs, read-only board
 information, absence of scenery handles, and retained gameplay unit controls on
-all three APIs. Use `-Cases entrance-scene,flat-unit-setup` for focused checks or
+all enrolled APIs. Use `-Cases entrance-scene,flat-unit-setup` for focused checks or
 `-SkipCapture` to evaluate an existing capture set.
 
 Normal round completion has a separate fixture from the replayable Travel Test.
@@ -421,7 +438,7 @@ all card crops at multiple frame sizes without stretching. Native image cases
 check Bulbasaur and bench Rattata portraits, including compact rendering.
 Qualification is recorded in `debug/tcg-art/{native-final,editor-final}`. Artwork
 changes also require `hud-shop-compact`, `hud-starter-wide` and the editor's
-`hud-starter-cards` on all three APIs. TCG portrait content guards must reject
+`hud-starter-cards` on all enrolled APIs. TCG portrait content guards must reject
 blank and stale HOME portrait content; frame-fill and type-icon checks remain.
 
 Also check the editor while stopped: layout-edit shortcut banners must not paint
