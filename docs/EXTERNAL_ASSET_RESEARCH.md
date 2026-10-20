@@ -8,7 +8,7 @@ Pokemon Autochess consumes source-neutral, versioned Phlosion model and
 environment packages. Source-game extraction, reverse engineering, shader
 analysis, import recipes, evidence reports, and source-specific qualification
 programs are owned by the private companion workspace at
-`D:/Projects/Research/PokemonSwitchAssetResearch`.
+`D:/Projects/Research/Pokemon/PokemonSwitchAssetResearch`.
 
 The baseline extracted with this boundary is companion commit
 `f292c57e29d18d28a43d63ebb0ae031e13074117`. Later package publications should
@@ -86,7 +86,7 @@ game runtime without returning their sources to this repository:
 ```powershell
 cmake -S . -B build-research `
   -DPAC_BUILD_EXTERNAL_ENVIRONMENT_TOOLS=ON `
-  -DPAC_ENVIRONMENT_TOOL_ROOT=D:/Projects/Research/PokemonSwitchAssetResearch
+  -DPAC_ENVIRONMENT_TOOL_ROOT=D:/Projects/Research/Pokemon/PokemonSwitchAssetResearch
 cmake --build build-research --config Debug `
   --target PAC_EnvironmentInspect PAC_EnvironmentQualification
 ```

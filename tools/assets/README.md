@@ -90,7 +90,7 @@ reference is shared.
 
 Source-game import recipes, extraction orchestration, visual audits, gender and
 form policy, and material research are maintained in the private companion
-workspace at `D:/Projects/Research/PokemonSwitchAssetResearch`. They are not
+workspace at `D:/Projects/Research/Pokemon/PokemonSwitchAssetResearch`. They are not
 part of the game repository or its CI contract.
 
 Pokemon Autochess owns only the published package declarations:
