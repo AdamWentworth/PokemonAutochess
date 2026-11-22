@@ -223,10 +223,12 @@ function Invoke-RuntimeCapture {
             -RedirectStandardError $stderrPath `
             -PassThru
 
+        $null = $process.Handle
         if (-not $process.WaitForExit($WaitTimeoutSeconds * 1000)) {
             Stop-Process -Id $process.Id -Force
             throw "Runtime visual smoke for backend '$Backend' timed out before screenshot capture."
         }
+        $process.WaitForExit()
         # A crash or an asset-integrity abort can still write a screenshot, so
         # the process exit code is part of the smoke result.
         if ($process.ExitCode -ne 0) {
