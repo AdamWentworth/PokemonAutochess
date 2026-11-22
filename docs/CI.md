@@ -46,11 +46,14 @@ would report those documentation paths as missing references.
 Runs on `master` pushes, manual runs, and same-repository pull requests that are
 not Dependabot:
 
-1. Check out the repository and the immutable PokemonModelSupport revision
-   (`persist-credentials: false` for both). Only this trusted job receives
-   `POKEMON_MODEL_SUPPORT_DEPLOY_KEY`, a read-only deploy key scoped to that
-   private repository. Configure uses `.ci-deps/PokemonModelSupport` explicitly.
-   VFX is provided by PhlosionEngine; there is no separate VFX checkout.
+1. Check out the game, engine, and model adapter in the standard workspace
+   layout. The game is at `Games/PokemonAutochess` and both pinned dependencies
+   are under `Phlosion`. The model and render contract scripts resolve those
+   sibling paths. Configure opens the same dependency files through a junction
+   under the runner's temporary directory so the engine boundary check sees a
+   neutral parent path. All checkouts disable persisted credentials. Only this trusted
+   job receives `POKEMON_MODEL_SUPPORT_DEPLOY_KEY`, a read-only key for the
+   model adapter. The engine provides VFX.
 2. Restore the vcpkg binary cache and install the pinned vcpkg executable.
 3. Configure the standalone graph:
    `-DPAC_ENABLE_PRIVATE_ASSET_TESTS=OFF -DPAC_BUILD_EDITOR=OFF -DBUILD_TESTING=ON`.

@@ -117,7 +117,8 @@ def publish(game_root, recipe_path, export, blend, cook, depot=None, checkpoint=
                     source_root.relative_to(depot)
                     source_hash = report['source_blend_sha256']
                     if sha(blend) != source_hash: raise ValueError('Blender source changed during publication')
-                    source_revision = revision+'-'+source_hash
+                    # Hash both identities into one directory name to keep Windows backup paths short.
+                    source_revision = hashlib.sha256((revision + source_hash).encode('ascii')).hexdigest()
                     backup = source_root/'revisions'/source_revision
                     atomic_copy(blend, backup/'source.blend')
                     if sha(backup/'source.blend') != source_hash:

@@ -20,9 +20,10 @@ $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $workflowPath = Join-Path $repoRoot ".github\workflows\ci.yml"
 $manifestPath = Join-Path $repoRoot "vcpkg.json"
 $ctestRunnerPath = Join-Path $repoRoot "tools\run_ctest_ci.ps1"
-$modelPin = [regex]::Match((Get-Content (Join-Path $repoRoot 'CMakeLists.txt') -Raw),
-    'set\(\s*POKEMON_MODEL_SUPPORT_GIT_TAG\s+"([0-9a-f]{40})"').Groups[1].Value
-if (-not $modelPin) { throw 'The model adapter needs an immutable CMake pin.' }
+$cmake = Get-Content -LiteralPath (Join-Path $repoRoot 'CMakeLists.txt') -Raw
+$enginePin = [regex]::Match($cmake, 'set\(\s*PHLOSION_ENGINE_GIT_TAG\s+"([0-9a-f]{40})"').Groups[1].Value
+$modelPin = [regex]::Match($cmake, 'set\(\s*POKEMON_MODEL_SUPPORT_GIT_TAG\s+"([0-9a-f]{40})"').Groups[1].Value
+if (-not $enginePin -or -not $modelPin) { throw 'Both source dependencies need immutable CMake pins.' }
 
 $checks = 0
 
@@ -150,8 +151,19 @@ function Assert-CiWorkflowContract {
                 ("Every checkout step must set persist-credentials: false (job '{0}': {1})" -f $name, $step)
         }
     }
-    Assert-True ($checkoutSteps -ge 3) `
-        "CI must check out both the repository and the pinned private dependency."
+    Assert-True ($checkoutSteps -ge 4) `
+        "CI must check out the game, engine, and pinned private model adapter."
+    $engineSteps = @(Get-YamlStepBlocks -JobBlock $trustedBlock |
+        Where-Object { $_ -match 'repository:\s*AdamWentworth/PhlosionEngine' })
+    Assert-True ($engineSteps.Count -eq 1) 'The trusted build must check out the engine exactly once.'
+    Assert-Match $engineSteps[0] ("(?m)^\s+ref:\s*" + $enginePin + "\s*$") `
+        'The engine checkout must match the immutable CMake pin.'
+    Assert-Match $engineSteps[0] '(?m)^\s+path:\s*Phlosion/PhlosionEngine\s*$' `
+        'Engine checkout must use the standard sibling layout.'
+    Assert-Match $trustedBlock '(?m)^\s+working-directory:\s*Games/PokemonAutochess\s*$' `
+        'The trusted job must run from the standard game checkout.'
+    Assert-Match $trustedBlock '-DPHLOSION_ENGINE_SOURCE_DIR=' `
+        'Configure must consume the checked-out engine.'
     $modelSteps = @(Get-YamlStepBlocks -JobBlock $trustedBlock |
         Where-Object { $_ -match 'repository:\s*AdamWentworth/PokemonModelSupport' })
     Assert-True ($modelSteps.Count -eq 1) 'The trusted build must check out the model adapter exactly once.'
@@ -159,6 +171,8 @@ function Assert-CiWorkflowContract {
         'The model adapter checkout must match the immutable CMake pin.'
     Assert-Match $modelSteps[0] 'ssh-key:\s*\$\{\{\s*secrets\.POKEMON_MODEL_SUPPORT_DEPLOY_KEY\s*\}\}' `
         'The private model adapter must use its dedicated read-only deploy key.'
+    Assert-Match $modelSteps[0] '(?m)^\s+path:\s*Phlosion/PokemonModelSupport\s*$' `
+        'The model adapter checkout must be next to the engine.'
     Assert-Match $Workflow '-DPOKEMON_MODEL_SUPPORT_SOURCE_DIR=' `
         'Configure must consume the checked-out private adapter.'
 
@@ -279,6 +293,12 @@ Assert-CiWorkflowContract -Workflow $workflow -Manifest $manifest -CtestRunner $
 Write-Host "[CiWorkflowContractTest] real workflow satisfies the trust, pin, scope and evidence contract"
 
 # ---------------- The checks must reject deliberate regressions ----------------
+Assert-CiWorkflowRejected -Name "engine checkout diverges from CMake" `
+    -Workflow (New-MutatedWorkflow -Source $workflow -Old ("ref: " + $enginePin) -New ("ref: " + ('0' * 40)) -Name "engine pin drift") `
+    -CtestRunner $ctestRunner -Manifest $manifest -Pattern "engine checkout must match"
+Assert-CiWorkflowRejected -Name "model checkout uses a different layout" `
+    -Workflow (New-MutatedWorkflow -Source $workflow -Old "path: Phlosion/PokemonModelSupport" -New "path: .ci-deps/PokemonModelSupport" -Name "model layout drift") `
+    -CtestRunner $ctestRunner -Manifest $manifest -Pattern "model adapter checkout must be next to the engine"
 $jobIfMatch = [regex]::Match($workflow, '(?m)^    if:[^\n]*')
 Assert-True ($jobIfMatch.Success) "The fixture must be able to locate the job-level trust gate."
 $jobIfLine = $jobIfMatch.Value

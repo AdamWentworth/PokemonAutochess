@@ -199,7 +199,7 @@ set(PHLOSION_ENGINE_GIT_REPOSITORY
     CACHE STRING
     "Phlosion Engine Git repository")
 set(PHLOSION_ENGINE_GIT_TAG
-    "f932372a9a4e924cab7bd6dd409ae2d60fa31a4b"
+    "922af59a8711a145be2993c09aacead99fd2e497"
     CACHE STRING
     "Pinned Phlosion Engine commit")
 
@@ -282,7 +282,7 @@ if (PAC_BUILD_EDITOR AND PAC_BUILD_TILE_TOOLS)
         "git@github.com:AdamWentworth/PhlosionPackages.git"
         CACHE STRING "Phlosion Packages Git repository (private; requires access)")
     set(PHLOSION_PACKAGES_GIT_TAG
-    "9423d58a1a7c9a8a8331f546449b2cd0f787fb47"
+    "bfab090b2797bcefc2844ff1c00126f7398452f8"
         CACHE STRING "Pinned Phlosion Packages commit")
     set(_pac_sibling_packages "")
     if (PHLOSION_DEV_ROOT)
